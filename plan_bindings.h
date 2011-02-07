@@ -19,141 +19,7 @@ class Term;
 class Atom;
 class Type;
 class Bindings;
-class BindingsFacade;
 class BindingsPropagator;
-
-
-/**
- * A binding is a assignment of a term to a variable. The binding can either be made to
- * make them equal or unequal to one another.
- */
-class Binding
-{
-public:
-	Binding(StepID variable_step_id, const Variable& variable, bool make_equal)
-		: variable_step_id_(variable_step_id), variable_(&variable), make_equal_(make_equal)
-	{
-
-	}
-
-	/**
-	 * Get the step linked to the variable.
-	 */
-	StepID getVariableStepId() const { return variable_step_id_; }
-
-	/**
-	 * Get the variable the term is to be assigned to.
-	 */
-	const Variable& getVariable() const { return *variable_; }
-
-	/**
-	 * Check if this binding is a 'make equal' one.
-	 */
-	bool isMakeEqual() const { return make_equal_; }
-
-	/**
-	 * Apply the binding to the given bindings object.
-	 */
-	virtual bool applyTo(Bindings&) const = 0;
-
-protected:
-	// The variable which will be assigned to the given term.
-	StepID variable_step_id_;
-	const Variable* variable_;
-
-	// Construct an is equal relationship or unequal.
-	bool make_equal_;
-};
-
-/**
- * Bind two variables together.
- */
-class VariableBinding : public Binding
-{
-public:
-	VariableBinding(StepID variable_step_id, const Variable& variable, StepID to_variable_step_id, const Variable& to_variable, bool make_equal)
-		: Binding(variable_step_id, variable, make_equal), to_variable_step_id_(to_variable_step_id), to_variable_(&to_variable)
-	{
-
-	}
-
-	/**
-	 * Get the step linked to the term.
-	 */
-	StepID getToVariableStep() const { return to_variable_step_id_; }
-
-	/**
-	 * Get the term which will be assigned to the variable.
-	 */
-	const Variable& getToVariable() const { return *to_variable_; }
-
-	/**
-	 * Apply the binding to the given bindings object.
-	 */
-	virtual bool applyTo(Bindings&) const;
-
-private:
-	// The term we want to assign the variable to.
-	StepID to_variable_step_id_;
-	const Variable* to_variable_;
-
-};
-
-/**
- * Bind the variable to an object.
- */
-class ObjectBinding : public Binding
-{
-public:
-	ObjectBinding(StepID variable_step_id, const Variable& variable, const Object& object, bool make_equal)
-		: Binding(variable_step_id, variable, make_equal), object_(&object)
-	{
-
-	}
-
-	/**
-	 * Get the object the variable is to be linked to.
-	 */
-	const Object& getObject() const { return *object_; }
-
-	/**
-	 * Apply the binding to the given bindings object.
-	 */
-	virtual bool applyTo(Bindings&) const;
-
-private:
-	// The term we want to assign the variable to.
-	const Object* object_;
-
-};
-
-/**
- * Bind the variable to a set of object.
- */
-class ObjectsBinding : public Binding
-{
-public:
-	ObjectsBinding(StepID variable_step_id, const Variable& variable, const std::vector<const Object*>& objects, bool make_equal)
-		: Binding(variable_step_id, variable, make_equal), objects_(&objects)
-	{
-
-	}
-
-	/**
-	 * Get the objects the variable is to be linked to.
-	 */
-	const std::vector<const Object*>& getObjects() const { return *objects_; }
-
-	/**
-	 * Apply the binding to the given bindings object.
-	 */
-	virtual bool applyTo(Bindings&) const;
-
-private:
-	// The term we want to assign the variable to.
-	const std::vector<const Object*>* objects_;
-
-};
 
 /**
  * The domain of a variable consists of: 
@@ -169,12 +35,12 @@ public:
 	/**
 	 * Create a domain which contains all the objects a variable can take.
 	 */
-	VariableDomain(const BindingsFacade& bindings, StepID step, const Variable& variable);
+	VariableDomain(const Bindings& bindings, StepID step, const Variable& variable);
 	
 	/**
 	 * Create a shallow copy, but do not update the unequal bindings!
 	 */
-	VariableDomain(const VariableDomain& other, const BindingsFacade& bindings);
+	VariableDomain(const VariableDomain& other, const Bindings& bindings);
 	
 	/**
 	 * Update the bindings to unequal_variables.
@@ -279,7 +145,7 @@ private:
 	void populate(const Type& type);
 
 	// The bindings of all variable domains.
-	const BindingsFacade* bindings_;
+	const Bindings* bindings_;
 
 	// All possible values the variable can take.
 	std::vector<const Object*> domain_;
@@ -306,33 +172,21 @@ std::ostream& operator<<(std::ostream& os, const VariableDomain& vd);
  * should be able to capture the constraints such that we have to commit ourselves
  * as little as possible thus giving more flexability to the planner.
  */
-class BindingsFacade
+class Bindings
 {
 public:
-	BindingsFacade(const TermManager& term_manager, const BindingsPropagator& propagator);
+	Bindings(const TermManager& term_manager, const BindingsPropagator& propagator);
 
-	BindingsFacade(const BindingsFacade& other);
+	Bindings(const Bindings& other);
 
-	virtual ~BindingsFacade();
+	virtual ~Bindings();
 
 	/**
 	 * Get the variable domain. The planner will crash if the variable domain does not exists.
 	 */
 	const VariableDomain& getVariableDomain(StepID step_id, const Variable&) const;
 	VariableDomain& getNonConstVariableDomain(StepID step_id, const Variable&);
-	
-	/**
-	 * Get all the variable domains linked to the variables of the given atom. The planner will crash
-	 * if a variable does not exist.
-	 */
-	void getVariableDomains(std::vector<const VariableDomain*>& variable_domains, StepID step_id, const Atom& atom) const;
-	
-	/**
-	 * Get all the variable domains linked to the variables of the given atom. The planner will crash
-	 * if a variable does not exist.
-	 */
-	void getVariableDomains(std::vector<VariableDomain*>& variable_domains, StepID step_id, const Atom& atom);
-	
+
 	/**
 	 * Create variable domains for each action variable.
 	 */
@@ -344,32 +198,11 @@ public:
 	StepID createVariableDomains(const Atom& atom, StepID step_id = Step::INVALID_STEP);
 
 	/**
-	 * Impose a binding constraint.
-	 */
-	virtual bool addBinding(const Binding& binding) = 0;
-	
-	/**
 	 * Remove all binding constraints from a step id.
 	 * Warning: Very expensive operation and should not be necessary during planning!
 	 */
 	void removeBindings(StepID step);
 
-	/**
-	 * Check if two terms can be unified. Terms can be unified if the intersection of objects
-	 * of both terms is not empty.
-	 * @param term1 The first term to be unified.
-	 * @param step1 The step ID of the first term.
-	 * @param term2 The second term to be unified, if this term is not bound to this binding object,
-	 * other_bindings will be not zero and point to the binding object which does contain the bindings
-	 * for this term.
-	 * @param step2 The step ID of the second term.
-	 * @param other_bindings Default other_bindings in the Bindings object that is called. If other_bindings
-	 * points to another Bindings object the variables will not be made the same, but the values from the domains
-	 * are made equal.
-	 */
-	bool canUnify(const Term& term1, StepID step1, const Term& term2, StepID step2, const BindingsFacade* other_bindings = NULL) const;
-	bool unify(const Term& term1, StepID step1, const Term& term2, StepID step2, const BindingsFacade* other_bindings = NULL);
-	
 	/**
 	 * Check if two atoms can be unified. This function will call the function canUnify for every
 	 * pair of terms. If all terms can be unified this function will return true.
@@ -383,8 +216,8 @@ public:
 	 * points to another Bindings object the variables will not be made the same, but the values from the domains
 	 * are made equal.
 	 */
-	bool canUnify(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2, const BindingsFacade* other_bindings = NULL) const;
-	bool unify(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2, const BindingsFacade* other_bindings = NULL);
+	bool canUnify(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2, const Bindings* other_bindings = NULL) const;
+	bool unify(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2);
 
 	/**
 	 * Check if two actions can be unified. This function will call the function canUnify for every
@@ -399,7 +232,7 @@ public:
 	 * points to another Bindings object the variables will not be made the same, but the values from the domains
 	 * are made equal.
 	 */
-	bool canUnify(const Action& action1, StepID step1, const Action& action2, StepID step2, const BindingsFacade* other_bindings = NULL) const;
+	bool canUnify(const Action& action1, StepID step1, const Action& action2, StepID step2, const Bindings* other_bindings = NULL) const;
 	
 	/**
 	 * Make the variable domains equal. The atoms needs to be able to be unified, but instead of
@@ -413,8 +246,7 @@ public:
 	 * @param step2 The step ID of the second atom.
 	 * @param other_bindings Default other_bindings in the Bindings object that is called.
 	 */
-	bool makeEqual(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2, const BindingsFacade* other_bindings = NULL);
-	bool makeEqual(const Term& term1, StepID step1, const Term& term2, StepID step2, const BindingsFacade* other_bindings = NULL);
+	bool makeEqual(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2);
 
 	/**
 	 * Check if two atoms could effect one another based on the current bindings.
@@ -431,18 +263,20 @@ public:
 	 */
 	const BindingsPropagator& getPropagator() const { return *propagator_; }
 
-protected:
-
-	/**
-	 * Get the variable domain. The planner will crash if the variable domain does not exists.
-	 */
-	//VariableDomain& getNonConstVariableDomain(StepID step_id, const MyPOP::Variable& variable) const;
-
 	/**
 	 * Add a new variable domain to the set.
 	 */
 	VariableDomain& createVariableDomain(StepID step_id, const Variable&);
+	
+	/**
+	 * Only used when two variables have been merged, is only called by VariableDomain. This method
+	 * updates the mapping table so all references to @param rhs are updated correctly.
+	 * @param lhs The variable domain @param rhs has been merged with.
+	 * @param rhs The variable domain which has been merged with @param lhs.
+	 */
+	void postProcessMerge(VariableDomain& lhs, const VariableDomain& rhs);
 
+protected:
 	/**
 	 * The term manager.
 	 */
@@ -485,72 +319,10 @@ private:
 	 */
 	StepID next_free_step_id_;
 
-	friend std::ostream& operator<<(std::ostream& os, const BindingsFacade& bindings);
+	friend std::ostream& operator<<(std::ostream& os, const Bindings& bindings);
 };
 
-std::ostream& operator<<(std::ostream& os, const BindingsFacade& bindings);
-
-/**
- * While the BindingsFacade is a nice interface to the outside world, the real action takes
- * place in the Bindings class. Whenever a binding is imposed on the current constraints we
- * allow the binding class to make a callback function to affect the bindings accordingly.
- */
-class Bindings : public BindingsFacade
-{
-public:
-
-	/**
-	 * Constructor.
-	 */
-	Bindings(const TermManager& term_manager, const BindingsPropagator& propagator);
-
-	/**
-	 * Copy constructors.
-	 */
-	Bindings(const BindingsFacade& other);
-	Bindings(const Bindings& other);
-
-	virtual ~Bindings();
-
-	/**
-	 * Add the given binding, we call the applyTo(Bindings&) function so the binding can
-	 * enforce the binding on the current constraints.
-	 */
-	virtual bool addBinding(const Binding& binding);
-
-	/**
-	 * Merge two variable domains together so they share the same domain.
-	 */
-	bool merge(StepID, const Variable&, StepID, const Variable&);
-
-	/**
-	 * Make two variables distinct so they can never have the same value assigned.
-	 */
-	bool makeDistinct(StepID, const Variable&, StepID, const Variable&);
-
-	/**
-	 * Assign an object to a variable domain.
-	 */
-	bool assign(StepID, const Variable&, const Object& object);
-
-	/**
-	 * Assign a set of objects to a variable domain.
-	 */
-	bool assign(StepID, const Variable&, const std::vector<const Object*>&);
-
-	/**
-	 * Remove an object from a variable domain.
-	 */
-	bool unassign(StepID, const Variable&, const Object& object);
-
-	/**
-	 * Remove a set of objects from a variable domain.
-	 */
-	bool unassign(StepID, const Variable&, const std::vector<const Object*>&);
-
-private:
-		
-};
+std::ostream& operator<<(std::ostream& os, const Bindings& bindings);
 
 };
 

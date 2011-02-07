@@ -186,7 +186,8 @@ bool Plan::createCausalLink(StepPtr from_step, const Atom& supporting_effect, co
 		const Term* action_term = supporting_action_terms[i];
 
 		// Check if these terms can be unified.
-		if (!bindings_->unify(*bounded_term, open_condition.getStep()->getStepId(), *action_term, from_step->getStepId()))
+///		if (!bindings_->unify(*bounded_term, open_condition.getStep()->getStepId(), *action_term, from_step->getStepId()))
+		if (!bounded_term->canUnify(open_condition.getStep()->getStepId(), *action_term, from_step->getStepId(), *bindings_))
 		{
 			can_unify = false;
 			break;

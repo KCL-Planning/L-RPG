@@ -14,8 +14,8 @@ namespace MyPOP {
 
 class Atom;
 class Action;
-class VariableDomain;
-class BindingsFacade;
+class Term;
+class Bindings;
 
 namespace SAS_Plus {
 
@@ -55,7 +55,7 @@ public:
 	/**
 	 * Add an atom to this node.
 	 */
-	void addAtom(const Atom& atom, StepID id, InvariableIndex index);
+	//void addAtom(const Atom& atom, StepID id, InvariableIndex index);
 	void addAtom(BoundedAtom* bounded_atom, InvariableIndex index);
 
 	/**
@@ -121,25 +121,25 @@ public:
 	friend std::ostream& operator<<(std::ostream&, const DomainTransitionGraphNode& node);
 
 	/**
-	 * Ground out a specific variable of all Atoms. All possible instantiations are produced and stored in the given vector. This node
+	 * Ground out a specific term of all Atoms. All possible instantiations are produced and stored in the given vector. This node
 	 * remains unchanged, to replace this node it has to be removed from the DTG and all the produced nodes added. Transitions are not
 	 * copied or affected.
 	 * @param ground_nodes This will contain the grounded out copies of this node.
 	 * @param variable_to_ground The variable which needs to be grounded, membership is tested through pointer checking.
 	 * @return true if at least one grounded node was produced, false otherwise.
 	 */
-	bool groundVariable(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const VariableDomain& variable_to_ground) const;
+	bool groundTerm(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const Term& term_to_ground, StepID term_id) const;
 	
 	/**
-	 * A node is invalid if one of its atoms's domains is empty.
+	 * Check if this node contains an empty variable domain, in that case the node has to be removed.
 	 */
-	bool isValid() const;
+	bool containsEmptyVariableDomain() const;
 
 	void removeUnsupportedTransitions();
 	
 	void print(std::ostream& os) const;
 	
-	bool isSupported(unsigned int id, const Atom& atom, const BindingsFacade& bindings) const;
+	bool isSupported(unsigned int id, const Atom& atom, const Bindings& bindings) const;
 
 	/**
 	 * Merge with the given DTG node. The atoms of the other node will be copied over and the predicates

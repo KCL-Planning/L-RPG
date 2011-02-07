@@ -15,7 +15,7 @@ class PredicateManager;
 class Variable;
 class Formula;
 class Atom;
-class BindingsFacade;
+class Bindings;
 
 /**
  * PDDL Type.
@@ -53,7 +53,7 @@ public:
 	virtual ~Action();
 
 	// Print the action by subsituting the action variables with the set of objects.
-	void print(std::ostream& os, const BindingsFacade& bindings, StepID step_id) const;
+	void print(std::ostream& os, const Bindings& bindings, StepID step_id) const;
 
 	// Print the action in a human readable form.
 	friend std::ostream& operator<<(std::ostream& os, const Action& action);
@@ -81,7 +81,7 @@ class ActionManager : public Manager<Action> {
 
 public:
 	// Constructor.
-	ActionManager(const TypeManager& type_manager, const TermManager& term_manager, const PredicateManager& predicate_manager);
+	ActionManager(const TypeManager& type_manager, TermManager& term_manager, const PredicateManager& predicate_manager);
 	virtual ~ActionManager();
 
 	// After parsing the domain and problem files we pass all the types to the TypeManager
@@ -97,11 +97,11 @@ public:
 
 	// Do the unthinkable! Ground an action. A grounded action will only have a single object
 	// assigned to each of its variable domains.
-	void ground(BindingsFacade& bindings, std::vector<const Step*>& grounded_actions, const Action& action) const;
+	void ground(Bindings& bindings, std::vector<const Step*>& grounded_actions, const Action& action) const;
 
 private:
 	const TypeManager* type_manager_;
-	const TermManager* term_manager_;
+	TermManager* term_manager_;
 	const PredicateManager* predicate_manager_;
 	
 

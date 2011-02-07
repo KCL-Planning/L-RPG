@@ -25,6 +25,9 @@ namespace SAS_Plus {
 class BoundedAtom;
 class DomainTransitionGraphNode;
 class DomainTransitionGraphManager;
+class PropertySpace;
+class Property;
+class PropertyState;
 
 /**
  * Bindings class extended to deal with DTG nodes.
@@ -34,48 +37,13 @@ class DTGBindings : public MyPOP::Bindings
 public:
 
 	DTGBindings(const TermManager& term_manager, const BindingsPropagator& propagator);
-	DTGBindings(const BindingsFacade& other);
+	DTGBindings(const Bindings& other);
 
 	/**
 	 * Check if two DTG nodes can be unified.
 	 */
 	bool canUnifyDTGNodes(const DomainTransitionGraphNode& node1, const DomainTransitionGraphNode& node2) const;
 };
-
-
-typedef std::pair<const Predicate*, InvariableIndex> IndexedProperty;
-
-/**
- * Property state.
- */
-class PropertyState
-{
-public:
-	PropertyState(IndexedProperty property)
-	{
-		property_.push_back(property);
-	}
-	
-	PropertyState(const std::vector<IndexedProperty>& properties)
-	{
-		property_.insert(property_.end(), properties.begin(), properties.end());
-	}
-	
-/*	void addProperty(IndexedProperty property)
-	{
-		property_.push_back(property);
-	}
-*/
-	
-	const std::vector<IndexedProperty>& getProperties() const { return property_; }
-	
-	
-	
-private:
-	std::vector<IndexedProperty> property_;
-};
-
-std::ostream& operator<<(std::ostream& os, const PropertyState& property_state);
 
 /**
  * A domain transition graph(DTG) captures the transitions objects of a certain type can make
@@ -89,9 +57,8 @@ std::ostream& operator<<(std::ostream& os, const PropertyState& property_state);
 class DomainTransitionGraph : public ManageableObject
 {
 public:
+	///DomainTransitionGraph(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, PropertySpace& property_space, const MyPOP::TypeManager& type_manager, const MyPOP::ActionManager& action_manager, const MyPOP::PredicateManager& predicate_manager, const MyPOP::SAS_Plus::DTGBindings& bindings, const std::vector< const MyPOP::Atom* >& initial_facts);
 	DomainTransitionGraph(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, const MyPOP::TypeManager& type_manager, const MyPOP::ActionManager& action_manager, const MyPOP::PredicateManager& predicate_manager, const MyPOP::SAS_Plus::DTGBindings& bindings, const std::vector< const MyPOP::Atom* >& initial_facts);
-
-//	DomainTransitionGraph(const DomainTransitionGraph& dtg);
 	
 	~DomainTransitionGraph();
 
@@ -103,19 +70,15 @@ public:
 	 * @param position The position marks the term which is reserved for objects linked to this DTG.
 	 * @param craete_node Create a lifted DTG an attach it to this DTG.
 	 */
-	void addBalancedSet(const std::vector<PropertyState*>& predicates_to_add, bool create_nodes);
+	void addBalancedSet(const PropertySpace& property_space, bool create_nodes);
 	
 	/**
 	 * Get the predicates which are present in this DTG.
 	 */
-	const std::vector<std::pair<const Predicate*, unsigned int> >& getPredicates() const { return predicates_; }
+	const std::vector<const Property*>& getPredicates() const { return predicates_; }
 	
-	/**
-	 * Add an object to this DTG which follows its transition rules.
-	 * @param object The object to add as part of this DTG.
-	 * TODO: Marked for removal.
-	 */
-	//void addObject(const Object& object);
+///	const PropertySpace& getPropertySpace() const { return *property_space_; }
+	bool containsPropertySpace(const PropertySpace& property_space) const;
 	
 	/**
 	 * Check the initial state for all objects which are part of this DTG and add them.
@@ -149,14 +112,13 @@ public:
 	 * Check if two nodes are mutex.
 	 */
 	bool areMutex(const DomainTransitionGraphNode& dtg_node1, const DomainTransitionGraphNode& dtg_node2) const;
-	bool areMutex(const Predicate& predicate1, unsigned int index1, const Predicate& predicate2, unsigned int index2) const;
 
 	/**
 	 * Get all nodes which have the given predicate or NULL if no nodes are found.
 	 * @param predicate The predicate all nodes searched for are based on.
 	 */
 	void getNodes(std::vector<DomainTransitionGraphNode*>& dtg_nodes, const Predicate& predicate, unsigned int index) const;
-	void getNodes(std::vector<const DomainTransitionGraphNode*>& found_dtg_nodes, const std::vector<const Atom*>& initial_facts, const BindingsFacade& bindings) const;
+	void getNodes(std::vector<const DomainTransitionGraphNode*>& found_dtg_nodes, const std::vector<const Atom*>& initial_facts, const Bindings& bindings) const;
 
 	/**
 	 * Get this DTG's bindings.
@@ -191,7 +153,7 @@ public:
 	 * Create a new DTG node with the given atom and add bind t to this DTG's bindings. The node is not added though!
 	 * @param atom The atom to create the lifted DTG node from.
 	 */
-	DomainTransitionGraphNode* createDTGNode(const Atom& atom, unsigned int index);
+	DomainTransitionGraphNode* createDTGNode(const Atom& atom, unsigned int index, const Property* property);
 	
 	/**
 	 * Remove a node from the DTG node.
@@ -208,7 +170,7 @@ public:
 	 * @param index The index at which the variable should be invariable in the found DTG node. If this variable
 	 * is equal to std::numeric_limits<unsigned int>::max() this constraint isn't checked.
 	 */
-	void getNodes(std::vector<const DomainTransitionGraphNode*>& dtg_nodes, StepID step_id, const Atom& atom, const BindingsFacade& bindings, unsigned int index = std::numeric_limits<unsigned int>::max()) const;
+	void getNodes(std::vector<const DomainTransitionGraphNode*>& dtg_nodes, StepID step_id, const Atom& atom, const Bindings& bindings, unsigned int index = std::numeric_limits<unsigned int>::max()) const;
 	
 	/**
 	 * Identify subgraphs within a DTG and split those up into seperate graphs.
@@ -242,42 +204,65 @@ public:
 	 * compare the preconditions of this DTG with.
 	 */
 	void splitNodes(const std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* >& split_graphs);
-	void splitNodes(const std::vector<DomainTransitionGraph*>& split_graphs);
 	
-	bool isSupported(unsigned int id, const Atom& atom, const BindingsFacade& bindings) const;
+	/**
+	 * Ground out a specific term of all Atoms. All possible instantiations are produced and stored in the given vector. The nodes
+	 * remain unchanged, to replace this node it has to be removed from the DTG and all the produced nodes added. Transitions are not
+	 * copied or affected.
+	 * @param affected_node The nodes which are grounded.
+	 * @param ground_nodes This will contain the grounded out copies of this node.
+	 * @param variable_to_ground The variable which needs to be grounded, membership is tested through pointer checking.
+	 */
+	void groundTerm(std::vector<DomainTransitionGraphNode*>& affected_nodes, std::vector<DomainTransitionGraphNode*>& grounded_nodes, const Term& term_to_ground, StepID term_id);
 	
+	/**
+	 * Check if the given @param atom with term bounded with @param id in @param bindings is supported by any node
+	 * in this graph. That is to say, does such a node exists?
+	 * @param id The ID @param atom is bound with.
+	 * @param atom The atom we want to check for membership.
+	 * @param bindings The bindings the atom is bound with.
+	 * @return True if the bounded atom is a member of any of the DTG nodes which are part of this DTG, otherwise 
+	 * false is returned.
+	 */
+	bool isSupported(unsigned int id, const Atom& atom, const Bindings& bindings) const;
+	
+	/**
+	 * Remove all transitions which are not supported.
+	 */
 	void removeUnsupportedTransitions();
 
 	friend std::ostream& operator<<(std::ostream& os, const DomainTransitionGraph& dtg);
 	
 	// Merge the predicates.
-	void mergePredicates(const DomainTransitionGraph& other);
-	
-	/**
-	 * After nodes are split, reestablish the transitions of their lifted parents.
-	 * @param new_transitions The grounded transitions which have been made to link to new grounded transitions.
-	 * @param new_nodes A mapping from the new grounded nodes to the lifted nodes they were derived from.
-	 * A transition can only be established between two nodes if the transition was present between their lifted
-	 * parents. This prevents transitions being added between nodes where no such transition existed before.
-	 */
-//	void fixTransitions(const std::vector< const MyPOP::SAS_Plus::Transition* >& new_transitions, std::map< MyPOP::SAS_Plus::DomainTransitionGraphNode*, const MyPOP::SAS_Plus::DomainTransitionGraphNode* >& new_nodes);
-	
+//	void mergePredicates(const DomainTransitionGraph& other);
+
 	/**
 	 * Try all possible transitions on the set of nodes in this DTG and add those that are possible.
 	 */
 	void reestablishTransitions();
 	
+	/**
+	 * Should only be called the first time transitions are to be established.
+	 */
 	void establishTransitions();
+	
+	/**
+	 * NOTE: Preliminary implementation.
+	 * Add the property spaces of the given DTG to this DTG. In the future this function should take care of more properties of the merge.
+	 */
+	void merge(const DomainTransitionGraph& dtg);
 
 	
 private:
-	/**
-	 * Given a balanced set of predicates, update the mutex relationships by making all the predicates in the set 
-	 * mutex with each other.
-	 */
-	void updateMutexRelations(const std::vector<PropertyState*>& predicates_to_add);
 	
 	const DomainTransitionGraphManager* dtg_manager_;
+	
+	/**
+	 * Every DTG is linked to a single - or multiple - property spaces. A property space dictates which states are
+	 * captured by this DTG.
+	 */
+	std::vector<const PropertySpace*> property_spaces_;
+///	PropertySpace* property_space_;
 
 	// When we split DTG nodes up we have a need for new atoms for every node. To manage the
 	// terms we add them to this term manager (and remove them as well when needed.
@@ -307,10 +292,10 @@ private:
 	// the object on the given position will always be the same; e.g. (at PACKAGE ?loc) -> (in PACKAGE ?truck).
 	// Read: Exhibiting Knowledge in Planning Problems to Minimize State Encoding Length
 	// by Stefan Edelkamp and Malte Helmert.
-	std::vector<IndexedProperty> predicates_;
+	std::vector<const Property*> predicates_;
 
 	// Mutex relations between the predicates.
-	std::map<IndexedProperty, std::set<IndexedProperty>*> mutex_map_;
+	//std::map<const Property*, std::set<const Property*>*> mutex_map_;
 
 	// Most specific type of the invariable object.
 	const Type* type_;

@@ -132,7 +132,7 @@ int main(int argc,char * argv[])
 	// Process the objects.
 	TermManager term_manager(type_manager);
 	type_manager.processObjects(term_manager, *the_problem->objects);
-	term_manager.processActionVariables(*the_domain->ops);
+///	term_manager.processActionVariables(*the_domain->ops);
 
 	// Process the constants (if any).
 	if (the_domain->constants != NULL)
@@ -249,15 +249,16 @@ int main(int argc,char * argv[])
 	std::cout << " === DONE! Creating the CGs === " << std::endl;
 	
 	// Based on the DTG structures, do domain analysis!
-	SAS_Plus::RelaxedReachabilityAnalyst analyst(dtg_manager);
-	analyst.performReachabilityAnalysis(*initial_effects);
+//	SAS_Plus::RelaxedReachabilityAnalyst analyst(dtg_manager);
+//	analyst.performReachabilityAnalysis(*initial_effects);
 	
 
-	std::cout << " === Creating the Landmarks === " << std::endl;
+/*	std::cout << " === Creating the Landmarks === " << std::endl;
 	LANDMARKS::LandmarkManager landmark_manager(action_manager, type_manager, term_manager);
 	landmark_manager.findLandmarksFromGoal(*the_domain->ops, *the_domain->types, *plan, dtg_manager, cg);
 	Graphviz::printToDot(landmark_manager.getLandmarkGraph());
 	std::cout << " === DONE! Creating the Landmarks === " << std::endl;
+*/
 	exit (0);
 
 	// Start the planning process!

@@ -12,7 +12,7 @@ namespace MyPOP {
 
 class Atom;
 class Action;
-class VariableDomain;
+class Variable;
 	
 namespace SAS_Plus {
 
@@ -26,8 +26,6 @@ class BoundedAtom;
  * To make my life easier I created a couple of function to help executing functions like std::remove_if.
  */
 namespace Utilities {
-
-bool transitionIsSupported(const Transition*, const DomainTransitionGraphManager*, const std::vector<const Atom*>& initial_facts);
 
 	/**
 	 * Check if the given DTG node is the destination node for the given transition.
@@ -124,7 +122,7 @@ public:
 	/**
 	 * Given an atom which is linked to this transition, return the index of the variable which is invariable.
 	 */
-	//const std::vector<std::pair<const Atom*, InvariableIndex> > getAllPreconditions() const;
+	const std::vector<std::pair<const Atom*, InvariableIndex> > getAllPreconditions() const;
 
 	/**
 	 * Check if a bounded atom is linked to this transition. I.e. does it share a variable domain with it?
@@ -142,7 +140,7 @@ private:
 	bool shareVariableDomains(const BoundedAtom& bounded_atom, const Atom& atom) const;
 
 	// A transition is not to be created manualy.
-	Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const VariableDomain& invariable_dtg_variable_domain_);
+	Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const Variable& action_invariable);
 
 	// Some transaction require a fact from another DTG to be true before it can be excuted.
 	std::vector<BoundedAtom> enablers_;
@@ -166,7 +164,7 @@ private:
 	// The effect which deletes  the facts from from_node_.
 	std::vector<std::pair<const Atom*, InvariableIndex> > affected_;
 	
-	const VariableDomain* invariable_dtg_variable_domain_;
+	const Variable* action_invariable_;
 };
 
 };

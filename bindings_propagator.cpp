@@ -15,11 +15,16 @@ bool SimpleBindingsPropagator::removeObjectFromUnequalDomains(Bindings& bindings
 	for (std::vector<VariableDomain*>::const_iterator ci = unequal_variables.begin(); ci != unequal_variables.end(); ci++)
 	{
 		const std::vector<std::pair<StepID, const Variable*> >& equal_variables = (*ci)->getEqualVariables();
-		ObjectBinding ob(equal_variables[0].first, *equal_variables[0].second, object, false);
-		if (!bindings.addBinding(ob))
+//		ObjectBinding ob(equal_variables[0].first, *equal_variables[0].second, object, false);
+		if (!equal_variables[0].second->makeDomainUnequalTo(equal_variables[0].first, object, Step::INVALID_STEP, bindings))
 		{
 			return false;
 		}
+/*		if (!bindings.addBinding(ob))
+		{
+			return false;
+		}
+*/
 	}
 
 	return true;

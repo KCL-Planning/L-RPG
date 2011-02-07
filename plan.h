@@ -16,7 +16,7 @@ class BindingsPropagator;
 class ActionManager;
 class TermManager;
 class TypeManager;
-class BindingsFacade;
+class Bindings;
 class Link;
 class Atom;
 class Formula;
@@ -162,7 +162,7 @@ public:
 	/**
 	 * Get the bindings of this plan.
 	 */
-	BindingsFacade& getBindings() const { return *bindings_; }
+	Bindings& getBindings() const { return *bindings_; }
 
 	/**
 	 * Get the orderings of this plan.
@@ -254,7 +254,7 @@ private:
 	// The bindings in the plan. A bindings are made between the parameters of actions,
 	// internally a binding is stored as a mapping from: step_id, parameter_number and
 	// the set of terms (objects or other variables) it must be linked to.
-	BindingsFacade* bindings_;
+	Bindings* bindings_;
 
 	// The orderings between steps in the plan. Ordering can either be: before or after.
 	BinaryOrderings* orderings_;

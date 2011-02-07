@@ -138,16 +138,29 @@ bool Planner::separate(std::vector<const Plan*>& refinements, const Plan& plan, 
 		const Term* effect_term = effect.getTerms()[i];
 		const Term* condition_term = condition.getTerms()[i];
 
+		// The refinement.
+		Plan* new_plan = new Plan(plan);
+		Bindings& bindings = new_plan->getBindings();
+
+		if (effect_term->makeDisjunct(clobberer->getStepId(), *condition_term, threatened_step->getStepId(), bindings))
+		{
+			separatable = true;
+			new_plan->removeUnsafe(unsafe);
+			refinements.push_back(new_plan);
+		}
+		else
+		{
+			delete new_plan;
+		}
+	}
+
+/*
 		// If both are objects, there is little we can do since we have tested that both atoms
 		// do affect eachother so the objects must be the same.
 		if (effect_term->isObject() && condition_term->isObject())
 		{
 			continue;
 		}
-
-		// The refinement.
-		Plan* new_plan = new Plan(plan);
-		BindingsFacade& bindings = new_plan->getBindings();
 
 		// If one of the two is a variable, remove the object from the variable's domain.
 		const Variable* variable = NULL;
@@ -195,7 +208,7 @@ bool Planner::separate(std::vector<const Plan*>& refinements, const Plan& plan, 
 		{
 			delete new_plan;
 		}
-	}
+	}*/
 
 	return separatable;
 }

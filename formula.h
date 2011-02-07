@@ -8,7 +8,7 @@
 
 namespace MyPOP {
 
-class BindingsFacade;
+class Bindings;
 class Predicate;
 class Variable;
 class Term;
@@ -40,7 +40,7 @@ public:
 	
 	// Print the formula to the ostream but with the variable printed
 	// with the set of objects from their domains.
-	virtual void print(std::ostream&os, const BindingsFacade& bindings, StepID step_id) const;
+	virtual void print(std::ostream&os, const Bindings& bindings, StepID step_id) const;
 
 	// Check if this formula has a negative sign.
 	bool isNegative() const { return is_negative_; }
@@ -70,7 +70,7 @@ public:
 	
 	// Print the formula to the ostream but with the variable printed
 	// with the set of objects from their domains.
-	virtual void print(std::ostream& os, const BindingsFacade& bindings, StepID step_id) const;
+	virtual void print(std::ostream& os, const Bindings& bindings, StepID step_id) const;
 
 	// Get the predicate.
 	const Predicate& getPredicate() const { return *predicate_; }
@@ -112,7 +112,7 @@ public:
 	
 	// Print the formula to the ostream but with the variable printed
 	// with the set of objects from their domains.
-	virtual void print(std::ostream&os, const BindingsFacade& bindings, StepID step_id) const;
+	virtual void print(std::ostream&os, const Bindings& bindings, StepID step_id) const;
 
 protected:
 	// List to store all the formulea who are part of this conjunction.
@@ -125,13 +125,14 @@ protected:
 class Equality : public Formula
 {
 public:
-	Equality(const Variable& variable, const Term& term, bool make_unequal);
+///	Equality(const Variable& variable, const Term& term, bool make_unequal);
+	Equality(const Term& variable, const Term& term, bool make_unequal);
 
 	// The variable to make equal or unequal to.
-	const Variable& getVariable() const { return *variable_; }
+///	const Variable& getVariable() const { return *variable_; }
 
 	// The term to assign to the variable.
-	const Term& getTerm() const { return *term_; }
+///	const Term& getTerm() const { return *term_; }
 
 	// Check if this relationship is a equal or unequal one.
 	bool isMakeEqual() const { return make_equal_; }
@@ -141,7 +142,7 @@ public:
 	
 	// Print the formula to the ostream but with the variable printed
 	// with the set of objects from their domains.
-	virtual void print(std::ostream&os, const BindingsFacade& bindings, StepID step_id) const;
+	virtual void print(std::ostream&os, const Bindings& bindings, StepID step_id) const;
 
 	// Add this formula to the plan as a precondition of the given plan. Loop over all formulea and
 	// add them appropriately.
@@ -149,7 +150,8 @@ public:
 
 private:
 	// The variable which needs to be made equal or unequal.
-	const Variable* variable_;
+///	const Variable* variable_;
+	const Term* variable_;
 
 	// The term the variable must be made equal or unequal to.
 	const Term* term_;

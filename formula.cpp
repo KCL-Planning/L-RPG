@@ -37,7 +37,7 @@ void Formula::print(std::ostream& os) const
 	os << (is_negative_ ? "FALSE" : "TRUE");
 }
 
-void Formula::print(std::ostream& os, const BindingsFacade& bindings, StepID step_id) const
+void Formula::print(std::ostream& os, const Bindings& bindings, StepID step_id) const
 {
 	return print(os);
 }
@@ -89,7 +89,7 @@ void Atom::print(std::ostream& os) const
 	}
 }
 
-void Atom::print(std::ostream& os, const BindingsFacade& bindings, StepID step_id) const
+void Atom::print(std::ostream& os, const Bindings& bindings, StepID step_id) const
 {
 	os << "\t";
 	if (is_negative_)
@@ -100,22 +100,8 @@ void Atom::print(std::ostream& os, const BindingsFacade& bindings, StepID step_i
 	for (std::vector<const Term*>::const_iterator ci = terms_->begin(); ci != terms_->end(); ci++)
 	{
 		const Term* term = *ci;
-		if (term->isObject())
-		{
-			os << **ci;
-		}
-		else
-		{
-			const VariableDomain& vd = bindings.getVariableDomain(step_id, *term->asVariable());
-			const std::vector<const Object*>& objects = vd.getDomain();
-			os << "{ ";
-			for (std::vector<const Object*>::const_iterator object_ci = objects.begin(); object_ci != objects.end(); object_ci++)
-			{
-				os << **object_ci << " ";
-			}
-			os << "}";
-		}
-		
+		term->print(os, bindings, step_id);
+		os << "%" << &(term->getDomain(step_id, bindings)) << "%";
 		if (ci + 1 != terms_->end())
 			os << " ";
 	}
@@ -162,7 +148,7 @@ void Conjunction::print(std::ostream& os) const
 	}
 }
 
-void Conjunction::print(std::ostream& os, const BindingsFacade& bindings, StepID step_id) const
+void Conjunction::print(std::ostream& os, const Bindings& bindings, StepID step_id) const
 {
 	for (std::vector<const Formula*>::const_iterator ci = formula_list_.begin(); ci != formula_list_.end(); ci++)
 	{
@@ -177,7 +163,7 @@ void Conjunction::print(std::ostream& os, const BindingsFacade& bindings, StepID
 /*************************
  * The Equality class
  *************************/
-Equality::Equality(const Variable& variable, const Term& term, bool make_equal)
+Equality::Equality(const Term& variable, const Term& term, bool make_equal)
 	: variable_(&variable), term_(&term), make_equal_(make_equal)
 {
 
@@ -188,13 +174,22 @@ void Equality::print(std::ostream& os) const
 	os << *variable_ << (make_equal_ ? " == " : " != ") << *term_;
 }
 
-void Equality::print(std::ostream& os, const BindingsFacade& bindings, StepID step_id) const
+void Equality::print(std::ostream& os, const Bindings& bindings, StepID step_id) const
 {
 	print(os);
 }
 
 void Equality::addAsPrecondition(Plan& plan, StepPtr step) const
 {
+	if (make_equal_)
+	{
+//		variable_->unify(step->getStepId(), *term_, step->getStepId(), plan.getBindings());
+	}
+	else
+	{
+///		variable_->(step->getStepId(), *term_, step->getStepId(), plan.getBindings());
+	}
+/*
 	if (term_->isObject())
 	{
 		ObjectBinding object_binding(step->getStepId(), *variable_, *term_->asObject(), make_equal_);
@@ -205,6 +200,7 @@ void Equality::addAsPrecondition(Plan& plan, StepPtr step) const
 		VariableBinding variable_binding(step->getStepId(), *variable_, step->getStepId(), *term_->asVariable(), make_equal_);
 		plan.getBindings().addBinding(variable_binding);
 	}
+*/
 }
 
 };

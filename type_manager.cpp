@@ -241,7 +241,7 @@ void TypeManager::processObjects(TermManager& term_manager, const VAL::const_sym
 	{
 		const VAL::const_symbol* pddl_object = *ci;
 		const Type* object_type = getType(pddl_object->type->getName());
-		Object* object = new Object(object_type, pddl_object->getName());
+		Object* object = new Object(*object_type, pddl_object->getName());
 
 		// Process the objects type and store it.
 		while (object_type != NULL)

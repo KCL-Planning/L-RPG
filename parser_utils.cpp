@@ -57,10 +57,11 @@ Formula* Utility::convertPrecondition(const TermManager& term_manager, const Pre
 	{
 		assert (action_parameters->size() == 2);
 		const Term* variable = term_manager.getTerm(*action_parameters->front());
-		assert (variable->isVariable());
+///		assert (variable->isVariable());
 		const Term* term = term_manager.getTerm(*action_parameters->back());
 
-		return new Equality(*variable->asVariable(), *term, !make_negative);
+///		return new Equality(*variable->asVariable(), *term, !make_negative);
+		return new Equality(*variable, *term, !make_negative);
 	}
 	else
 	{

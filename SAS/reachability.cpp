@@ -1051,7 +1051,7 @@ ReachableDTGNode& ReachabilityAnalist::createReachableDTGNode(const DomainTransi
 	return *node;
 }
 
-void ReachabilityAnalist::initialiseReachablilityGraph(const std::vector<const Atom*>& initial_facts, const BindingsFacade& bindings)
+void ReachabilityAnalist::initialiseReachablilityGraph(const std::vector<const Atom*>& initial_facts, const Bindings& bindings)
 {
 	std::cout << "[ReachabilityAnalist::initialiseReachablilityGraph] START" << std::endl;
 	for (std::vector<DomainTransitionGraph*>::const_iterator ci = dtg_manager_->getManagableObjects().begin(); ci != dtg_manager_->getManagableObjects().end(); ci++)

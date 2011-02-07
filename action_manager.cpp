@@ -73,7 +73,7 @@ void Action::getAchievingEffects(const Atom& atom, std::vector<const Atom*>& ach
 	}
 }
 
-void Action::print(std::ostream& os, const BindingsFacade& bindings, StepID step_id) const
+void Action::print(std::ostream& os, const Bindings& bindings, StepID step_id) const
 {
 	os << "(" << predicate_ << " ";
 
@@ -96,6 +96,8 @@ void Action::print(std::ostream& os, const BindingsFacade& bindings, StepID step
 		{
 			os << "}";
 		}
+		
+		os << "%" << &(vd.getDomain()) << "%";
 
 		if (ci + 1 != variables_->end())
 		{
@@ -124,7 +126,7 @@ std::ostream& operator<<(std::ostream& os, const Action& action)
 /*************************
  * The ActionManager class
  *************************/
-ActionManager::ActionManager(const TypeManager& type_manager, const TermManager& term_manager, const PredicateManager& predicate_manager)
+ActionManager::ActionManager(const TypeManager& type_manager, TermManager& term_manager, const PredicateManager& predicate_manager)
 	: type_manager_(&type_manager), term_manager_(&term_manager), predicate_manager_(&predicate_manager)
 {
 
@@ -160,9 +162,13 @@ void ActionManager::processActions(const VAL::operator_list& operators)
 			VAL::var_symbol* parameter = *i;
 
 			// Get the type of the parameter.
-			const Term* term = term_manager_->getTerm(*parameter);
-			assert (term != NULL && term->isVariable());
-			const Variable* var = term->asVariable();
+			const Type* type = type_manager_->getType(parameter->type->getName());
+			Variable* var = new Variable(*type, parameter->getName());
+			term_manager_->addTerm(*parameter, *var);
+			
+//			const Term* term = term_manager_->getTerm(*parameter);
+//			assert (term != NULL && term->isVariable());
+//			const Variable* var = term->asVariable();
 
 			//variables[var_counter++] = var;
 			action_variables->push_back(var);
@@ -231,7 +237,7 @@ const Action* ActionManager::getAction(const VAL::operator_& val_operator) const
 	return (*ci).second;
 }
 
-void ActionManager::ground(BindingsFacade& bindings, std::vector<const Step*>& grounded_actions, const Action& action) const
+void ActionManager::ground(Bindings& bindings, std::vector<const Step*>& grounded_actions, const Action& action) const
 {
 	std::cout << "ground " << action << std::endl;
 	

@@ -16,6 +16,7 @@
 #include "../action_manager.h"
 #include "../plan_bindings.h"
 #include "../formula.h"
+#include <term_manager.h>
 
 namespace MyPOP {
 
@@ -36,6 +37,7 @@ class DTGBindings;
 class DomainTransitionGraphManager;
 class DomainTransitionGraphNode;
 class Transition;
+class PropertyState;
 
 /**
  * Wrapper for the pair function, used to give it more sensible get methods.
@@ -44,60 +46,28 @@ class BoundedAtom {
 
 public:
 
-	BoundedAtom(StepID id, const Atom& atom)
-		: id_(id), atom_(&atom)
-	{
+	BoundedAtom(StepID id, const Atom& atom, const Property* property);
 
-	}
+	~BoundedAtom();
 
-	~BoundedAtom()
-	{
-		//delete atom_;
-	}
+	StepID getId() const;
 
-	StepID getId() const
-	{
-		return id_;
-	}
+	const Atom& getAtom() const;
 
-	const Atom& getAtom() const
-	{
-		return *atom_;
-	}
-
-	void setId(StepID id) {
-		id_ = id;
-	}
-
-	void setAtom(const Atom& atom)
-	{
-		atom_ = &atom;
-	}
+	InvariableIndex getIndex(StepID id, const Term& term, const Bindings& bindings) const;
 	
-	unsigned int getIndex(const VariableDomain& variable_domain, const BindingsFacade& bindings) const
-	{
-		std::vector<const VariableDomain*> variable_domains;
-		bindings.getVariableDomains(variable_domains, id_, *atom_);
-		
-		for (unsigned int i = 0; i < variable_domains.size(); i++)
-		{
-			if (variable_domains[i] == &variable_domain)
-			{
-				return i;
-			}
-		}
-		
-		assert (false);
-	}
+	const Property* getProperty() const;
+	
+	bool isMutexWith(const BoundedAtom& other) const;
+	
+	bool isMutexWith(const Predicate& predicate, InvariableIndex invariable_index) const;
 
-	void print(std::ostream& os, const BindingsFacade& bindings) const
-	{
-		atom_->print(os, bindings, id_);
-	}
+	void print(std::ostream& os, const Bindings& bindings) const;
 
 private:
 	StepID id_;
 	const Atom* atom_;
+	const Property* property_;
 };
 
 class DomainTransitionGraphManager : public Manager<DomainTransitionGraph>
@@ -114,7 +84,7 @@ public:
 	 * @param types All types as found by VAL.
 	 * @param bindings The bindings used to bind the initial facts.
 	 */
-	void generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, const BindingsFacade& bindings);
+	void generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, const Bindings& bindings);
 
 	/**
 	 * Get the DTGs which contains a node which actually unifies with the given atom and binding.
@@ -124,7 +94,7 @@ public:
 	 * @param bindings The binding which hold the atom's bindings.
 	 * @param index At which the given atom is invariable. This should match up with a DTG node contained by the returned DTGs.
 	 */
-	void getDTGs(std::vector<const DomainTransitionGraph*>& found_dtgs, StepID binding_id, const Atom& atom, const BindingsFacade& bindings, unsigned int index = std::numeric_limits<unsigned int>::max()) const;
+	void getDTGs(std::vector<const DomainTransitionGraph*>& found_dtgs, StepID binding_id, const Atom& atom, const Bindings& bindings, unsigned int index = std::numeric_limits<unsigned int>::max()) const;
 
 	/**
 	 * Get the DTG nodes which can be unified with the given atom and bindings.
@@ -134,13 +104,13 @@ public:
 	 * @param bindings The binding which hold the atom's bindings.
 	 * @param index The index at which the variable should be invariable in the found DTG node.
 	 */
-	void getDTGNodes(std::vector<const DomainTransitionGraphNode*>& found_dtg_nodes, StepID binding_id, const Atom& atom, const BindingsFacade& bindings, unsigned int index = std::numeric_limits<unsigned int>::max()) const;
-	void getDTGNodes(std::vector<const DomainTransitionGraphNode*>& found_dtg_nodes, const std::vector<const Atom*>& initial_facts, const BindingsFacade& bindings) const;
+	void getDTGNodes(std::vector<const DomainTransitionGraphNode*>& found_dtg_nodes, StepID binding_id, const Atom& atom, const Bindings& bindings, unsigned int index = std::numeric_limits<unsigned int>::max()) const;
+	void getDTGNodes(std::vector<const DomainTransitionGraphNode*>& found_dtg_nodes, const std::vector<const Atom*>& initial_facts, const Bindings& bindings) const;
 	
 	/**
 	 * Check if the given atom is supported by any of the DTG nodes.
 	 */
-	bool isSupported(unsigned int id, const MyPOP::Atom& atom, const MyPOP::BindingsFacade& bindings) const;
+	bool isSupported(unsigned int id, const MyPOP::Atom& atom, const MyPOP::Bindings& bindings) const;
 	
 	/**
 	 * Get all the facts true in the initial state.
@@ -169,9 +139,6 @@ private:
 	// The term manager.
 	const TermManager* term_manager_;
 
-	// Mapping of predicates to their respective domain transition graphs.
-	//std::map<const Predicate*, std::vector<DomainTransitionGraph*>* > dtg_mappings_;
-
 	// The SAS+ representation of all operators is contained in the SAS::FunctionStructure.
 	SAS::FunctionStructure function_structure_;
 	
@@ -195,7 +162,7 @@ namespace Graphviz {
 void printToDot(const SAS_Plus::DomainTransitionGraphManager& dtg_manager);
 void printToDot(std::ofstream& ofs, const SAS_Plus::DomainTransitionGraph& dtg);
 void printToDot(std::ofstream& ofs, const SAS_Plus::DomainTransitionGraphNode& dtg_node);
-void printToDot(std::ofstream& ofs, const SAS_Plus::Transition& transition, const BindingsFacade& bindings);
+void printToDot(std::ofstream& ofs, const SAS_Plus::Transition& transition, const Bindings& bindings);
 void printPredicatesToDot(std::ofstream& ofs, const SAS_Plus::DomainTransitionGraph& dtg);
 
 };

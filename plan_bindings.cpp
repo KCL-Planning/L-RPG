@@ -15,60 +15,10 @@
 namespace MyPOP {
 
 /*************************
- * The VariableBinding class
- *************************/
-
-bool VariableBinding::applyTo(Bindings& bindings) const
-{
-	if (make_equal_)
-	{
-		return bindings.merge(variable_step_id_, *variable_, to_variable_step_id_,*to_variable_);
-	}
-	else
-	{
-		return bindings.makeDistinct(variable_step_id_, *variable_, to_variable_step_id_,*to_variable_);
-	}
-	return true;
-}
-
-/*************************
- * The ObjectBinding class
- *************************/
-
-bool ObjectBinding::applyTo(Bindings& bindings) const
-{
-	if (make_equal_)
-	{
-		return bindings.assign(variable_step_id_, *variable_, *object_);
-	}
-	else
-	{
-		return bindings.unassign(variable_step_id_, *variable_, *object_);
-	}
-	return true;
-}
-
-/*************************
- * The ObjectsBinding class
- *************************/
-
-bool ObjectsBinding::applyTo(Bindings& bindings) const
-{
-	if (make_equal_)
-	{
-		return bindings.assign(variable_step_id_, *variable_, *objects_);
-	}
-	else
-	{
-		return bindings.unassign(variable_step_id_, *variable_, *objects_);
-	}
-}
-
-/*************************
  * The VariableDomain class
  *************************/
 
-VariableDomain::VariableDomain(const BindingsFacade& bindings, StepID step_id, const Variable& variable)
+VariableDomain::VariableDomain(const Bindings& bindings, StepID step_id, const Variable& variable)
 	: bindings_(&bindings)
 {
 	equal_variables_.push_back(std::make_pair(step_id, &variable));
@@ -80,7 +30,7 @@ VariableDomain::VariableDomain(const BindingsFacade& bindings, StepID step_id, c
 	}
 }
 
-VariableDomain::VariableDomain(const VariableDomain& other, const BindingsFacade& bindings)
+VariableDomain::VariableDomain(const VariableDomain& other, const Bindings& bindings)
 {
 	bindings_ = &bindings;
 
@@ -129,6 +79,10 @@ void VariableDomain::updateBindings(const std::map<const VariableDomain*, Variab
 
 bool VariableDomain::makeEqualTo(const VariableDomain& variable_domain)
 {
+	if (this == &variable_domain)
+	{
+		return false;
+	}
 	if (Logging::verbosity <= Logging::DEBUG)
 	{
 		std::cout << "Restrict " << *this << " to " << variable_domain << std::endl;	
@@ -157,22 +111,16 @@ bool VariableDomain::makeEqualTo(const VariableDomain& variable_domain)
 			break;
 		}
 	}
-	if (already_included)
-	{
-		return false;
-	}
 	
-	if (Logging::verbosity <= Logging::DEBUG)
+	if (!already_included)
 	{
-		std::cout << "NOT EQUAL!" << std::endl;
-	}
-	
-	// Limit the domain to contain only the objects in both variables.
-	std::vector<const Object*> new_domain;
-	getIntersection(new_domain, variable_domain.domain_);
+		// Limit the domain to contain only the objects in both variables.
+		std::vector<const Object*> new_domain;
+		getIntersection(new_domain, variable_domain.domain_);
 
-	domain_.clear();
-	domain_.insert(domain_.begin(), new_domain.begin(), new_domain.end());
+		domain_.clear();
+		domain_.insert(domain_.begin(), new_domain.begin(), new_domain.end());
+	}
 
 	// Next merge the equal to and unequal to relationships, but make sure we don't end up with duplicates.
 	for (std::vector<std::pair<StepID, const Variable*> >::const_iterator ci = variable_domain.equal_variables_.begin(); ci != variable_domain.equal_variables_.end(); ci++)
@@ -416,18 +364,18 @@ std::ostream& operator<<(std::ostream& os, const VariableDomain& vd)
 }
 
 /*************************
- * The BindingsFacade class
+ * The Bindings class
  *************************/
 
-BindingsFacade::BindingsFacade(const TermManager& term_manager, const BindingsPropagator& propagator)
+Bindings::Bindings(const TermManager& term_manager, const BindingsPropagator& propagator)
 	: term_manager_(&term_manager), propagator_(&propagator), next_free_step_id_(0)
 {
 
 }
 
-BindingsFacade::BindingsFacade(const BindingsFacade& other)
+Bindings::Bindings(const Bindings& other)
 {
-	std::cout << "BindingsFacade::BindingsFacade - copy " << other.binding_mapping_.size() << " bindings!" << std::endl;
+	std::cout << "Bindings::Bindings - copy " << other.binding_mapping_.size() << " bindings!" << std::endl;
 	term_manager_ = other.term_manager_;
 	propagator_ = other.propagator_;
 	next_free_step_id_ = other.next_free_step_id_;
@@ -477,7 +425,7 @@ BindingsFacade::BindingsFacade(const BindingsFacade& other)
 	}
 }
 
-BindingsFacade::~BindingsFacade()
+Bindings::~Bindings()
 {
 	for (std::vector<VariableDomain*>::const_iterator ci = variable_domains_.begin(); ci != variable_domains_.end(); ci++)
 	{
@@ -485,7 +433,7 @@ BindingsFacade::~BindingsFacade()
 	}
 }
 
-const VariableDomain& BindingsFacade::getVariableDomain(StepID step_id, const Variable& variable) const
+const VariableDomain& Bindings::getVariableDomain(StepID step_id, const Variable& variable) const
 {
 	std::map<std::pair<StepID, const Variable*>, VariableDomain*>::const_iterator ci = binding_mapping_.find(std::make_pair(step_id, &variable));
 	if (ci == binding_mapping_.end())
@@ -506,36 +454,12 @@ const VariableDomain& BindingsFacade::getVariableDomain(StepID step_id, const Va
 	return *(*ci).second;
 }
 
-VariableDomain& BindingsFacade::getNonConstVariableDomain(StepID step_id, const Variable& variable)
+VariableDomain& Bindings::getNonConstVariableDomain(StepID step_id, const Variable& variable)
 {
 	return *const_cast<VariableDomain*>(&getVariableDomain(step_id, variable));
 }
 
-void BindingsFacade::getVariableDomains(std::vector<const VariableDomain*>& variable_domains, StepID step_id, const Atom& atom) const
-{
-	for (std::vector<const Term*>::const_iterator ci = atom.getTerms().begin(); ci != atom.getTerms().end(); ci++)
-	{
-		// Only retrieve the domains of actual variables. N.B. objects don't have variable domains.
-		if ((*ci)->isVariable())
-		{
-			variable_domains.push_back(&getVariableDomain(step_id, *(*ci)->asVariable()));
-		}
-	}
-}
-
-void BindingsFacade::getVariableDomains(std::vector<VariableDomain*>& variable_domains, StepID step_id, const Atom& atom)
-{
-	for (std::vector<const Term*>::const_iterator ci = atom.getTerms().begin(); ci != atom.getTerms().end(); ci++)
-	{
-		// Only retrieve the domains of actual variables. N.B. objects don't have variable domains.
-		if ((*ci)->isVariable())
-		{
-			variable_domains.push_back(&getNonConstVariableDomain(step_id, *(*ci)->asVariable()));
-		}
-	}
-}
-
-VariableDomain& BindingsFacade::createVariableDomain(StepID step_id, const Variable& variable)
+VariableDomain& Bindings::createVariableDomain(StepID step_id, const Variable& variable)
 {
 	assert (step_id != Step::INVALID_STEP);
 
@@ -547,7 +471,7 @@ VariableDomain& BindingsFacade::createVariableDomain(StepID step_id, const Varia
 	return *new_variable_domain;
 }
 
-StepID BindingsFacade::createVariableDomains(const Action& action, StepID step_id)
+StepID Bindings::createVariableDomains(const Action& action, StepID step_id)
 {
 	step_id = getNextStep(step_id);
 
@@ -559,24 +483,20 @@ StepID BindingsFacade::createVariableDomains(const Action& action, StepID step_i
 	return step_id;
 }
 
-StepID BindingsFacade::createVariableDomains(const Atom& atom, StepID step_id)
+StepID Bindings::createVariableDomains(const Atom& atom, StepID step_id)
 {
 	step_id = getNextStep(step_id);
 	const std::vector<const Term*>& terms = atom.getTerms();
 	for (std::vector<const Term*>::const_iterator ci = terms.begin(); ci != terms.end(); ci++)
 	{
 		const Term* term = *ci;
-		// Only initialise the terms which are actually variables.
-		if (term->isVariable())
-		{
-			createVariableDomain(step_id, *term->asVariable());
-		}
+		term->bind(*this, step_id);
 	}
 
 	return step_id;
 }
 
-void BindingsFacade::removeBindings(StepID step)
+void Bindings::removeBindings(StepID step)
 {
 	bool changed = true;
 	
@@ -599,146 +519,7 @@ void BindingsFacade::removeBindings(StepID step)
 	}
 }
 
-bool BindingsFacade::canUnify(const Term& term1, StepID step1, const Term& term2, StepID step2, const BindingsFacade* other_bindings) const
-{
-	// Check if the second term is bound to this BindingsFacade or another one.
-	if (other_bindings == NULL)
-	{
-		other_bindings = this;
-	}
-	if (Logging::verbosity <= Logging::DEBUG)
-	{
-		std::cout << term1.isVariable() << " and " << term2.isVariable() << std::endl;
-	}
-
-	// Two objects can only unify if they are exactly the same!
-	if (term1.isObject() && term2.isObject())
-	{
-		if (Logging::verbosity <= Logging::DEBUG)
-		{
-			if (&term1 != &term2)
-			{
-				std::cout << term1 << " and " << term2 << " are different objects!" << std::endl;
-			}
-			else
-			{
-				std::cout << term1 << " and " << term2 << " are the same objects!" << std::endl;
-			}
-		}
-		return (&term1 == &term2);
-	}
-
-	// If one of the two is a variable, check if the object is in the variable's domain.
-	const Variable* variable = NULL;
-	const Object* object = NULL;
-	StepID step = Step::INVALID_STEP;
-	const BindingsFacade* bindings = NULL;
-	if (term1.isObject() && term2.isVariable())
-	{
-		object = term1.asObject();
-		variable = term2.asVariable();
-		step = step2;
-		bindings = other_bindings;
-	}
-	else if (term1.isVariable() && term2.isObject())
-	{
-		object = term2.asObject();
-		variable = term1.asVariable();
-		step = step1;
-		bindings = this;
-	}
-
-	// Otherwise, both terms are variables, check if the intersections of their domains is not empty.
-	else
-	{
-		const VariableDomain& domain1 = getVariableDomain(step1, *term1.asVariable());
-		const VariableDomain& domain2 = other_bindings->getVariableDomain(step2, *term2.asVariable());
-		
-		bool empty_intersection = domain1.isEmptyIntersection(domain2);
-
-		if (Logging::verbosity <= Logging::INFO)
-		{
-			if (empty_intersection)
-			{
-				std::cout << "Domain is empty, could not unify " << domain1 << " and " << domain2 <<std::endl;
-			}
-		}
-
-		return !empty_intersection;
-	}
-
-	// Check if the variable contains the given object in its set.
-	const VariableDomain& domain = bindings->getVariableDomain(step, *variable);
-	
-	bool contains_object = domain.contains(*object);
-	if (Logging::verbosity <= Logging::INFO)
-	{
-		if (!contains_object)
-		{
-			std::cout << "Domain is empty, " << *object << " was no part of the domain of " << domain <<std::endl;
-		}
-	}
-	return contains_object;
-}
-
-bool BindingsFacade::unify(const Term& term1, StepID step1, const Term& term2, StepID step2, const BindingsFacade* other_bindings)
-{
-	if (other_bindings == NULL)
-	{
-		other_bindings = this;
-	}
-
-	// Check if we can unify the terms.
-	if (!canUnify(term1, step1, term2, step2, other_bindings))
-	{
-		return false;
-	}
-
-	// If both terms are objects we know they are the same so we're done.
-	if (term1.isObject() && term2.isObject())
-	{
-		return true;
-	}
-
-	// If one of the two is a variable, check if the object is in the variable's domain.
-	const Variable* variable = NULL;
-	const Object* object = NULL;
-	StepID step = Step::INVALID_STEP;
-	if (term1.isObject() && term2.isVariable())
-	{
-		object = term1.asObject();
-		variable = term2.asVariable();
-		step = step2;
-	}
-	else if (term1.isVariable() && term2.isObject())
-	{
-		object = term2.asObject();
-		variable = term1.asVariable();
-		step = step1;
-	}
-
-	// Both terms are variables so restrict their respective domains to they become the same.
-	else
-	{
-		if (other_bindings == this)
-		{
-			VariableBinding vb(step1, *term1.asVariable(), step2, *term2.asVariable(), true);
-			return addBinding(vb);
-		}
-		else
-		{
-			const VariableDomain& other_variable_domain = other_bindings->getVariableDomain(step2, *term2.asVariable());
-			const std::vector<const Object*>& objects = other_variable_domain.getDomain();
-			ObjectsBinding ob(step1, *term1.asVariable(), objects, true);
-			return addBinding(ob);
-		}
-	}
-
-	ObjectBinding ob(step, *variable, *object, true);
-	return addBinding(ob);
-}
-
-bool BindingsFacade::canUnify(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2, const BindingsFacade* other_bindings) const
+bool Bindings::canUnify(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2, const Bindings* other_bindings) const
 {
 	// Make sure the predicates are the same.
 	if (atom1.getPredicate().getName() != atom2.getPredicate().getName())
@@ -755,7 +536,8 @@ bool BindingsFacade::canUnify(const Atom& atom1, StepID step1, const Atom& atom2
 	// Only return true if all the pairs of terms of the atoms can be unified.
 	for (unsigned int i = 0; i < atom1.getArity(); i++)
 	{
-		if (!canUnify(*atom1.getTerms()[i], step1, *atom2.getTerms()[i], step2, other_bindings))
+		if (!atom1.getTerms()[i]->canUnify(step1, *atom2.getTerms()[i], step2, *this, other_bindings))
+		//if (!canUnify(*atom1.getTerms()[i], step1, *atom2.getTerms()[i], step2, other_bindings))
 		{
 			return false;
 		}
@@ -764,15 +546,25 @@ bool BindingsFacade::canUnify(const Atom& atom1, StepID step1, const Atom& atom2
 	return true;
 }
 
-bool BindingsFacade::unify(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2, const BindingsFacade* other_bindings)
+bool Bindings::unify(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2)
 {
-	if (!canUnify(atom1, step1, atom2, step2, other_bindings))
+	std::cout << "[Bindings::unify] ";
+	atom1.print(std::cout, *this, step1);
+	std::cout << " with ";
+	atom2.print(std::cout, *this, step2);
+	std::cout << std::endl;
+	
+	if (!canUnify(atom1, step1, atom2, step2))
+	{
+		std::cout << "canUnify failed!" << std::endl;
 		return false;
+	}
 
 	// Only return true if all the pairs of terms of the atoms can be unified.
 	for (unsigned int i = 0; i < atom1.getArity(); i++)
 	{
-		if (!unify(*atom1.getTerms()[i], step1, *atom2.getTerms()[i], step2, other_bindings))
+		//if (!unify(*atom1.getTerms()[i], step1, *atom2.getTerms()[i], step2))
+		if (!atom1.getTerms()[i]->unify(step1, *atom2.getTerms()[i], step2, *this))
 		{
 			return false;
 		}
@@ -781,7 +573,7 @@ bool BindingsFacade::unify(const Atom& atom1, StepID step1, const Atom& atom2, S
 	return true;
 }
 
-bool BindingsFacade::canUnify(const Action& action1, StepID step1, const Action& action2, StepID step2, const BindingsFacade* other_bindings) const
+bool Bindings::canUnify(const Action& action1, StepID step1, const Action& action2, StepID step2, const Bindings* other_bindings) const
 {
 	// Make sure the predicates are the same.
 	if (action1.getPredicate() != action2.getPredicate())
@@ -792,7 +584,8 @@ bool BindingsFacade::canUnify(const Action& action1, StepID step1, const Action&
 	// Only return true if all the pairs of terms of the atoms can be unified.
 	for (unsigned int i = 0; i < action1.getVariables().size(); i++)
 	{
-		if (!canUnify(*action1.getVariables()[i], step1, *action2.getVariables()[i], step2, other_bindings))
+		//if (!canUnify(*action1.getVariables()[i], step1, *action2.getVariables()[i], step2, other_bindings))
+		if (!action1.getVariables()[i]->canUnify(step1, *action2.getVariables()[i], step2, *this, other_bindings))
 		{
 			return false;
 		}
@@ -801,83 +594,30 @@ bool BindingsFacade::canUnify(const Action& action1, StepID step1, const Action&
 	return true;
 }
 
-bool BindingsFacade::makeEqual(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2, const BindingsFacade* other_bindings)
+bool Bindings::makeEqual(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2)
 {
-	if (!canUnify(atom1, step1, atom2, step2, other_bindings))
+//	if (!canUnify(atom1, step1, atom2, step2, other_bindings))
+	if (!canUnify(atom1, step1, atom2, step2))
 	{
 		return false;
 	}
 	
 	std::cout << "Make equal: ";
 	atom1.print(std::cout, *this, step1);
-	std::cout << " and ";
-	atom2.print(std::cout, (other_bindings == NULL ? *this : *other_bindings), step2);
+//	std::cout << " and ";
+//	atom2.print(std::cout, (other_bindings == NULL ? *this : *other_bindings), step2);
 	std::cout << std::endl;
 	
 	// Only return true if all the pairs of terms of the atoms can be unified.
 	for (unsigned int i = 0; i < atom1.getArity(); i++)
 	{
-		assert (makeEqual(*atom1.getTerms()[i], step1, *atom2.getTerms()[i], step2, other_bindings));
+		//assert (makeEqual(*atom1.getTerms()[i], step1, *atom2.getTerms()[i], step2, other_bindings));
+		assert (atom1.getTerms()[i]->makeDomainEqualTo(step1, *atom2.getTerms()[i], step2, *this));
 	}
 	return true;
 }
 
-bool BindingsFacade::makeEqual(const Term& term1, StepID step1, const Term& term2, StepID step2, const BindingsFacade* other_bindings)
-{
-	if (!canUnify(term1, step1, term2, step2, other_bindings))
-	{
-		return false;
-	}
-	
-	if (other_bindings == NULL)
-	{
-		other_bindings = this;
-	}
-	
-	if (term1.isObject() && term2.isObject())
-	{
-		return true;
-	}
-
-	// If one of the two is a variable, check if the object is in the variable's domain.
-	const Variable* variable = NULL;
-	const Object* object = NULL;
-	StepID step = Step::INVALID_STEP;
-	if (term1.isObject() && term2.isVariable())
-	{
-		object = term1.asObject();
-		variable = term2.asVariable();
-		step = step2;
-	}
-	else if (term1.isVariable() && term2.isObject())
-	{
-		object = term2.asObject();
-		variable = term1.asVariable();
-		step = step1;
-	}
-
-	// Both terms are variables so restrict their respective domains to they become the same.
-	else
-	{
-		const VariableDomain& variable_domain = getVariableDomain(step1, *term1.asVariable());
-		const VariableDomain& other_variable_domain = other_bindings->getVariableDomain(step2, *term2.asVariable());
-		
-		std::cout << variable_domain << " v.s. " << other_variable_domain << std::endl;
-		
-		ObjectsBinding ob1(step1, *term1.asVariable(), other_variable_domain.getDomain(), true);
-		ObjectsBinding ob2(step2, *term2.asVariable(), variable_domain.getDomain(), true);
-		
-		bool domain_changed = addBinding(ob1);
-		domain_changed = addBinding(ob2) || domain_changed;
-		
-		return domain_changed;
-	}
-
-	ObjectBinding ob(step, *variable, *object, true);
-	return addBinding(ob);
-}
-
-bool BindingsFacade::affects(const Atom& atom1, StepID step1, const Atom& atom2, const StepID step2) const
+bool Bindings::affects(const Atom& atom1, StepID step1, const Atom& atom2, const StepID step2) const
 {
 	// First make sure the predicates are the same.
 	if (atom1.getPredicate().getName() != atom2.getPredicate().getName())
@@ -900,16 +640,7 @@ bool BindingsFacade::affects(const Atom& atom1, StepID step1, const Atom& atom2,
 		const Term* term1 = atom1.getTerms()[i];
 		const Term* term2 = atom2.getTerms()[i];
 
-		// We do not need to check the type as this is implicitly done by the canUnify
-		// function. This checks if the intersection of the variable domains for the
-		// terms is empty. If not than we know that they share a common sub type.
-/*		if (term1->getType() != term2->getType())
-		{
-			terms_differ = true;
-			break;
-		}
-*/
-		if (!canUnify(*term1, step1, *term2, step2))
+		if (!term1->canUnify(step1, *term2, step2, *this))
 		{
 			terms_differ = true;
 			break;
@@ -931,7 +662,33 @@ bool BindingsFacade::affects(const Atom& atom1, StepID step1, const Atom& atom2,
 	return true;
 }
 
-StepID BindingsFacade::getNextStep(StepID step_id)
+void Bindings::postProcessMerge(VariableDomain& lhs_vd, const VariableDomain& rhs_vd)
+{
+	// Make sure the bindings to the rhs (which has been merged with the lhs) are updated to point to the lhs variable domain.
+	const std::vector<std::pair<StepID, const Variable*> >& equal_rhs_variables = rhs_vd.getEqualVariables();
+	for (std::vector<std::pair<StepID, const Variable*> >::const_iterator ci = equal_rhs_variables.begin(); ci != equal_rhs_variables.end(); ci++)
+	{
+		binding_mapping_[std::make_pair((*ci).first, (*ci).second)] = &lhs_vd;
+	}
+	
+	// Next we need to make sure that all references to unequal variables are restored as the original pointer
+	// might have changed due to the above merge.
+	for (std::vector<VariableDomain*>::iterator ci = variable_domains_.begin(); ci != variable_domains_.end(); ci++)
+	{
+		std::vector<VariableDomain*>& unequals = (*ci)->getNonConstUnequalVariables();
+		for (std::vector<VariableDomain*>::iterator ci2 = unequals.begin(); ci2 != unequals.end(); ci2++)
+		{
+			if (*ci2 == &rhs_vd)
+			{
+				unequals.erase(ci2);
+				unequals.push_back(&lhs_vd);
+				break;
+			}
+		}
+	}
+}
+
+StepID Bindings::getNextStep(StepID step_id)
 {
 	// Return the next available number.
 	if (step_id == Step::INVALID_STEP)
@@ -957,17 +714,8 @@ StepID BindingsFacade::getNextStep(StepID step_id)
 	return step_id;
 }
 
-std::ostream& operator<<(std::ostream& os, const BindingsFacade& bindings)
+std::ostream& operator<<(std::ostream& os, const Bindings& bindings)
 {
-	/*
-	for (std::vector<VariableDomain*>::const_iterator ci = bindings.variable_domains_.begin(); ci != bindings.variable_domains_.end(); ci++)
-	{
-		os << **ci << std::endl;
-	}
-	*/
-
-//	os << " v.s. " << std::endl;
-
 	std::set<std::pair<StepID, const Variable*> > closed_list;
 
 	for (std::map<std::pair<StepID, const Variable*>, VariableDomain*>::const_iterator ci = bindings.binding_mapping_.begin(); ci != bindings.binding_mapping_.end(); ci++)
@@ -988,193 +736,6 @@ std::ostream& operator<<(std::ostream& os, const BindingsFacade& bindings)
 		}
 	}
 	return os;
-}
-
-/*************************
- * The Bindings class
- *************************/
-
-Bindings::Bindings(const TermManager& term_manager, const BindingsPropagator& propagator)
-	: BindingsFacade(term_manager, propagator)
-{
-
-}
-
-Bindings::Bindings(const BindingsFacade& other)
-	: BindingsFacade(other)
-{
-
-}
-
-Bindings::Bindings(const Bindings& other)
-	: BindingsFacade(other)
-{
-
-}
-
-Bindings::~Bindings()
-{
-
-}
-
-bool Bindings::addBinding(const Binding& binding)
-{
-	//return binding.applyTo(*this);
-
-	assert (binding.applyTo(*this));
-/*	const Bindings* new_binding = new Bindings(*this);
-
-	if (!binding.applyTo(*this))
-	{
-		delete new_binding;
-		return false;
-	}
-*/
-	
-	// Applying the binding should invoke the propagator which must take take of the bindings constrains and return false
-	// if a domain becomes empty.
-/*	for (std::map<std::pair<StepID, const Variable*>, VariableDomain*>::const_iterator ci = binding_mapping_.begin(); ci != binding_mapping_.end(); ci++)
-	{
-		if ((*ci).second->getDomain().size() == 0)
-		{
-			std::cout << "[Before] Bindings: " << *new_binding << std::endl;
-			std::cout << "[After] Bindings: " << *this << std::endl;
-			assert (false);
-		}
-	}*/
-	
-//	delete new_binding;
-	return true;
-}
-
-bool Bindings::merge(StepID root_step, const Variable& root_variable, StepID leaf_step, const Variable& leaf_variable)
-{
-	// Make sure the domains are merged.
-	VariableDomain& root_variable_domain = getNonConstVariableDomain(root_step, root_variable);
-	const VariableDomain& leaf_variable_domain = getVariableDomain(leaf_step, leaf_variable);
-
-	if (Logging::verbosity <= Logging::DEBUG)
-	{
-		std::cout << "Merge " << root_variable_domain << " and " << leaf_variable_domain << std::endl;
-	}
-	if (&root_variable_domain == &leaf_variable_domain)
-	{
-		return true;
-	}
-
-	// Make sure the variable domain we want to merge with is not in the unequal list.
-	const std::vector<VariableDomain*> unequals = root_variable_domain.getUnequalVariables();
-	for (std::vector<VariableDomain*>::const_iterator ci = unequals.begin(); ci != unequals.end(); ci++)
-	{
-		if (*ci == &leaf_variable_domain)
-		{
-			return false;
-		}
-	}
-
-	bool domain_has_changed = root_variable_domain.makeEqualTo(leaf_variable_domain);
-
-	// Update the pointers in the mapping so the 'leaf' is merged into the 'root'.
-	const std::vector<std::pair<StepID, const Variable*> >& equal_leaf_variables = leaf_variable_domain.getEqualVariables();
-	for (std::vector<std::pair<StepID, const Variable*> >::const_iterator ci = equal_leaf_variables.begin(); ci != equal_leaf_variables.end(); ci++)
-	{
-		binding_mapping_[std::make_pair((*ci).first, (*ci).second)] = &root_variable_domain;
-	}
-	assert (&getVariableDomain(leaf_step, leaf_variable) == &root_variable_domain);
-
-	// Next we need to make sure that all references to unequal variables are restored as the original pointer
-	// might have changed due to the above merge.
-	for (std::vector<VariableDomain*>::iterator ci = variable_domains_.begin(); ci != variable_domains_.end(); ci++)
-	{
-		std::vector<VariableDomain*>& unequals = (*ci)->getNonConstUnequalVariables();
-		for (std::vector<VariableDomain*>::iterator ci2 = unequals.begin(); ci2 != unequals.end(); ci2++)
-		{
-			if (*ci2 == &leaf_variable_domain)
-			{
-				unequals.erase(ci2);
-				unequals.push_back(&root_variable_domain);
-				break;
-			}
-		}
-	}
-
-	// Make sure all bindings have been updated.
-/*	for (std::map<std::pair<StepID, const Variable*>, VariableDomain*>::const_iterator ci = binding_mapping_.begin(); ci != binding_mapping_.end(); ci++)
-	{
-		if ((*ci).second == &leaf_variable_domain)
-		{
-			assert(false);
-		}
-	}*/
-	
-	if (domain_has_changed)
-	{
-		return propagator_->propagateAfterMakeEqual(*this, root_variable_domain, leaf_variable_domain);
-	}
-
-	return true;
-}
-
-bool Bindings::makeDistinct(StepID root_step, const Variable& root_variable, StepID leaf_step, const Variable& leaf_variable)
-{
-	VariableDomain& root_variable_domain = getNonConstVariableDomain(root_step, root_variable);
-	VariableDomain& leaf_variable_domain = getNonConstVariableDomain(leaf_step, leaf_variable);
-
-	// Make sure the domains are not the same, otherwise we will end up with empty domains.
-	if (&root_variable_domain == &leaf_variable_domain)
-	{
-		return false;
-	}
-
-	if (root_variable_domain.makeUnequalTo(leaf_variable_domain))
-	{
-		return propagator_->propagateAfterMakeUnequal(*this, root_variable_domain, leaf_variable_domain);
-	}
-	return true;
-}
-
-bool Bindings::assign(StepID step, const Variable& variable, const Object& object)
-{
-	VariableDomain& variable_domain = getNonConstVariableDomain(step, variable);
-	if (variable_domain.makeEqualTo(object))
-	{
-		return propagator_->propagateAfterMakeEqual(*this, variable_domain, object);
-	}
-
-	return true;
-}
-
-bool Bindings::assign(StepID step, const Variable& variable, const std::vector<const Object*>& objects)
-{
-	VariableDomain& variable_domain = getNonConstVariableDomain(step, variable);
-	if (variable_domain.makeEqualTo(objects))
-	{
-		return propagator_->propagateAfterMakeEqual(*this, variable_domain, objects);
-	}
-
-	return true;
-}
-
-bool Bindings::unassign(StepID step, const Variable& variable, const Object& object)
-{
-	VariableDomain& variable_domain = getNonConstVariableDomain(step, variable);
-	if (variable_domain.makeUnequalTo(object))
-	{
-		return propagator_->propagateAfterMakeUnequal(*this, variable_domain, object);
-	}
-
-	return true;
-}
-
-bool Bindings::unassign(StepID step, const Variable& variable, const std::vector<const Object*>& objects)
-{
-	VariableDomain& variable_domain = getNonConstVariableDomain(step, variable);
-	if (variable_domain.makeUnequalTo(objects))
-	{
-		return propagator_->propagateAfterMakeUnequal(*this, variable_domain, objects);
-	}
-
-	return true;
 }
 
 };

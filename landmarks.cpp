@@ -21,7 +21,7 @@
 #include "SAS/dtg_manager.h"
 #include "SAS/dtg_node.h"
 #include "SAS/transition.h"
-#include "SAS/reachability.h"
+//#include "SAS/reachability.h"
 
 namespace MyPOP {
 
@@ -1037,7 +1037,7 @@ void LandmarkManager::findLandmarksInDTGs(const SAS_Plus::DomainTransitionGraphM
 /*************************
  * The Landmark class
  *************************/
-Landmark::Landmark(StepID step_id, const Atom& atom, const BindingsFacade& bindings, LandmarkGraph& landmark_graph)
+Landmark::Landmark(StepID step_id, const Atom& atom, const Bindings& bindings, LandmarkGraph& landmark_graph)
 	: step_id_(step_id), atom_(&atom), landmark_graph_(&landmark_graph)
 {
 	landmark_graph.addLandmark(*this, bindings);
@@ -1059,7 +1059,7 @@ std::ostream& operator<<(std::ostream& os, const Landmark& landmark)
 /*************************
  * The PreconditionLandmark class
  *************************/
-PreconditionLandmark::PreconditionLandmark(StepID step_id, const Atom& atom, const BindingsFacade& bindings, LandmarkGraph& landmark_graph)
+PreconditionLandmark::PreconditionLandmark(StepID step_id, const Atom& atom, const Bindings& bindings, LandmarkGraph& landmark_graph)
 	: Landmark(step_id, atom, bindings, landmark_graph), shared_landmarks_(NULL), achieving_actions_(NULL)
 {
 
@@ -1087,7 +1087,7 @@ LandmarkGraph::LandmarkGraph(const TermManager& term_manager)
 
 }
 
-void LandmarkGraph::addLandmark(Landmark& landmark, const BindingsFacade& atom_bindings)
+void LandmarkGraph::addLandmark(Landmark& landmark, const Bindings& atom_bindings)
 {
 	assert (bindings_ == &getBindings());
 	// If the landmark is bound to another binding, copy this binding information.
@@ -1141,7 +1141,7 @@ void LandmarkGraph::addOrdering(const Landmark& from_landmark, const Landmark& t
 	return false;
 }*/
 
-bool LandmarkGraph::isUnifiable(StepPtr initial_step, const BindingsFacade& bindings, const PreconditionLandmark& landmark) const
+bool LandmarkGraph::isUnifiable(StepPtr initial_step, const Bindings& bindings, const PreconditionLandmark& landmark) const
 {	
 	// If the landmark is bindable to the initial state than we are done and no further landmarks can be derived using this technique.
 	std::vector<const Atom*> initial_state_effects;

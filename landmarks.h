@@ -108,7 +108,7 @@ public:
 	 * @param bindings Contains the mappings between the fact's variables and its domains.
 	 * @param landmark_graph The landmark grah this landmark will be added to.
 	 */
-	Landmark(StepID step_id, const Atom& atom, const BindingsFacade& bindings, LandmarkGraph& landmark_graph);
+	Landmark(StepID step_id, const Atom& atom, const Bindings& bindings, LandmarkGraph& landmark_graph);
 	
 	~Landmark();
 	
@@ -140,7 +140,7 @@ std::ostream& operator<<(std::ostream& os, const Landmark& landmark);
 class PreconditionLandmark : public Landmark
 {
 public:
-	PreconditionLandmark(StepID step_id, const Atom& atom, const BindingsFacade& bindings, LandmarkGraph& landmark_graph);
+	PreconditionLandmark(StepID step_id, const Atom& atom, const Bindings& bindings, LandmarkGraph& landmark_graph);
 
 	void setSharedLandmarks(const std::vector<const PreconditionLandmark*>& landmarks);
 
@@ -173,13 +173,13 @@ public:
 	/**
 	 * Create a landmark graph and copy the bindings from the given one.
 	 */
-	LandmarkGraph(const BindingsFacade& bindings);
+	LandmarkGraph(const Bindings& bindings);
 	
 	/**
 	 * Get the bindings of the landmarks.
 	 */
-	const BindingsFacade& getBindings() const { return *bindings_; }
-	BindingsFacade& getBindings() { return *bindings_; }
+	const Bindings& getBindings() const { return *bindings_; }
+	Bindings& getBindings() { return *bindings_; }
 	
 	/**
 	 * Get the orderings between the landmarks.
@@ -198,7 +198,7 @@ public:
 	 * will be copied to this landmark graph's own bindings object. The step id of the given landmark will
 	 * be changed after the bindings have been made.
 	 */
-	void addLandmark(Landmark& landmark, const BindingsFacade& atom_bindings);
+	void addLandmark(Landmark& landmark, const Bindings& atom_bindings);
 
 	/**
 	 * Order one landmark before another one, if this ordering fails an exception will be thrown.
@@ -208,14 +208,14 @@ public:
 	/**
 	 * Return true if the given landmark is unifiable with the given action and its bindings.
 	 */
-	bool isUnifiable(StepPtr initial_step, const BindingsFacade& bindings, const PreconditionLandmark& landmark) const;
+	bool isUnifiable(StepPtr initial_step, const Bindings& bindings, const PreconditionLandmark& landmark) const;
 	
 private:
 	// The propagator we use to prune the bindings.
 	SimpleBindingsPropagator propagator_;
 	
 	// The bindings of all landmarks' variables.
-	BindingsFacade* bindings_;
+	Bindings* bindings_;
 	
 	// The orderings between landmarks.
 	//BinaryOrderings orderings_;

@@ -29,6 +29,9 @@ bool Term::canUnify(StepID lhs_id, const Term& rhs, StepID rhs_id, const Binding
 		rhs_bindings = &lhs_bindings;
 	}
 	
+///	std::cout << *this << "(" << lhs_id << ") unify with *****(" << rhs_id << ")" << std::endl;
+///	std::cout << *this << "(" << lhs_id << ") unify with " << rhs << "(" << rhs_id << ")" << std::endl;
+	
 	std::vector<const Object*> lhs_domain = getDomain(lhs_id, lhs_bindings);
 	const std::vector<const Object*>& rhs_domain = rhs.getDomain(rhs_id, *rhs_bindings);
 	lhs_domain.insert(lhs_domain.end(), rhs_domain.begin(), rhs_domain.end());
@@ -263,12 +266,12 @@ bool Variable::unifyWith(StepID lhs_id, const Variable& variable, StepID rhs_id,
 		return false;
 	}
 	
-	std::cout << "Unify two variables: ";
+/*	std::cout << "Unify two variables: ";
 	print(std::cout, bindings, lhs_id);
 	std::cout << "(" << this << ") with ";
 	variable.print(std::cout, bindings, rhs_id);
 	std::cout << "(" << &variable << ")" << std::endl;
-	
+*/
 	VariableDomain& lhs_vd = bindings.getNonConstVariableDomain(lhs_id, *this);
 	VariableDomain& rhs_vd = bindings.getNonConstVariableDomain(rhs_id, variable);
 	/*bool result = */lhs_vd.makeEqualTo(rhs_vd);

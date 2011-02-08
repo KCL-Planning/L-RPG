@@ -548,22 +548,21 @@ bool Bindings::canUnify(const Atom& atom1, StepID step1, const Atom& atom2, Step
 
 bool Bindings::unify(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2)
 {
-	std::cout << "[Bindings::unify] ";
+/*	std::cout << "[Bindings::unify] ";
 	atom1.print(std::cout, *this, step1);
 	std::cout << " with ";
 	atom2.print(std::cout, *this, step2);
 	std::cout << std::endl;
-	
+*/
 	if (!canUnify(atom1, step1, atom2, step2))
 	{
-		std::cout << "canUnify failed!" << std::endl;
+///		std::cout << "canUnify failed!" << std::endl;
 		return false;
 	}
 
 	// Only return true if all the pairs of terms of the atoms can be unified.
 	for (unsigned int i = 0; i < atom1.getArity(); i++)
 	{
-		//if (!unify(*atom1.getTerms()[i], step1, *atom2.getTerms()[i], step2))
 		if (!atom1.getTerms()[i]->unify(step1, *atom2.getTerms()[i], step2, *this))
 		{
 			return false;
@@ -596,18 +595,19 @@ bool Bindings::canUnify(const Action& action1, StepID step1, const Action& actio
 
 bool Bindings::makeEqual(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2)
 {
-//	if (!canUnify(atom1, step1, atom2, step2, other_bindings))
 	if (!canUnify(atom1, step1, atom2, step2))
 	{
 		return false;
 	}
-	
+
+/*
 	std::cout << "Make equal: ";
 	atom1.print(std::cout, *this, step1);
-//	std::cout << " and ";
-//	atom2.print(std::cout, (other_bindings == NULL ? *this : *other_bindings), step2);
+	std::cout << " and ";
+	atom2.print(std::cout, (other_bindings == NULL ? *this : *other_bindings), step2);
 	std::cout << std::endl;
-	
+*/
+
 	// Only return true if all the pairs of terms of the atoms can be unified.
 	for (unsigned int i = 0; i < atom1.getArity(); i++)
 	{

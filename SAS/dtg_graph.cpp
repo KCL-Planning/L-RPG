@@ -855,7 +855,7 @@ void DomainTransitionGraph::reestablishTransitions()
 			for (std::vector<const Action*>::const_iterator ci = possible_transitions.begin(); ci != possible_transitions.end(); ci++)
 			{
 				const Action* action = *ci;
-				std::cout << *action << ", ";
+///				std::cout << *action << ", ";
 				std::vector<BoundedAtom>* enabler_dummy = new std::vector<BoundedAtom>();
 
 				Transition* transition = Transition::createTransition(*enabler_dummy, *action, *from_node, *to_node, *initial_facts_);
@@ -902,6 +902,8 @@ void DomainTransitionGraph::establishTransitions()
 			}
 		}
 	}
+	
+	std::cout << "=== Result: ===" << std::endl << *this << std::endl;
 }
 
 

@@ -903,6 +903,7 @@ void DomainTransitionGraphManager::mergeDTGs()
 	/**
 	 * Merge dependened invariable DTG nodes.
 	 */
+	std::cout << "[DomainTransitionGraph::mergeDTGs] Merge depended invariable DTG nodes." << std::endl;
 	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
 	{
 		DomainTransitionGraph* dtg = *ci;
@@ -1027,7 +1028,7 @@ void DomainTransitionGraphManager::mergeDTGs()
 				}
 			}
 		}
-		dtg->reestablishTransitions();
+		dtg->establishTransitions();
 	}
 }
 
@@ -1107,6 +1108,7 @@ void DomainTransitionGraphManager::splitDTGs()
 					 */
 					if (precondition_linked_to_this_dtg.size() != 0)
 					{
+						std::cout << "The precondition is part of this DTG node, skip!" << std::endl;
 						continue;
 					}
 					
@@ -1133,11 +1135,17 @@ void DomainTransitionGraphManager::splitDTGs()
 							const Atom* from_atom = (*ci).first;
 							InvariableIndex from_atom_invariable = (*ci).second;
 							
+							std::cout << "Compare the precondition term with the terms of all preconditions linked to the from_node. From_node precondition under consideration: ";
+							from_atom->print(std::cout, transition->getFromNode().getDTG().getBindings(), transition->getStep()->getStepId());
+							std::cout << std::endl;
+							
+							
 							for (unsigned int from_atom_term_index = 0; from_atom_term_index < from_atom->getTerms().size(); from_atom_term_index++)
 							{
 								// TODO: We do not ground the invariable of this DTG (only in special cases, but we'll deal with that later (in time)).
 								if (from_atom_term_index == from_atom_invariable)
 								{
+									std::cout << "Term refers to the invariable of this DTG, skip!" << std::endl;
 									continue;
 								}
 								
@@ -1195,7 +1203,9 @@ void DomainTransitionGraphManager::splitDTGs()
 													{
 														std::set<std::pair<const Property*, InvariableIndex> >* tmp_to_ground_table = properties_to_ground[node];
 														
-														std::cout << "Ground the property: " << bounded_atom->getProperty()->getPredicate() << "(" << i << ")" << std::endl;
+														std::cout << "Ground the property: " << bounded_atom->getProperty()->getPredicate() << "(" << i << ") +==--> ";
+														node->print(std::cout);
+														std::cout << std::endl;
 														tmp_to_ground_table->insert(std::make_pair(bounded_atom->getProperty(), i));
 													}
 												}
@@ -1210,7 +1220,7 @@ void DomainTransitionGraphManager::splitDTGs()
 			}
 		}
 		
-		std::cout << "Move to actual grounding!" << std::endl;
+		std::cout << " =======++++======= Move to actual grounding! =======++++======= " << std::endl;
 		
 		/**
 		 * Perform the actual splitting.
@@ -1224,6 +1234,10 @@ void DomainTransitionGraphManager::splitDTGs()
 			std::vector<const DomainTransitionGraphNode*> dtg_nodes_to_ground;
 			std::vector<DomainTransitionGraphNode*> new_dtg_nodes;
 			dtg_nodes_to_ground.push_back(org_node_to_split);
+			
+			std::cout << " ==+++--> ";
+			org_node_to_split->print(std::cout);
+			std::cout << " (((" << properties_to_ground->size() << ")))" << std::endl;
 			
 			for (std::set<std::pair<const Property*, InvariableIndex> >::const_iterator ci = properties_to_ground->begin(); ci != properties_to_ground->end(); ci++)
 			{
@@ -1272,6 +1286,8 @@ void DomainTransitionGraphManager::splitDTGs()
 				new_dtg_nodes.clear();
 			}
 		}
+		
+		std::cout << " =======++++======= Done with grounding! =======++++======= " << std::endl;
 		
 		dtg->reestablishTransitions();
 	}

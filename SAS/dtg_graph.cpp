@@ -835,7 +835,7 @@ void DomainTransitionGraph::reestablishTransitions()
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 	{
 		DomainTransitionGraphNode* from_node = *ci;
-		from_node->removeTransitions();
+		from_node->removeTransitions(false);
 		
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 		{
@@ -874,10 +874,11 @@ void DomainTransitionGraph::reestablishTransitions()
 
 void DomainTransitionGraph::establishTransitions()
 {
+	std::cout << "Establish transitions for: " << *this << std::endl;
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 	{
-		assert ((*ci)->getTransitions().empty());
-		//(*ci)->removeTransitions();
+		//assert ((*ci)->getTransitions().empty());
+		(*ci)->removeTransitions(true);
 	}
 	
 	// Go through the list of all possible transitions and add them when we can.

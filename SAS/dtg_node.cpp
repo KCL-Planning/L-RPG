@@ -562,7 +562,7 @@ bool DomainTransitionGraphNode::addTransition(const Transition& transition, bool
 	if (update_possible_transitions)
 	{
 		// Only called when the first transitions are added. Are then only updated with the copy constructor.
-		assert (transition.getToNode().unique_ids_.size() == 1);
+		///assert (transition.getToNode().unique_ids_.size() == 1);
 		possible_actions_.insert(std::make_pair(transition.getToNode().unique_ids_[0], &transition.getStep()->getAction()));
 	}
 	
@@ -583,9 +583,14 @@ bool DomainTransitionGraphNode::removeTransition(const Transition& transition)
 	return false;
 }
 
-void DomainTransitionGraphNode::removeTransitions()
+void DomainTransitionGraphNode::removeTransitions(bool reset_cached_actions)
 {
 	transitions_.clear();
+	
+	if (reset_cached_actions)
+	{
+		possible_actions_.clear();
+	}
 }
 
 bool DomainTransitionGraphNode::containsEmptyVariableDomain() const

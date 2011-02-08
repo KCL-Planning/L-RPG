@@ -110,7 +110,18 @@ public:
 	 * Remove a transition from this node.
 	 */
 	bool removeTransition(const Transition& transition);
-	void removeTransitions();
+	
+	/**
+	 * Remove all transitions from this node.
+	 * @param reset_cached_actions Every time a transitions is added to this node, we store it in
+	 * the cache so we do not need to iterate over all possible operators to determine which ones are
+	 * applicable. The way the DTG nodes are refined guarantees that once a transition is established
+	 * it will always be applicable. However the reverse is not always true, sometimes - for example when
+	 * an external invariable is merged with this DTG node - a refinement necessitates a reevaluation of
+	 * all applicable operators, because new ones might be applicable to this node. If this parameter is 
+	 * true the cached actions are cleared and a new cache can be build up.
+	 */
+	void removeTransitions(bool reset_cached_actions);
 
 	/**
 	 * Two DTG nodes are equal if they have the same atoms and both atoms their variable domains contain the

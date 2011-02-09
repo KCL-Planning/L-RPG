@@ -269,7 +269,8 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	/**
 	 * Determine for each property space which action variable is invariable.
 	 */
-	std::map<const PropertySpace*, const Term*> property_space_invariables;
+	///std::map<const PropertySpace*, const Term*> property_space_invariables;
+	std::map<const PropertySpace*, const std::vector<const Object*>*> property_space_invariables;
 	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
 	{
 		// Only consider property spaces which get removed and added, if a fact is only added or removed it's an optional precondition.
@@ -282,10 +283,15 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			continue;
 		}
 		
-		std::set<const Term*> action_invariables;
+		//std::set<const Term*> action_invariables;
+		std::set<const std::vector<const Object*>*> action_invariables;
 		
 		// Initialize by making all action variables possible invariables.
-		action_invariables.insert(action.getVariables().begin(), action.getVariables().end());
+		for (std::vector<const Variable*>::const_iterator ci = action.getVariables().begin(); ci != action.getVariables().end(); ci++)
+		{
+			action_invariables.insert(&(*ci)->getDomain(action_step_id, bindings));
+		}
+///		action_invariables.insert(action.getVariables().begin(), action.getVariables().end());
 		
 		/**
 		 * Go over all the preconditions and effects and determine the invariable.
@@ -298,7 +304,8 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			added_fact->print(std::cout, bindings);
 			std::cout << std::endl;
 			
-			std::set<const Term*> possible_add_invariables;
+///			std::set<const Term*> possible_add_invariables;
+			std::set<const std::vector<const Object*>*> possible_add_invariables;
 			
 			for (std::vector<const Atom*>::const_iterator ci = effects.begin(); ci != effects.end(); ci++)
 			{
@@ -309,12 +316,14 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 					std::cout << "Possible invariable: ";
 					effect->print(std::cout, bindings, action_step_id);
 					std::cout << "(" << to_node.getIndex(*added_fact) << ")" << std::endl;
-					possible_add_invariables.insert(effect->getTerms()[to_node.getIndex(*added_fact)]);
+///					possible_add_invariables.insert(effect->getTerms()[to_node.getIndex(*added_fact)]);
+					possible_add_invariables.insert(&effect->getTerms()[to_node.getIndex(*added_fact)]->getDomain(action_step_id, bindings));
 				}
 			}
 			
 			// Prune the possible range.
-			std::set<const Term*> tmp_set;
+			///std::set<const Term*> tmp_set;
+			std::set<const std::vector<const Object*>*> tmp_set;
 			std::set_intersection(possible_add_invariables.begin(), possible_add_invariables.end(), action_invariables.begin(), action_invariables.end(), std::inserter(tmp_set, tmp_set.begin()));
 			
 			action_invariables.clear();
@@ -329,7 +338,8 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			removed_fact->print(std::cout, bindings);
 			std::cout << std::endl;
 			
-			std::set<const Term*> possible_remove_invariables;
+			///std::set<const Term*> possible_remove_invariables;
+			std::set<const std::vector<const Object*>*> possible_remove_invariables;
 			
 			for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 			{
@@ -341,12 +351,14 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 					precondition->print(std::cout, bindings, action_step_id);
 					std::cout << "(" << from_node.getIndex(*removed_fact) << ")" << std::endl;
 					
-					possible_remove_invariables.insert(precondition->getTerms()[from_node.getIndex(*removed_fact)]);
+					///possible_remove_invariables.insert(precondition->getTerms()[from_node.getIndex(*removed_fact)]);
+					possible_remove_invariables.insert(&precondition->getTerms()[from_node.getIndex(*removed_fact)]->getDomain(action_step_id, bindings));
 				}
 			}
 			
 			// Prune the possible range.
-			std::set<const Term*> tmp_set;
+			///std::set<const Term*> tmp_set;
+			std::set<const std::vector<const Object*>*> tmp_set;
 			std::set_intersection(possible_remove_invariables.begin(), possible_remove_invariables.end(), action_invariables.begin(), action_invariables.end(), std::inserter(tmp_set, tmp_set.begin()));
 			
 			action_invariables.clear();
@@ -355,11 +367,42 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		
 		if (action_invariables.size() == 1)
 		{
-			std::cout << "Invariable action variable: ";
-			const Term* term = *action_invariables.begin();
-			std::cout << "* " << *term << std::endl;
+			std::cout << "Invariable action variable: {";
+			const std::vector<const Object*>* invariable_domain = *action_invariables.begin();
+			///const Term* term = *action_invariables.begin();
+			///std::cout << "* " << *term << " (" << term << ")" << std::endl;
 			
-			property_space_invariables[property_space] = term;
+			for (std::vector<const Object*>::const_iterator ci = invariable_domain->begin(); ci != invariable_domain->end(); ci++)
+			{
+				std::cout << **ci;
+				///if (ci + 1 != action_invariables.end())
+				{
+					std::cout << ", ";
+				}
+			}
+			std::cout << "}" << std::endl;
+			
+			std::cout << "(" << action.getPredicate() << " ";
+			for (std::vector<const Variable*>::const_iterator ci = action.getVariables().begin(); ci != action.getVariables().end(); ci++)
+			{
+				const Variable* variable = *ci;
+				
+				const std::vector<const Object*>& variable_domain = variable->getDomain(action_step_id, bindings);
+				if (&variable_domain == invariable_domain)
+				{
+					std::cout << "*";
+				}
+				std::cout << variable->getName();
+				
+				if (ci + 1 != action.getVariables().end())
+				{
+					std::cout << " ";
+				}
+			}
+			std::cout << ")" << std::endl;
+			
+			///property_space_invariables[property_space] = term;
+			property_space_invariables[property_space] = invariable_domain;
 		}
 		else if (action_invariables.size() == 0)
 		{
@@ -369,12 +412,15 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		else
 		{
 			std::cout << "Multiple action invariables found!" << std::endl;
-			for (std::set<const Term*>::const_iterator ci = action_invariables.begin(); ci != action_invariables.end(); ci++)
+			assert (false);
+			/*
+			///for (std::set<const Term*>::const_iterator ci = action_invariables.begin(); ci != action_invariables.end(); ci++)
+			for (std::set<const std::vector<const Object*>*>::const_iterator ci = action_invariables.begin(); ci != action_invariables.end(); ci++)
 			{
 				const Term* term = *ci;
 				std::cout << "* " << *term << std::endl;
 			}
-			
+			*/
 			return NULL;
 		}
 	}
@@ -385,230 +431,455 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	}
 	
 	/**
-	 * Make sure none of the effects and preconditions are mutex with the nodes in to_node and from_node, respectively.
+	 * After we have found all the invariable of each property space, check there are no mutex preconditions or effects.
+	 */
+	std::cout << "Check mutex relationships..." << std::endl;
+	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
+	{
+		const PropertySpace* property_space = (*ci).first;
+		const std::vector<const BoundedAtom*>* added_facts = (*ci).second.first;
+		const std::vector<const BoundedAtom*>* removed_facts = (*ci).second.second;
+		
+		if (added_facts->empty() || removed_facts->empty())
+		{
+			continue;
+		}
+		
+		std::cout << " ****************************** " << std::endl;
+		std::cout << "Check mutex relationships of: " << std::endl;
+		for (std::vector<const BoundedAtom*>::const_iterator ci = added_facts->begin(); ci != added_facts->end(); ci++)
+		{
+			std::cout << "+ ";
+			(*ci)->print(std::cout, bindings);
+			std::cout << std::endl;
+		}
+		for (std::vector<const BoundedAtom*>::const_iterator ci = removed_facts->begin(); ci != removed_facts->end(); ci++)
+		{
+			std::cout << "- ";
+			(*ci)->print(std::cout, bindings);
+			std::cout << std::endl;
+		}
+		std::cout << " * Start checking preconditions * " << std::endl;
+		
+		///const Term* invariable_term = property_space_invariables[property_space];
+		const std::vector<const Object*>* invariable_term = property_space_invariables[property_space];
+		
+		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
+		{
+			const Atom* precondition = *ci;
+			std::cout << "Precondition: ";
+			precondition->print(std::cout, bindings, action_step_id);
+			std::cout << std::endl;
+			
+			/**
+			 * Check if any term of the precondition matches up with the invariable for this property_space. If this is the case
+			 * make sure it isn't mutex with any of the nodes in the from node.
+			 */
+			for (std::vector<const Term*>::const_iterator ci = precondition->getTerms().begin(); ci != precondition->getTerms().end(); ci++)
+			{
+				const Term* precondition_term = *ci;
+				const std::vector<const Object*>& precondition_domain = precondition_term->getDomain(action_step_id, bindings);
+				
+				if (invariable_term == &precondition_domain)
+				{
+					std::cout << " -=> Invariable matches!" << std::endl;
+					
+					for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
+					{
+						const BoundedAtom* from_node_bounded_atom = *ci;
+						
+						std::cout << " -==> Is mutex with: ";
+						from_node_bounded_atom->print(std::cout, bindings);
+						std::cout << "?" << std::endl;
+						
+						if (from_node_bounded_atom->isMutexWith(precondition->getPredicate(), action_step_id))
+						{
+							std::cout << "The precondition ";
+							precondition->print(std::cout, bindings, action_step_id);
+							std::cout << " is mutex with the from fact ";
+							from_node_bounded_atom->print(std::cout, bindings);
+							std::cout << "." << std::endl;
+							return NULL;
+						}
+					}
+				}
+			}
+		}
+		
+		std::cout << " * Start checking effects * " << std::endl;
+		for (std::vector<const Atom*>::const_iterator ci = effects.begin(); ci != effects.end(); ci++)
+		{
+			const Atom* effect = *ci;
+			std::cout << "Effect: ";
+			effect->print(std::cout, bindings, action_step_id);
+			std::cout << std::endl;
+			
+			/**
+			 * Check if any term of the precondition matches up with the invariable for this property_space. If this is the case
+			 * make sure it isn't mutex with any of the nodes in the from node.
+			 */
+			for (std::vector<const Term*>::const_iterator ci = effect->getTerms().begin(); ci != effect->getTerms().end(); ci++)
+			{
+				const Term* effect_term = *ci;
+				
+				const std::vector<const Object*>& effect_domain = effect_term->getDomain(action_step_id, bindings);
+				
+				if (invariable_term == &effect_domain)
+				{
+					std::cout << " -=> Invariable matches!" << std::endl;
+					
+					for (std::vector<BoundedAtom*>::const_iterator ci = to_node.getAtoms().begin(); ci != to_node.getAtoms().end(); ci++)
+					{
+						const BoundedAtom* to_node_bounded_atom = *ci;
+						
+						std::cout << " -==> Is mutex with: ";
+						to_node_bounded_atom->print(std::cout, bindings);
+						std::cout << "?" << std::endl;
+						
+						if (to_node_bounded_atom->isMutexWith(effect->getPredicate(), action_step_id))
+						{
+							std::cout << "The effect ";
+							effect->print(std::cout, bindings, action_step_id);
+							std::cout << " is mutex with the to fact ";
+							to_node_bounded_atom->print(std::cout, bindings);
+							std::cout << "." << std::endl;
+							return NULL;
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Make sure all the added and deleted facts are accounted for.
+	 */
+	std::vector<std::pair<const Atom*, InvariableIndex> > precondition_mapping_to_from_node; // Pair of precondition and invariable index.
+	std::vector<std::pair<const Atom*, InvariableIndex> > add_effects_mapping_to_to_node;    // Pair of effect and invariable index.
+	std::vector<std::pair<const Atom*, InvariableIndex> > remove_effects_mapping_to_to_node; // Pair of effect and invariable index.
+	
+	std::vector<std::pair<const Atom*, const BoundedAtom*> > add_effects_to_to_node_bindings;
+	std::vector<std::pair<const Atom*, const BoundedAtom*> > precondition_to_from_node_bindings;
+
+	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
+	{
+		const PropertySpace* property_space = (*ci).first;
+		const std::vector<const BoundedAtom*>* added_facts = (*ci).second.first;
+		const std::vector<const BoundedAtom*>* removed_facts = (*ci).second.second;
+		
+		if (added_facts->empty() || removed_facts->empty())
+		{
+			continue;
+		}
+		
+		const std::vector<const Object*>* invariable_term = property_space_invariables[property_space];
+		
+		std::cout << " ****************************** " << std::endl;
+		std::cout << "Check all added and removed facts are accounted for: " << std::endl;
+		for (std::vector<const BoundedAtom*>::const_iterator ci = added_facts->begin(); ci != added_facts->end(); ci++)
+		{
+			std::cout << "+ ";
+			(*ci)->print(std::cout, bindings);
+			std::cout << std::endl;
+		}
+		for (std::vector<const BoundedAtom*>::const_iterator ci = removed_facts->begin(); ci != removed_facts->end(); ci++)
+		{
+			std::cout << "- ";
+			(*ci)->print(std::cout, bindings);
+			std::cout << std::endl;
+		}
+
+		for (std::vector<const BoundedAtom*>::const_iterator ci = added_facts->begin(); ci != added_facts->end(); ci++)
+		{
+			const BoundedAtom* added_fact = *ci;
+			bool is_added = false;
+			
+			std::cout << " =++> Make sure the added fact: ";
+			added_fact->print(std::cout, bindings);
+			std::cout << "is accounted for..." << std::endl;
+			
+			// Make sure an effect actually added this fact.
+			for (std::vector<const Atom*>::const_iterator ci = effects.begin();  ci != effects.end(); ci++)
+			{
+				const Atom* effect = *ci;
+				
+				if (effect->isNegative() == added_fact->getAtom().isNegative() &&
+				    bindings.canUnify(*effect, action_step_id, added_fact->getAtom(), added_fact->getId()) &&
+				    &effect->getTerms()[to_node.getIndex(*added_fact)]->getDomain(action_step_id, bindings) == invariable_term)
+				{
+					std::cout << "It's added by: ";
+					effect->print(std::cout, bindings, action_step_id);
+					std::cout << std::endl;
+					is_added = true;
+					add_effects_mapping_to_to_node.push_back(std::make_pair(effect, to_node.getIndex(*added_fact)));
+					add_effects_to_to_node_bindings.push_back(std::make_pair(effect, added_fact));
+					break;
+				}
+			}
+			
+			if (!is_added)
+			{
+				std::cout << "The effect: ";
+				added_fact->print(std::cout, bindings);
+				std::cout << " is not accounted for..." << std::endl;
+				return NULL;
+			}
+		}
+		
+		std::cout << "Make sure all delete facts are accounted for!" << std::endl;
+		for (std::vector<const BoundedAtom*>::const_iterator ci = removed_facts->begin(); ci != removed_facts->end(); ci++)
+		{
+			const BoundedAtom* removed_fact = *ci;
+			bool is_a_precondition = false;
+			bool is_removed = false;
+			
+			std::cout << " =++> Make sure the removed fact: ";
+			removed_fact->print(std::cout, bindings);
+			std::cout << "is accounted for..." << std::endl;
+			
+			// Make sure an effect actually added this fact.
+			for (std::vector<const Atom*>::const_iterator ci = preconditions.begin();  ci != preconditions.end(); ci++)
+			{
+				const Atom* precondition = *ci;
+				
+				if (precondition->isNegative() == removed_fact->getAtom().isNegative() &&
+				    bindings.canUnify(*precondition, action_step_id, removed_fact->getAtom(), removed_fact->getId()) &&
+				    &precondition->getTerms()[from_node.getIndex(*removed_fact)]->getDomain(action_step_id, bindings) == invariable_term)
+				{
+					std::cout << "It's removed by: ";
+					precondition->print(std::cout, bindings, action_step_id);
+					std::cout << std::endl;
+					precondition_mapping_to_from_node.push_back(std::make_pair(precondition, from_node.getIndex(*removed_fact)));
+					precondition_to_from_node_bindings.push_back(std::make_pair(precondition, removed_fact));
+					is_a_precondition = true;
+					break;
+				}
+			}
+			
+			if (!is_a_precondition)
+			{
+				std::cout << "The removed precondition: ";
+				removed_fact->print(std::cout, bindings);
+				std::cout << " is not accounted for..." << std::endl;
+				return NULL;
+			}
+			
+			for (std::vector<const Atom*>::const_iterator ci = effects.begin();  ci != effects.end(); ci++)
+			{
+				const Atom* effect = *ci;
+				
+				if (effect->isNegative() != removed_fact->getAtom().isNegative() &&
+				    bindings.canUnify(*effect, action_step_id, removed_fact->getAtom(), removed_fact->getId()) &&
+				    &effect->getTerms()[from_node.getIndex(*removed_fact)]->getDomain(action_step_id, bindings) == invariable_term)
+				{
+					std::cout << "It's removed by: ";
+					effect->print(std::cout, bindings, action_step_id);
+					std::cout << std::endl;
+					remove_effects_mapping_to_to_node.push_back(std::make_pair(effect, from_node.getIndex(*removed_fact)));
+					is_removed = true;
+					break;
+				}
+			}
+			
+			if (!is_removed)
+			{
+				std::cout << "The precondition is not removed: ";
+				removed_fact->print(std::cout, bindings);
+				std::cout << " is not accounted for..." << std::endl;
+				return NULL;
+			}
+		}
+	}
+	
+	/**
+	 * Make sure the persistent facts are not affected by the effects.
+	 */
+	for (std::vector<std::pair<const BoundedAtom*, const BoundedAtom*> >::const_iterator ci = persistent_facts.begin(); ci != persistent_facts.end(); ci++)
+	{
+		const BoundedAtom* persistent_from_fact = (*ci).first;
+		const PropertySpace& property_space = persistent_from_fact->getProperty()->getPropertyState().getPropertySpace();
+		const std::vector<const Object*>* invariable_term = property_space_invariables[&property_space];
+		
+		for (std::vector<const Atom*>::const_iterator ci = effects.begin();  ci != effects.end(); ci++)
+		{
+			const Atom* effect = *ci;
+			
+			if (effect->isNegative() != persistent_from_fact->getAtom().isNegative() &&
+			    bindings.canUnify(*effect, action_step_id, persistent_from_fact->getAtom(), persistent_from_fact->getId()) &&
+			    &effect->getTerms()[from_node.getIndex(*persistent_from_fact)]->getDomain(action_step_id, bindings) == invariable_term)
+			{
+				std::cout << "The persistent fact: ";
+				persistent_from_fact->print(std::cout, bindings);
+				std::cout << " is removed!!!" << std::endl;
+				return NULL;
+			}
+		}
+	}
+	
+	/**
+	 * Start making the actual bindings!
+	 */
+	StepID new_action_step_id = bindings.createVariableDomains(action);
+	StepPtr new_action_step(new Step(new_action_step_id, action));
+	
+	/**
+	 * Test the optional preconditions.
+	 */
+	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
+	{
+		const std::vector<const BoundedAtom*>* added_facts = (*ci).second.first;
+		const std::vector<const BoundedAtom*>* removed_facts = (*ci).second.second;
+		
+		if (!added_facts->empty() && !removed_facts->empty())
+		{
+			continue;
+		}
+		
+		const std::vector<const BoundedAtom*>* persistent_facts = (!added_facts->empty() ? added_facts : removed_facts);
+		const DomainTransitionGraphNode* dtg_node = (!added_facts->empty() ? &to_node : &from_node);
+		
+		/**
+		 * Test if there exists a precondition with the same predicate name and can unify with the invariable. If that's the case then
+		 * we have to unify with that precondition too.
+		 */
+		for (std::vector<const BoundedAtom*>::const_iterator ci = persistent_facts->begin(); ci != persistent_facts->end(); ci++)
+		{
+			const BoundedAtom* persistent_fact = *ci;
+			InvariableIndex invariable_index = dtg_node->getIndex(*persistent_fact);
+			assert (invariable_index != INVALID_INDEX_ID);
+			
+			for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
+			{
+				const Atom* precondition = *ci;
+				
+				if (precondition->getPredicate().getName() == persistent_fact->getAtom().getPredicate().getName() &&
+					precondition->getPredicate().getArity() == persistent_fact->getAtom().getArity())
+				{
+					if (precondition->getTerms()[invariable_index]->canUnify(action_step_id, *persistent_fact->getAtom().getTerms()[invariable_index], persistent_fact->getId(), bindings))
+					{
+						std::cout << "Unify the optional precondition ";
+						persistent_fact->print(std::cout, bindings);
+						std::cout << " with: ";
+						precondition->print(std::cout, bindings, action_step_id);
+						std::cout << std::endl;
+						if (!bindings.unify(*precondition, new_action_step_id, persistent_fact->getAtom(), persistent_fact->getId()))
+						{
+							std::cout << "Could not bind the optional precondition." << std::endl;
+							return NULL;
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	std::cout << "[Transition::createTransition] Unify the effects!" << std::endl;
+	for (std::vector<std::pair<const Atom*, const BoundedAtom*> >::const_iterator ci = add_effects_to_to_node_bindings.begin(); ci != add_effects_to_to_node_bindings.end(); ci++)
+	{
+		const Atom* added_effect = (*ci).first;
+		const BoundedAtom* to_node_atom = (*ci).second;
+		
+		if (!bindings.unify(*added_effect, new_action_step_id, to_node_atom->getAtom(), to_node_atom->getId()))
+		{
+			std::cout << "[Transition::createTransition] Could not perform the actual bindings on effects!" << std::endl;
+			to_node_atom->print(std::cout, bindings);
+			std::cout << " couldn't bind with: ";
+			added_effect->print(std::cout, bindings, new_action_step_id);
+			std::cout << std::endl;
+
+			return NULL;
+		}
+/*
+		// Test if the bindings have actually been made.
+		for (unsigned int i = 0; i < added_effect->getArity(); i++)
+		{
+			const Term* effect_term = added_effect->getTerms()[i];
+			const Term* to_node_term = to_node_atom->getAtom().getTerms()[i];
+			
+			assert (to_node_term->isTheSameAs(to_node_atom->getId(), *effect_term, new_action_step_id, bindings));
+		}
+*/
+	}
+	
+	std::cout << "[Transition::createTransition] Unify the preconditions!" << std::endl;
+	for (std::vector<std::pair<const Atom*, const BoundedAtom*> >::const_iterator ci = precondition_to_from_node_bindings.begin(); ci != precondition_to_from_node_bindings.end(); ci++)
+	{
+		const Atom* removed_effect = (*ci).first;
+		const BoundedAtom* from_node_atom = (*ci).second;
+		
+		if (!bindings.unify(*removed_effect, new_action_step_id, from_node_atom->getAtom(), from_node_atom->getId()))
+		{
+			std::cout << "[Transition::createTransition] Could not perform the actual bindings on preconditions!" << std::endl;
+			from_node_atom->print(std::cout, bindings);
+			std::cout << " couldn't bind with: ";
+			removed_effect->print(std::cout, bindings, new_action_step_id);
+			std::cout << std::endl;
+
+///			assert (false);
+			return NULL;
+		}
+/*
+		// Test if the bindings have actually been made.
+		for (unsigned int i = 0; i < removed_effect->getArity(); i++)
+		{
+			const Term* precondition_term = removed_effect->getTerms()[i];
+			const Term* from_node_term = from_node_atom->getAtom().getTerms()[i];
+			
+			assert (from_node_term->isTheSameAs(from_node_atom->getId(), *precondition_term, new_action_step_id, bindings));
+		}
+*/
+	}
+	
+	/**
+	 * Bind the persistent facts.
+	 *
+	for(std::vector<std::pair<const Atom*, const BoundedAtom*> >::const_iterator ci = persistent_fact_bindings.begin(); ci != persistent_fact_bindings.end(); ci++)
+	{
+		const Atom* persistent_precondition = (*ci).first;
+		const BoundedAtom* persistent_node = (*ci).second;
+		
+		if (!bindings.unify(*persistent_precondition, new_action_step_id, persistent_node->getAtom(), persistent_node->getId()))
+		{
+			std::cout << "[Transition::createTransition] Could not perform the actual bindings on persistent nodes!" << std::endl;
+			std::cout << "[Transition::createTransition] ";
+			persistent_node->print(std::cout, bindings);
+			std::cout << " couldn't bind with: ";
+			persistent_precondition->print(std::cout, bindings, new_action_step_id);
+			std::cout << std::endl;
+///			assert (false);
+			return NULL;
+		}
+	}*/
+	
+	/**
+	 * Post process by checking if the transitiosn did not violate any static preconditions.
 	 */
 	for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 	{
 		const Atom* precondition = *ci;
-		
-		InvariableIndex precondition_invariable = INVALID_INDEX_ID;
-		for (std::map<const PropertySpace*, const Term*>::const_iterator ci = property_space_invariables.begin(); ci != property_space_invariables.end(); ci++)
+		if (precondition->getPredicate().isStatic())
 		{
-			const PropertySpace* property_space = (*ci).first;
-			const Term* invariable_term = (*ci).second;
-			
-			for (InvariableIndex i = 0; i < precondition->getTerms().size(); i++)
+			bool is_supported = false;
+			for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
 			{
-				if (!property_space->contains(i, precondition->getPredicate()))
+				const Atom* initial_fact = *ci;
+				if (bindings.canUnify(*initial_fact, Step::INITIAL_STEP, *precondition, new_action_step_id))
 				{
-					continue;
-				}
-				
-				if (precondition->getTerms()[i]->isTheSameAs(action_step_id, *invariable_term, action_step_id, bindings))
-				{
-					precondition_invariable = i;
+					is_supported = true;
 					break;
 				}
 			}
-		}
-
-		if (precondition_invariable == INVALID_INDEX_ID)
-		{
-			std::cout << "** Not linked to the invariable - skip!" << std::endl;
-		}
-
-		/**
-		 * Map the persistent facts to the preconditions.
-		 */
-		///for (std::vector<const BoundedAtom*>::const_iterator ci = persistent_facts.begin(); ci != persistent_facts.end(); ci++)
-		for (InvariableIndex i = 0; i < persistent_facts.size(); i++)
-		{
-			///const BoundedAtom* persistent_fact = *ci;
-			const BoundedAtom* persistent_fact_in_from_node = persistent_facts[i].first;
-			///const BoundedAtom* persistent_fact_in_to_node = persistent_facts[i].second;
 			
-			if (persistent_fact_in_from_node->getAtom().isNegative() == precondition->isNegative() &&
-					bindings.canUnify(*precondition, action_step_id, persistent_fact_in_from_node->getAtom(), persistent_fact_in_from_node->getId()) &&
-					precondition_invariable == from_node.getIndex(*persistent_fact_in_from_node))
+			if (!is_supported)
 			{
-
-				std::cout << "Added persistent fact as linked precondition: ";
-				persistent_fact_in_from_node->print(std::cout, bindings);
-				std::cout << std::endl;
-/*
-				precondition_mapping_to_from_node.push_back(std::make_pair(precondition, precondition_invariable));
-				persistent_fact_bindings.push_back(std::make_pair(precondition, persistent_fact));
-				persistent_fact_bindings.push_back(std::make_pair(precondition, persistent_fact_in_from_node));
-*/
-			}
-		}
-		
-		for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
-		{
-			const BoundedAtom* from_node_bounded_atom = *ci;
-			
-			std::cout << "* Process: ";
-			precondition->print(std::cout, bindings, action_step_id);
-			std::cout << " v.s. ";
-			from_node_bounded_atom->print(std::cout, bindings);
-			std::cout << std::endl;
-
-			if (from_node_bounded_atom->isMutexWith(precondition->getPredicate(), precondition_invariable))
-			{
-				std::cout << "[Transition::createTransition] The precondition ";
-				precondition->print(std::cout, bindings, action_step_id);
-				std::cout << " is mutex with ";
-				from_node_bounded_atom->print(std::cout, bindings);
-				std::cout << std::endl;
-				
-				const Term* precondition_term = precondition->getTerms()[precondition_invariable];
-				const Term* from_node_term = from_node_bounded_atom->getAtom().getTerms()[from_node.getIndex(*from_node_bounded_atom)];
-
-				std::cout << "Test: ";
-				precondition_term->print(std::cout, bindings, action_step_id);
-				std::cout << " v.s. ";
-				from_node_term->print(std::cout, bindings, from_node_bounded_atom->getId());
-				std::cout << std::endl;
-
-				if (precondition_term->canUnify(action_step_id, *from_node_term, from_node_bounded_atom->getId(), bindings))
-				{
-					return NULL;
-				}
-				std::cout << "Ignore!" << std::endl;
-			}
-		}
-	}
-
-	/**
-	 * Check the effects of this action, make sure it deletes all the deleted nodes and does not touch the persistent nodes. Also
-	 * make sure it adds all the nodes which are to be added.
-
-//	unsigned int found_added_facts = 0;
-//	unsigned int found_removed_facts = 0;
-	std::vector<std::pair<const Atom*, const BoundedAtom*> > add_effects_to_to_node_bindings;
-	std::vector<std::pair<const Atom*, InvariableIndex> > add_effects_mapping_to_to_node;
-	std::vector<std::pair<const Atom*, InvariableIndex> > remove_effects_mapping_to_to_node;
-///	std::cout << "[Transition::createTransition] Make sure all added and deleted atoms are accounted for and no mutex relations exists." << std::endl;
-	for (std::vector<const Atom*>::const_iterator ci = effects.begin(); ci != effects.end(); ci++)
-	{
-		const Atom* effect = *ci;
-
-		std::cout << "* Check the effects of this action: ";
-		effect->print(std::cout, bindings, action_step_id);
-		std::cout << std::endl;
-
-		InvariableIndex effect_invariable = INVALID_INDEX_ID;
-		const PropertySpace* property_space = NULL;
-
-		for (std::map<const PropertySpace*, const Term*>::const_iterator ci = property_space_invariables.begin(); ci != property_space_invariables.end(); ci++)
-		{
-			const PropertySpace* property_space = (*ci).first;
-			const Term* invariable_term = (*ci).second;
-			for (InvariableIndex i = 0; i < effect->getTerms().size(); i++)
-			{
-				if (effect->getTerms()[i]->isTheSameAs(action_step_id, *invariable_term, action_step_id, bindings))
-				{	
-					effect_invariable = i;
-					break;
-				}
-			}
-		}
-
-		if (effect_invariable == INVALID_INDEX_ID)
-		{
-			std::cout << "** Not linked to the invariable - skip!" << std::endl;
-		}
-
-		// Lastly, make sure this effect is not mutex with the existent nodes already present in the to_node.
-		for (std::vector<BoundedAtom*>::const_iterator ci = to_node.getAtoms().begin(); ci != to_node.getAtoms().end(); ci++)
-		{
-			const BoundedAtom* to_node_atom = *ci;
-
-			if (to_node_atom->getAtom().isNegative() == effect->isNegative() &&
-			    to_node_atom->isMutexWith(effect->getPredicate(), effect_invariable))
-///			    to_node_atom->isMutexWith(action_step_id, *effect, effect_invariable, bindings))
-			{
-				std::cout << "The to_node fact: ";
-				to_node_atom->print(std::cout, bindings);
-				std::cout << " is mutex with the effect ";
-				effect->print(std::cout, bindings, action_step_id);
-				std::cout << std::endl;
-				
-				
-				const Term* effect_term = effect->getTerms()[effect_invariable];
-				const Term* to_node_term = to_node_atom->getAtom().getTerms()[to_node.getIndex(*to_node_atom)];
-				
-				if (effect_term->canUnify(action_step_id, *to_node_term, to_node_atom->getId(), bindings))
-				{
-					return NULL;
-				}
-			}
-		}
-	}
-	*/
-	/**
-	 * Check if all added and removed nodes are accounted for.
-	 */
-	
-	
-/*
-		// Check if all added_facts are accounted for.
-		for (std::vector<const BoundedAtom*>::const_iterator ci = added_facts.begin(); ci != added_facts.end(); ci++)
-		{
-			const BoundedAtom* added_fact = *ci;
-			
-			if (added_fact->getAtom().isNegative() == effect->isNegative() &&
-					bindings.canUnify(*effect, action_step_id, added_fact->getAtom(), added_fact->getId()) &&
-					effect_invariable == to_node.getIndex(*added_fact))
-			{
-				++found_added_facts;
-				add_effects_to_to_node_bindings.push_back(std::make_pair(effect, added_fact));
-				add_effects_mapping_to_to_node.push_back(std::make_pair(effect, to_node.getIndex(*added_fact)));
-			}
-		}
-		
-		// Do the same for removed facts.
-		for (std::vector<const BoundedAtom*>::const_iterator ci = removed_facts.begin(); ci != removed_facts.end(); ci++)
-		{
-			const BoundedAtom* removed_fact = *ci;
-			
-			if (removed_fact->getAtom().isNegative() != effect->isNegative() &&
-			    bindings.canUnify(*effect, action_step_id, removed_fact->getAtom(), removed_fact->getId()) &&
-			    effect_invariable == from_node.getIndex(*removed_fact))
-			{
-				++found_removed_facts;
-				remove_effects_mapping_to_to_node.push_back(std::make_pair(effect, from_node.getIndex(*removed_fact)));
-			}
-		}
-
-		// Make sure the persistent facts are left untouched, if it is than this action cannot be applied.
-		for (std::vector<const BoundedAtom*>::const_iterator ci = persistent_facts.begin(); ci != persistent_facts.end(); ci++)
-		{
-			const BoundedAtom* persistent_fact = *ci;
-			
-			if (persistent_fact->getAtom().isNegative() != effect->isNegative() &&
-			    bindings.canUnify(*effect, action_step_id, persistent_fact->getAtom(), persistent_fact->getId()) &&
-			    effect_invariable == to_node.getIndex(*persistent_fact))
-			{
-				std::cout << "The presistent fact: ";
-				persistent_fact->print(std::cout, bindings);
-				std::cout << " is not left untouched!" << std::endl;
+				std::cout << "[Transition::createTransition] The static precondition: ";
+				precondition->print(std::cout, bindings, new_action_step_id);
+				std::cout << " is not supported!" << std::endl;
 				return NULL;
 			}
 		}
-*/
-	return NULL;
-/*
-	StepPtr new_action_step(new Step(0, action));
-	
-	
-	std::vector<std::pair<const Atom*, InvariableIndex> > precondition_mapping_to_from_node;
-	std::vector<std::pair<const Atom*, InvariableIndex> > add_effects_mapping_to_to_node;
-	std::vector<std::pair<const Atom*, InvariableIndex> > remove_effects_mapping_to_to_node;
-	
-	const Variable* action_invariable_term = NULL;
-	
-
+	}
+	std::cout << "Success!" << std::endl;
 	std::cout << "Created a transition from " << std::endl;
 	std::cout << from_node << std::endl;
 	std::cout << " to " << std::endl;
@@ -616,9 +887,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	std::cout << "Action: ";
 	new_action_step->getAction().print(std::cout, from_node.getDTG().getBindings(), new_action_step->getStepId());
 	std::cout << std::endl;
-
 	return new Transition(enablers, new_action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, *action_invariable_term);
-*/
 }
 
 /**

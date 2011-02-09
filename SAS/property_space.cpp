@@ -31,6 +31,19 @@ PropertyState::PropertyState(const PropertySpace& property_space, const std::vec
 	}
 }
 
+bool PropertyState::contains(InvariableIndex index, const Predicate& predicate) const
+{
+	for (std::vector<Property*>::const_iterator ci = property_.begin(); ci != property_.end(); ci++)
+	{
+		const Property* property = *ci;
+		if (property->getPredicate().getName() == predicate.getName() && property->getPredicate().getArity() == predicate.getArity() && property->getIndex() == index)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 const std::vector<Property*>& PropertyState::getProperties() const
 {
 	return property_;
@@ -94,7 +107,20 @@ PropertySpace::PropertySpace()
 {
 
 }
-	
+
+bool PropertySpace::contains(InvariableIndex index, const Predicate& predicate) const
+{
+	for (std::vector<const PropertyState*>::const_iterator ci = property_states_.begin(); ci != property_states_.end(); ci++)
+	{
+		const PropertyState* property_state = *ci;
+		if (property_state->contains(index, predicate))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void PropertySpace::addPropertyState(const PropertyState& property_state)
 {
 	property_states_.push_back(&property_state);

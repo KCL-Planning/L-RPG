@@ -26,6 +26,8 @@ public:
 	
 	PropertyState(const PropertySpace& property_space, const std::vector<std::pair<const Predicate*, InvariableIndex> >& properties);
 	
+	bool contains(InvariableIndex index, const Predicate& predicate) const;
+	
 	const std::vector<Property*>& getProperties() const;
 	
 	const PropertySpace& getPropertySpace() const;
@@ -67,6 +69,8 @@ public:
 	void addPropertyState(const PropertyState& property_state);
 	
 	const std::vector<const PropertyState*>& getPropertyStates() const;
+	
+	bool contains(InvariableIndex index, const Predicate& predicate) const;
 	
 private:
 	std::vector<const PropertyState*> property_states_;

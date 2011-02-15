@@ -136,26 +136,24 @@ bool BoundedAtom::isMutexWith(const BoundedAtom& other) const
 	return false;
 }*/
 
-///bool BoundedAtom::isMutexWith(const Predicate& predicate, InvariableIndex invariable_index) const
 bool BoundedAtom::isMutexWith(const Atom& atom, StepID step_id, const Bindings& bindings, InvariableIndex invariable_index) const
 {
 	if (property_ == NULL)
 	{
-		std::cout << "[BoundedAtom::isMutexWith] No property state, can't test mutexes..." << std::endl;
+//		std::cout << "[BoundedAtom::isMutexWith] No property state, can't test mutexes..." << std::endl;
 		return false;
 	}
 	
-	///std::cout << "[BoundedAtom::isMutexWith] Test against: " << predicate << "[" << invariable_index << "]" << std::endl;
-	std::cout << "[BoundedAtom::isMutexWith] Is ";
+/*	std::cout << "[BoundedAtom::isMutexWith] Is ";
 	print(std::cout, bindings);
 	std::cout << "[" << property_->getIndex() << "] mutex with ";
 	atom.print(std::cout, bindings, step_id);
 	std::cout << "[" << invariable_index << "]" << std::endl;
-	
+*/
 	// Make sure the invariables are in agreement.
 	if (!atom.getTerms()[invariable_index]->canUnify(step_id, *atom_->getTerms()[property_->getIndex()], id_, bindings))
 	{
-		std::cout << "The invariables are not the same, so they cannot be mutex by default!" << std::endl;
+//		std::cout << "The invariables are not the same, so they cannot be mutex by default!" << std::endl;
 		return false;
 	}
 	
@@ -164,8 +162,7 @@ bool BoundedAtom::isMutexWith(const Atom& atom, StepID step_id, const Bindings& 
 	for (std::vector<Property*>::const_iterator ci = lhs_properties.begin(); ci != lhs_properties.end(); ci++)
 	{
 		const Property* property = *ci;
-		std::cout << "[BoundedAtom::isMutexWith] LHS property: " << property->getPredicate().getName() << "[" << property->getIndex() << "]" << std::endl;
-		///if (property->getPredicate().getName() == predicate.getName() && property->getIndex() == invariable_index)
+//		std::cout << "[BoundedAtom::isMutexWith] LHS property: " << property->getPredicate().getName() << "[" << property->getIndex() << "]" << std::endl;
 		if (property->getPredicate().getName() == atom.getPredicate().getName() && property->getIndex() == invariable_index)
 		{
 			return false;
@@ -188,8 +185,7 @@ bool BoundedAtom::isMutexWith(const Atom& atom, StepID step_id, const Bindings& 
 		for (std::vector<Property*>::const_iterator ci = properties.begin(); ci != properties.end(); ci++)
 		{
 			const Property* property = *ci;
-			std::cout << "[BoundedAtom::isMutexWith] Check against: " << property->getPredicate().getName() << "[" << property->getIndex() << "]" << std::endl;
-			///if (property->getPredicate().getName() == predicate.getName() && property->getIndex() == invariable_index)
+//			std::cout << "[BoundedAtom::isMutexWith] Check against: " << property->getPredicate().getName() << "[" << property->getIndex() << "]" << std::endl;
 			if (property->getPredicate().getName() == atom.getPredicate().getName() && property->getIndex() == invariable_index)
 			{
 				return true;
@@ -1191,7 +1187,6 @@ void DomainTransitionGraphManager::splitDTGs()
 					std::cout << "Check if the precondition is linked to this DTG: ";
 					precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
 					std::cout << "(" << invariable << ")" << std::endl;
-
 					
 					std::vector<const DomainTransitionGraphNode*> precondition_linked_to_this_dtg;
 					dtg->getNodes(precondition_linked_to_this_dtg, transition->getStep()->getStepId(), *precondition, dtg->getBindings(), invariable);
@@ -1266,7 +1261,7 @@ void DomainTransitionGraphManager::splitDTGs()
 							
 							std::cout << "Compare the precondition term with the terms of all preconditions linked to the from_node. From_node precondition under consideration: ";
 							from_atom->print(std::cout, transition->getFromNode().getDTG().getBindings(), transition->getStep()->getStepId());
-							std::cout << std::endl;
+							std::cout << "(" << transition->getPreconditions().size() << ")" << std::endl;
 							
 							
 							for (unsigned int from_atom_term_index = 0; from_atom_term_index < from_atom->getTerms().size(); from_atom_term_index++)

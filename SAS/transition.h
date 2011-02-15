@@ -158,13 +158,13 @@ private:
 	DomainTransitionGraphNode* to_node_;
 
 	// pair <atom of the Transition, bounded atom of the DTG node it is connected to>.
-	// The preconditions which are part of from_node_.
+	// The preconditions which are linked to from_node_.
 	std::vector<std::pair<const Atom*, InvariableIndex> > preconditions_;
 
 	// The effects which achieves the facts of to_node_.
 	std::vector<std::pair<const Atom*, InvariableIndex> > effects_;
 
-	// The effect which deletes  the facts from from_node_.
+	// The effect which deletes the facts from from_node_.
 	std::vector<std::pair<const Atom*, InvariableIndex> > affected_;
 	
 	///const Variable* action_invariable_;

@@ -60,8 +60,8 @@ public:
 	
 	bool isMutexWith(const BoundedAtom& other) const;
 	
-///	bool isMutexWith(StepID id, const Atom& atom, InvariableIndex invariable_index, const Bindings& bindings) const;
-	bool isMutexWith(const Predicate& predicate, InvariableIndex invariable_index) const;
+	bool isMutexWith (const MyPOP::Atom& atom, MyPOP::StepID step_id, const MyPOP::Bindings& bindings, InvariableIndex invariable_index) const;
+///	bool isMutexWith(const Predicate& predicate, InvariableIndex invariable_index) const;
 
 	void print(std::ostream& os, const Bindings& bindings) const;
 

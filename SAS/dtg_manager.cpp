@@ -136,23 +136,37 @@ bool BoundedAtom::isMutexWith(const BoundedAtom& other) const
 	return false;
 }*/
 
-bool BoundedAtom::isMutexWith(const Predicate& predicate, InvariableIndex invariable_index) const
+///bool BoundedAtom::isMutexWith(const Predicate& predicate, InvariableIndex invariable_index) const
+bool BoundedAtom::isMutexWith(const Atom& atom, StepID step_id, const Bindings& bindings, InvariableIndex invariable_index) const
 {
 	if (property_ == NULL)
 	{
-//		std::cout << "[BoundedAtom::isMutexWith] No property state, can't test mutexes..." << std::endl;
+		std::cout << "[BoundedAtom::isMutexWith] No property state, can't test mutexes..." << std::endl;
 		return false;
 	}
 	
-//	std::cout << "[BoundedAtom::isMutexWith] Test against: " << predicate << "[" << invariable_index << "]" << std::endl;
+	///std::cout << "[BoundedAtom::isMutexWith] Test against: " << predicate << "[" << invariable_index << "]" << std::endl;
+	std::cout << "[BoundedAtom::isMutexWith] Is ";
+	print(std::cout, bindings);
+	std::cout << "[" << property_->getIndex() << "] mutex with ";
+	atom.print(std::cout, bindings, step_id);
+	std::cout << "[" << invariable_index << "]" << std::endl;
+	
+	// Make sure the invariables are in agreement.
+	if (!atom.getTerms()[invariable_index]->canUnify(step_id, *atom_->getTerms()[property_->getIndex()], id_, bindings))
+	{
+		std::cout << "The invariables are not the same, so they cannot be mutex by default!" << std::endl;
+		return false;
+	}
 	
 	// If the predicate is present in this bounded atom's property state it isn't mutex.
 	const std::vector<Property*>& lhs_properties = property_->getPropertyState().getProperties();
 	for (std::vector<Property*>::const_iterator ci = lhs_properties.begin(); ci != lhs_properties.end(); ci++)
 	{
 		const Property* property = *ci;
-//		std::cout << "[BoundedAtom::isMutexWith] LHS property: " << property->getPredicate().getName() << "[" << property->getIndex() << "]" << std::endl;
-		if (property->getPredicate().getName() == predicate.getName() && property->getIndex() == invariable_index)
+		std::cout << "[BoundedAtom::isMutexWith] LHS property: " << property->getPredicate().getName() << "[" << property->getIndex() << "]" << std::endl;
+		///if (property->getPredicate().getName() == predicate.getName() && property->getIndex() == invariable_index)
+		if (property->getPredicate().getName() == atom.getPredicate().getName() && property->getIndex() == invariable_index)
 		{
 			return false;
 		}
@@ -163,16 +177,20 @@ bool BoundedAtom::isMutexWith(const Predicate& predicate, InvariableIndex invari
 	{
 		const PropertyState* property_state = *ci;
 		const std::vector<Property*>& properties = property_state->getProperties();
+		
+		// If the property states are the same they are not mutex (already tested above).
 		if (property_state == &property_->getPropertyState())
 		{
 			continue;
 		}
 		
+		// If the property of another property states matches with the given one we conclude it mus be mutex.
 		for (std::vector<Property*>::const_iterator ci = properties.begin(); ci != properties.end(); ci++)
 		{
 			const Property* property = *ci;
-//			std::cout << "[BoundedAtom::isMutexWith] Check against: " << property->getPredicate().getName() << "[" << property->getIndex() << "]" << std::endl;
-			if (property->getPredicate().getName() == predicate.getName() && property->getIndex() == invariable_index)
+			std::cout << "[BoundedAtom::isMutexWith] Check against: " << property->getPredicate().getName() << "[" << property->getIndex() << "]" << std::endl;
+			///if (property->getPredicate().getName() == predicate.getName() && property->getIndex() == invariable_index)
+			if (property->getPredicate().getName() == atom.getPredicate().getName() && property->getIndex() == invariable_index)
 			{
 				return true;
 			}
@@ -426,6 +444,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	time_spend = end_time_tim_translation.tv_sec - start_time_tim_translation.tv_sec + (end_time_tim_translation.tv_usec - start_time_tim_translation.tv_usec) / 1000000.0;
 	std::cerr << "Merging DTGs took: " << time_spend << " seconds" << std::endl;
 	
+	std::cout << "RESULTS AFTER MERGING" << std::endl;
 	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
 	{
 		DomainTransitionGraph* dtg = *ci;
@@ -443,6 +462,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	time_spend = end_time_tim_translation.tv_sec - start_time_tim_translation.tv_sec + (end_time_tim_translation.tv_usec - start_time_tim_translation.tv_usec) / 1000000.0;
 	std::cerr << "Grounding DTGs took: " << time_spend << " seconds" << std::endl;
 	
+	std::cout << "RESULTS AFTER GROUNDING" << std::endl;
 	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
 	{
 		DomainTransitionGraph* dtg = *ci;
@@ -550,6 +570,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	std::cerr << "* Reestablish transitions: " << total_time_reestablish << " seconds" << std::endl;
 	std::cerr << "* Remove unsupported transitions: " << total_time_remove << " seconds" << std::endl;
 
+	std::cout << "RESULTS AFTER SPLITTING" << std::endl;
 	std::cout << " === Result === " << std::endl;
 	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
 	{
@@ -676,6 +697,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 
 	std::cout << " === End === " << std::endl;
 	
+	std::cout << "FINAL RESULTS" << std::endl;
 	std::cout << " === Result === " << std::endl;
 	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
 	{

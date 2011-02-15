@@ -1,6 +1,7 @@
 #ifndef SAS_PLUS_TRANSITION_H
 #define SAS_PLUS_TRANSITION_H
 
+#include <map>
 #include <vector>
 #include <iostream>
 
@@ -21,6 +22,7 @@ class DomainTransitionGraphNode;
 class DomainTransitionGraph;
 class Transition;
 class BoundedAtom;
+class PropertySpace;
 
 /**
  * To make my life easier I created a couple of function to help executing functions like std::remove_if.
@@ -140,7 +142,8 @@ private:
 	bool shareVariableDomains(const BoundedAtom& bounded_atom, const Atom& atom) const;
 
 	// A transition is not to be created manualy.
-	Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const Variable& action_invariable);
+	///Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const Variable& action_invariable);
+	Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::map<const PropertySpace*, const Variable*>& action_invariables);
 
 	// Some transaction require a fact from another DTG to be true before it can be excuted.
 	std::vector<BoundedAtom> enablers_;
@@ -164,7 +167,8 @@ private:
 	// The effect which deletes  the facts from from_node_.
 	std::vector<std::pair<const Atom*, InvariableIndex> > affected_;
 	
-	const Variable* action_invariable_;
+	///const Variable* action_invariable_;
+	const std::map<const PropertySpace*, const Variable*>* action_invariables_;
 };
 
 };

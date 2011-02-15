@@ -269,8 +269,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	/**
 	 * Determine for each property space which action variable is invariable.
 	 */
-	///std::map<const PropertySpace*, const Term*> property_space_invariables;
 	std::map<const PropertySpace*, const std::vector<const Object*>*> property_space_invariables;
+	std::map<const PropertySpace*, const Variable*>* property_space_action_invariables = new std::map<const PropertySpace*, const Variable*>();
+	
 	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
 	{
 		// Only consider property spaces which get removed and added, if a fact is only added or removed it's an optional precondition.
@@ -285,11 +286,14 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		
 		//std::set<const Term*> action_invariables;
 		std::set<const std::vector<const Object*>*> action_invariables;
+		std::map<const std::vector<const Object*>*, const Variable*> action_invariable_variable;
 		
 		// Initialize by making all action variables possible invariables.
 		for (std::vector<const Variable*>::const_iterator ci = action.getVariables().begin(); ci != action.getVariables().end(); ci++)
 		{
-			action_invariables.insert(&(*ci)->getDomain(action_step_id, bindings));
+			const std::vector<const Object*>& objects = (*ci)->getDomain(action_step_id, bindings);
+			action_invariables.insert(&objects);
+			action_invariable_variable[&objects] = *ci;
 		}
 ///		action_invariables.insert(action.getVariables().begin(), action.getVariables().end());
 		
@@ -369,6 +373,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		{
 			std::cout << "Invariable action variable: {";
 			const std::vector<const Object*>* invariable_domain = *action_invariables.begin();
+			const Variable* invariable_action_variable = action_invariable_variable[invariable_domain];
 			///const Term* term = *action_invariables.begin();
 			///std::cout << "* " << *term << " (" << term << ")" << std::endl;
 			
@@ -403,6 +408,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			
 			///property_space_invariables[property_space] = term;
 			property_space_invariables[property_space] = invariable_domain;
+			(*property_space_action_invariables)[property_space] = invariable_action_variable;
 		}
 		else if (action_invariables.size() == 0)
 		{
@@ -475,9 +481,11 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			 * Check if any term of the precondition matches up with the invariable for this property_space. If this is the case
 			 * make sure it isn't mutex with any of the nodes in the from node.
 			 */
-			for (std::vector<const Term*>::const_iterator ci = precondition->getTerms().begin(); ci != precondition->getTerms().end(); ci++)
+			///for (std::vector<const Term*>::const_iterator ci = precondition->getTerms().begin(); ci != precondition->getTerms().end(); ci++)
+			for (InvariableIndex i = 0; i < precondition->getTerms().size(); i++)
 			{
-				const Term* precondition_term = *ci;
+				///const Term* precondition_term = *ci;
+				const Term* precondition_term = precondition->getTerms()[i];
 				const std::vector<const Object*>& precondition_domain = precondition_term->getDomain(action_step_id, bindings);
 				
 				if (invariable_term == &precondition_domain)
@@ -490,9 +498,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 						
 						std::cout << " -==> Is mutex with: ";
 						from_node_bounded_atom->print(std::cout, bindings);
-						std::cout << "?" << std::endl;
-						
-						if (from_node_bounded_atom->isMutexWith(precondition->getPredicate(), action_step_id))
+						std::cout << "[" << from_node.getIndex(*from_node_bounded_atom) << "]?" << std::endl;
+
+						if (from_node_bounded_atom->isMutexWith(*precondition, action_step_id, bindings, i))
 						{
 							std::cout << "The precondition ";
 							precondition->print(std::cout, bindings, action_step_id);
@@ -514,13 +522,22 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			effect->print(std::cout, bindings, action_step_id);
 			std::cout << std::endl;
 			
+			// Delete effecst are ignored for now...
+			if (effect->isNegative())
+			{
+				continue;
+			}
+			
 			/**
 			 * Check if any term of the precondition matches up with the invariable for this property_space. If this is the case
 			 * make sure it isn't mutex with any of the nodes in the from node.
 			 */
-			for (std::vector<const Term*>::const_iterator ci = effect->getTerms().begin(); ci != effect->getTerms().end(); ci++)
+			///for (std::vector<const Term*>::const_iterator ci = effect->getTerms().begin(); ci != effect->getTerms().end(); ci++)
+			for (InvariableIndex i = 0; i < effect->getTerms().size(); i++)
 			{
-				const Term* effect_term = *ci;
+				///const Term* precondition_term = *ci;
+				const Term* effect_term = effect->getTerms()[i];
+///				const Term* effect_term = *ci;
 				
 				const std::vector<const Object*>& effect_domain = effect_term->getDomain(action_step_id, bindings);
 				
@@ -536,7 +553,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 						to_node_bounded_atom->print(std::cout, bindings);
 						std::cout << "?" << std::endl;
 						
-						if (to_node_bounded_atom->isMutexWith(effect->getPredicate(), action_step_id))
+						if (to_node_bounded_atom->isMutexWith(*effect, action_step_id, bindings, i))
 						{
 							std::cout << "The effect ";
 							effect->print(std::cout, bindings, action_step_id);
@@ -887,7 +904,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	std::cout << "Action: ";
 	new_action_step->getAction().print(std::cout, from_node.getDTG().getBindings(), new_action_step->getStepId());
 	std::cout << std::endl;
-	return new Transition(enablers, new_action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, *action_invariable_term);
+	
+	return new Transition(enablers, new_action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, *property_space_action_invariables);
+///return new Transition(enablers, new_action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, *action_invariable_term);
 }
 
 /**
@@ -1585,8 +1604,8 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 }
 */
 
-Transition::Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const Variable& action_invariable)
-	: enablers_(enablers), step_(step), from_node_(&from_node), to_node_(&to_node), preconditions_(preconditions), effects_(effects), affected_(affected), action_invariable_(&action_invariable)
+Transition::Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::map<const PropertySpace*, const Variable*>& action_invariables)
+	: enablers_(enablers), step_(step), from_node_(&from_node), to_node_(&to_node), preconditions_(preconditions), effects_(effects), affected_(affected), action_invariables_(&action_invariables)
 {
 /*	std::cout << "New transition: " << step->getAction() << std::endl;
 	for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
@@ -1622,10 +1641,20 @@ Transition* Transition::cloneWithNodes(const std::vector<const Atom*>& initial_f
 void Transition::getAllPreconditions(std::vector<std::pair<const Atom*, InvariableIndex> >& preconditions) const
 {
 	assert (preconditions_.size() > 0);
+	
+	std::cout << "Get all preconditions of the transition: ";
+	step_->getAction().print(std::cout, from_node_->getDTG().getBindings(), step_->getStepId());
+	std::cout << std::endl;
 
-	std::cout << "Invariable: " << *action_invariable_;
+	for (std::map<const PropertySpace*, const Variable*>::const_iterator ci = action_invariables_->begin(); ci != action_invariables_->end(); ci++)
+	{
+		std::cout << "Invariable for the property space: " << (*ci).first << " is " << *(*ci).second << std::endl;
+	}
+	
+/*	std::cout << "Invariable: " << *action_invariable_;
 	std::cout << "(" << preconditions_[0].second << ")";
 	std::cout << std::endl;
+*/
 
 	std::vector<const Atom*> action_preconditions;
 	
@@ -1633,15 +1662,36 @@ void Transition::getAllPreconditions(std::vector<std::pair<const Atom*, Invariab
 	for (std::vector<const Atom*>::const_iterator ci = action_preconditions.begin(); ci != action_preconditions.end(); ci++)
 	{
 		const Atom* precondition = *ci;
-		InvariableIndex invariable_index = std::numeric_limits<unsigned int>::max();
+		InvariableIndex invariable_index = NO_INVARIABLE_INDEX;
+		
+		std::cout << "Find the invariable index of the precondition: ";
+		precondition->print(std::cout, from_node_->getDTG().getBindings(), step_->getStepId());
+		std::cout << std::endl;
 		
 		for (unsigned int i = 0; i < precondition->getTerms().size(); i++)
 		{
 			const Term* term = precondition->getTerms()[i];
-			if (term->isTheSameAs(step_->getStepId(), *action_invariable_, step_->getStepId(), from_node_->getDTG().getBindings()))
+			
+			// Check if any of the invariable matches with this precondition's terms.
+			// TODO: What to do if multiple invariables match?
+			for (std::map<const PropertySpace*, const Variable*>::const_iterator ci = action_invariables_->begin(); ci != action_invariables_->end(); ci++)
 			{
-				invariable_index = i;
-				break;
+///				const PropertySpace* property_space = (*ci).first;
+				const Variable* invariable = (*ci).second;
+				
+				///if (term->isTheSameAs(step_->getStepId(), *action_invariable_, step_->getStepId(), from_node_->getDTG().getBindings()))
+				if (term->isTheSameAs(step_->getStepId(), *invariable, step_->getStepId(), from_node_->getDTG().getBindings()))
+				{
+					std::cout << "The term: ";
+					term->print(std::cout, from_node_->getDTG().getBindings(), step_->getStepId());
+					std::cout << " in invariable!" << std::endl;
+					if (invariable_index != NO_INVARIABLE_INDEX)
+					{
+						assert (false);
+					}
+					invariable_index = i;
+					///break;
+				}
 			}
 		}
 		

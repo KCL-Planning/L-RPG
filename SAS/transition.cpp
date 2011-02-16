@@ -549,7 +549,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 						from_node_bounded_atom->print(std::cout, bindings);
 						std::cout << "[" << from_node.getIndex(*from_node_bounded_atom) << "]?" << std::endl;
 
-						if (from_node_bounded_atom->isMutexWith(*precondition, action_step_id, bindings, i))
+						if (from_node_bounded_atom->getProperty() != NULL &&
+							 &from_node_bounded_atom->getProperty()->getPropertyState().getPropertySpace() == property_space &&
+						    from_node_bounded_atom->isMutexWith(*precondition, action_step_id, bindings, i))
 						{
 							std::cout << "The precondition ";
 							precondition->print(std::cout, bindings, action_step_id);
@@ -599,7 +601,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 						to_node_bounded_atom->print(std::cout, bindings);
 						std::cout << "?" << std::endl;
 						
-						if (to_node_bounded_atom->isMutexWith(*effect, action_step_id, bindings, i))
+						if (to_node_bounded_atom->getProperty() != NULL && 
+						    &to_node_bounded_atom->getProperty()->getPropertyState().getPropertySpace() == property_space &&
+						    to_node_bounded_atom->isMutexWith(*effect, action_step_id, bindings, i))
 						{
 							std::cout << "The effect ";
 							effect->print(std::cout, bindings, action_step_id);

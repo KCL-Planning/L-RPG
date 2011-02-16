@@ -241,12 +241,12 @@ int main(int argc,char * argv[])
 	}
 	std::cout << " === DONE! Creating the DTGs === " << std::endl;
 	
-	std::cout << " === Creating the CGs === " << std::endl;
-	SAS_Plus::CausalGraph cg(dtg_manager, action_manager);
-	std::cout << "Causal graph:" << std::endl;
-	std::cout << cg << std::endl;
-	Graphviz::printToDot(cg);
-	std::cout << " === DONE! Creating the CGs === " << std::endl;
+//	std::cout << " === Creating the CGs === " << std::endl;
+//	SAS_Plus::CausalGraph cg(dtg_manager, action_manager);
+//	std::cout << "Causal graph:" << std::endl;
+//	std::cout << cg << std::endl;
+//	Graphviz::printToDot(cg);
+//	std::cout << " === DONE! Creating the CGs === " << std::endl;
 	
 	// Based on the DTG structures, do domain analysis!
 //	SAS_Plus::RelaxedReachabilityAnalyst analyst(dtg_manager);

@@ -505,6 +505,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 				for (std::vector<DomainTransitionGraph*>::reverse_iterator ri2 = split_graphs->rbegin(); ri2 != split_graphs->rend(); ri2++)
 				{
 					DomainTransitionGraph* splitted_graph = *ri2;
+					std::cout << "Splitted DTG (before reading objects): " << *splitted_graph << std::endl;
 					splitted_graph->addObjects();
 					std::cout << "Splitted DTG: " << *splitted_graph << std::endl;
 					

@@ -398,12 +398,17 @@ bool DomainTransitionGraph::containsPropertySpace(const PropertySpace& property_
 void DomainTransitionGraph::addObjects()
 {
 	objects_.clear();
+	
+	// TODO: Add objects per predicate space. So if there are multiple predicate spaces the range of objects will be determined
+	// for each of them independently (because they are optional preconditions...).
+	
 	const std::vector<const Atom*>& initial_facts = dtg_manager_->getInitialFacts();
+	std::set<const Object*> domain;
 	// Check which nodes from the initial state are part of this DTG.
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator dtg_node_ci = nodes_.begin(); dtg_node_ci != nodes_.end(); dtg_node_ci++)
 	{
 		DomainTransitionGraphNode* dtg_node = *dtg_node_ci;
-		std::set<const Object*> domain;
+///		std::set<const Object*> domain;
 		bool domain_initialised = false;
 		
 		for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
@@ -424,21 +429,18 @@ void DomainTransitionGraph::addObjects()
 //					initial_fact->print(std::cout);
 //					std::cout << " can be unified with this DTG! :D" << std::endl;
 					
-					// TEST
-					if (dtg_node->getIndex(*bounded_atom) == NO_INVARIABLE_INDEX) continue;
-					
 //					tmp_domain.insert(initial_fact->getTerms()[dtg_node->getIndex(*bounded_atom)]->asObject());
 					const std::vector<const Object*> initial_fact_domain = initial_fact->getTerms()[dtg_node->getIndex(*bounded_atom)]->getDomain(Step::INITIAL_STEP, *bindings_);
 					tmp_domain.insert(initial_fact_domain.begin(), initial_fact_domain.end());
 				}
 			}
 			
-			if (!domain_initialised)
+//			if (!domain_initialised)
 			{
 				domain_initialised = true;
 				domain.insert(tmp_domain.begin(), tmp_domain.end());
 			}
-			else
+/*			else
 			{
 				std::set<const Object*> intersection;
 				std::set_intersection(domain.begin(), domain.end(), tmp_domain.begin(), tmp_domain.end(), std::inserter(intersection, intersection.begin()));
@@ -446,11 +448,13 @@ void DomainTransitionGraph::addObjects()
 				domain.clear();
 				domain.insert(intersection.begin(), intersection.end());
 			}
+			*/
 		}
 		
-		objects_.insert(objects_.begin(), domain.begin(), domain.end());
+///		objects_.insert(objects_.begin(), domain.begin(), domain.end());
 	}
-
+	objects_.insert(objects_.begin(), domain.begin(), domain.end());
+/*
 	// Update the transitions so they reflect this.
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 	{
@@ -468,6 +472,7 @@ void DomainTransitionGraph::addObjects()
 //			vd.setObjects(objects_);
 		}
 	}
+*/
 }
 
 void DomainTransitionGraph::removeObjects(const std::set<const Object*>& objects)
@@ -1156,6 +1161,9 @@ void DomainTransitionGraph::removeUnsupportedTransitions()
 		// If one of the variable domains is empty, remove the node.
 		if ((*ci)->containsEmptyVariableDomain())
 		{
+			std::cout << "Remove the node: ";
+			(*ci)->print(std::cout);
+			std::cout << std::endl;
 			removeNode(**ci);
 		}
 	}

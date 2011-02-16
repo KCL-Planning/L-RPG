@@ -997,7 +997,7 @@ void DomainTransitionGraphManager::mergeDTGs()
 	{
 		DomainTransitionGraph* dtg = *ci;
 
-		std::cout << "Check DTG: " << *dtg << std::endl;
+		std::cout << "Check DTG: " << *dtg << "(pointer address=" << dtg << ")" << std::endl;
 		
 		std::vector<DomainTransitionGraphNode*> nodes_to_remove;
 		std::vector<DomainTransitionGraphNode*> nodes_to_add;
@@ -1076,11 +1076,14 @@ void DomainTransitionGraphManager::mergeDTGs()
 									// TEST
 									if (matching_invariable_index == NO_INVARIABLE_INDEX) continue;
 									
-									if (&matching_dtg_node->getDTG() == dtg)
+									assert (&matching_dtg_node->getDTG() != NULL);
+									
+									if (dtg->containsPropertySpace(bounded_atom->getProperty()->getPropertyState().getPropertySpace()))
 									{
 										std::cout << "Alert! Proposing a DTG to merge with itself!!!" << std::endl;
-										merge_with_self = true;
-										precondition_properties.clear();
+//										merge_with_self = true;
+//										precondition_properties.clear();
+//										break;
 										break;
 									}
 									
@@ -1088,9 +1091,11 @@ void DomainTransitionGraphManager::mergeDTGs()
 									
 									std::cout << "Candidate to bind: ";
 									bounded_atom->print(std::cout, matching_dtg_node->getDTG().getBindings());
-									std::cout << std::endl;
+									std::cout << "[" << &bounded_atom->getProperty()->getPropertyState().getPropertySpace() << "]" << std::endl;
 									
-///									std::cout << "From DTG: " << matching_dtg_node->getDTG() << std::endl;
+									std::cout << "From DTG node: ";
+									matching_dtg_node->print(std::cout);
+									std::cout << " (pointer address=" << &matching_dtg_node->getDTG() << ")" << std::endl;
 									
 /**
 									if (precondition_invariable == NO_INVARIABLE_INDEX)

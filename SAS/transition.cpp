@@ -190,11 +190,16 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		from_persistent_atom->print(std::cout, bindings);
 		std::cout << std::endl;
 		
-		const PropertySpace& from_fact_property_space = from_persistent_atom->getProperty()->getPropertyState().getPropertySpace();
-		std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::iterator property_space_i = property_space_balanced_sets.find(&from_fact_property_space);
-		assert (property_space_i != property_space_balanced_sets.end());
+		const PropertySpace& from_fact_property_space = from_persistent_atom->getProperty()->getPropertyState().getPropertySpace();		
+		std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::iterator from_property_space_i = property_space_balanced_sets.find(&from_fact_property_space);
+		assert (from_property_space_i != property_space_balanced_sets.end());
+		std::vector<const BoundedAtom*>* remove_list = (*from_property_space_i).second.second;
 		
-		std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* >& add_remove_list = (*property_space_i).second;
+		const PropertySpace& to_fact_property_space = to_persistent_atom->getProperty()->getPropertyState().getPropertySpace();		
+		std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::iterator to_property_space_i = property_space_balanced_sets.find(&to_fact_property_space);
+		assert (to_property_space_i != property_space_balanced_sets.end());
+		std::vector<const BoundedAtom*>* add_list = (*to_property_space_i).second.first;
+		
 
 		// Check if the transitions removes this fact.
 		for (std::vector<const Atom*>::const_iterator ci = effects.begin(); ci != effects.end(); ci++)
@@ -221,10 +226,8 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		if (is_added && is_deleted)
 		{
 			std::cout << "Invallid persistent fact!" << std::endl;
-///			add_remove_list.first->push_back(from_persistent_atom);
-///			add_remove_list.second->push_back(to_persistent_atom);
-			add_remove_list.first->push_back(to_persistent_atom);
-			add_remove_list.second->push_back(from_persistent_atom);
+			remove_list->push_back(from_persistent_atom);
+			add_list->push_back(to_persistent_atom);
 			persistent_facts.erase(persistent_ci.base() - 1);
 		}
 	}

@@ -262,7 +262,6 @@ private:
 	 * captured by this DTG.
 	 */
 	std::vector<const PropertySpace*> property_spaces_;
-///	PropertySpace* property_space_;
 
 	// When we split DTG nodes up we have a need for new atoms for every node. To manage the
 	// terms we add them to this term manager (and remove them as well when needed.

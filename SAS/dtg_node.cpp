@@ -698,6 +698,11 @@ void DomainTransitionGraphNode::print(std::ostream& os) const
 	{
 		(*ci)->getAtom().print(os, getDTG().getBindings(), (*ci)->getId());
 		os << "(" << getIndex(**ci) << ")";
+		
+		if ((*ci)->getProperty() != NULL)
+		{
+			os << "[ps=" << &(*ci)->getProperty()->getPropertyState().getPropertySpace() << "]";
+		}
 	}
 }
 
@@ -714,6 +719,11 @@ std::ostream& operator<<(std::ostream& os, const DomainTransitionGraphNode& node
 	{
 		(*ci)->getAtom().print(os, node.getDTG().getBindings(), (*ci)->getId());
 		os << "(" << node.getIndex(**ci) << ")";
+		
+		if ((*ci)->getProperty() != NULL)
+		{
+			os << "[ps=" << &(*ci)->getProperty()->getPropertyState().getPropertySpace() << "]";
+		}
 	}
 
 	for (std::vector<const Transition*>::const_iterator ci = node.transitions_.begin(); ci != node.transitions_.end(); ci++)

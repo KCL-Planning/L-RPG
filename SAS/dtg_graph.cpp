@@ -536,8 +536,6 @@ void DomainTransitionGraph::getNodes(std::vector<const SAS_Plus::DomainTransitio
 {
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 	{
-//		std::cout << bindings << " " << step_id << std::endl;
-
 		const DomainTransitionGraphNode* dtg_node = *ci;
 /*		std::cout << "[DomainTransitionGraph::getNodes] Compare: ";
 		dtg_node->print(std::cout);
@@ -949,9 +947,10 @@ void DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, st
 			for (std::vector<const Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
 			{
 				const Transition* transition = *ci;
-				
-				std::vector<std::pair<const Atom*, InvariableIndex> > preconditions;
-				transition->getAllPreconditions(preconditions);
+
+				const std::vector<std::pair<const Atom*, InvariableIndex> >& preconditions = transition->getAllPreconditions();
+//				std::vector<std::pair<const Atom*, InvariableIndex> > preconditions;
+//				transition->getAllPreconditions(preconditions);
 
 				for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 				{

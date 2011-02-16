@@ -331,6 +331,14 @@ bool DomainTransitionGraphNode::merge(const DomainTransitionGraphNode& other)
 		possible_actions_.insert(other.possible_actions_.begin(), other.possible_actions_.end());
 	}
 	
+	// TEST
+	// Make sure all the indexes are accounted for.
+	for (std::vector<BoundedAtom*>::const_iterator ci = getAtoms().begin(); ci != getAtoms().end(); ci++)
+	{
+		BoundedAtom* bounded_atom = *ci;
+		getIndex(*bounded_atom);
+	}
+	
 	return merged;
 }
 

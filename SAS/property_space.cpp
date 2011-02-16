@@ -91,6 +91,8 @@ bool Property::isMutexWith(const Property* property) const
 		return false;
 	}
 	
+	std::cout << "Is mutex: " << getPredicate() << "(" << index_ << ") [" << &property_state_->getPropertySpace() << "] v.s. " << property->getPredicate() << "(" << property->getIndex() << ") [" << &property->property_state_->getPropertySpace() << "]" << std::endl;
+	
 	if (&property_state_->getPropertySpace() == &property->property_state_->getPropertySpace() &&
 			property_state_ != property->property_state_)
 	{

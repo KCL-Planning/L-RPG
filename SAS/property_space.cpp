@@ -94,6 +94,36 @@ bool Property::isMutexWith(const Property* property) const
 	if (&property_state_->getPropertySpace() == &property->property_state_->getPropertySpace() &&
 			property_state_ != property->property_state_)
 	{
+		/**
+		 * If a property state exists which contains both properties it cannot be mutex.
+		 */
+		for (std::vector<const PropertyState*>::const_iterator ci = property_state_->getPropertySpace().getPropertyStates().begin(); ci != property_state_->getPropertySpace().getPropertyStates().end(); ci++)
+		{
+			const PropertyState* property_state = *ci;
+			
+			unsigned int counter = 0;
+			
+			for (std::vector<Property*>::const_iterator ci = property_state->getProperties().begin(); ci != property_state->getProperties().end(); ci++)
+			{
+				const Property* other_property = *ci;
+				
+				if (property->getIndex() == other_property->getIndex() && property->getPredicate().getName() == other_property->getPredicate().getName() && property->getPredicate().getArity() == other_property->getPredicate().getArity())
+				{
+					++counter;
+				}
+				
+				if (getIndex() == other_property->getIndex() && getPredicate().getName() == other_property->getPredicate().getName() && getPredicate().getArity() == other_property->getPredicate().getArity())
+				{
+					++counter;
+				}
+			}
+			
+			if (counter == 2)
+			{
+				return false;
+			}
+		}
+		
 		return true;
 	}
 	

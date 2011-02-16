@@ -225,13 +225,13 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			add_remove_list.second->push_back(to_persistent_atom);
 			persistent_facts.erase(persistent_ci.base() - 1);
 		}
-		else if (is_added || is_deleted)
+/*		else if (is_added || is_deleted)
 		{
 			std::cout << "A persistent is added but not removed or removed but not added. This is invalid!" << std::endl;
 			// If it is added but not removed or removed but not added it cannot be a persistent fact and we have an invallid
 			// action.
 			return NULL;
-		}
+		}*/
 	}
 	
 	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
@@ -442,6 +442,48 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	{
 		return NULL;
 	}
+	
+	/**
+	 * Now that we know the invariables, make sure none of the persistent nodes are added or removed.
+	 */
+	for (std::vector<std::pair<const BoundedAtom*, const BoundedAtom*> >::reverse_iterator persistent_ci = persistent_facts.rbegin(); persistent_ci != persistent_facts.rend(); persistent_ci++)
+	{
+		const BoundedAtom* from_persistent_atom = (*persistent_ci).first;
+		const BoundedAtom* to_persistent_atom = (*persistent_ci).second;
+		
+		std::cout << "Validate persistent fact: ";
+		from_persistent_atom->print(std::cout, bindings);
+		std::cout << std::endl;
+		
+		const std::vector<const Object*>* invariable_term = property_space_invariables[&to_persistent_atom->getProperty()->getPropertyState().getPropertySpace()];
+
+		// Check if the transitions removes this fact.
+		for (std::vector<const Atom*>::const_iterator ci = effects.begin(); ci != effects.end(); ci++)
+		{
+			const Atom* effect = *ci;
+			std::cout << " v.s. effect: ";
+			effect->print(std::cout, bindings, action_step_id);
+			std::cout << std::endl;
+
+			if (effect->isNegative() == to_persistent_atom->getAtom().isNegative() && 
+			    bindings.canUnify(*effect, action_step_id, to_persistent_atom->getAtom(), to_persistent_atom->getId()) &&
+			    &effect->getTerms()[to_node.getIndex(*to_persistent_atom)]->getDomain(action_step_id, bindings) == invariable_term)
+			{
+				std::cout << "Is added!" << std::endl;
+				std::cout << "A persistent is added but not removed. This is invalid!" << std::endl;
+				return NULL;
+			}
+
+			if (bindings.affects(*effect, action_step_id, to_persistent_atom->getAtom(), to_persistent_atom->getId()) &&
+			    &effect->getTerms()[to_node.getIndex(*to_persistent_atom)]->getDomain(action_step_id, bindings) == invariable_term)
+			{
+				std::cout << "Is deleted!" << std::endl;
+				std::cout << "Removed but not added. This is invalid!" << std::endl;
+				return NULL;
+			}
+		}
+	}
+	
 	
 	/**
 	 * After we have found all the invariable of each property space, check there are no mutex preconditions or effects.

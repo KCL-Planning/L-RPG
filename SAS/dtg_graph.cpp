@@ -710,7 +710,9 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 		
 		for (unsigned int i = 0; i < nodes_.size(); i++)
 		{
-//			std::cout << "[" << i << "] " << *reachable_set[i] << std::endl;
+//			std::cout << "[" << i << "] ";
+//			nodes_[i]->print(std::cout);
+//			std::cout << *reachable_set[i] << std::endl;
 			boost::dynamic_bitset<>* reachable_nodes = reachable_set[i];
 
 			/**
@@ -719,14 +721,13 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 			for (std::vector<boost::dynamic_bitset<>* >::const_iterator ci = linked_by_transitions[i].begin(); ci != linked_by_transitions[i].end(); ci++)
 			{
 				const boost::dynamic_bitset<>* to_node_reachables = *ci;
-//				std::cout << *reachable_nodes << std::endl;
-				if (*reachable_nodes != *to_node_reachables)
+//				std::cout << *reachable_nodes << " v.s. " << *to_node_reachables << std::endl;
+				if (!to_node_reachables->is_subset_of(*reachable_nodes))
 				{
-					set_changed = true;
 					(*reachable_nodes) |= *to_node_reachables;
+					set_changed = true;
 				}
 			}
-			
 //			std::cout << "After update: " << *reachable_nodes << std::endl;
 		}
 	}

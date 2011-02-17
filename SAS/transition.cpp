@@ -764,6 +764,20 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	StepID new_action_step_id = bindings.createVariableDomains(action);
 	StepPtr new_action_step(new Step(new_action_step_id, action));
 	
+	
+	// TEST...
+	const PropertySpace* invariable_property_space = NULL;
+	const std::vector<const Object*>* invariable_property_space_action_variable = NULL;
+	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
+	{
+		if ((*ci).second.first->empty() || (*ci).second.second->empty())
+			continue;
+		
+		assert (invariable_property_space == NULL);
+		invariable_property_space = (*ci).first;
+		invariable_property_space_action_variable = property_space_invariables[invariable_property_space];
+	}
+	
 	/**
 	 * Test the optional preconditions.
 	 */
@@ -797,13 +811,19 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 				if (precondition->getPredicate().getName() == persistent_fact->getAtom().getPredicate().getName() &&
 					precondition->getPredicate().getArity() == persistent_fact->getAtom().getArity())
 				{
-					if (precondition->getTerms()[invariable_index]->canUnify(action_step_id, *persistent_fact->getAtom().getTerms()[invariable_index], persistent_fact->getId(), bindings))
+					/**
+					 * Only allow optional preconditions to merge if they do not refer to the invariable of the balanced set.
+					 * TODO: Is this correct?
+					 */
+					if (precondition->getTerms()[invariable_index]->canUnify(action_step_id, *persistent_fact->getAtom().getTerms()[invariable_index], persistent_fact->getId(), bindings) &&
+					    &precondition->getTerms()[dtg_node->getIndex(*persistent_fact)]->getDomain(action_step_id, bindings) != invariable_property_space_action_variable)
 					{
 						std::cout << "Unify the optional precondition ";
 						persistent_fact->print(std::cout, bindings);
 						std::cout << " with: ";
 						precondition->print(std::cout, bindings, action_step_id);
 						std::cout << std::endl;
+
 						if (!bindings.unify(*precondition, new_action_step_id, persistent_fact->getAtom(), persistent_fact->getId()))
 						{
 							std::cout << "Could not bind the optional precondition." << std::endl;

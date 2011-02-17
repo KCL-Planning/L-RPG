@@ -63,6 +63,8 @@ public:
 	 */
 	static Transition* createTransition(const std::vector<BoundedAtom>& enablers, const Action& action, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
 
+	static Transition* createSimpleTransition(const std::vector<BoundedAtom>& enablers, const Action& action, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
+	
 	/**
 	 * Create a transitions between the two nodes. Note that from_node and to_node must be part of the same DTG!
 	 * @param enablers The enablers for this action (e.g. dependencies on other DTGs for its preconditions).
@@ -72,6 +74,8 @@ public:
 	 * @return The formed transition OR NULL if the transition was not possible.
 	 */
 	static Transition* createTransition(const std::vector<BoundedAtom>& enablers, const StepPtr step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
+	
+	static Transition* createSimpleTransition(const std::vector<BoundedAtom>& enablers, const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
 
 	/**
 	 * Create a new transition which has the same bindings to the variables as this transition. But the

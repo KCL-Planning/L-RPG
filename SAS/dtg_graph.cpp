@@ -48,7 +48,8 @@ bool DTGBindings::canUnifyDTGNodes(const MyPOP::SAS_Plus::DomainTransitionGraphN
 		{
 			BoundedAtom* bounded_atom2 = *ci;
 			if (node1.getDTG().getBindings().canUnify(bounded_atom1->getAtom(), bounded_atom1->getId(), bounded_atom2->getAtom(), bounded_atom2->getId(), &node2.getDTG().getBindings()) &&
-			    node1.getIndex(*bounded_atom1) == node2.getIndex(*bounded_atom2))
+			    node1.getIndex(*bounded_atom1) == node2.getIndex(*bounded_atom2) &&
+			    bounded_atom1->getAtom().isNegative() == bounded_atom2->getAtom().isNegative())
 			{
 				canUnify = true;
 				break;

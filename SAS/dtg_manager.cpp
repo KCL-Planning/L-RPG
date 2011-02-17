@@ -642,14 +642,19 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 			///PropertySpace* property_space = new PropertySpace();
 			///DomainTransitionGraph* new_dtg = new DomainTransitionGraph(*this, *property_space, *type_manager_, *action_manager_, *predicate_manager_, bindings, *initial_facts_);
 			DomainTransitionGraph* new_dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, *predicate_manager_, bindings, *initial_facts_);
-			std::vector<std::pair<const Predicate*, unsigned int> > predicates_to_add;
-			predicates_to_add.push_back(std::make_pair(predicate, NO_INVARIABLE_INDEX));
+			std::vector<std::pair<const Predicate*, unsigned int> >* predicates_to_add = new std::vector<std::pair<const Predicate*, unsigned int> >();
+			predicates_to_add->push_back(std::make_pair(predicate, NO_INVARIABLE_INDEX));
 			
 			DomainTransitionGraphNode* possitive_new_dtg_node = new DomainTransitionGraphNode(*new_dtg, std::numeric_limits<unsigned int>::max());
 			
 			StepID possitive_atom_id = new_dtg->getBindings().createVariableDomains(*possitive_atom);
 			
-			possitive_new_dtg_node->addAtom(new BoundedAtom(possitive_atom_id, *possitive_atom, NULL), NO_INVARIABLE_INDEX);
+			/// TEST
+			PropertySpace* property_space = new PropertySpace();
+			PropertyState* property_state = new PropertyState(*property_space, *predicates_to_add);
+			possitive_new_dtg_node->addAtom(new BoundedAtom(possitive_atom_id, *possitive_atom, property_state->getProperties()[0]), NO_INVARIABLE_INDEX);
+			
+			///possitive_new_dtg_node->addAtom(new BoundedAtom(possitive_atom_id, *possitive_atom, NULL), NO_INVARIABLE_INDEX);
 			new_dtg->addNode(*possitive_new_dtg_node);
 
 			addManagableObject(new_dtg);
@@ -661,8 +666,11 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 				Atom* negative_atom = new Atom(*predicate, *new_terms, true);
 				StepID negative_atom_id = new_dtg->getBindings().createVariableDomains(*possitive_atom);
 				
-				negative_new_dtg_node->addAtom(new BoundedAtom(negative_atom_id, *negative_atom, NULL), NO_INVARIABLE_INDEX);
+				///negative_new_dtg_node->addAtom(new BoundedAtom(negative_atom_id, *negative_atom, NULL), NO_INVARIABLE_INDEX);
+				negative_new_dtg_node->addAtom(new BoundedAtom(negative_atom_id, *negative_atom, property_state->getProperties()[0]), NO_INVARIABLE_INDEX);
 				new_dtg->addNode(*negative_new_dtg_node);
+				
+				std::cout << "Simple DTG : " << *new_dtg << std::endl;
 				
 				// Find all transitions which can make this predicate true and false and add them as transitions.
 				std::vector<std::pair<const Action*, const Atom*> > achievers;
@@ -674,7 +682,13 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 					
 					// Create a transition between the two nodes.
 					std::vector<BoundedAtom>* enablers = new std::vector<BoundedAtom>();
-					Transition::createTransition(*enablers, *achieving_action, *negative_new_dtg_node, *possitive_new_dtg_node, *initial_facts_);
+					///Transition::createTransition(*enablers, *achieving_action, *negative_new_dtg_node, *possitive_new_dtg_node, *initial_facts_);
+					const Transition* transition = Transition::createSimpleTransition(*enablers, *achieving_action, *negative_new_dtg_node, *possitive_new_dtg_node, *initial_facts_);
+					
+					if (transition != NULL)
+					{
+						negative_new_dtg_node->addTransition(*transition, false);
+					}
 				}
 				
 				achievers.clear();
@@ -686,7 +700,11 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 					
 					// Create a transition between the two nodes.
 					std::vector<BoundedAtom>* enablers = new std::vector<BoundedAtom>();
-					Transition::createTransition(*enablers, *achieving_action, *possitive_new_dtg_node, *negative_new_dtg_node, *initial_facts_);
+					const Transition* transition = Transition::createSimpleTransition(*enablers, *achieving_action, *possitive_new_dtg_node, *negative_new_dtg_node, *initial_facts_);
+					if (transition != NULL)
+					{
+						possitive_new_dtg_node->addTransition(*transition, false);
+					}
 				}
 			}
 			

@@ -740,25 +740,27 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 //	std::cout << "Update link transitions: " << std::endl;
 	
 	/**
-	 * Group nodes who belong to a DTG together.
+	 * Group nodes who share the same reachability set.
 	 */
 	std::map<boost::dynamic_bitset<>, std::vector<DomainTransitionGraphNode*>* > grouped_dtg_nodes;
 	for (unsigned int i = 0; i < nodes_.size(); i++)
 	{
 		boost::dynamic_bitset<>* reachable_nodes = reachable_set[i];
 		
-		std::map<boost::dynamic_bitset<>, std::vector<DomainTransitionGraphNode*>* >::iterator matching_group_i = grouped_dtg_nodes.find(*reachable_nodes);
-		std::vector<DomainTransitionGraphNode*>* grouped_nodes = NULL;
-		if (matching_group_i == grouped_dtg_nodes.end())
+		if (grouped_dtg_nodes.find(*reachable_nodes) != grouped_dtg_nodes.end())
 		{
-			grouped_nodes = new std::vector<DomainTransitionGraphNode*>();
-			grouped_dtg_nodes[*reachable_nodes] = grouped_nodes;
+			continue;
 		}
-		else
+		
+		std::vector<DomainTransitionGraphNode*>* new_group = new std::vector<DomainTransitionGraphNode*>();
+		
+		for (unsigned int i = 0; i < nodes_.size(); i++)
 		{
-			grouped_nodes = (*matching_group_i).second;
+			if ((*reachable_nodes)[i] == true)
+			{
+				new_group->push_back(nodes_[i]);
+			}
 		}
-		grouped_nodes->push_back(nodes_[i]);
 	}
 	
 	gettimeofday(&end_time, NULL);

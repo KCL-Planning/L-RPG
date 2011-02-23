@@ -244,7 +244,7 @@ public:
 	 * binding object, other_bindings will be not zero and point to the binding object which does contain 
 	 * the bindings for this atom.
 	 * @param step2 The step ID of the second atom.
-	 * @param other_bindings Default other_bindings in the Bindings object that is called.
+	 * @return true if the domains could be made equal, false otherwise.
 	 */
 	bool makeEqual(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2);
 

@@ -540,7 +540,7 @@ void DomainTransitionGraph::getNodes(std::vector<const SAS_Plus::DomainTransitio
 		const DomainTransitionGraphNode* dtg_node = *ci;
 /*		std::cout << "[DomainTransitionGraph::getNodes] Compare: ";
 		dtg_node->print(std::cout);
-		std::cout << " v.s. ";
+		std::cout << "(" << dtg_node->getAtoms().size() << ") v.s. ";
 		atom.print(std::cout, bindings, step_id);
 		std::cout << std::endl;
 */
@@ -552,6 +552,7 @@ void DomainTransitionGraph::getNodes(std::vector<const SAS_Plus::DomainTransitio
 				(index == std::numeric_limits<unsigned int>::max() || 
 				dtg_node->getIndex(*bounded_atom) == index))
 			{
+///				std::cout << "SUCCES!!!" << std::endl;
 				dtg_nodes.push_back(dtg_node);
 				break;
 			}

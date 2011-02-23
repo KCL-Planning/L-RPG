@@ -608,11 +608,9 @@ bool Bindings::makeEqual(const Atom& atom1, StepID step1, const Atom& atom2, Ste
 	std::cout << std::endl;
 */
 
-	// Only return true if all the pairs of terms of the atoms can be unified.
 	for (unsigned int i = 0; i < atom1.getArity(); i++)
 	{
-		//assert (makeEqual(*atom1.getTerms()[i], step1, *atom2.getTerms()[i], step2, other_bindings));
-		assert (atom1.getTerms()[i]->makeDomainEqualTo(step1, *atom2.getTerms()[i], step2, *this));
+		atom1.getTerms()[i]->makeDomainEqualTo(step1, *atom2.getTerms()[i], step2, *this);
 	}
 	return true;
 }

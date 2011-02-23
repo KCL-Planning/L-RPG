@@ -99,6 +99,7 @@ public:
 	 * Get the DTG this node is part of.
 	 */
 	const DomainTransitionGraph& getDTG() const { return *dtg_; }
+	DomainTransitionGraph& getDTG() { return *dtg_; }
 
 	/**
 	 * Get all transition from this node.

@@ -249,8 +249,8 @@ int main(int argc,char * argv[])
 //	std::cout << " === DONE! Creating the CGs === " << std::endl;
 	
 	// Based on the DTG structures, do domain analysis!
-//	SAS_Plus::RelaxedReachabilityAnalyst analyst(dtg_manager);
-//	analyst.performReachabilityAnalysis(*initial_effects);
+	SAS_Plus::RelaxedReachabilityAnalyst analyst(dtg_manager);
+	analyst.performReachabilityAnalysis(*initial_effects);
 	
 
 /*	std::cout << " === Creating the Landmarks === " << std::endl;

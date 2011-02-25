@@ -1176,8 +1176,27 @@ void DomainTransitionGraph::removeUnsupportedTransitions()
 void DomainTransitionGraph::merge(const MyPOP::SAS_Plus::DomainTransitionGraph& other)
 {
 	property_spaces_.insert(property_spaces_.end(), other.property_spaces_.begin(), other.property_spaces_.end());
+	
+	for (std::vector<const Property*>::const_iterator ci = other.predicates_.begin(); ci != other.predicates_.end(); ci++)
+	{
+		const Property* property_to_merge = *ci;
+		bool exists = false;
+		for (std::vector<const Property*>::const_iterator ci = predicates_.begin(); ci != predicates_.end(); ci++)
+		{
+			const Property* existing_property = *ci;
+			if (property_to_merge == existing_property)
+			{
+				exists = true;
+				break;
+			}
+		}
+		
+		if (!exists)
+		{
+			predicates_.push_back(property_to_merge);
+		}
+	}
 }
-
 
 std::ostream& operator<<(std::ostream& os, const DomainTransitionGraph& dtg)
 {

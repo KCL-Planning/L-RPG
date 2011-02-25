@@ -232,9 +232,6 @@ public:
 	void removeUnsupportedTransitions();
 
 	friend std::ostream& operator<<(std::ostream& os, const DomainTransitionGraph& dtg);
-	
-	// Merge the predicates.
-//	void mergePredicates(const DomainTransitionGraph& other);
 
 	/**
 	 * Try all possible transitions on the set of nodes in this DTG and add those that are possible.
@@ -292,9 +289,6 @@ private:
 	// Read: Exhibiting Knowledge in Planning Problems to Minimize State Encoding Length
 	// by Stefan Edelkamp and Malte Helmert.
 	std::vector<const Property*> predicates_;
-
-	// Mutex relations between the predicates.
-	//std::map<const Property*, std::set<const Property*>*> mutex_map_;
 
 	// Most specific type of the invariable object.
 	const Type* type_;

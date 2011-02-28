@@ -163,7 +163,15 @@ const std::vector<const PropertyState*>& PropertySpace::getPropertyStates() cons
 	return property_states_;
 }
 
-//std::ostream& operator<<(std::ostream& os, const PropertyState& property_state);
+std::ostream& operator<<(std::ostream& os, const PropertySpace& property_space)
+{
+	std::cout << "The property space: ";
+	for (std::vector<const PropertyState*>::const_iterator ci = property_space.getPropertyStates().begin(); ci != property_space.getPropertyStates().end(); ci++)
+	{
+		os << "* " << **ci << std::endl;
+	}
+	return os;
+}
 
 };
 

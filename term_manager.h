@@ -152,6 +152,15 @@ public:
 	bool contains(const Object& object, StepID lhs_id, const Bindings& bindings) const;
 	
 	/**
+	 * Check if at least one of the given objects is a member of this term's domain.
+	 * @param objects The objects we are looking for.
+	 * @param lhs_id The step id for this term, used to find its variable domain (if applicable) in @param bindings.
+	 * @param bindings The class which contains the bindings for both terms.
+	 * @return True if one of the objects is part of this term's domain.
+	 */
+	bool containsAtLeastOneOf(const std::vector<const Object*>& objects, StepID lhs_id, const Bindings& bindings) const;
+	
+	/**
 	 * Method that should be called by @param bindings to bind this term to the given bindings object.
 	 * @param Bindings the bindings object to bind this term to.
 	 * @param new_step_id the id which should be given to the binding.

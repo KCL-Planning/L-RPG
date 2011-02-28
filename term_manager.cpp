@@ -55,6 +55,17 @@ bool Term::contains(const Object& object, StepID lhs_id, const Bindings& binding
 	return false;
 }
 
+bool Term::containsAtLeastOneOf(const std::vector<const Object*>& objects, StepID lhs_id, const Bindings& bindings) const
+{
+	for (std::vector<const Object*>::const_iterator ci = objects.begin(); ci != objects.end(); ci++)
+	{
+		if (contains(**ci, lhs_id, bindings))
+		{
+			return true;
+		}
+	}
+	return false;
+}
 
 
 std::ostream& operator<<(std::ostream& os, const Term& term)

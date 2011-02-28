@@ -2,6 +2,7 @@
 #define SAS_PLUS_PROPERTY_SPACE_H
 
 #include <vector>
+#include <iostream>
 
 #include "dtg_types.h"
 
@@ -76,7 +77,8 @@ private:
 	std::vector<const PropertyState*> property_states_;
 };
 
-//std::ostream& operator<<(std::ostream& os, const PropertyState& property_state);
+std::ostream& operator<<(std::ostream& os, const PropertySpace& property_space);
+std::ostream& operator<<(std::ostream& os, const PropertyState& property_state);
 
 };
 

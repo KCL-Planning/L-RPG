@@ -77,7 +77,6 @@ public:
 	 */
 	const std::vector<const Property*>& getPredicates() const { return predicates_; }
 	
-///	const PropertySpace& getPropertySpace() const { return *property_space_; }
 	bool containsPropertySpace(const PropertySpace& property_space) const;
 	
 	/**

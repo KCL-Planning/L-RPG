@@ -1510,9 +1510,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 				
 				if (&term->getDomain(action_step_id, bindings) == invariable_domain)
 				{
-//					std::cout << "QQQ Precondition: ";
-//					precondition->print(std::cout, bindings, action_step_id);
-//					std::cout << " (" << i << ")" << std::endl;
+					std::cout << "QQQ Precondition: ";
+					precondition->print(std::cout, bindings, action_step_id);
+					std::cout << " (" << i << ")" << std::endl;
 					found_binding = true;
 					
 					all_precondition_mappings.push_back(std::make_pair(precondition, i));
@@ -1522,9 +1522,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			
 			if (!found_binding)
 			{
-//				std::cout << "QQQ Precondition: ";
-//				precondition->print(std::cout, bindings, action_step_id);
-//				std::cout << " (No binding!)" << std::endl;
+				std::cout << "QQQ Precondition: ";
+				precondition->print(std::cout, bindings, action_step_id);
+				std::cout << " (No binding!)" << std::endl;
 				all_precondition_mappings.push_back(std::make_pair(precondition, NO_INVARIABLE_INDEX));
 			}
 		}

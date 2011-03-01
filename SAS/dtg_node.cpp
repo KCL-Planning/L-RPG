@@ -699,10 +699,10 @@ void DomainTransitionGraphNode::print(std::ostream& os) const
 		(*ci)->getAtom().print(os, getDTG().getBindings(), (*ci)->getId());
 		os << "(" << getIndex(**ci) << ")";
 		
-		if ((*ci)->getProperty() != NULL)
+/*		if ((*ci)->getProperty() != NULL)
 		{
 			os << "[ps=" << &(*ci)->getProperty()->getPropertyState().getPropertySpace() << "]";
-		}
+		}*/
 	}
 }
 

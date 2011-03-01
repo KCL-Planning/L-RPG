@@ -520,7 +520,19 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 						
 						if (!exists)
 						{
-							new_reachable_nodes.push_back(std::make_pair(indirect_reachable_node, indirect_reachable_node_transition));
+							for (std::vector<std::pair<const DomainTransitionGraphNode*, const Transition*> >::const_iterator ci = new_reachable_nodes.begin(); ci != new_reachable_nodes.end(); ci++)
+							{
+								if ((*ci).first == indirect_reachable_node && (*ci).second == indirect_reachable_node_transition)
+								{
+									exists = true;
+									break;
+								}
+							}
+
+							if (!exists)
+							{
+								new_reachable_nodes.push_back(std::make_pair(indirect_reachable_node, indirect_reachable_node_transition));
+							}
 						}
 					}
 				}
@@ -564,7 +576,7 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 			const Transition* transition = (*ci).second;
 			std::cout << "* ";
 			reachable_dtg_node->print(std::cout);
-			std::cout << "; Action: ";
+			std::cout << "(" << reachable_dtg_node << "); Action: ";
 			transition->getStep()->getAction().print(std::cout, reachable_dtg_node->getDTG().getBindings(), transition->getStep()->getStepId());
 			std::cout << std::endl;
 		}

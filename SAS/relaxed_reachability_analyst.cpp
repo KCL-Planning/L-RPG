@@ -21,7 +21,7 @@ RelaxedReachabilityAnalyst::RelaxedReachabilityAnalyst(const DomainTransitionGra
 	
 void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<const Atom*>& initial_facts)
 {
-	// Initialize the data structures.
+/*	// Initialize the data structures.
 	// Every node in every DTG is assigned a bitset which tells us which nodes are reachable.
 	boost::dynamic_bitset<>* reachable_nodes[dtg_manager_->getManagableObjects().size()];
 	unsigned int counter = 0;
@@ -30,6 +30,7 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 		reachable_nodes[counter] = new boost::dynamic_bitset<>((*ci)->getNodes().size());
 		++counter;
 	}
+*/
 	
 	Type null_type("dummy_type", NULL);
 	Object null_object(null_type, "dummy");
@@ -207,6 +208,11 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 	}
 	
 	/**
+	 * Store a copy of the objects true in the intial state for printing out the facts that can be achieved.
+	 */
+	std::map<const DomainTransitionGraphNode*, std::vector<const Object*>* > reachable_invariables_in_initial_state(reachable_invariables_per_dtg_node);
+	
+	/**
 	 * After initialising the reachable invariables per DTG node, we now move on to the actual analysis. Per marked DTG node 
 	 * he following operations are performed:
 	 *
@@ -223,6 +229,9 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 	 *
 	 * This process is repeated until there are no more marked nodes.
 	 */
+	std::set<DomainTransitionGraphNode*> achieved_nodes;
+	std::vector<DomainTransitionGraphNode*> nodes_with_unsatisfied_transitions;
+	unsigned int iteration = 0;
 	while (open_list.size() > 0)
 	{
 		DomainTransitionGraphNode* from_dtg_node = *open_list.begin();
@@ -231,6 +240,7 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 		/**
 		 * Check for each transition if the preconditions have been met.
 		 */
+		bool all_transitions_processed = true;
 		for (std::vector<const Transition*>::const_iterator ci = from_dtg_node->getTransitions().begin(); ci != from_dtg_node->getTransitions().end(); ci++)
 		{
 			const Transition* transition = *ci;
@@ -252,6 +262,7 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 			
 			if (supporting_facts_i == reachable_invariables_per_dtg_node.end())
 			{
+				all_transitions_processed = false;
 				continue;
 			}
 
@@ -391,6 +402,7 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 						precondition->print(std::cout, new_from_dtg_node->getDTG().getBindings(), new_transition->getStep()->getStepId());
 						std::cout << " is not supported!!!" << std::endl;
 
+						all_transitions_processed = false;
 						transition_is_supported = false;
 						break;
 					}
@@ -403,14 +415,14 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 			 */
 			if (transition_is_supported)
 			{
-				std::cout << "The transition from ";
+				std::cout << "[" << iteration << "] The transition from ";
 				new_transition->getFromNode().print(std::cout);
 				std::cout << " to ";
 				new_transition->getToNode().print(std::cout);
 				std::cout << " is possible!!!" << std::endl;
 				
 				closed_list.insert(std::make_pair(from_dtg_node, transition));
-				open_list.insert(&transition->getToNode());
+				achieved_nodes.insert(&transition->getToNode());
 				
 				std::vector<const Object*>* to_node_invariables = reachable_invariables_per_dtg_node[&transition->getToNode()];
 				
@@ -434,11 +446,127 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 					}
 				}
 				
+				// TODO: Values below need to be propagated.
 				std::vector<std::pair<const DomainTransitionGraphNode*, const Transition*> >* reachable_nodes = reachability_graph[from_dtg_node];
 				reachable_nodes->push_back(std::make_pair(&transition->getToNode(), transition));
 			}
 			
 			assert (from_transitions_number == from_dtg_node->getTransitions().size());
+		}
+		
+		if (!all_transitions_processed)
+		{
+			nodes_with_unsatisfied_transitions.push_back(from_dtg_node);
+		}
+		
+		/**
+		 * If all nodes in the open list have been processed, we add the newly marked node.
+		 */
+		if (open_list.empty())
+		{
+			if (achieved_nodes.empty())
+			{
+				break;
+			}
+			
+			open_list.insert(achieved_nodes.begin(), achieved_nodes.end());
+			open_list.insert(nodes_with_unsatisfied_transitions.begin(), nodes_with_unsatisfied_transitions.end());
+			achieved_nodes.clear();
+			++iteration;
+		}
+	}
+	
+	/**
+	 * After running the reachabiliy analysis, we have recorded for each DTG node which transitions are possible and which
+	 * other DTG nodes can be reached, but only for those for which a direct edge exists. To determine which nodes can be
+	 * reached we propagate this information so every DTG node knows which other nodes it can reach.
+	 */
+	bool graph_has_changed = true;
+	while (graph_has_changed)
+	{
+		graph_has_changed = false;
+		
+		for (std::vector<DomainTransitionGraph*>::const_iterator ci = dtg_manager_->getManagableObjects().begin(); ci != dtg_manager_->getManagableObjects().end(); ci++)
+		{
+			const DomainTransitionGraph* dtg = *ci;
+			for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ci++)
+			{
+				DomainTransitionGraphNode* dtg_node = *ci;
+				std::vector<std::pair<const DomainTransitionGraphNode*, const Transition*> > new_reachable_nodes;
+				
+				std::vector<std::pair<const DomainTransitionGraphNode*, const Transition*> >* reachable_nodes = reachability_graph[dtg_node];
+				for (std::vector<std::pair<const DomainTransitionGraphNode*, const Transition*> >::const_iterator ci = reachable_nodes->begin(); ci != reachable_nodes->end(); ci++)
+				{
+					const DomainTransitionGraphNode* reachable_dtg_node = (*ci).first;
+					
+					std::vector<std::pair<const DomainTransitionGraphNode*, const Transition*> >* indirect_reachable_nodes = reachability_graph[reachable_dtg_node];
+					
+					// Merge both sets.
+					for (std::vector<std::pair<const DomainTransitionGraphNode*, const Transition*> >::const_iterator ci = indirect_reachable_nodes->begin(); ci != indirect_reachable_nodes->end(); ci++)
+					{
+						const DomainTransitionGraphNode* indirect_reachable_node = (*ci).first;
+						const Transition* indirect_reachable_node_transition = (*ci).second;
+						
+						// Check if this already exists.
+						bool exists = false;
+						for (std::vector<std::pair<const DomainTransitionGraphNode*, const Transition*> >::const_iterator ci = reachable_nodes->begin(); ci != reachable_nodes->end(); ci++)
+						{
+							if ((*ci).first == indirect_reachable_node && (*ci).second == indirect_reachable_node_transition)
+							{
+								exists = true;
+								break;
+							}
+						}
+						
+						if (!exists)
+						{
+							new_reachable_nodes.push_back(std::make_pair(indirect_reachable_node, indirect_reachable_node_transition));
+						}
+					}
+				}
+				
+				if (new_reachable_nodes.size() > 0)
+				{
+					graph_has_changed = true;
+					reachable_nodes->insert(reachable_nodes->end(), new_reachable_nodes.begin(), new_reachable_nodes.end());
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Print all the reachable facts.
+	 */
+	for (std::map<const DomainTransitionGraphNode*, std::vector<const Object*>* >::const_iterator ci = reachable_invariables_in_initial_state.begin(); ci != reachable_invariables_in_initial_state.end(); ci++)
+	{
+		const DomainTransitionGraphNode* dtg_node = (*ci).first;
+		std::vector<const Object*>* invariables = (*ci).second;
+		std::cout << "Process: ";
+		dtg_node->print(std::cout);
+		std::cout << std::endl;
+		
+		std::cout << "True in the initial state for DTG node: {";
+		for (std::vector<const Object*>::const_iterator ci = invariables->begin(); ci != invariables->end(); ci++)
+		{
+			std::cout << **ci;
+			if (ci != invariables->end() - 1)
+			{
+				std::cout << ", ";
+			}
+		}
+		std::cout << "}" << std::endl;
+		
+		std::cout << "Nodes reachable from here: " << std::endl;;
+		std::vector<std::pair<const DomainTransitionGraphNode*, const Transition*> >* reachable_nodes = reachability_graph[dtg_node];
+		for (std::vector<std::pair<const DomainTransitionGraphNode*, const Transition*> >::const_iterator ci = reachable_nodes->begin(); ci != reachable_nodes->end(); ci++)
+		{
+			const DomainTransitionGraphNode* reachable_dtg_node = (*ci).first;
+			const Transition* transition = (*ci).second;
+			std::cout << "* ";
+			reachable_dtg_node->print(std::cout);
+			std::cout << "; Action: ";
+			transition->getStep()->getAction().print(std::cout, reachable_dtg_node->getDTG().getBindings(), transition->getStep()->getStepId());
+			std::cout << std::endl;
 		}
 	}
 }

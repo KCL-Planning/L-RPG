@@ -146,9 +146,7 @@ private:
 	bool shareVariableDomains(const BoundedAtom& bounded_atom, const Atom& atom) const;
 
 	// A transition is not to be created manualy.
-	///Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const Variable& action_invariable);
 	Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::map< const MyPOP::SAS_Plus::PropertySpace*, const MyPOP::Variable* >& action_invariables, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& all_precondition_mappings);
-//   static bool containsMutexSet(const std::vector<const PropertySpace*>& property_spaces, const std::map<const PropertySpace*, const std::vector<const Object*>* >& property_space_invariables, const std::vector<const Atom*>& preconditions, const std::vector<const Atom*>& effects, const Bindings& bindings, const StepID action_step_id, const DomainTransitionGraphNode& from_node, const DomainTransitionGraphNode& to_node);
 
 	// Some transaction require a fact from another DTG to be true before it can be excuted.
 	std::vector<BoundedAtom> enablers_;

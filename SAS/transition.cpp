@@ -11,6 +11,8 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
+#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+
 namespace MyPOP {
 	
 namespace SAS_Plus {
@@ -209,6 +211,7 @@ Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& e
 	std::vector<std::pair<const Atom*, InvariableIndex> > precondition_mapping_to_from_node; // Pair of precondition and invariable index.
 	std::vector<std::pair<const Atom*, InvariableIndex> > add_effects_mapping_to_to_node;    // Pair of effect and invariable index.
 	std::vector<std::pair<const Atom*, InvariableIndex> > remove_effects_mapping_to_to_node; // Pair of effect and invariable index.
+	std::vector<std::pair<const Atom*, InvariableIndex> > persistent_preconditions; // Pair of precondition and invariable index.
 	
 	std::vector<std::pair<const Atom*, const BoundedAtom*> > add_effects_to_to_node_bindings;
 	std::vector<std::pair<const Atom*, const BoundedAtom*> > precondition_to_from_node_bindings;
@@ -412,11 +415,12 @@ Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& e
 */
 	std::map<const PropertySpace*, const Variable*>* property_space_action_invariables = new std::map<const PropertySpace*, const Variable*>();
 	
-	return new Transition(enablers, new_action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, *property_space_action_invariables, all_precondition_mappings);
+	return new Transition(enablers, new_action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, persistent_preconditions, *property_space_action_invariables, all_precondition_mappings);
 }
 
 Transition* Transition::createTransition(const std::vector<BoundedAtom>& enablers, const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts)
 {
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 	std::cout << std::endl << std::endl;
 	std::cout << "[Transition::createTransition] NEW TRANSITION!!!!" << std::endl;
 	std::cout << "From: " << std::endl;
@@ -426,7 +430,8 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	std::cout << "Action: ";
 	action_step->getAction().print(std::cout, from_node.getDTG().getBindings(), action_step->getStepId());
 	std::cout << std::endl;
-
+#endif
+	
 	if (&to_node.getDTG() != &from_node.getDTG())
 	{
 		std::cout << "[Transition::createTransition] FATAL ERROR! The nodes are not part of the same DTG!" << std::endl;
@@ -570,9 +575,11 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		bool is_added = false;
 		bool is_deleted = false;
 		
-//		std::cout << "Validate persistent fact: ";
-//		from_persistent_atom->print(std::cout, bindings);
-//		std::cout << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+		std::cout << "Validate persistent fact: ";
+		from_persistent_atom->print(std::cout, bindings);
+		std::cout << std::endl;
+#endif
 		
 		const PropertySpace& from_fact_property_space = from_persistent_atom->getProperty()->getPropertyState().getPropertySpace();		
 		std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::iterator from_property_space_i = property_space_balanced_sets.find(&from_fact_property_space);
@@ -589,6 +596,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		for (std::vector<const Atom*>::const_iterator ci = effects.begin(); ci != effects.end(); ci++)
 		{
 			const Atom* effect = *ci;
+
 //			std::cout << " v.s. effect: ";
 //			effect->print(std::cout, bindings, action_step_id);
 //			std::cout << std::endl;
@@ -616,6 +624,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		}
 	}
 	
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
 	{
 		std::cout << "Add / Remove sets: " << (*ci).first << std::endl;
@@ -641,7 +650,8 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			std::cout << std::endl;
 		}
 	}
-	
+
+
 	std::cout << "Persistent facts: " << std::endl;
 	for (std::vector<std::pair<const BoundedAtom*, const BoundedAtom*> >::const_iterator ci = persistent_facts.begin(); ci != persistent_facts.end(); ci++)
 	{
@@ -654,6 +664,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		to_bounded_atom->print(std::cout, bindings);
 		std::cout << std::endl;
 	}
+#endif
 
 	/**
 	 * Determine for each property space which action variable is invariable.
@@ -768,10 +779,11 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			///const Term* term = *action_invariables.begin();
 			///std::cout << "* " << *term << " (" << term << ")" << std::endl;
 			
-/*			for (std::vector<const Object*>::const_iterator ci = invariable_domain->begin(); ci != invariable_domain->end(); ci++)
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+			for (std::vector<const Object*>::const_iterator ci = invariable_domain->begin(); ci != invariable_domain->end(); ci++)
 			{
 				std::cout << **ci;
-				///if (ci + 1 != action_invariables.end())
+				if (ci + 1 != invariable_domain->end())
 				{
 					std::cout << ", ";
 				}
@@ -796,8 +808,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 				}
 			}
 			std::cout << ")" << std::endl;
-*/
-			///property_space_invariables[property_space] = term;
+#endif
 			property_space_invariables[property_space] = invariable_domain;
 			(*property_space_action_invariables)[property_space] = invariable_action_variable;
 		}
@@ -826,20 +837,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	{
 		return NULL;
 	}
-	
-/*	for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
-	{
-		const BoundedAtom* bounded_atom = *ci;
-		if (bounded_atom->getProperty() == NULL)
-		{
-			continue;
-		}
-		
-		const PropertySpace& property_space = bounded_atom->getProperty()->getPropertyState().getPropertySpace();
-		
-			property_space_invariables[property_space] = invariable_domain;
-	}
-*/
 
 	/**
 	 * Now that we know the invariables, make sure none of the persistent nodes are added or removed.
@@ -903,7 +900,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	/**
 	 * After we have found all the invariable of each property space, check there are no mutex preconditions or effects.
 	 */
-	std::cout << "Check mutex relationships..." << std::endl;
+//	std::cout << "Check mutex relationships..." << std::endl;
 
 	for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
 	{
@@ -913,24 +910,25 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			continue;
 		}
 		const PropertySpace& property_space = bounded_atom->getProperty()->getPropertyState().getPropertySpace();
-		std::cout << " * Start checking preconditions * ";
-		bounded_atom->print(std::cout, bindings);
-		std::cout << std::endl;
+		
+//		std::cout << " * Start checking preconditions * ";
+//		bounded_atom->print(std::cout, bindings);
+//		std::cout << std::endl;
 
-		const std::vector<const Object*>* invariable_term = property_space_invariables[&property_space];
-		if (invariable_term == NULL)
-		{
-			std::cout << "Could not find the invariable term of ";
-			bounded_atom->print(std::cout, bindings);
-			std::cout << "[" << from_node.getIndex(*bounded_atom) << "]" << std::endl;
-		}
+//		const std::vector<const Object*>* invariable_term = property_space_invariables[&property_space];
+//		if (invariable_term == NULL)
+//		{
+//			std::cout << "Could not find the invariable term of ";
+//			bounded_atom->print(std::cout, bindings);
+//			std::cout << "[" << from_node.getIndex(*bounded_atom) << "]" << std::endl;
+//		}
 
 		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 		{
 			const Atom* precondition = *ci;
-			std::cout << "Precondition: ";
-			precondition->print(std::cout, bindings, action_step_id);
-			std::cout << std::endl;
+//			std::cout << "Precondition: ";
+//			precondition->print(std::cout, bindings, action_step_id);
+//			std::cout << std::endl;
 			
 			// Make sure the precondition is linked to the invariable.
 			///bool precondition_is_relevant = false;
@@ -943,9 +941,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 					const Term* term = *ci;
 					if (&term->getDomain(action_step_id, bindings) == domain)
 					{
-						std::cout << "The term: ";
-						term->print(std::cout, bindings, action_step_id);
-						std::cout << " is relevant!" << std::endl;
+//						std::cout << "The term: ";
+//						term->print(std::cout, bindings, action_step_id);
+//						std::cout << " is relevant!" << std::endl;
 						if (invariable_precondition_term != NULL)
 						{
 							assert (term == invariable_precondition_term);
@@ -960,7 +958,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			
 			if (invariable_precondition_term == NULL)
 			{
-				std::cout << "Precondition is not relevant, continue!" << std::endl;
+//				std::cout << "Precondition is not relevant, continue!" << std::endl;
 				continue;
 			}
 
@@ -971,21 +969,21 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 				for (std::vector<Property*>::const_iterator ci = property_state->getProperties().begin(); ci != property_state->getProperties().end(); ci++)
 				{
 					const Property* property = *ci;
-					std::cout << "Compare against: " << property->getPredicate() << std::endl;
+//					std::cout << "Compare against: " << property->getPredicate() << std::endl;
 					
 					if (precondition->getPredicate().getName() == property->getPredicate().getName() &&
 						precondition->getPredicate().getArity() == property->getPredicate().getArity())
 					{
 						InvariableIndex invariable_index = property->getIndex();
-						std::cout << "Compare if ";
-						precondition->print(std::cout, bindings, action_step_id);
-						std::cout << "(" << invariable_index << ") is the same as ";
-						bounded_atom->print(std::cout, bindings);
-						std::cout << "(" << from_node.getIndex(*bounded_atom) << ")" << std::endl;
+//						std::cout << "Compare if ";
+//						precondition->print(std::cout, bindings, action_step_id);
+//						std::cout << "(" << invariable_index << ") is the same as ";
+//						bounded_atom->print(std::cout, bindings);
+//						std::cout << "(" << from_node.getIndex(*bounded_atom) << ")" << std::endl;
 						
 						if (precondition->getTerms()[invariable_index] != invariable_precondition_term)
 						{
-							std::cout << "Invariables don't match, move on!" << std::endl;
+//							std::cout << "Invariables don't match, move on!" << std::endl;
 							continue;
 						}
 						
@@ -993,11 +991,11 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 						{
 							if (bounded_atom->isMutexWith(*precondition, action_step_id, bindings, invariable_index))
 							{
-								std::cout << "The precondition ";
-								precondition->print(std::cout, bindings, action_step_id);
-								std::cout << " is mutex with the from fact ";
-								bounded_atom->print(std::cout, bindings);
-								std::cout << "." << std::endl;
+//								std::cout << "The precondition ";
+//								precondition->print(std::cout, bindings, action_step_id);
+//								std::cout << " is mutex with the from fact ";
+//								bounded_atom->print(std::cout, bindings);
+//								std::cout << "." << std::endl;
 								return NULL;
 							}
 						}
@@ -1015,9 +1013,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			continue;
 		}
 		const PropertySpace& property_space = bounded_atom->getProperty()->getPropertyState().getPropertySpace();
-		std::cout << " * Start checking effects * ";
-		bounded_atom->print(std::cout, bindings);
-		std::cout << std::endl;
+//		std::cout << " * Start checking effects * ";
+//		bounded_atom->print(std::cout, bindings);
+//		std::cout << std::endl;
 
 		/*const std::vector<const Object*>* invariable_term = property_space_invariables[&property_space];
 		if (invariable_term == NULL)
@@ -1030,9 +1028,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		for (std::vector<const Atom*>::const_iterator ci = effects.begin(); ci != effects.end(); ci++)
 		{
 			const Atom* effect = *ci;
-			std::cout << "Effect: ";
-			effect->print(std::cout, bindings, action_step_id);
-			std::cout << std::endl;
+//			std::cout << "Effect: ";
+//			effect->print(std::cout, bindings, action_step_id);
+//			std::cout << std::endl;
 
 			// Make sure the precondition is linked to the invariable.
 			///bool effect_is_relevant = false;
@@ -1045,9 +1043,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 					const Term* term = *ci;
 					if (&term->getDomain(action_step_id, bindings) == domain)
 					{
-						std::cout << "The term: ";
-						term->print(std::cout, bindings, action_step_id);
-						std::cout << " is relevant!" << std::endl;
+//						std::cout << "The term: ";
+//						term->print(std::cout, bindings, action_step_id);
+//						std::cout << " is relevant!" << std::endl;
 						if (invariable_effect_term != NULL)
 						{
 							assert (invariable_effect_term == term);
@@ -1063,7 +1061,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			
 			if (invariable_effect_term == NULL)
 			{
-				std::cout << "Effect is not relevant, continue!" << std::endl;
+//				std::cout << "Effect is not relevant, continue!" << std::endl;
 				continue;
 			}
 			
@@ -1074,21 +1072,21 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 				for (std::vector<Property*>::const_iterator ci = property_state->getProperties().begin(); ci != property_state->getProperties().end(); ci++)
 				{
 					const Property* property = *ci;
-					std::cout << "Compare against: " << property->getPredicate() << std::endl;
+//					std::cout << "Compare against: " << property->getPredicate() << std::endl;
 					
 					if (effect->getPredicate().getName() == property->getPredicate().getName() &&
 						effect->getPredicate().getArity() == property->getPredicate().getArity())
 					{
 						InvariableIndex invariable_index = property->getIndex();
-						std::cout << "Compare if ";
-						effect->print(std::cout, bindings, action_step_id);
-						std::cout << "(" << invariable_index << ") is the same as ";
-						bounded_atom->print(std::cout, bindings);
-						std::cout << "(" << to_node.getIndex(*bounded_atom) << ")" << std::endl;
+//						std::cout << "Compare if ";
+//						effect->print(std::cout, bindings, action_step_id);
+//						std::cout << "(" << invariable_index << ") is the same as ";
+//						bounded_atom->print(std::cout, bindings);
+//						std::cout << "(" << to_node.getIndex(*bounded_atom) << ")" << std::endl;
 						
 						if (effect->getTerms()[invariable_index] != invariable_effect_term)
 						{
-							std::cout << "Invariables don't match, move on!" << std::endl;
+//							std::cout << "Invariables don't match, move on!" << std::endl;
 							continue;
 						}
 						
@@ -1097,11 +1095,11 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 							if (effect->isNegative() == bounded_atom->getAtom().isNegative() &&
 							    bounded_atom->isMutexWith(*effect, action_step_id, bindings, invariable_index))
 							{
-								std::cout << "The effect ";
-								effect->print(std::cout, bindings, action_step_id);
-								std::cout << " is mutex with the to fact ";
-								bounded_atom->print(std::cout, bindings);
-								std::cout << "." << std::endl;
+//								std::cout << "The effect ";
+//								effect->print(std::cout, bindings, action_step_id);
+//								std::cout << " is mutex with the to fact ";
+//								bounded_atom->print(std::cout, bindings);
+//								std::cout << "." << std::endl;
 								return NULL;
 							}
 						}
@@ -1117,6 +1115,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	std::vector<std::pair<const Atom*, InvariableIndex> > precondition_mapping_to_from_node; // Pair of precondition and invariable index.
 	std::vector<std::pair<const Atom*, InvariableIndex> > add_effects_mapping_to_to_node;    // Pair of effect and invariable index.
 	std::vector<std::pair<const Atom*, InvariableIndex> > remove_effects_mapping_to_to_node; // Pair of effect and invariable index.
+	std::vector<std::pair<const Atom*, InvariableIndex> > persistent_preconditions;
 	
 	std::vector<std::pair<const Atom*, const BoundedAtom*> > add_effects_to_to_node_bindings;
 	std::vector<std::pair<const Atom*, const BoundedAtom*> > precondition_to_from_node_bindings;
@@ -1134,7 +1133,8 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		
 		const std::vector<const Object*>* invariable_term = property_space_invariables[property_space];
 		
-/*		std::cout << " ****************************** " << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+		std::cout << " ****************************** " << std::endl;
 		std::cout << "Check all added and removed facts are accounted for: " << std::endl;
 		for (std::vector<const BoundedAtom*>::const_iterator ci = added_facts->begin(); ci != added_facts->end(); ci++)
 		{
@@ -1148,15 +1148,18 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			(*ci)->print(std::cout, bindings);
 			std::cout << std::endl;
 		}
-*/
+#endif
+
 		for (std::vector<const BoundedAtom*>::const_iterator ci = added_facts->begin(); ci != added_facts->end(); ci++)
 		{
 			const BoundedAtom* added_fact = *ci;
 			bool is_added = false;
 			
-//			std::cout << " =++> Make sure the added fact: ";
-//			added_fact->print(std::cout, bindings);
-//			std::cout << "is accounted for..." << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+			std::cout << " =++> Make sure the added fact: ";
+			added_fact->print(std::cout, bindings);
+			std::cout << "is accounted for..." << std::endl;
+#endif
 			
 			// Make sure an effect actually added this fact.
 			for (std::vector<const Atom*>::const_iterator ci = effects.begin();  ci != effects.end(); ci++)
@@ -1167,9 +1170,11 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 				    bindings.canUnify(*effect, action_step_id, added_fact->getAtom(), added_fact->getId()) &&
 				    &effect->getTerms()[to_node.getIndex(*added_fact)]->getDomain(action_step_id, bindings) == invariable_term)
 				{
-//					std::cout << "It's added by: ";
-//					effect->print(std::cout, bindings, action_step_id);
-//					std::cout << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+					std::cout << "It's added by: ";
+					effect->print(std::cout, bindings, action_step_id);
+					std::cout << std::endl;
+#endif
 					is_added = true;
 					add_effects_mapping_to_to_node.push_back(std::make_pair(effect, to_node.getIndex(*added_fact)));
 					add_effects_to_to_node_bindings.push_back(std::make_pair(effect, added_fact));
@@ -1179,23 +1184,29 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			
 			if (!is_added)
 			{
-//				std::cout << "The effect: ";
-//				added_fact->print(std::cout, bindings);
-//				std::cout << " is not accounted for..." << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+				std::cout << "The effect: ";
+				added_fact->print(std::cout, bindings);
+				std::cout << " is not accounted for..." << std::endl;
+#endif
 				return NULL;
 			}
 		}
 		
-//		std::cout << "Make sure all delete facts are accounted for!" << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+		std::cout << "Make sure all delete facts are accounted for!" << std::endl;
+#endif
 		for (std::vector<const BoundedAtom*>::const_iterator ci = removed_facts->begin(); ci != removed_facts->end(); ci++)
 		{
 			const BoundedAtom* removed_fact = *ci;
 			bool is_a_precondition = false;
 			bool is_removed = false;
-			
-//			std::cout << " =++> Make sure the removed fact: ";
-//			removed_fact->print(std::cout, bindings);
-//			std::cout << "is accounted for..." << std::endl;
+
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+			std::cout << " =++> Make sure the removed fact: ";
+			removed_fact->print(std::cout, bindings);
+			std::cout << "is accounted for..." << std::endl;
+#endif
 			
 			// Make sure an effect actually added this fact.
 			for (std::vector<const Atom*>::const_iterator ci = preconditions.begin();  ci != preconditions.end(); ci++)
@@ -1206,9 +1217,11 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 				    bindings.canUnify(*precondition, action_step_id, removed_fact->getAtom(), removed_fact->getId()) &&
 				    &precondition->getTerms()[from_node.getIndex(*removed_fact)]->getDomain(action_step_id, bindings) == invariable_term)
 				{
-//					std::cout << "It's removed by: ";
-//					precondition->print(std::cout, bindings, action_step_id);
-//					std::cout << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+					std::cout << "It's removed by: ";
+					precondition->print(std::cout, bindings, action_step_id);
+					std::cout << std::endl;
+#endif
 					precondition_mapping_to_from_node.push_back(std::make_pair(precondition, from_node.getIndex(*removed_fact)));
 					precondition_to_from_node_bindings.push_back(std::make_pair(precondition, removed_fact));
 					is_a_precondition = true;
@@ -1218,9 +1231,11 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			
 			if (!is_a_precondition)
 			{
-//				std::cout << "The removed precondition: ";
-//				removed_fact->print(std::cout, bindings);
-//				std::cout << " is not accounted for..." << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+				std::cout << "The removed precondition: ";
+				removed_fact->print(std::cout, bindings);
+				std::cout << " is not accounted for..." << std::endl;
+#endif
 				return NULL;
 			}
 			
@@ -1232,9 +1247,11 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 				    bindings.canUnify(*effect, action_step_id, removed_fact->getAtom(), removed_fact->getId()) &&
 				    &effect->getTerms()[from_node.getIndex(*removed_fact)]->getDomain(action_step_id, bindings) == invariable_term)
 				{
-//					std::cout << "It's removed by: ";
-//					effect->print(std::cout, bindings, action_step_id);
-//					std::cout << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+					std::cout << "It's removed by: ";
+					effect->print(std::cout, bindings, action_step_id);
+					std::cout << std::endl;
+#endif
 					remove_effects_mapping_to_to_node.push_back(std::make_pair(effect, from_node.getIndex(*removed_fact)));
 					is_removed = true;
 					break;
@@ -1243,9 +1260,11 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			
 			if (!is_removed)
 			{
-//				std::cout << "The precondition is not removed: ";
-//				removed_fact->print(std::cout, bindings);
-//				std::cout << " is not accounted for..." << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+				std::cout << "The precondition is not removed: ";
+				removed_fact->print(std::cout, bindings);
+				std::cout << " is not accounted for..." << std::endl;
+#endif
 				return NULL;
 			}
 		}
@@ -1362,11 +1381,14 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		}
 	}
 	
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 	std::cout << "[Transition::createTransition] Unify the persistent facts!" << std::endl;
+#endif
 	for (std::vector<std::pair<const BoundedAtom*, const BoundedAtom*> >::const_iterator ci = persistent_facts.begin(); ci != persistent_facts.end(); ci++)
 	{
 		const BoundedAtom* from_node_persistent_fact = (*ci).first;
 
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 		const PropertySpace& property_space = from_node_persistent_fact->getProperty()->getPropertyState().getPropertySpace();
 		const std::vector<const Object*>* invariable_term = property_space_invariables[&property_space];
 		if (invariable_term == NULL)
@@ -1375,32 +1397,37 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			from_node_persistent_fact->print(std::cout, bindings);
 			std::cout << "[" << from_node.getIndex(*from_node_persistent_fact) << "]" << std::endl;
 		}
+#endif
 
 		InvariableIndex invariable_index = from_node.getIndex(*from_node_persistent_fact);
-		
+
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 		std::cout << "Process: ";
 		from_node_persistent_fact->print(std::cout, bindings);
 		std::cout << "(" << invariable_index << ")" << std::endl;
+#endif
 		
 		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 		{
 			const Atom* precondition = *ci;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 			std::cout << " - v.s. ";
 			precondition->print(std::cout, bindings, new_action_step_id);
 			std::cout << " -=- invariable = " << invariable_term << std::endl;
+#endif
 			
 			// Make sure the precondition is linked to the invariable.
 			const Term* invariable_precondition_term = NULL;
 			for (std::map<const PropertySpace*, const std::vector<const Object*>*>::const_iterator ci = property_space_invariables.begin(); ci != property_space_invariables.end(); ci++)
 			{
-				const PropertySpace* property_space = (*ci).first;
+//				const PropertySpace* property_space = (*ci).first;
 				const std::vector<const Object*>* domain = (*ci).second;
 				for (std::vector<const Term*>::const_iterator ci = precondition->getTerms().begin(); ci != precondition->getTerms().end(); ci++)
 				{
 					const Term* term = *ci;
 					if (&term->getDomain(action_step_id, bindings) == domain)
 					{
-						std::cout << "Possible state variable to merge with: " << *property_space << std::endl;
+//						std::cout << "Possible state variable to merge with: " << *property_space << std::endl;
 						if (invariable_precondition_term != NULL)
 						{
 							assert (term == invariable_precondition_term);
@@ -1412,36 +1439,48 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			
 			if (invariable_precondition_term == NULL)
 			{
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+				std::cout << "Persistent does not contain the invariable, move on!" << std::endl;
+#endif
 				continue;
 			}
 			
 			if (precondition->getTerms()[invariable_index] != invariable_precondition_term)
 			{
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 				std::cout << "Invariables don't match, move on!" << std::endl;
+#endif
 				continue;
 			}
 			
 			if (bindings.canUnify(*precondition, new_action_step_id, from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId()))
 ///		&& &precondition->getTerms()[from_node.getIndex(*from_node_persistent_fact)]->getDomain(action_step_id, bindings) == invariable_term)
 			{
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 				std::cout << "Unify persistent fact: ";
 				from_node_persistent_fact->print(std::cout, bindings);
 				std::cout << " with the precondition ";
 				precondition->print(std::cout, bindings, new_action_step_id);
 				std::cout << std::endl;
+#endif
 				
 				if (!bindings.unify(*precondition, new_action_step_id, from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId()))
 				{
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 					std::cout << "Could not unify a persistent fact with the from_node." << std::endl;
+#endif
 					return NULL;
 				}
-				
+
 				precondition_mapping_to_from_node.push_back(std::make_pair(precondition, from_node.getIndex(*from_node_persistent_fact)));
+				persistent_preconditions.push_back(std::make_pair(precondition, from_node.getIndex(*from_node_persistent_fact)));
 			}
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 			else
 			{
 				std::cout << "Cannot add the persistent to the preconditions!" << std::endl;
 			}
+#endif
 		}
 	}
 
@@ -1510,9 +1549,11 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 				
 				if (&term->getDomain(action_step_id, bindings) == invariable_domain)
 				{
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 					std::cout << "QQQ Precondition: ";
 					precondition->print(std::cout, bindings, action_step_id);
 					std::cout << " (" << i << ")" << std::endl;
+#endif
 					found_binding = true;
 					
 					all_precondition_mappings.push_back(std::make_pair(precondition, i));
@@ -1522,14 +1563,17 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			
 			if (!found_binding)
 			{
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 				std::cout << "QQQ Precondition: ";
 				precondition->print(std::cout, bindings, action_step_id);
 				std::cout << " (No binding!)" << std::endl;
+#endif
 				all_precondition_mappings.push_back(std::make_pair(precondition, NO_INVARIABLE_INDEX));
 			}
 		}
 	}
 	
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 	std::cout << "Success!" << std::endl;
 	std::cout << "Created a transition from " << std::endl;
 	std::cout << from_node << std::endl;
@@ -1538,20 +1582,20 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	std::cout << "Action: ";
 	new_action_step->getAction().print(std::cout, from_node.getDTG().getBindings(), new_action_step->getStepId());
 	std::cout << std::endl;
-
-	return new Transition(enablers, new_action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, *property_space_action_invariables, all_precondition_mappings);
+#endif
+	return new Transition(enablers, new_action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, persistent_preconditions, *property_space_action_invariables, all_precondition_mappings);
 }
 
-Transition::Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::map<const PropertySpace*, const Variable*>& action_invariables, const std::vector<std::pair<const Atom*, InvariableIndex> >& all_precondition_mappings)
-	: enablers_(enablers), step_(step), from_node_(&from_node), to_node_(&to_node), preconditions_(preconditions), effects_(effects), affected_(affected), action_invariables_(&action_invariables), all_precondition_mappings_(all_precondition_mappings)
+Transition::Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map<const PropertySpace*, const Variable*>& action_invariables, const std::vector<std::pair<const Atom*, InvariableIndex> >& all_precondition_mappings)
+	: enablers_(enablers), step_(step), from_node_(&from_node), to_node_(&to_node), preconditions_(preconditions), effects_(effects), affected_(affected), persistent_preconditions_(persistent_preconditions), action_invariables_(&action_invariables), all_precondition_mappings_(all_precondition_mappings)
 {
-	std::cout << "New transition: " << step->getAction() << std::endl;
+/*	std::cout << "New transition: " << step->getAction() << std::endl;
 	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 	{
 		(*ci).first->print(std::cout);
 		std::cout << "(" << (*ci).second << "), ";
 	}
-	std::cout << "." << std::endl;
+	std::cout << "." << std::endl;*/
 }
 
 Transition* Transition::cloneWithNodes(const std::vector<const Atom*>& initial_facts) const
@@ -1634,6 +1678,24 @@ bool Transition::affects(const BoundedAtom& bounded_atom) const
 	return false;
 }
 
+bool Transition::isPreconditionPersistent(const Atom& atom, InvariableIndex index) const
+{
+	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = persistent_preconditions_.begin(); ci != persistent_preconditions_.end(); ci++)
+	{
+		const Atom* persistent_atom = (*ci).first;
+		InvariableIndex persistent_index = (*ci).second;
+		std::cout << "is (" << &atom << "){" << index << "} persistent with: ";
+		persistent_atom->print(std::cout, from_node_->getDTG().getBindings(), step_->getStepId());
+		std::cout << "(" << persistent_atom << "){" << persistent_index << "}?" << std::endl;
+		
+		if (&atom == persistent_atom && persistent_index == index)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 bool Transition::shareVariableDomains(const BoundedAtom& bounded_atom, const Atom& atom) const
 {
 	for (std::vector<const Term*>::const_iterator ci = bounded_atom.getAtom().getTerms().begin(); ci != bounded_atom.getAtom().getTerms().end(); ci++)
@@ -1663,6 +1725,40 @@ bool Transition::shareVariableDomains(const BoundedAtom& bounded_atom, const Ato
 bool Utilities::TransitionToNodeEquals::operator()(const Transition* transition, const DomainTransitionGraphNode* dtg_node) const
 {
 	return &transition->getToNode() == dtg_node;
+}
+
+std::ostream& operator<<(std::ostream& os, const Transition& transition)
+{
+	os << "Transition from: ";
+	transition.getFromNode().print(os);
+	os << " to ";
+	transition.getToNode().print(os);
+	os << "[" << transition.getStep()->getAction() << "]" << std::endl;
+	
+	std::vector<std::pair<const Atom*, InvariableIndex> > all_preconditions = transition.getAllPreconditions();
+	os << "All preconditions: " << std::endl;
+	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = all_preconditions.begin(); ci != all_preconditions.end(); ci++)
+	{
+		(*ci).first->print(os, transition.getFromNode().getDTG().getBindings(), transition.getStep()->getStepId());
+		os << " (" << (*ci).second << ") Ox" << (*ci).first << "." << std::endl;
+	}
+	
+	std::vector<std::pair<const Atom*, InvariableIndex> > effects = transition.getEffects();
+	os << "All effects: " << std::endl;
+	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = effects.begin(); ci != effects.end(); ci++)
+	{
+		(*ci).first->print(os, transition.getToNode().getDTG().getBindings(), transition.getStep()->getStepId());
+		os << " (" << (*ci).second << ") Ox" << (*ci).first << "." << std::endl;
+	}
+	
+	std::vector<std::pair<const Atom*, InvariableIndex> > persistent_facts = transition.getAllPersistentPreconditions();
+	os << "All persistent preconditions: " << std::endl;
+	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = persistent_facts.begin(); ci != persistent_facts.end(); ci++)
+	{
+		(*ci).first->print(os, transition.getToNode().getDTG().getBindings(), transition.getStep()->getStepId());
+		os << " (" << (*ci).second << ") Ox" << (*ci).first << "." << std::endl;
+	}
+	return os;
 }
 
 };

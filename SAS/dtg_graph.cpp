@@ -836,7 +836,7 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 
 void DomainTransitionGraph::reestablishTransitions()
 {
-	std::cout << "=== Reestablish transitions for the DTG === " << std::endl << *this << std::endl;
+//	std::cout << "=== Reestablish transitions for the DTG === " << std::endl << *this << std::endl;
 	/**
 	 * Only consider those transitions which were already part of the DTG node can be added.
 	 */
@@ -877,12 +877,12 @@ void DomainTransitionGraph::reestablishTransitions()
 		}
 	}
 	
-	std::cout << "=== Result: ===" << std::endl << *this << std::endl;
+//	std::cout << "=== Result: ===" << std::endl << *this << std::endl;
 }
 
 void DomainTransitionGraph::establishTransitions()
 {
-	std::cout << "Establish transitions for: " << *this << std::endl;
+//	std::cout << "Establish transitions for: " << *this << std::endl;
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 	{
 		//assert ((*ci)->getTransitions().empty());
@@ -911,24 +911,24 @@ void DomainTransitionGraph::establishTransitions()
 		}
 	}
 	
-	std::cout << "=== Result: ===" << std::endl << *this << std::endl;
+//	std::cout << "=== Result: ===" << std::endl << *this << std::endl;
 }
 
 
 void DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* >& split_graphs)
 {
-	std::cout << "[DomainTransitionGraph::splitNodes] Process DTG: " << *this << std::endl;
+//	std::cout << "[DomainTransitionGraph::splitNodes] Process DTG: " << *this << std::endl;
 	for (std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* >::const_iterator ci = split_graphs.begin(); ci != split_graphs.end(); ci++)
 	{
 		DomainTransitionGraph* splitted_dtg = (*ci).first;
 		std::vector<DomainTransitionGraph*>* results_of_split = (*ci).second;
 		
-		std::cout << "Process splitted DTG: " << *splitted_dtg << std::endl;
-		std::cout << "Splitted into: ";
-		for (std::vector<DomainTransitionGraph*>::const_iterator ci = results_of_split->begin(); ci != results_of_split->end(); ci++)
-		{
-			std::cout << **ci << std::endl;
-		}
+//		std::cout << "Process splitted DTG: " << *splitted_dtg << std::endl;
+//		std::cout << "Splitted into: ";
+//		for (std::vector<DomainTransitionGraph*>::const_iterator ci = results_of_split->begin(); ci != results_of_split->end(); ci++)
+//		{
+//			std::cout << **ci << std::endl;
+//		}
 		
 		std::vector<DomainTransitionGraphNode*> nodes_to_add;
 		std::vector<DomainTransitionGraphNode*> nodes_to_remove;
@@ -1016,9 +1016,9 @@ void DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, st
 					if (affected_term != NULL && affected_variables.count(std::make_pair(affected_term, transition->getStep()->getStepId())))
 					{
 						std::vector<std::pair<InvariableIndex, InvariableIndex> >* affected_properties = new std::vector<std::pair<InvariableIndex, InvariableIndex> >();
-						std::cout << "Affected <atoms, variables> for ";
-						dtg_node->print(std::cout);
-						std::cout << ": ";
+//						std::cout << "Affected <atoms, variables> for ";
+//						dtg_node->print(std::cout);
+//						std::cout << ": ";
 						for (unsigned int atom_nr = 0; atom_nr < dtg_node->getAtoms().size(); atom_nr++)
 						{
 							const BoundedAtom* bounded_atom = dtg_node->getAtoms()[atom_nr];
@@ -1028,7 +1028,7 @@ void DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, st
 								const Term* term = bounded_atom->getAtom().getTerms()[variable_nr];
 								if (term->isTheSameAs(bounded_atom->getId(), *affected_term, transition->getStep()->getStepId(), *bindings_))
 								{
-									std::cout << "<" << atom_nr << ", " << variable_nr << "> ";
+//									std::cout << "<" << atom_nr << ", " << variable_nr << "> ";
 									affected_properties->push_back(std::make_pair(atom_nr, variable_nr));
 								}
 							}
@@ -1043,7 +1043,7 @@ void DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, st
 							delete affected_properties;
 						}
 						
-						std::cout << std::endl;
+//						std::cout << std::endl;
 					}
 				}
 			}
@@ -1066,12 +1066,12 @@ void DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, st
 			
 			while (true)
 			{
-				std::cout << "Counter: {";
-				for (unsigned int i = 0; i < affected_variables.size(); i++)
-				{
-					std::cout << counter[i] << ", ";
-				}
-				std::cout << "}" << std::endl;
+//				std::cout << "Counter: {";
+//				for (unsigned int i = 0; i < affected_variables.size(); i++)
+//				{
+//					std::cout << counter[i] << ", ";
+//				}
+//				std::cout << "}" << std::endl;
 				DomainTransitionGraphNode* new_node = new DomainTransitionGraphNode(*dtg_node, false);
 				
 				unsigned int i = 0;
@@ -1089,7 +1089,7 @@ void DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, st
 					i++;
 				}
 				
-				std::cout << "New node! " << *new_node << std::endl;
+//				std::cout << "New node! " << *new_node << std::endl;
 				//addNode(*new_node);
 				nodes_to_add.push_back(new_node);
 				
@@ -1165,9 +1165,9 @@ void DomainTransitionGraph::removeUnsupportedTransitions()
 		// If one of the variable domains is empty, remove the node.
 		if ((*ci)->containsEmptyVariableDomain())
 		{
-			std::cout << "Remove the node: ";
-			(*ci)->print(std::cout);
-			std::cout << std::endl;
+//			std::cout << "Remove the node: ";
+//			(*ci)->print(std::cout);
+//			std::cout << std::endl;
 			removeNode(**ci);
 		}
 	}

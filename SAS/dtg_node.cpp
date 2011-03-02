@@ -185,9 +185,9 @@ DomainTransitionGraphNode::~DomainTransitionGraphNode()
 
 void DomainTransitionGraphNode::addAtom(BoundedAtom* bounded_atom, InvariableIndex index)
 {
-	std::cout << "Add the atom: ";
-	bounded_atom->print(std::cout, dtg_->getBindings());
-	std::cout << " to : " << *this << std::endl;
+//	std::cout << "Add the atom: ";
+//	bounded_atom->print(std::cout, dtg_->getBindings());
+//	std::cout << " to : " << *this << std::endl;
 	
 	// Testing...
 	for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
@@ -467,9 +467,9 @@ bool DomainTransitionGraphNode::operator==(const DomainTransitionGraphNode& dtg_
 
 bool DomainTransitionGraphNode::groundTerm(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const Term& term_to_ground, StepID term_id) const
 {
-	std::cout << "[DomainTransitionGraphNode::groundTerm] Ground the term: ";
-	term_to_ground.print(std::cout, dtg_->getBindings(), term_id);
-	std::cout << "(" << &term_to_ground.getDomain(term_id, dtg_->getBindings()) << ") in the node : " << *this << std::endl;
+//	std::cout << "[DomainTransitionGraphNode::groundTerm] Ground the term: ";
+//	term_to_ground.print(std::cout, dtg_->getBindings(), term_id);
+//	std::cout << "(" << &term_to_ground.getDomain(term_id, dtg_->getBindings()) << ") in the node : " << *this << std::endl;
 	
 	const std::vector<const Object*>& domain = term_to_ground.getDomain(term_id, dtg_->getBindings());
 	
@@ -489,9 +489,9 @@ bool DomainTransitionGraphNode::groundTerm(std::vector<DomainTransitionGraphNode
 				
 				if (term->isTheSameAs(bounded_atom->getId(), term_to_ground, term_id, dtg_->getBindings()))
 				{
-					std::cout << "GROUND : ";
-					term->print(std::cout, dtg_->getBindings(), bounded_atom->getId());
-					std::cout << std::endl;
+//					std::cout << "GROUND : ";
+//					term->print(std::cout, dtg_->getBindings(), bounded_atom->getId());
+//					std::cout << std::endl;
 					const BoundedAtom* bounded_atom_to_ground = new_node->getAtoms()[i];
 					bounded_atom_to_ground->getAtom().getTerms()[j]->unify(bounded_atom_to_ground->getId(), *object_to_ground_to, term_id, dtg_->getBindings());
 				}

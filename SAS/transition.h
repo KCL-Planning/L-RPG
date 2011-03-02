@@ -129,6 +129,10 @@ public:
 	 * Given an atom which is linked to this transition, return the index of the variable which is invariable.
 	 */
 	const std::vector<std::pair<const Atom*, InvariableIndex> >& getAllPreconditions() const { return all_precondition_mappings_; }
+	
+	const std::vector<std::pair<const Atom*, InvariableIndex> >& getAllPersistentPreconditions() const { return persistent_preconditions_; }
+	
+	bool isPreconditionPersistent(const Atom&, InvariableIndex index) const;
 
 	/**
 	 * Check if a bounded atom is linked to this transition. I.e. does it share a variable domain with it?
@@ -146,7 +150,7 @@ private:
 	bool shareVariableDomains(const BoundedAtom& bounded_atom, const Atom& atom) const;
 
 	// A transition is not to be created manualy.
-	Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::map< const MyPOP::SAS_Plus::PropertySpace*, const MyPOP::Variable* >& action_invariables, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& all_precondition_mappings);
+	Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map< const MyPOP::SAS_Plus::PropertySpace*, const MyPOP::Variable* >& action_invariables, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& all_precondition_mappings);
 
 	// Some transaction require a fact from another DTG to be true before it can be excuted.
 	std::vector<BoundedAtom> enablers_;
@@ -170,11 +174,17 @@ private:
 	// The effect which deletes the facts from from_node_.
 	std::vector<std::pair<const Atom*, InvariableIndex> > affected_;
 	
-	///const Variable* action_invariable_;
+	// A list of facts which remain unaltered.
+	std::vector<std::pair<const Atom*, InvariableIndex> > persistent_preconditions_;
+	
+	// Per property space the variable which is invariable.
 	const std::map<const PropertySpace*, const Variable*>* action_invariables_;
 	
+	// A list of all preconditions of the action, including the index of the term which is invariable.
 	const std::vector<std::pair<const Atom*, InvariableIndex> > all_precondition_mappings_;
 };
+
+std::ostream& operator<<(std::ostream& os, const Transition& transition);
 
 };
 

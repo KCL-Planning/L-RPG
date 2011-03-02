@@ -140,20 +140,20 @@ bool BoundedAtom::isMutexWith(const Atom& atom, StepID step_id, const Bindings& 
 {
 	if (property_ == NULL)
 	{
-		std::cout << "[BoundedAtom::isMutexWith] No property state, can't test mutexes..." << std::endl;
+//		std::cout << "[BoundedAtom::isMutexWith] No property state, can't test mutexes..." << std::endl;
 		return false;
 	}
 	
-	std::cout << "[BoundedAtom::isMutexWith] Is ";
-	print(std::cout, bindings);
-	std::cout << "[" << property_->getIndex() << "] mutex with ";
-	atom.print(std::cout, bindings, step_id);
-	std::cout << "[" << invariable_index << "]" << std::endl;
+//	std::cout << "[BoundedAtom::isMutexWith] Is ";
+//	print(std::cout, bindings);
+//	std::cout << "[" << property_->getIndex() << "] mutex with ";
+//	atom.print(std::cout, bindings, step_id);
+//	std::cout << "[" << invariable_index << "]" << std::endl;
 
 	// Make sure the invariables are in agreement.
 	if (!atom.getTerms()[invariable_index]->canUnify(step_id, *atom_->getTerms()[property_->getIndex()], id_, bindings))
 	{
-		std::cout << "The invariables are not the same, so they cannot be mutex by default!" << std::endl;
+//		std::cout << "The invariables are not the same, so they cannot be mutex by default!" << std::endl;
 		return false;
 	}
 	
@@ -162,7 +162,7 @@ bool BoundedAtom::isMutexWith(const Atom& atom, StepID step_id, const Bindings& 
 	for (std::vector<Property*>::const_iterator ci = lhs_properties.begin(); ci != lhs_properties.end(); ci++)
 	{
 		const Property* property = *ci;
-		std::cout << "[BoundedAtom::isMutexWith] LHS property: " << property->getPredicate().getName() << "[" << property->getIndex() << "]" << std::endl;
+//		std::cout << "[BoundedAtom::isMutexWith] LHS property: " << property->getPredicate().getName() << "[" << property->getIndex() << "]" << std::endl;
 		if (property->getPredicate().getName() == atom.getPredicate().getName() && property->getIndex() == invariable_index)
 		{
 			return false;
@@ -185,7 +185,7 @@ bool BoundedAtom::isMutexWith(const Atom& atom, StepID step_id, const Bindings& 
 		for (std::vector<Property*>::const_iterator ci = properties.begin(); ci != properties.end(); ci++)
 		{
 			const Property* property = *ci;
-			std::cout << "[BoundedAtom::isMutexWith] Check against: " << property->getPredicate().getName() << "[" << property->getIndex() << "]" << std::endl;
+//			std::cout << "[BoundedAtom::isMutexWith] Check against: " << property->getPredicate().getName() << "[" << property->getIndex() << "]" << std::endl;
 			if (property->getPredicate().getName() == atom.getPredicate().getName() && property->getIndex() == invariable_index)
 			{
 				return true;
@@ -724,7 +724,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 
 void DomainTransitionGraphManager::mergeDTGs()
 {
-	std::cout << " *************** [DomainTransitionGraphManager::mergeDTGs] *******************" << std::endl;
+//	std::cout << " *************** [DomainTransitionGraphManager::mergeDTGs] *******************" << std::endl;
 	bool dtg_altered = true;
 	while (dtg_altered)
 	{
@@ -744,7 +744,7 @@ void DomainTransitionGraphManager::mergeDTGs()
 ///				std::cout << "Skip: " << *dtg << std::endl;
 				continue;
 			}
-			std::cout << "Check DTG: " << *dtg << std::endl;
+//			std::cout << "Check DTG: " << *dtg << std::endl;
 			
 			std::vector<DomainTransitionGraphNode*> nodes_to_remove;
 			std::vector<DomainTransitionGraphNode*> nodes_to_add;
@@ -759,11 +759,11 @@ void DomainTransitionGraphManager::mergeDTGs()
 					const Transition* transition = *ci;
 
 
-					std::cout << "Transition: from ";
-					transition->getFromNode().print(std::cout);
-					std::cout << " to ";
-					transition->getToNode().print(std::cout);
-					std::cout << "[" << transition->getStep()->getAction() << "]" << std::endl;
+//					std::cout << "Transition: from ";
+//					transition->getFromNode().print(std::cout);
+//					std::cout << " to ";
+//					transition->getToNode().print(std::cout);
+//					std::cout << "[" << transition->getStep()->getAction() << "]" << std::endl;
 
 					const std::vector<std::pair<const Atom*, InvariableIndex> >& preconditions = transition->getAllPreconditions();
 //					std::vector<std::pair<const Atom*, InvariableIndex> > preconditions;
@@ -775,9 +775,9 @@ void DomainTransitionGraphManager::mergeDTGs()
 						const Atom* precondition = (*ci).first;
 						InvariableIndex invariable = (*ci).second;
 
-						std::cout << "Process the precondition: ";
-						precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
-						std::cout << "(" << invariable << ")" << std::endl;
+//						std::cout << "Process the precondition: ";
+//						precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
+//						std::cout << "(" << invariable << ")" << std::endl;
 
 						std::vector<const DomainTransitionGraphNode*> found_dtg_nodes;
 						getDTGNodes(found_dtg_nodes, transition->getStep()->getStepId(), *precondition, dtg->getBindings(), invariable);
@@ -793,13 +793,13 @@ void DomainTransitionGraphManager::mergeDTGs()
 						{
 							const DomainTransitionGraphNode* precondition_dtg_node = *ci;
 
-							std::cout << "Candidate: ";
-							precondition_dtg_node->print(std::cout);
-							std::cout << std::endl;
+//							std::cout << "Candidate: ";
+//							precondition_dtg_node->print(std::cout);
+//							std::cout << std::endl;
 
 							if (&precondition_dtg_node->getDTG() == &transition->getFromNode().getDTG())
 							{
-								std::cout << "- No, part of same DTG!" << std::endl;
+//								std::cout << "- No, part of same DTG!" << std::endl;
 								continue;
 							}
 							
@@ -810,9 +810,9 @@ void DomainTransitionGraphManager::mergeDTGs()
 							{
 								BoundedAtom* bounded_atom = *ci;
 
-								std::cout << "* BoundedAtom: ";
-								bounded_atom->print(std::cout, precondition_dtg_node->getDTG().getBindings());
-								std::cout << std::endl;
+//								std::cout << "* BoundedAtom: ";
+//								bounded_atom->print(std::cout, precondition_dtg_node->getDTG().getBindings());
+//								std::cout << std::endl;
 
 								bool matches_precondition_dtg_invariable = false;
 								if (precondition_dtg_node->getIndex(*bounded_atom) != invariable)
@@ -820,7 +820,7 @@ void DomainTransitionGraphManager::mergeDTGs()
 									// If the invariable does not match, we check if the precondition is an invariable for the other DTG. If that's the case
 									// we might need to merge it with this node.
 									matches_precondition_dtg_invariable = true;
-									std::cout << "Invariable doesn't match!" << std::endl;
+//									std::cout << "Invariable doesn't match!" << std::endl;
 ///									continue;
 								}
 
@@ -842,11 +842,11 @@ void DomainTransitionGraphManager::mergeDTGs()
 							if (dtg_node_atom != NULL || variable_dtg_node_atom != NULL)
 							{
 								
-								std::cout << "!!! Merge node matching the precondition: ";
-								precondition_dtg_node->print(std::cout);
-								std::cout << std::endl << " and the from node: ";
-								from_dtg_node->print(std::cout);
-								std::cout << std::endl;
+//								std::cout << "!!! Merge node matching the precondition: ";
+//								precondition_dtg_node->print(std::cout);
+//								std::cout << std::endl << " and the from node: ";
+//								from_dtg_node->print(std::cout);
+//								std::cout << std::endl;
 
 								/**
 								 * Three cases of merging need to be distincted here.
@@ -907,9 +907,9 @@ void DomainTransitionGraphManager::mergeDTGs()
 										{
 											dtg_altered = true;
 
-											std::cout << "Result of the merge: ";
-											clone_from_dtg_node->print(std::cout);
-											std::cout << std::endl;
+//											std::cout << "Result of the merge: ";
+//											clone_from_dtg_node->print(std::cout);
+//											std::cout << std::endl;
 										}
 										else
 										{
@@ -1005,12 +1005,12 @@ void DomainTransitionGraphManager::mergeDTGs()
 	/**
 	 * Merge dependened invariable DTG nodes.
 	 */
-	std::cout << "[DomainTransitionGraph::mergeDTGs] Merge depended invariable DTG nodes." << std::endl;
+//	std::cout << "[DomainTransitionGraph::mergeDTGs] Merge depended invariable DTG nodes." << std::endl;
 	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
 	{
 		DomainTransitionGraph* dtg = *ci;
 
-		std::cout << "Check DTG: " << *dtg << "(pointer address=" << dtg << ")" << std::endl;
+//		std::cout << "Check DTG: " << *dtg << "(pointer address=" << dtg << ")" << std::endl;
 		
 		std::vector<DomainTransitionGraphNode*> nodes_to_remove;
 		std::vector<DomainTransitionGraphNode*> nodes_to_add;
@@ -1023,11 +1023,11 @@ void DomainTransitionGraphManager::mergeDTGs()
 			{
 				const Transition* transition = *ci;
 
-				std::cout << "Transition: from ";
-				transition->getFromNode().print(std::cout);
-				std::cout << " to ";
-				transition->getToNode().print(std::cout);
-				std::cout << "[" << transition->getStep()->getAction() << "]" << std::endl;
+//				std::cout << "Transition: from ";
+//				transition->getFromNode().print(std::cout);
+//				std::cout << " to ";
+//				transition->getToNode().print(std::cout);
+//				std::cout << "[" << transition->getStep()->getAction() << "]" << std::endl;
 
 				const std::vector<std::pair<const Atom*, InvariableIndex> >& preconditions = transition->getAllPreconditions();
 //				std::vector<std::pair<const Atom*, InvariableIndex> > preconditions;
@@ -1039,9 +1039,9 @@ void DomainTransitionGraphManager::mergeDTGs()
 					const Atom* precondition = (*ci).first;
 					InvariableIndex invariable = (*ci).second;
 
-					std::cout << "Process the precondition: ";
-					precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
-					std::cout << "(" << invariable << ")" << std::endl;
+//					std::cout << "Process the precondition: ";
+//					precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
+//					std::cout << "(" << invariable << ")" << std::endl;
 
 					std::vector<const DomainTransitionGraphNode*> found_dtg_nodes;
 					getDTGNodes(found_dtg_nodes, transition->getStep()->getStepId(), *precondition, dtg->getBindings(), invariable);
@@ -1054,7 +1054,7 @@ void DomainTransitionGraphManager::mergeDTGs()
 					 */
 					if (invariable == NO_INVARIABLE_INDEX)
 					{
-						std::cout << " - The precondition isn't linked to the invariable. Check if the term is invariable in another DTG." << std::endl;
+//						std::cout << " - The precondition isn't linked to the invariable. Check if the term is invariable in another DTG." << std::endl;
 						// Check if the precondition is invariable in their respective DTG(s).
 						std::vector<const DomainTransitionGraphNode*> matching_dtg_nodes;
 						getDTGNodes(matching_dtg_nodes, transition->getStep()->getStepId(), *precondition, dtg->getBindings());
@@ -1093,7 +1093,7 @@ void DomainTransitionGraphManager::mergeDTGs()
 									
 									if (dtg->containsPropertySpace(bounded_atom->getProperty()->getPropertyState().getPropertySpace()))
 									{
-										std::cout << "Alert! Proposing a DTG to merge with itself!!!" << std::endl;
+//										std::cout << "Alert! Proposing a DTG to merge with itself!!!" << std::endl;
 
 										merge_with_self = true;
 										precondition_properties.clear();
@@ -1103,13 +1103,13 @@ void DomainTransitionGraphManager::mergeDTGs()
 									
 									precondition_properties.push_back(std::make_pair(matching_invariable_index, bounded_atom->getProperty()));
 									
-									std::cout << "Candidate to bind: ";
-									bounded_atom->print(std::cout, matching_dtg_node->getDTG().getBindings());
-									std::cout << "[" << &bounded_atom->getProperty()->getPropertyState().getPropertySpace() << "]" << std::endl;
+//									std::cout << "Candidate to bind: ";
+//									bounded_atom->print(std::cout, matching_dtg_node->getDTG().getBindings());
+//									std::cout << "[" << &bounded_atom->getProperty()->getPropertyState().getPropertySpace() << "]" << std::endl;
 									
-									std::cout << "From DTG node: ";
-									matching_dtg_node->print(std::cout);
-									std::cout << " (pointer address=" << &matching_dtg_node->getDTG() << ")" << std::endl;
+//									std::cout << "From DTG node: ";
+//									matching_dtg_node->print(std::cout);
+//									std::cout << " (pointer address=" << &matching_dtg_node->getDTG() << ")" << std::endl;
 									
 /**
 									if (precondition_invariable == NO_INVARIABLE_INDEX)
@@ -1178,9 +1178,9 @@ void DomainTransitionGraphManager::mergeDTGs()
 							
 							if (need_to_merge && !already_exists)
 							{
-								std::cout << "Need to merge external invariable: ";
-								precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
-								std::cout << "(" << precondition_invariable << ") property space: " << &precondition_property->getPropertyState().getPropertySpace() << std::endl;
+//								std::cout << "Need to merge external invariable: ";
+//								precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
+//								std::cout << "(" << precondition_invariable << ") property space: " << &precondition_property->getPropertyState().getPropertySpace() << std::endl;
 								assert (counter == 0);
 								++counter;
 
@@ -1222,7 +1222,7 @@ void DomainTransitionGraphManager::splitDTGs()
 			DomainTransitionGraphNode* from_dtg_node = *ci;
 			
 //			std::set<std::pair<const Property*, InvariableIndex> >* to_ground_table = properties_to_ground[from_dtg_node];
-			
+
 			std::cout << "Process the dtg node: ";
 			from_dtg_node->print(std::cout);
 			std::cout << std::endl;
@@ -1239,16 +1239,20 @@ void DomainTransitionGraphManager::splitDTGs()
 					std::cout << " **" << &term->getDomain(bounded_atom->getId(), dtg->getBindings()) << "." << std::endl;
 				}
 			}
-			
+
 			for (std::vector<const Transition*>::const_iterator ci = from_dtg_node->getTransitions().begin(); ci != from_dtg_node->getTransitions().end(); ci++)
 			{
 				const Transition* transition = *ci;
 				
+				std::cout << *transition << std::endl;
+				
+/*				
 				std::cout << "Transition: from ";
 				transition->getFromNode().print(std::cout);
 				std::cout << " to ";
 				transition->getToNode().print(std::cout);
 				std::cout << "[" << transition->getStep()->getAction() << "]" << std::endl;
+*/
 
 				const std::vector<std::pair<const Atom*, InvariableIndex> >& preconditions = transition->getAllPreconditions();
 //				std::vector<std::pair<const Atom*, InvariableIndex> > preconditions;
@@ -1262,7 +1266,7 @@ void DomainTransitionGraphManager::splitDTGs()
 					
 					std::cout << "- Check if the precondition is linked to this DTG: ";
 					precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
-					std::cout << "(" << invariable << ")" << std::endl;
+					std::cout << "(" << invariable << "){" << precondition << "}" << std::endl;
 					
 					std::vector<const DomainTransitionGraphNode*> precondition_linked_to_this_dtg;
 					dtg->getNodes(precondition_linked_to_this_dtg, transition->getStep()->getStepId(), *precondition, dtg->getBindings(), invariable);
@@ -1279,42 +1283,45 @@ void DomainTransitionGraphManager::splitDTGs()
 					/**
 					 * If the precondition is linked to this DTG and shares a property space with it we cannot ground it.
 					 */
-					bool skip = false;
-					for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = precondition_linked_to_this_dtg.begin(); ci != precondition_linked_to_this_dtg.end(); ci++)
+					if (invariable != NO_INVARIABLE_INDEX)
 					{
-						const DomainTransitionGraphNode* node_linked_to_precondition = *ci;
-						for (std::vector<BoundedAtom*>::const_iterator ci = node_linked_to_precondition->getAtoms().begin(); ci != node_linked_to_precondition->getAtoms().end(); ci++)
+						bool skip = false;
+						for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = precondition_linked_to_this_dtg.begin(); ci != precondition_linked_to_this_dtg.end(); ci++)
 						{
-							const BoundedAtom* bounded_atom = *ci;
-							
-							if (bounded_atom->getProperty() == NULL || !node_linked_to_precondition->getDTG().containsPropertySpace(bounded_atom->getProperty()->getPropertyState().getPropertySpace()))
+							const DomainTransitionGraphNode* node_linked_to_precondition = *ci;
+							for (std::vector<BoundedAtom*>::const_iterator ci = node_linked_to_precondition->getAtoms().begin(); ci != node_linked_to_precondition->getAtoms().end(); ci++)
 							{
-								continue;
-							}
+								const BoundedAtom* bounded_atom = *ci;
+								
+								if (bounded_atom->getProperty() == NULL || !node_linked_to_precondition->getDTG().containsPropertySpace(bounded_atom->getProperty()->getPropertyState().getPropertySpace()))
+								{
+									continue;
+								}
 
+								// TODO: Make sure the invariable is linked up.
+								if (dtg->getBindings().canUnify(bounded_atom->getAtom(), bounded_atom->getId(), *precondition, transition->getStep()->getStepId()))
+								{
+									std::cout << "--- The precondition is part of this DTG node, skip!" << std::endl;
+									skip = true;
+									break;
+								}
+							}
 							
-							if (dtg->getBindings().canUnify(bounded_atom->getAtom(), bounded_atom->getId(), *precondition, transition->getStep()->getStepId()))
+							if (skip)
 							{
-								std::cout << "--- The precondition is part of this DTG node, skip!" << std::endl;
-								skip = true;
 								break;
 							}
 						}
 						
 						if (skip)
 						{
-							break;
+							continue;
 						}
-					}
-					
-					if (skip)
-					{
-						continue;
 					}
 					
 					std::cout << "-- Process the precondition: ";
 					precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
-					std::cout << "(" << invariable << ")" << std::endl;
+					std::cout << "(" << invariable << "){" << precondition << "}" << std::endl;
 					
 					/**
 					 * Check which of the variable domains of the preconditions are linked to the from node, these need to be grounded, unless they correspond
@@ -1395,7 +1402,33 @@ void DomainTransitionGraphManager::splitDTGs()
 									
 									if (ground)
 									{
-										std::cout << "------ Ground the term: " << *dtg_term << std::endl;
+										std::cout << "------ Ground the term: ";
+										from_atom->print(std::cout, transition->getFromNode().getDTG().getBindings(), transition->getStep()->getStepId());
+										std::cout << "(" << from_atom_term_index << "){" << *dtg_term << "}" << std::endl;
+										
+										/**
+										 * Whenever we ground a variable which appears in the persistent set of a transition we must also
+										 * ground the variable in the corresponding atom in the to node.
+										 */
+										if (transition->isPreconditionPersistent(*from_atom, from_atom_invariable))
+										{
+											const DomainTransitionGraphNode& to_dtg_node = transition->getToNode();
+											
+											for (std::vector<BoundedAtom*>::const_iterator ci = to_dtg_node.getAtoms().begin(); ci != to_dtg_node.getAtoms().end(); ci++)
+											{
+												const BoundedAtom* bounded_atom = *ci;
+												if (to_dtg_node.getIndex(*bounded_atom) == from_atom_invariable &&
+												    dtg->getBindings().canUnify(bounded_atom->getAtom(), bounded_atom->getId(), *from_atom, transition->getStep()->getStepId()))
+												{
+														std::set<std::pair<const Property*, InvariableIndex> >* tmp_to_ground_table = properties_to_ground[&to_dtg_node];
+														
+														std::cout << "------- Ground the persistent property: " << bounded_atom->getProperty()->getPredicate() << "(" << from_atom_term_index << ") +==--> ";
+														to_dtg_node.print(std::cout);
+														std::cout << std::endl;
+														tmp_to_ground_table->insert(std::make_pair(bounded_atom->getProperty(), from_atom_term_index));
+												}
+											}
+										}
 									
 										for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ci++)
 										{
@@ -1466,7 +1499,7 @@ void DomainTransitionGraphManager::splitDTGs()
 				for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = dtg_nodes_to_ground.begin(); ci != dtg_nodes_to_ground.end(); ci++)
 				{
 					const DomainTransitionGraphNode* dtg_node_to_split = *ci;
-					bool split = false;
+					///bool split = false;
 					
 					for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node_to_split->getAtoms().begin(); ci != dtg_node_to_split->getAtoms().end(); ci++)
 					{
@@ -1477,7 +1510,7 @@ void DomainTransitionGraphManager::splitDTGs()
 						if (property_to_ground.first == bounded_atom->getProperty())
 						{
 							dtg_node_to_split->groundTerm(new_dtg_nodes, *bounded_atom->getAtom().getTerms()[property_to_ground.second], bounded_atom->getId());
-							split = true;
+					///		split = true;
 							break;
 						}
 					}

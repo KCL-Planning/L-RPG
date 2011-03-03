@@ -465,115 +465,6 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 		std::cout << "Resulting DTG after grounding: " << *dtg << std::endl;
 	}
 	
-	gettimeofday(&start_time_tim_translation, NULL);
-	
-	bool graphs_split = true;
-	double total_time_identify = 0;
-	double total_time_split = 0;
-	double total_time_reestablish = 0;
-	double total_time_remove = 0;
-	struct timeval tmp_start;
-	struct timeval tmp_end;
-	
-	std::cout << " ************** Start splitting the graphs! ******************** " << std::endl;
-	
-	while (graphs_split)
-	{
-		graphs_split = false;
-	
-		/**
-		* After creating all the DTGs, we must check if they all form a connected graph, i.e. is every node reachable from all other nodes?
-		*/
-		std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* > splitted_mapping;
-		for (std::vector<DomainTransitionGraph*>::reverse_iterator ri = objects_.rbegin(); ri != objects_.rend(); ri++)
-		{
-			DomainTransitionGraph* dtg = *ri;
-			std::cout << "Work on: " << *dtg << "(" << dtg->getNodes().size() << ")" << std::endl;
-			
-			gettimeofday(&tmp_start, NULL);
-			std::vector<DomainTransitionGraph*>* split_graphs = new std::vector<DomainTransitionGraph*>();
-			dtg->identifySubGraphs(*split_graphs);
-			gettimeofday(&tmp_end, NULL);
-			total_time_identify += tmp_end.tv_sec - tmp_start.tv_sec + (tmp_end.tv_usec - tmp_start.tv_usec) / 1000000.0;
-			
-			/**
-			* Remove the original if it has been split. Also remove all splitted DTGs if there is no initial state which
-			* can be unified with at least one of its nodes.
-			*/
-			if (split_graphs->size() > 1)
-			{
-				for (std::vector<DomainTransitionGraph*>::reverse_iterator ri2 = split_graphs->rbegin(); ri2 != split_graphs->rend(); ri2++)
-				{
-					DomainTransitionGraph* splitted_graph = *ri2;
-					std::cout << "Splitted DTG (before reading objects): " << *splitted_graph << std::endl;
-					splitted_graph->addObjects();
-					std::cout << "Splitted DTG: " << *splitted_graph << std::endl;
-					
-					if (splitted_graph->getObjects().size() == 0)
-					{
-						std::cout << "Remove!!!" << std::endl;
-						split_graphs->erase(ri2.base() - 1);
-					}
-				}
-				
-				splitted_mapping[dtg] = split_graphs;
-				objects_.erase(ri.base() - 1);
-				
-				graphs_split = true;
-			}
-		}
-
-		/**
-		 * Add results of splitting the DTGs.
-		 */
-		for (std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* >::const_iterator ci = splitted_mapping.begin(); ci != splitted_mapping.end(); ci++)
-		{
-			objects_.insert(objects_.end(), (*ci).second->begin(), (*ci).second->end());
-		}
-		
-		/**
-		 * Propagate the results of splitting.
-		 */
-		for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
-		{
-			DomainTransitionGraph* dtg = *ci;
-			gettimeofday(&tmp_start, NULL);
-			dtg->splitNodes(splitted_mapping);
-			gettimeofday(&tmp_end, NULL);
-			total_time_split += tmp_end.tv_sec - tmp_start.tv_sec + (tmp_end.tv_usec - tmp_start.tv_usec) / 1000000.0;
-
-			gettimeofday(&tmp_start, NULL);
-			dtg->reestablishTransitions();
-			gettimeofday(&tmp_end, NULL);
-			total_time_reestablish += tmp_end.tv_sec - tmp_start.tv_sec + (tmp_end.tv_usec - tmp_start.tv_usec) / 1000000.0;
-		}
-
-		gettimeofday(&tmp_start, NULL);
-		for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
-		{
-			DomainTransitionGraph* dtg = *ci;
-			gettimeofday(&tmp_start, NULL);
-			dtg->removeUnsupportedTransitions();
-			gettimeofday(&tmp_end, NULL);
-			total_time_remove += tmp_end.tv_sec - tmp_start.tv_sec + (tmp_end.tv_usec - tmp_start.tv_usec) / 1000000.0;
-		}
-		gettimeofday(&tmp_end, NULL);
-		total_time_remove += tmp_end.tv_sec - tmp_start.tv_sec + (tmp_end.tv_usec - tmp_start.tv_usec) / 1000000.0;
-	}
-	gettimeofday(&end_time_tim_translation, NULL);
-	time_spend = end_time_tim_translation.tv_sec - start_time_tim_translation.tv_sec + (end_time_tim_translation.tv_usec - start_time_tim_translation.tv_usec) / 1000000.0;
-	std::cerr << "* Identifying graphs: " << total_time_identify << " seconds" << std::endl;
-	std::cerr << "* Splitting: " << total_time_split << " seconds" << std::endl;
-	std::cerr << "* Reestablish transitions: " << total_time_reestablish << " seconds" << std::endl;
-	std::cerr << "* Remove unsupported transitions: " << total_time_remove << " seconds" << std::endl;
-
-	std::cout << "RESULTS AFTER SPLITTING" << std::endl;
-	std::cout << " === Result === " << std::endl;
-	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
-	{
-		std::cout << **ci << std::endl;
-	}
-	
 	/**
 	 * Some predicates are not seen as DTGs by TIM, these come in two categories:
 	 * - Static predicates - which cannot change, ever.
@@ -710,6 +601,115 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 			
 			std::cout << "Resulting DTG: " << *new_dtg << std::endl;
 		}
+	}
+
+	gettimeofday(&start_time_tim_translation, NULL);
+	
+	bool graphs_split = true;
+	double total_time_identify = 0;
+	double total_time_split = 0;
+	double total_time_reestablish = 0;
+	double total_time_remove = 0;
+	struct timeval tmp_start;
+	struct timeval tmp_end;
+	
+	std::cout << " ************** Start splitting the graphs! ******************** " << std::endl;
+	
+	while (graphs_split)
+	{
+		graphs_split = false;
+	
+		/**
+		* After creating all the DTGs, we must check if they all form a connected graph, i.e. is every node reachable from all other nodes?
+		*/
+		std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* > splitted_mapping;
+		for (std::vector<DomainTransitionGraph*>::reverse_iterator ri = objects_.rbegin(); ri != objects_.rend(); ri++)
+		{
+			DomainTransitionGraph* dtg = *ri;
+			std::cout << "Work on: " << *dtg << "(" << dtg->getNodes().size() << ")" << std::endl;
+			
+			gettimeofday(&tmp_start, NULL);
+			std::vector<DomainTransitionGraph*>* split_graphs = new std::vector<DomainTransitionGraph*>();
+			dtg->identifySubGraphs(*split_graphs);
+			gettimeofday(&tmp_end, NULL);
+			total_time_identify += tmp_end.tv_sec - tmp_start.tv_sec + (tmp_end.tv_usec - tmp_start.tv_usec) / 1000000.0;
+			
+			/**
+			 * Remove the original if it has been split. Also remove all splitted DTGs if there is no initial state which
+			 * can be unified with at least one of its nodes.
+			 */
+			if (split_graphs->size() > 1)
+			{
+				for (std::vector<DomainTransitionGraph*>::reverse_iterator ri2 = split_graphs->rbegin(); ri2 != split_graphs->rend(); ri2++)
+				{
+					DomainTransitionGraph* splitted_graph = *ri2;
+					std::cout << "Splitted DTG (before reading objects): " << *splitted_graph << std::endl;
+					splitted_graph->addObjects();
+					std::cout << "Splitted DTG: " << *splitted_graph << std::endl;
+					
+					if (splitted_graph->getObjects().size() == 0)
+					{
+						split_graphs->erase(ri2.base() - 1);
+					}
+				}
+				
+				splitted_mapping[dtg] = split_graphs;
+				objects_.erase(ri.base() - 1);
+				
+				graphs_split = true;
+			}
+		}
+
+		/**
+		 * Add results of splitting the DTGs.
+		 */
+		for (std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* >::const_iterator ci = splitted_mapping.begin(); ci != splitted_mapping.end(); ci++)
+		{
+			objects_.insert(objects_.end(), (*ci).second->begin(), (*ci).second->end());
+		}
+		
+		/**
+		 * Propagate the results of splitting.
+		 */
+		for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
+		{
+			DomainTransitionGraph* dtg = *ci;
+			gettimeofday(&tmp_start, NULL);
+			dtg->splitNodes(splitted_mapping);
+			gettimeofday(&tmp_end, NULL);
+			total_time_split += tmp_end.tv_sec - tmp_start.tv_sec + (tmp_end.tv_usec - tmp_start.tv_usec) / 1000000.0;
+
+			gettimeofday(&tmp_start, NULL);
+			dtg->reestablishTransitions();
+			gettimeofday(&tmp_end, NULL);
+			
+			total_time_reestablish += tmp_end.tv_sec - tmp_start.tv_sec + (tmp_end.tv_usec - tmp_start.tv_usec) / 1000000.0;
+		}
+
+		gettimeofday(&tmp_start, NULL);
+		for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
+		{
+			DomainTransitionGraph* dtg = *ci;
+			gettimeofday(&tmp_start, NULL);
+			dtg->removeUnsupportedTransitions();
+			gettimeofday(&tmp_end, NULL);
+			total_time_remove += tmp_end.tv_sec - tmp_start.tv_sec + (tmp_end.tv_usec - tmp_start.tv_usec) / 1000000.0;
+		}
+		gettimeofday(&tmp_end, NULL);
+		total_time_remove += tmp_end.tv_sec - tmp_start.tv_sec + (tmp_end.tv_usec - tmp_start.tv_usec) / 1000000.0;
+	}
+	gettimeofday(&end_time_tim_translation, NULL);
+	time_spend = end_time_tim_translation.tv_sec - start_time_tim_translation.tv_sec + (end_time_tim_translation.tv_usec - start_time_tim_translation.tv_usec) / 1000000.0;
+	std::cerr << "* Identifying graphs: " << total_time_identify << " seconds" << std::endl;
+	std::cerr << "* Splitting: " << total_time_split << " seconds" << std::endl;
+	std::cerr << "* Reestablish transitions: " << total_time_reestablish << " seconds" << std::endl;
+	std::cerr << "* Remove unsupported transitions: " << total_time_remove << " seconds" << std::endl;
+
+	std::cout << "RESULTS AFTER SPLITTING" << std::endl;
+	std::cout << " === Result === " << std::endl;
+	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
+	{
+		std::cout << **ci << std::endl;
 	}
 
 	std::cout << " === End === " << std::endl;
@@ -1606,7 +1606,6 @@ bool DomainTransitionGraphManager::isSupported(unsigned int id, const MyPOP::Ato
 			return true;
 		}
 	}
-	
 	return false;
 }
 

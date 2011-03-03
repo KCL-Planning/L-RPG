@@ -814,7 +814,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		}
 		else if (action_invariables.size() == 0)
 		{
-//			std::cout << "No invariable action variable found!" << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+			std::cout << "No invariable action variable found!" << std::endl;
+#endif
 			return NULL;
 		}
 		else
@@ -864,7 +866,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			    &effect->getTerms()[to_node.getIndex(*to_persistent_atom)]->getDomain(action_step_id, bindings) == invariable_term)
 			{
 //				std::cout << "Is added!" << std::endl;
-//				std::cout << "A persistent is added but not removed. This is invalid!" << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+				std::cout << "A persistent is added but not removed. This is invalid!" << std::endl;
+#endif
 				return NULL;
 			}
 
@@ -872,7 +876,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			    &effect->getTerms()[to_node.getIndex(*to_persistent_atom)]->getDomain(action_step_id, bindings) == invariable_term)
 			{
 //				std::cout << "Is deleted!" << std::endl;
-//				std::cout << "Removed but not added. This is invalid!" << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+				std::cout << "Removed but not added. This is invalid!" << std::endl;
+#endif
 				return NULL;
 			}
 		}
@@ -991,11 +997,13 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 						{
 							if (bounded_atom->isMutexWith(*precondition, action_step_id, bindings, invariable_index))
 							{
-//								std::cout << "The precondition ";
-//								precondition->print(std::cout, bindings, action_step_id);
-//								std::cout << " is mutex with the from fact ";
-//								bounded_atom->print(std::cout, bindings);
-//								std::cout << "." << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+								std::cout << "The precondition ";
+								precondition->print(std::cout, bindings, action_step_id);
+								std::cout << " is mutex with the from fact ";
+								bounded_atom->print(std::cout, bindings);
+								std::cout << "." << std::endl;
+#endif
 								return NULL;
 							}
 						}
@@ -1095,11 +1103,13 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 							if (effect->isNegative() == bounded_atom->getAtom().isNegative() &&
 							    bounded_atom->isMutexWith(*effect, action_step_id, bindings, invariable_index))
 							{
-//								std::cout << "The effect ";
-//								effect->print(std::cout, bindings, action_step_id);
-//								std::cout << " is mutex with the to fact ";
-//								bounded_atom->print(std::cout, bindings);
-//								std::cout << "." << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+								std::cout << "The effect ";
+								effect->print(std::cout, bindings, action_step_id);
+								std::cout << " is mutex with the to fact ";
+								bounded_atom->print(std::cout, bindings);
+								std::cout << "." << std::endl;
+#endif
 								return NULL;
 							}
 						}
@@ -1338,7 +1348,13 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 
 						if (!bindings.unify(*precondition, new_action_step_id, persistent_fact->getAtom(), persistent_fact->getId()))
 						{
-//							std::cout << "Could not bind the optional precondition." << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+							std::cout << "Could not bind the optional precondition: " << std::endl;
+							persistent_fact->print(std::cout, bindings);
+							std::cout << " with: ";
+							precondition->print(std::cout, bindings, action_step_id);
+							std::cout << std::endl;
+#endif
 							return NULL;
 						}
 					}
@@ -1355,11 +1371,13 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		
 		if (!bindings.unify(*added_effect, new_action_step_id, to_node_atom->getAtom(), to_node_atom->getId()))
 		{
-//			std::cout << "[Transition::createTransition] Could not perform the actual bindings on effects!" << std::endl;
-//			to_node_atom->print(std::cout, bindings);
-//			std::cout << " couldn't bind with: ";
-//			added_effect->print(std::cout, bindings, new_action_step_id);
-//			std::cout << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+			std::cout << "[Transition::createTransition] Could not perform the actual bindings on effects!" << std::endl;
+			to_node_atom->print(std::cout, bindings);
+			std::cout << " couldn't bind with: ";
+			added_effect->print(std::cout, bindings, new_action_step_id);
+			std::cout << std::endl;
+#endif
 			return NULL;
 		}
 	}
@@ -1372,11 +1390,13 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		
 		if (!bindings.unify(*precondition, new_action_step_id, from_node_atom->getAtom(), from_node_atom->getId()))
 		{
-//			std::cout << "[Transition::createTransition] Could not perform the actual bindings on preconditions!" << std::endl;
-//			from_node_atom->print(std::cout, bindings);
-//			std::cout << " couldn't bind with: ";
-//			precondition->print(std::cout, bindings, new_action_step_id);
-//			std::cout << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+			std::cout << "[Transition::createTransition] Could not perform the actual bindings on preconditions!" << std::endl;
+			from_node_atom->print(std::cout, bindings);
+			std::cout << " couldn't bind with: ";
+			precondition->print(std::cout, bindings, new_action_step_id);
+			std::cout << std::endl;
+#endif
 			return NULL;
 		}
 	}
@@ -1505,9 +1525,11 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			
 			if (!is_supported)
 			{
-//				std::cout << "[Transition::createTransition] The static precondition: ";
-//				precondition->print(std::cout, bindings, new_action_step_id);
-//				std::cout << " is not supported!" << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+				std::cout << "[Transition::createTransition] The static precondition: ";
+				precondition->print(std::cout, bindings, new_action_step_id);
+				std::cout << " is not supported!" << std::endl;
+#endif
 				return NULL;
 			}
 		}

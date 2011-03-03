@@ -352,42 +352,46 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 						const DomainTransitionGraphNode* supporting_dtg_node = *ci;
 						
 						// Figure out which bounded atom matched.
-						InvariableIndex invariable_supporting_index = NO_INVARIABLE_INDEX;
 						for (std::vector<BoundedAtom*>::const_iterator ci = supporting_dtg_node->getAtoms().begin(); ci != supporting_dtg_node->getAtoms().end(); ci++)
 						{
 							const BoundedAtom* bounded_atom = *ci;
 							if (new_from_dtg_node->getDTG().getBindings().canUnify(*precondition, new_transition->getStep()->getStepId(), bounded_atom->getAtom(), bounded_atom->getId(), &supporting_dtg_node->getDTG().getBindings()))
 							{
-								assert (invariable_supporting_index == NO_INVARIABLE_INDEX);
-								invariable_supporting_index = supporting_dtg_node->getIndex(*bounded_atom);
+								bounded_atom->print(std::cout, supporting_dtg_node->getDTG().getBindings());
+
+								std::cout << " matches! Index: (" << supporting_dtg_node->getIndex(*bounded_atom) << ")" << std::endl;
+								InvariableIndex invariable_supporting_index = supporting_dtg_node->getIndex(*bounded_atom);
+
+								std::cout << "Supporting DTG Node: ";
+								supporting_dtg_node->print(std::cout);
+								std::cout << std::endl;
+								
+								// Check if any of these nodes can reach the looked for precondition.
+								std::map<const DomainTransitionGraphNode*, std::vector<const Object*>* >::iterator supporting_facts_i = reachable_invariables_per_dtg_node.find(supporting_dtg_node);
+					
+								if (supporting_facts_i == reachable_invariables_per_dtg_node.end())
+								{
+									std::cout << "The DTG node: ";
+									supporting_dtg_node->print(std::cout);
+									std::cout << " has no valid initial facts." << std::endl;
+									continue;
+								}
+								
+								// Check if any of the supported facts can be unified with the sought after precondition.
+								std::vector<const Object*>* valid_invariables = (*supporting_facts_i).second;
+
+								assert (precondition->getTerms()[invariable_supporting_index] != NULL);
+								assert (valid_invariables != NULL);
+								if (precondition->getTerms()[invariable_supporting_index]->containsAtLeastOneOf(*valid_invariables, new_transition->getStep()->getStepId(), from_dtg_node->getDTG().getBindings()))
+								{
+									precondition_is_supported = true;
+									break;
+								}
 							}
 						}
 						
-						assert (invariable_supporting_index != NO_INVARIABLE_INDEX);
-						
-						std::cout << "Supporting DTG Node: ";
-						supporting_dtg_node->print(std::cout);
-						std::cout << std::endl;
-						
-						// Check if any of these nodes can reach the looked for precondition.
-						std::map<const DomainTransitionGraphNode*, std::vector<const Object*>* >::iterator supporting_facts_i = reachable_invariables_per_dtg_node.find(supporting_dtg_node);
-			
-						if (supporting_facts_i == reachable_invariables_per_dtg_node.end())
+						if (precondition_is_supported)
 						{
-							std::cout << "The DTG node: ";
-							supporting_dtg_node->print(std::cout);
-							std::cout << " has no valid initial facts." << std::endl;
-							continue;
-						}
-						
-						// Check if any of the supported facts can be unified with the sought after precondition.
-						std::vector<const Object*>* valid_invariables = (*supporting_facts_i).second;
-
-						assert (precondition->getTerms()[invariable_supporting_index] != NULL);
-						assert (valid_invariables != NULL);
-						if (precondition->getTerms()[invariable_supporting_index]->containsAtLeastOneOf(*valid_invariables, new_transition->getStep()->getStepId(), from_dtg_node->getDTG().getBindings()))
-						{
-							precondition_is_supported = true;
 							break;
 						}
 					}
@@ -573,12 +577,65 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 		for (std::vector<std::pair<const DomainTransitionGraphNode*, const Transition*> >::const_iterator ci = reachable_nodes->begin(); ci != reachable_nodes->end(); ci++)
 		{
 			const DomainTransitionGraphNode* reachable_dtg_node = (*ci).first;
-			const Transition* transition = (*ci).second;
-			std::cout << "* ";
+///			const Transition* transition = (*ci).second;
+			
+			// Try to find for every bounded atom the DTG which has it as part of the property space and check which values are true for it.
+			for (std::vector<BoundedAtom*>::const_iterator ci = reachable_dtg_node->getAtoms().begin(); ci != reachable_dtg_node->getAtoms().end(); ci++)
+			{
+				const BoundedAtom* bounded_atom = *ci;
+				
+				for (unsigned int i = 0; i < bounded_atom->getAtom().getArity(); i++)
+				{
+				
+					std::cout << "* ";
+					bounded_atom->print(std::cout, reachable_dtg_node->getDTG().getBindings());
+					
+					std::vector<const DomainTransitionGraphNode*> supporting_dtgs;
+					dtg_manager_->getDTGNodes(supporting_dtgs, bounded_atom->getId(), bounded_atom->getAtom(), reachable_dtg_node->getDTG().getBindings(), i);
+					
+					// Only consider those who have the sought after property in the property space.
+					for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = supporting_dtgs.begin(); ci != supporting_dtgs.end(); ci++)
+					{
+//						std::cout << " [ ";
+						const DomainTransitionGraphNode* dtg_node = *ci;
+//						dtg_node->print(std::cout);
+						std::cout << " { ";
+						bool relevant = false;
+						for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
+						{
+							const BoundedAtom* bounded_atom = *ci;
+							if (bounded_atom->getProperty()->getPropertyState().getPropertySpace().contains(dtg_node->getIndex(*bounded_atom), bounded_atom->getAtom().getPredicate()))
+							{
+								relevant = true;
+								break;
+							}
+						}
+							
+						if (relevant)
+						{
+							const std::vector<const Object*>* reachable_supporting_nodes = reachable_invariables_per_dtg_node[dtg_node];
+							for (std::vector<const Object*>::const_iterator ci = reachable_supporting_nodes->begin(); ci != reachable_supporting_nodes->end(); ci++)
+							{
+								std::cout << **ci;
+								if (ci != reachable_supporting_nodes->end() - 1)
+								{
+									std::cout << ", ";
+								}
+							}
+						}
+						std::cout << " } ";
+					}
+					
+					std::cout << std::endl;
+				}
+			}
+			
+/*			std::cout << "* ";
 			reachable_dtg_node->print(std::cout);
 			std::cout << "(" << reachable_dtg_node << "); Action: ";
 			transition->getStep()->getAction().print(std::cout, reachable_dtg_node->getDTG().getBindings(), transition->getStep()->getStepId());
 			std::cout << std::endl;
+*/
 		}
 	}
 }

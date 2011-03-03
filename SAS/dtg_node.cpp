@@ -640,12 +640,12 @@ void DomainTransitionGraphNode::removeUnsupportedTransitions()
 			// If the precondition is not static, search for a DTG node which supports it.
 			if (!dtg_->getDTGManager().isSupported(transition->getStep()->getStepId(), *precondition, dtg_->getBindings()))
 			{
-//				std::cout << "!!! ";
-//				transition->getStep()->getAction().print(std::cout, dtg_->getBindings(), transition->getStep()->getStepId());
-//				std::cout << " is not supported!" << std::endl;
+				std::cout << "!!! ";
+				transition->getStep()->getAction().print(std::cout, dtg_->getBindings(), transition->getStep()->getStepId());
+				std::cout << " is not supported!" << std::endl;
 				
-//				precondition->print(std::cout, dtg_->getBindings(), transition->getStep()->getStepId());
-//				std::cout << std::endl;
+				precondition->print(std::cout, dtg_->getBindings(), transition->getStep()->getStepId());
+				std::cout << std::endl;
 				removeTransition(**i);
 				break;
 			}
@@ -688,6 +688,9 @@ bool DomainTransitionGraphNode::isSupported(unsigned int id, const Atom& atom, c
 			return true;
 		}
 	}
+	std::cout << "The atom: ";
+	atom.print(std::cout, bindings, id);
+	std::cout << " is not supported!" << std::endl;
 	
 	return false;
 }

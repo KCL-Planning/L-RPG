@@ -659,7 +659,6 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 	std::cerr << " * Initialise subgraph structures: " << time_spend << " seconds" << std::endl;
 
 	gettimeofday(&start_time, NULL);
-//	std::cout << "Update link transitions: " << std::endl;
 	// Store the relations between the various bit sets.
 	std::vector<boost::dynamic_bitset<>*> linked_by_transitions[nodes_.size()];
 	for (unsigned int i = 0; i < nodes_.size(); i++)
@@ -697,8 +696,6 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 	std::cerr << " * Setting the initial transitions: " << time_spend << " seconds" << std::endl;
 
 	gettimeofday(&start_time, NULL);
-//	std::cout << "Update link transitions: " << std::endl;
-	
 	
 	/**
 	 * Propagate this information.
@@ -749,6 +746,10 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 	{
 		boost::dynamic_bitset<>* reachable_nodes = reachable_set[i];
 		
+//		std::cout << "*** The DTG node: ";
+//		nodes_[i]->print(std::cout);
+//		std::cout << " has the bitset: " << *reachable_nodes << std::endl;
+		
 		if (grouped_dtg_nodes.find(*reachable_nodes) != grouped_dtg_nodes.end())
 		{
 			continue;
@@ -763,6 +764,8 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 				new_group->push_back(nodes_[i]);
 			}
 		}
+		
+		grouped_dtg_nodes[*reachable_nodes] = new_group;
 	}
 	
 	gettimeofday(&end_time, NULL);
@@ -770,7 +773,6 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 	std::cerr << " * Group together: " << time_spend << " seconds" << std::endl;
 
 	gettimeofday(&start_time, NULL);
-//	std::cout << "Update link transitions: " << std::endl;
 	
 	double time_spend_dtgs = 0;
 	double time_spend_dtg_nodes = 0;
@@ -785,8 +787,7 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 		
 		struct timeval dtg_construct_start;
 		gettimeofday(&dtg_construct_start, NULL);
-//		std::cout << "Update link transitions: " << std::endl;
-		///DomainTransitionGraph* new_dtg = new DomainTransitionGraph(*dtg_manager_, *property_space_, dtg_term_manager_->getTypeManager(), *action_manager_, *predicate_manager_, *bindings_, *initial_facts_);
+
 		DomainTransitionGraph* new_dtg = new DomainTransitionGraph(*dtg_manager_, dtg_term_manager_->getTypeManager(), *action_manager_, *predicate_manager_, *bindings_, *initial_facts_);
 		struct timeval dtg_construct_end;
 		gettimeofday(&dtg_construct_end, NULL);
@@ -797,13 +798,11 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 		 */
 		new_dtg->objects_ = objects_;
 		new_dtg->predicates_ = predicates_;
-///		new_dtg->mutex_map_ = mutex_map_;
 		new_dtg->type_ = type_;
 		new_dtg->property_spaces_ = property_spaces_;
 		
 		struct timeval add_dtg_nodes_start;
 		gettimeofday(&add_dtg_nodes_start, NULL);
-//		std::cout << "Update link transitions: " << std::endl;
 		
 		// Add the DTG nodes.
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = grouped_dtg_nodes->begin(); ci != grouped_dtg_nodes->end(); ci++)
@@ -824,6 +823,8 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 		gettimeofday(&transitions_end, NULL);
 		time_spend_transitions += transitions_end.tv_sec - transitions_start.tv_sec + (transitions_end.tv_usec - transitions_start.tv_usec) / 1000000.0;
 		subgraphs.push_back(new_dtg);
+		
+//		std::cout << "New sub DTG: " << *new_dtg << std::endl;
 	}
 	
 	gettimeofday(&end_time, NULL);

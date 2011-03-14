@@ -409,7 +409,6 @@ void DomainTransitionGraph::addObjects()
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator dtg_node_ci = nodes_.begin(); dtg_node_ci != nodes_.end(); dtg_node_ci++)
 	{
 		DomainTransitionGraphNode* dtg_node = *dtg_node_ci;
-///		std::set<const Object*> domain;
 		bool domain_initialised = false;
 		
 		for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
@@ -436,12 +435,12 @@ void DomainTransitionGraph::addObjects()
 				}
 			}
 			
-//			if (!domain_initialised)
+			if (!domain_initialised)
 			{
 				domain_initialised = true;
 				domain.insert(tmp_domain.begin(), tmp_domain.end());
 			}
-/*			else
+			else
 			{
 				std::set<const Object*> intersection;
 				std::set_intersection(domain.begin(), domain.end(), tmp_domain.begin(), tmp_domain.end(), std::inserter(intersection, intersection.begin()));
@@ -449,7 +448,6 @@ void DomainTransitionGraph::addObjects()
 				domain.clear();
 				domain.insert(intersection.begin(), intersection.end());
 			}
-			*/
 		}
 		
 ///		objects_.insert(objects_.begin(), domain.begin(), domain.end());
@@ -837,7 +835,7 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 
 void DomainTransitionGraph::reestablishTransitions()
 {
-//	std::cout << "=== Reestablish transitions for the DTG === " << std::endl << *this << std::endl;
+	std::cout << "=== Reestablish transitions for the DTG === " << std::endl << *this << std::endl;
 	/**
 	 * Only consider those transitions which were already part of the DTG node can be added.
 	 */
@@ -854,17 +852,17 @@ void DomainTransitionGraph::reestablishTransitions()
 			std::vector<const Action*> possible_transitions;
 			from_node->getPossibleActions(possible_transitions, *to_node);
 			
-/*			std::cout << "Transitions from ";
+			std::cout << "Transitions from ";
 			from_node->print(std::cout);
 			std::cout << " to ";
 			to_node->print(std::cout);
 			std::cout << " have the following possible actions: ";
-*/
+
 			// Otherwise try all these transitiosn.
 			for (std::vector<const Action*>::const_iterator ci = possible_transitions.begin(); ci != possible_transitions.end(); ci++)
 			{
 				const Action* action = *ci;
-///				std::cout << *action << ", ";
+				std::cout << *action << ", ";
 				std::vector<BoundedAtom>* enabler_dummy = new std::vector<BoundedAtom>();
 
 				Transition* transition = Transition::createTransition(*enabler_dummy, *action, *from_node, *to_node, *initial_facts_);
@@ -874,16 +872,16 @@ void DomainTransitionGraph::reestablishTransitions()
 				}
 			}
 			
-//			std::cout << std::endl;
+			std::cout << std::endl;
 		}
 	}
 	
-//	std::cout << "=== Result: ===" << std::endl << *this << std::endl;
+	std::cout << "=== Result: ===" << std::endl << *this << std::endl;
 }
 
 void DomainTransitionGraph::establishTransitions()
 {
-//	std::cout << "Establish transitions for: " << *this << std::endl;
+	std::cout << "Establish transitions for: " << *this << std::endl;
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 	{
 		//assert ((*ci)->getTransitions().empty());
@@ -1161,14 +1159,17 @@ void DomainTransitionGraph::removeUnsupportedTransitions()
 {
 	for (std::vector<DomainTransitionGraphNode*>::reverse_iterator ci = nodes_.rbegin(); ci != nodes_.rend(); ci++)
 	{
+//		std::cout << "Remove the unsupported transitions from the DTG node: ";
+//		(*ci)->print(std::cout);
+//		std::cout << std::endl;
 		(*ci)->removeUnsupportedTransitions();
 		
 		// If one of the variable domains is empty, remove the node.
 		if ((*ci)->containsEmptyVariableDomain())
 		{
-//			std::cout << "Remove the node: ";
-//			(*ci)->print(std::cout);
-//			std::cout << std::endl;
+			std::cout << "Remove the node: ";
+			(*ci)->print(std::cout);
+			std::cout << std::endl;
 			removeNode(**ci);
 		}
 	}

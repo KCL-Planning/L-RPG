@@ -688,9 +688,9 @@ bool DomainTransitionGraphNode::isSupported(unsigned int id, const Atom& atom, c
 			return true;
 		}
 	}
-	std::cout << "The atom: ";
-	atom.print(std::cout, bindings, id);
-	std::cout << " is not supported!" << std::endl;
+//	std::cout << "The atom: ";
+//	atom.print(std::cout, bindings, id);
+//	std::cout << " is not supported!" << std::endl;
 	
 	return false;
 }

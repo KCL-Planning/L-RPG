@@ -479,6 +479,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	 * might reach a false conclusion that a fact or transition's precondition cannot be satisfied and
 	 * end up with wrong DTGs.
 	 */
+	std::set<const DomainTransitionGraph*> unsupported_predicates_dtg;
 	for (std::vector<Predicate*>::const_iterator ci = predicate_manager_->getManagableObjects().begin(); ci != predicate_manager_->getManagableObjects().end(); ci++)
 	{
 		const Predicate* predicate = *ci;
@@ -533,6 +534,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 			///PropertySpace* property_space = new PropertySpace();
 			///DomainTransitionGraph* new_dtg = new DomainTransitionGraph(*this, *property_space, *type_manager_, *action_manager_, *predicate_manager_, bindings, *initial_facts_);
 			DomainTransitionGraph* new_dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, *predicate_manager_, bindings, *initial_facts_);
+			unsupported_predicates_dtg.insert(new_dtg);
 			std::vector<std::pair<const Predicate*, unsigned int> >* predicates_to_add = new std::vector<std::pair<const Predicate*, unsigned int> >();
 			predicates_to_add->push_back(std::make_pair(predicate, NO_INVARIABLE_INDEX));
 			
@@ -626,6 +628,15 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 		for (std::vector<DomainTransitionGraph*>::reverse_iterator ri = objects_.rbegin(); ri != objects_.rend(); ri++)
 		{
 			DomainTransitionGraph* dtg = *ri;
+			
+			/**
+			 * DTGs who are created to encode facts which can be true or false do not need to be split.
+			 */
+			if (unsupported_predicates_dtg.count(dtg) != 0)
+			{
+				continue;
+			}
+			
 			std::cout << "Work on: " << *dtg << "(" << dtg->getNodes().size() << ")" << std::endl;
 			
 			gettimeofday(&tmp_start, NULL);
@@ -674,6 +685,15 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 		for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
 		{
 			DomainTransitionGraph* dtg = *ci;
+			
+			/**
+			 * DTGs who are created to encode facts which can be true or false do not need to be split.
+			 */
+			if (unsupported_predicates_dtg.count(dtg) != 0)
+			{
+				continue;
+			}
+			
 			gettimeofday(&tmp_start, NULL);
 			dtg->splitNodes(splitted_mapping);
 			gettimeofday(&tmp_end, NULL);
@@ -690,6 +710,15 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 		for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
 		{
 			DomainTransitionGraph* dtg = *ci;
+			
+			/**
+			 * DTGs who are created to encode facts which can be true or false do not need to be split.
+			 */
+			if (unsupported_predicates_dtg.count(dtg) != 0)
+			{
+				continue;
+			}
+			
 			gettimeofday(&tmp_start, NULL);
 			dtg->removeUnsupportedTransitions();
 			gettimeofday(&tmp_end, NULL);

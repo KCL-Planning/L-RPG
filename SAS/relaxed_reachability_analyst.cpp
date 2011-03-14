@@ -82,7 +82,8 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 				{
 					const Atom* initial_fact = *ci;
 
-					if (dtg->getBindings().canUnify(bounded_atom->getAtom(), bounded_atom->getId(), *initial_fact, Step::INITIAL_STEP))
+					if (dtg->getBindings().canUnify(bounded_atom->getAtom(), bounded_atom->getId(), *initial_fact, Step::INITIAL_STEP) &&
+					    bounded_atom->getAtom().isNegative() == initial_fact->isNegative())
 					{
 						// Check which candidate is supported.
 						const Term* invariable = NULL;
@@ -355,7 +356,8 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 						for (std::vector<BoundedAtom*>::const_iterator ci = supporting_dtg_node->getAtoms().begin(); ci != supporting_dtg_node->getAtoms().end(); ci++)
 						{
 							const BoundedAtom* bounded_atom = *ci;
-							if (new_from_dtg_node->getDTG().getBindings().canUnify(*precondition, new_transition->getStep()->getStepId(), bounded_atom->getAtom(), bounded_atom->getId(), &supporting_dtg_node->getDTG().getBindings()))
+							if (new_from_dtg_node->getDTG().getBindings().canUnify(*precondition, new_transition->getStep()->getStepId(), bounded_atom->getAtom(), bounded_atom->getId(), &supporting_dtg_node->getDTG().getBindings()) &&
+							    precondition->isNegative() == bounded_atom->getAtom().isNegative())
 							{
 								bounded_atom->print(std::cout, supporting_dtg_node->getDTG().getBindings());
 
@@ -380,12 +382,22 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 								// Check if any of the supported facts can be unified with the sought after precondition.
 								std::vector<const Object*>* valid_invariables = (*supporting_facts_i).second;
 
-								assert (precondition->getTerms()[invariable_supporting_index] != NULL);
+								/**
+								 * If there is no invariable, it means that the DTG node must be a fact which can be true or false.
+								 */
 								assert (valid_invariables != NULL);
-								if (precondition->getTerms()[invariable_supporting_index]->containsAtLeastOneOf(*valid_invariables, new_transition->getStep()->getStepId(), from_dtg_node->getDTG().getBindings()))
+								if (invariable_supporting_index != NO_INVARIABLE_INDEX)
 								{
-									precondition_is_supported = true;
-									break;
+									if (precondition->getTerms()[invariable_supporting_index]->containsAtLeastOneOf(*valid_invariables, new_transition->getStep()->getStepId(), from_dtg_node->getDTG().getBindings()))
+									{
+										precondition_is_supported = true;
+										break;
+									}
+								}
+								else
+								{
+										precondition_is_supported = true;
+										break;
 								}
 							}
 						}

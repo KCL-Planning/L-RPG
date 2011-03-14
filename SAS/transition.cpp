@@ -11,7 +11,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+///#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 
 namespace MyPOP {
 	
@@ -32,26 +32,27 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	// to this node and to_node respectively. This way we can force bindings on these nodes.
 	StepID action_step_id = bindings.createVariableDomains(action);
 	StepPtr action_step(new Step(action_step_id, action));
-
-	return Transition::createTransition(enablers, action_step, from_node, to_node, initial_facts);
-}
-
-Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& enablers, const Action& action, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts)
-{
-	if (&to_node.getDTG() != &from_node.getDTG())
+	
+	// If a DTG node does not contain a node with a valid invariable index, we use the createSimpleTransition. This method should not
+	// exist, but it works for now so it is on the TODO list to be merged with the createTransition method.
+	bool contains_invariables = false;
+	for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
 	{
-		std::cout << "[Transition::createTransition] FATAL ERROR! The nodes are not part of the same DTG!" << std::endl;
-		assert(false);
+		if (from_node.getIndex(**ci) != NO_INVARIABLE_INDEX)
+		{
+			contains_invariables = true;
+			break;
+		}
 	}
-
-	Bindings& bindings = from_node.getDTG().getBindings();
-
-	// Create the transition's action. We initiate the action by linking its precondition and effects
-	// to this node and to_node respectively. This way we can force bindings on these nodes.
-	StepID action_step_id = bindings.createVariableDomains(action);
-	StepPtr action_step(new Step(action_step_id, action));
-
-	return Transition::createSimpleTransition(enablers, action_step, from_node, to_node, initial_facts);
+	
+	if (contains_invariables)
+	{
+		return Transition::createTransition(enablers, action_step, from_node, to_node, initial_facts);
+	}
+	else
+	{
+		return Transition::createSimpleTransition(enablers, action_step, from_node, to_node, initial_facts);
+	}
 }
 
 Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& enablers, const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts)

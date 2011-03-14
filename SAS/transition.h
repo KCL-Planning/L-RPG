@@ -62,21 +62,7 @@ public:
 	 * @return The formed transition OR NULL if the transition was not possible.
 	 */
 	static Transition* createTransition(const std::vector<BoundedAtom>& enablers, const Action& action, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
-
-	static Transition* createSimpleTransition(const std::vector<BoundedAtom>& enablers, const Action& action, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
 	
-	/**
-	 * Create a transitions between the two nodes. Note that from_node and to_node must be part of the same DTG!
-	 * @param enablers The enablers for this action (e.g. dependencies on other DTGs for its preconditions).
-	 * @param step The bounded action which needs to be executed for the transition to work.
-	 * @param from_node The start node of the transition.
-	 * @param to_node The end node of the transition.
-	 * @return The formed transition OR NULL if the transition was not possible.
-	 */
-	static Transition* createTransition(const std::vector<BoundedAtom>& enablers, const StepPtr step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
-	
-	static Transition* createSimpleTransition(const std::vector<BoundedAtom>& enablers, const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
-
 	/**
 	 * Create a new transition which has the same bindings to the variables as this transition. But the
 	 * from and to node are cloned as well.
@@ -143,6 +129,19 @@ public:
 	///void getAllPreconditions(std::vector<std::pair<const Atom*, InvariableIndex> >& preconditions) const;
 	
 private:
+	
+	/**
+	 * Create a transitions between the two nodes. Note that from_node and to_node must be part of the same DTG!
+	 * @param enablers The enablers for this action (e.g. dependencies on other DTGs for its preconditions).
+	 * @param step The bounded action which needs to be executed for the transition to work.
+	 * @param from_node The start node of the transition.
+	 * @param to_node The end node of the transition.
+	 * @return The formed transition OR NULL if the transition was not possible.
+	 */
+	static Transition* createTransition(const std::vector<BoundedAtom>& enablers, const StepPtr step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
+	
+	static Transition* createSimpleTransition(const std::vector<BoundedAtom>& enablers, const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
+
 	
 	/**
 	 * Check if the variable domains of the bounded atom and the atom linked to this transition are shared.

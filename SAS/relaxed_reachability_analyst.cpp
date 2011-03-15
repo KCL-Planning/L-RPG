@@ -21,17 +21,6 @@ RelaxedReachabilityAnalyst::RelaxedReachabilityAnalyst(const DomainTransitionGra
 	
 void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<const Atom*>& initial_facts)
 {
-/*	// Initialize the data structures.
-	// Every node in every DTG is assigned a bitset which tells us which nodes are reachable.
-	boost::dynamic_bitset<>* reachable_nodes[dtg_manager_->getManagableObjects().size()];
-	unsigned int counter = 0;
-	for (std::vector<DomainTransitionGraph*>::const_iterator ci = dtg_manager_->getManagableObjects().begin(); ci != dtg_manager_->getManagableObjects().end(); ci++)
-	{
-		reachable_nodes[counter] = new boost::dynamic_bitset<>((*ci)->getNodes().size());
-		++counter;
-	}
-*/
-	
 	Type null_type("dummy_type", NULL);
 	Object null_object(null_type, "dummy");
 	
@@ -117,7 +106,7 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 				{
 					if ((*ci).second->size() != counter && (*ci).first != &null_object)
 					{
-						std::cout << "Could not find: " << *(*ci).first << " " << (*ci).second->size() << " != " << counter << std::endl;
+///						std::cout << "Could not find: " << *(*ci).first << " " << (*ci).second->size() << " != " << counter << std::endl;
 						to_remove.push_back((*ci).first);
 					}
 				}
@@ -134,11 +123,9 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 			std::cout << std::endl;
 
 			// Store all found matching initial facts per dtg_node.
-			std::vector<std::vector<const Atom*>* >* initial_facts_per_bounded_atom = new std::vector<std::vector<const Atom*>* >();
 			for (std::map<const Term*, std::vector<const Atom*>*>::const_iterator ci = candidates.begin(); ci != candidates.end(); ci++)
 			{
 				std::vector<const Atom*>* atoms = (*ci).second;
-				initial_facts_per_bounded_atom->push_back(atoms);
 				
 				/**
 				 * Static nodes are stored in a single vector.
@@ -154,6 +141,7 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 					}
 				}
 				
+
 				for (unsigned int i = 0; i < atoms->size(); i++)
 				{
 					const Atom* atom = (*atoms)[i];
@@ -165,13 +153,14 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 					}
 					
 					const BoundedAtom* bounded_atom = dtg_node->getAtoms()[i];
+					InvariableIndex invariable_index = dtg_node->getIndex(*bounded_atom);
 					if (dtg_node->getDTG().isValidPredicateIndex(bounded_atom->getAtom().getPredicate(), dtg_node->getIndex(*bounded_atom)))
 					{
-						std::cout << "[" << dtg_node->getIndex(*bounded_atom) << "]";
-						const Term* invariable_term = bounded_atom->getAtom().getTerms()[dtg_node->getIndex(*bounded_atom)];
-						const std::vector<const Object*>& domain = invariable_term->getDomain(bounded_atom->getId(), dtg->getBindings());
+						std::cout << "[" << invariable_index << "]";
+						const Term* invariable_term = atom->getTerms()[invariable_index];
+						const std::vector<const Object*>& invariable_domain = invariable_term->getDomain(Step::INITIAL_STEP, dtg->getBindings());
 						
-						for (std::vector<const Object*>::const_iterator ci = domain.begin(); ci != domain.end(); ci++)
+						for (std::vector<const Object*>::const_iterator ci = invariable_domain.begin(); ci != invariable_domain.end(); ci++)
 						{
 							const Object* object_to_add = *ci;
 							bool object_already_present = false;
@@ -197,11 +186,12 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 					}
 					std::cout << ", ";
 				}
+				
 			}
 			std::cout << std::endl;
 			
 			// If more than a single initial fact has been found add the node to the open list so we know we need to work on it!
-			if (initial_facts_per_bounded_atom->size() > 0)
+			if (candidates.size() > 0)
 			{
 				open_list.insert(dtg_node);
 			}
@@ -212,6 +202,26 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 	 * Store a copy of the objects true in the intial state for printing out the facts that can be achieved.
 	 */
 	std::map<const DomainTransitionGraphNode*, std::vector<const Object*>* > reachable_invariables_in_initial_state(reachable_invariables_per_dtg_node);
+	
+	for (std::map<const DomainTransitionGraphNode*, std::vector<const Object*>* >::const_iterator ci = reachable_invariables_in_initial_state.begin(); ci != reachable_invariables_in_initial_state.end(); ci++)
+	{
+		const DomainTransitionGraphNode* dtg_node = (*ci).first;
+		std::vector<const Object*>* invariables = (*ci).second;
+		std::cout << "Process: ";
+		dtg_node->print(std::cout);
+		std::cout << std::endl;
+		
+		std::cout << "True in the initial state for DTG node: {";
+		for (std::vector<const Object*>::const_iterator ci = invariables->begin(); ci != invariables->end(); ci++)
+		{
+			std::cout << **ci;
+			if (ci != invariables->end() - 1)
+			{
+				std::cout << ", ";
+			}
+		}
+		std::cout << "}" << std::endl;
+	}
 	
 	/**
 	 * After initialising the reachable invariables per DTG node, we now move on to the actual analysis. Per marked DTG node 

@@ -203,26 +203,6 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 	 */
 	std::map<const DomainTransitionGraphNode*, std::vector<const Object*>* > reachable_invariables_in_initial_state(reachable_invariables_per_dtg_node);
 	
-	for (std::map<const DomainTransitionGraphNode*, std::vector<const Object*>* >::const_iterator ci = reachable_invariables_in_initial_state.begin(); ci != reachable_invariables_in_initial_state.end(); ci++)
-	{
-		const DomainTransitionGraphNode* dtg_node = (*ci).first;
-		std::vector<const Object*>* invariables = (*ci).second;
-		std::cout << "Process: ";
-		dtg_node->print(std::cout);
-		std::cout << std::endl;
-		
-		std::cout << "True in the initial state for DTG node: {";
-		for (std::vector<const Object*>::const_iterator ci = invariables->begin(); ci != invariables->end(); ci++)
-		{
-			std::cout << **ci;
-			if (ci != invariables->end() - 1)
-			{
-				std::cout << ", ";
-			}
-		}
-		std::cout << "}" << std::endl;
-	}
-	
 	/**
 	 * After initialising the reachable invariables per DTG node, we now move on to the actual analysis. Per marked DTG node 
 	 * he following operations are performed:

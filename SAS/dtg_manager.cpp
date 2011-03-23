@@ -259,11 +259,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 		
 		std::set<std::vector<std::pair<const Predicate*, unsigned int> > > processed_expressions;
 		
-		//std::vector<std::vector<std::pair<const Predicate*, InvariableIndex> >* > predicates_to_add;
-		///std::vector<PropertyState*> property_states;
-		
 		// The DTG where all predicates will be added to.
-		///DomainTransitionGraph* dtg = new DomainTransitionGraph(*this, *dtg_property_space, *type_manager_, *action_manager_, *predicate_manager_, bindings, *initial_facts_);
 		DomainTransitionGraph* dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, *predicate_manager_, bindings, *initial_facts_);
 
 		// We need to augment some rules to get the full set of properties. If a property appears in the LHS of a rule $a$ and it is a proper subset
@@ -1119,7 +1115,22 @@ void DomainTransitionGraphManager::mergeDTGs()
 						}
 					}
 					
-					std::cout << recursive_function << std::endl;
+					// TEST the recursive function.
+					std::cout << "Test the recursive function: " << recursive_function << ": " << std::endl;
+					
+					for (std::vector<const Atom*>::const_iterator ci = initial_facts_->begin(); ci != initial_facts_->end(); ci++)
+					{
+						const Atom* initial_fact = *ci;
+						
+						for (std::vector<const Term*>::const_iterator ci = initial_fact->getTerms().begin(); ci != initial_fact->getTerms().end(); ci++)
+						{
+							const Term* term = *ci;
+							bool result = recursive_function.execute(*term, *initial_facts_, transition->getStep()->getStepId(), from_dtg_node->getDTG().getBindings());
+							std::cout << "* The term: ";
+							term->print(std::cout, from_dtg_node->getDTG().getBindings(), Step::INITIAL_STEP);
+							std::cout << " is: " << result << "." << std::endl;
+						}
+					}
 				}
 				
 				if (merged) nodes_to_remove.push_back(from_dtg_node);

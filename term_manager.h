@@ -311,7 +311,7 @@ public:
 	 * @param bindings The class which contains the bindings for both terms.
 	 * @return True if object is part of this term's domain.
 	 */
-	bool contains(const Object& object, StepID lhs_id, const Bindings& bindings) const;
+	//bool contains(const Object& object, StepID lhs_id, const Bindings& bindings) const;
 
 	/**
 	 * In the case of objects nothing needs to be done, it cannot be bound.
@@ -461,7 +461,7 @@ public:
 	 * @param bindings The class which contains the bindings for both terms.
 	 * @return True if object is part of this term's domain.
 	 */
-	bool contains(const Object& object, StepID lhs_id, const Bindings& bindings) const;
+	//bool contains(const Object& object, StepID lhs_id, const Bindings& bindings) const;
 
 	/**
 	 * We make a callback to the bindings method and tell it to bind the variable to the given ID.

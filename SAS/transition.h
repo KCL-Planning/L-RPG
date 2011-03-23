@@ -11,6 +11,9 @@
 
 namespace MyPOP {
 
+class Predicate;
+
+
 class Atom;
 class Action;
 class Variable;
@@ -125,8 +128,6 @@ public:
 	 */
 	bool achieves(const BoundedAtom& bounded_atom) const;
 	bool affects(const BoundedAtom& bounded_atom) const;
-
-	///void getAllPreconditions(std::vector<std::pair<const Atom*, InvariableIndex> >& preconditions) const;
 	
 private:
 	
@@ -182,7 +183,21 @@ private:
 	// A list of all preconditions of the action, including the index of the term which is invariable.
 	const std::vector<std::pair<const Atom*, InvariableIndex> > all_precondition_mappings_;
 };
-
+/*
+class RecursivePreconditions
+{
+	
+private:
+	const DomainTransitionGraphNode* from_node_;
+	const DomainTransitionGraphNode* to_node_;
+	const Action* action_;
+	
+	const std::map<std::pair<const Atom*, InvariableIndex>, std::pair<const Atom*, InvariableIndex> > dtg_node_atoms_to_terminate_conditions;
+	
+	// Atom's terms link to action variables.
+	const std::map<const Atom*, InvariableIndex> dtg_node_atoms_to_recursive_terms;
+};
+*/
 std::ostream& operator<<(std::ostream& os, const Transition& transition);
 
 };

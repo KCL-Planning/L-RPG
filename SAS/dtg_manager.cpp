@@ -23,6 +23,7 @@
 #include "../plan_bindings.h"
 #include "../bindings_propagator.h"
 #include "../plan.h"
+#include "recursive_function.h"
 
 namespace MyPOP {
 
@@ -236,7 +237,6 @@ void DomainTransitionGraphManager::getProperties(std::vector<std::pair<const Pre
 	}
 }
 
-
 void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, const Bindings& bindings)
 {
 	struct timeval start_time_tim_translation;
@@ -399,8 +399,6 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 		std::cout << *dtg << std::endl;
 		std::cout << " === END DTG === " << std::endl;
 		
-		//addTransitions(*dtg);
-		//dtg->reestablishTransitions();
 		dtg->establishTransitions();
 
 		std::cout << " === DTG after adding all transitions === " << std::endl;
@@ -826,47 +824,148 @@ void DomainTransitionGraphManager::mergeDTGs()
 					const Transition* transition = *ci;
 
 
-//					std::cout << "Transition: from ";
-//					transition->getFromNode().print(std::cout);
-//					std::cout << " to ";
-//					transition->getToNode().print(std::cout);
-//					std::cout << "[" << transition->getStep()->getAction() << "]" << std::endl;
+					std::cout << "Transition: from ";
+					transition->getFromNode().print(std::cout);
+					std::cout << " to ";
+					transition->getToNode().print(std::cout);
+					std::cout << "[" << transition->getStep()->getAction() << "]" << std::endl;
+					
+					//std::set<std::pair<const Atom*, InvariableIndex> > recursive_function_preconditions;
+					//std::set<std::pair<const Atom*, InvariableIndex> > recursive_function_recursive_part;
+					RecursiveFunction recursive_function(transition->getStep()->getAction());
 
 					const std::vector<std::pair<const Atom*, InvariableIndex> >& preconditions = transition->getAllPreconditions();
-//					std::vector<std::pair<const Atom*, InvariableIndex> > preconditions;
-//					transition->getAllPreconditions(preconditions);
-					
+
 					// Check which of the preconditions of this action refers to an external DTG.
 					for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 					{
 						const Atom* precondition = (*ci).first;
 						InvariableIndex invariable = (*ci).second;
 
-//						std::cout << "Process the precondition: ";
-//						precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
-//						std::cout << "(" << invariable << ")" << std::endl;
+						std::cout << "Process the precondition: ";
+						precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
+						std::cout << "(" << invariable << ")" << std::endl;
 
 						std::vector<const DomainTransitionGraphNode*> found_dtg_nodes;
 						getDTGNodes(found_dtg_nodes, transition->getStep()->getStepId(), *precondition, dtg->getBindings(), invariable);
-						
-						// If the precondition isn't linked to an invariable we can ignore it. - we'll process it during the grounding phase.
-						// Wrong, we need to merge those which are invariable in their respective DTGs.
-						if (invariable == NO_INVARIABLE_INDEX)
-						{
-							continue;
-						}
-						
+
 						for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = found_dtg_nodes.begin(); ci != found_dtg_nodes.end(); ci++)
 						{
 							const DomainTransitionGraphNode* precondition_dtg_node = *ci;
 
-//							std::cout << "Candidate: ";
-//							precondition_dtg_node->print(std::cout);
-//							std::cout << std::endl;
+							std::cout << "Candidate: ";
+							precondition_dtg_node->print(std::cout);
+							std::cout << std::endl;
 
-							if (&precondition_dtg_node->getDTG() == &transition->getFromNode().getDTG())
+							if (invariable == NO_INVARIABLE_INDEX)
 							{
-//								std::cout << "- No, part of same DTG!" << std::endl;
+								/**
+								* If the precondition is part of the same DTG and is not yet captured by the DTG node it means that
+								* adding this fact will result in a recursive structure and an infinite tree. For example take the
+								* Blocksworld domain, in the DTG node { (on block block*) (on block* block) }, the transition from this
+								* node to { (on block* block) (clear block*) } as the precondition (clear block), but adding this fact
+								* allows us to construct a new node with the facts { (on block block*) (on block* block) (on block bock) },
+								* where we can apply the same transition and create an infinite number of nodes.
+								*
+								* In short we cannot capture this relationship in a tree by constructing the nodes, instead we need to
+								* construct a recursive formula to test the same precondition->
+								*/
+								if (&precondition_dtg_node->getDTG() == &transition->getFromNode().getDTG())
+								{
+									// Check if the precondition is already part of the DTG node.
+									bool part_of_dtg_node = false;
+									for (std::vector<BoundedAtom*>::const_iterator ci = transition->getFromNode().getAtoms().begin(); ci != transition->getFromNode().getAtoms().end(); ci++)
+									{
+										const BoundedAtom* bounded_atom = *ci;
+										if (transition->getFromNode().getIndex(*bounded_atom) == invariable &&
+											transition->getFromNode().getDTG().getBindings().canUnify(bounded_atom->getAtom(), bounded_atom->getId(), *precondition, transition->getStep()->getStepId()))
+										{
+											part_of_dtg_node = true;
+											break;
+										}
+									}
+									
+									if (part_of_dtg_node)
+									{
+										std::cout << "- No, part of same DTG node!" << std::endl;
+										continue;
+									}
+									else
+									{
+										/**
+										 * Check if any of the terms in the precondition is actually linked with any of the dtg atoms.
+										 */
+										InvariableIndex recursive_index = NO_INVARIABLE_INDEX;
+										const Term* recursive_invariable = NULL;
+										for (std::vector<BoundedAtom*>::const_iterator ci = transition->getFromNode().getAtoms().begin(); ci != transition->getFromNode().getAtoms().end(); ci++)
+										{
+											const BoundedAtom* bounded_atom = *ci;
+											
+											for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
+											{
+												const Term* dtg_node_term = *ci;
+												
+												for (InvariableIndex i = 0; i < precondition->getArity(); i++)
+												{
+													const Term* precondition_term = precondition->getTerms()[i];
+													
+													if (dtg_node_term->isTheSameAs(bounded_atom->getId(), *precondition_term, transition->getStep()->getStepId(), transition->getFromNode().getDTG().getBindings()))
+													{
+														recursive_index = i;
+														recursive_invariable = precondition_term;
+														break;
+													}
+												}
+												
+												if (recursive_index != NO_INVARIABLE_INDEX) break;
+											}
+											
+											if (recursive_index != NO_INVARIABLE_INDEX) break;
+										}
+										
+										if (recursive_index == NO_INVARIABLE_INDEX) continue;
+										
+										std::cout << "Need to come up with a recursive algorithm!" << std::endl;
+										std::cout << "Relevant preconditions: " << std::endl;
+										
+										const std::vector<std::pair<const Atom*, InvariableIndex> >& linked_preconditions = transition->getPreconditions();
+										
+										/**
+										 * Two sets of preconditions are constructed:
+										 * 1) Those which refer to the invariable in the DTG node, this set determines the link between the invariable and the
+										 * object of the same type. E.g. in blocksworld the predicate (on block block) is such an example.
+										 * 2) Those which only refer to the object of the same type, these form the preconditions which must be satisfied for
+										 * terminating the recursive function. E.g. in blocksword the predicate (clear block) is such an example.
+										 */
+										for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = linked_preconditions.begin(); ci != linked_preconditions.end(); ci++)
+										{
+											const Atom* precondition = (*ci).first;
+											InvariableIndex invariable = (*ci).second;
+											InvariableIndex invariable_for_function = NO_INVARIABLE_INDEX;
+											
+											for (InvariableIndex i = 0; i < precondition->getArity(); i++)
+											{
+												if (precondition->getTerms()[i]->isTheSameAs(transition->getStep()->getStepId(), *recursive_invariable, transition->getStep()->getStepId(), transition->getFromNode().getDTG().getBindings()))
+												{
+													invariable_for_function = i;
+													break;
+												}
+											}
+
+											std::cout << "* ";
+											precondition->print(std::cout, transition->getFromNode().getDTG().getBindings(), transition->getStep()->getStepId());
+											std::cout << "(" << invariable << ")[" << invariable_for_function << "]" << std::endl;
+											
+											recursive_function.addRecursiveClause(*precondition, invariable, invariable_for_function, *transition);
+										}
+										
+										std::cout << "Recursive precondition: ";
+										precondition->print(std::cout, transition->getFromNode().getDTG().getBindings(), transition->getStep()->getStepId());
+										std::cout << std::endl;
+										recursive_function.addTerminationClause(*precondition, recursive_index, *transition);
+									}
+								}
+								
 								continue;
 							}
 							
@@ -1019,6 +1118,8 @@ void DomainTransitionGraphManager::mergeDTGs()
 							}
 						}
 					}
+					
+					std::cout << recursive_function << std::endl;
 				}
 				
 				if (merged) nodes_to_remove.push_back(from_dtg_node);

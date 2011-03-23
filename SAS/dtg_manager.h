@@ -145,10 +145,6 @@ private:
 	// The facts which are true in the initial state.
 	const std::vector<const Atom*>* initial_facts_;
 	
-	// Add transitions to a DTG.
-	void addTransitions(const SAS::ValuesUnion& value_union, MyPOP::SAS_Plus::DomainTransitionGraph& dtg) const;
-	void addTransitions(MyPOP::SAS_Plus::DomainTransitionGraph& dtg) const;
-	
 	void getProperties(std::vector<std::pair<const Predicate*, unsigned int> >& predicates, const TIM::PropertyState& property_state) const;
 
 	bool removeDTG(const DomainTransitionGraph& dtg);

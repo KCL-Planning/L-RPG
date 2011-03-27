@@ -13,8 +13,8 @@ namespace MyPOP {
 	
 namespace SAS_Plus {
 
-RecursiveFunction::RecursiveFunction(const MyPOP::Action& action)
-	: action_(&action)
+RecursiveFunction::RecursiveFunction(const MyPOP::Action& action, const TermManager& term_manager)
+	: action_(&action), term_manager_(&term_manager)
 {
 
 }
@@ -58,26 +58,65 @@ const Atom* RecursiveFunction::mapAtomTerms(const Atom& atom, StepID action_id, 
 	return new Atom(atom.getPredicate(), *new_terms, atom.isNegative());
 }
 
-bool RecursiveFunction::execute(const Term& term, const std::vector<const Atom*>& initial_state, StepID action_id, const Bindings& bindings) const
+bool RecursiveFunction::execute(const Object& object, const std::vector<const Atom*>& initial_state, StepID action_id, const Bindings& bindings) const
 {
-	std::set<const Term*> closed_list;
-	return execute(closed_list, term, initial_state, action_id, bindings);
+	std::set<const Object*> closed_list;
+	return execute(closed_list, object, initial_state, action_id, bindings);
 }
 
-bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Term& term, const std::vector<const Atom*>& initial_state, StepID action_id, const Bindings& bindings) const
+bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Object& object, const std::vector<const Atom*>& initial_state, StepID action_id, const Bindings& bindings) const
 {
-	if (closed_list.count(&term) != 0)
+	if (closed_list.count(&object) != 0)
 	{
 		return false;
 	}
-	closed_list.insert(&term);
+	closed_list.insert(&object);
 	
-	std::cout << "Check the term: ";
-	term.print(std::cout, bindings, Step::INITIAL_STEP);
-	std::cout << std::endl;
+	std::cout << "Check the object: " << object << std::endl;
+	
+	std::vector<const Atom*> object_to_initial_facts;
+	for (std::vector<const Atom*>::const_iterator ci = initial_state.begin(); ci != initial_state.end(); ci++)
+	{
+		const Atom* initial_fact = *ci;
+		for (std::vector<const Term*>::const_iterator ci = initial_fact->getTerms().begin(); ci != initial_fact->getTerms().end(); ci++)
+		{
+			const Term* term = *ci;
+			if (term->isTheSameAs(Step::INITIAL_STEP, *object, Step::INITIAL_STEP, bindings))
+			{
+				object_to_initial_facts.push_back(initial_fact);
+				break;
+			}
+		}
+	}
+	
+	/**
+	 * Map every object to the set of initial facts it appears in.
+	 *
+	std::vector<const Object*> all_objects = term_manager_->getAllObjects();
+	std::map<const Object*, std::vector<const Atom*>* > object_to_initial_fact_mappings;
+	
+	for (std::vector<const Object*>::const_iterator ci = all_objects.begin(); ci != all_objects.end(); ci++)
+	{
+		const Object* object = *ci;
+		std::vector<const Atom*>* mapping = new std::vector<const Atom*>();
+		object_to_initial_fact_mappings[object] = mapping;
+		
+		for (std::vector<const Atom*>::const_iterator ci = initial_state.begin(); ci != initial_state.end(); ci++)
+		{
+			const Atom* initial_fact = *ci;
+			for (std::vector<const Term*>::const_iterator ci = initial_fact->getTerms().begin(); ci != initial_fact->getTerms().end(); ci++)
+			{
+				const Term* term = *ci;
+				if (term->isTheSameAs(Step::INITIAL_STEP, *object, Step::INITIAL_STEP, bindings))
+				{
+					mapping->push_back(initial_fact);
+					break;
+				}
+			}
+		}
+	}*/
 	
 	// Check if the terminating state is true.
-	std::vector<const Atom*> termination_candidates = initial_state;
 	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = termination_clause.begin(); ci != termination_clause.end(); ci++)
 	{
 		const Atom* termination_clause = (*ci).first;
@@ -85,37 +124,56 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Term& 
 		
 		std::cout << "Check the termination clause: ";
 		termination_clause->print(std::cout, bindings, action_id);
-		std::cout << std::endl;
+		std::cout << "[" << index << "]" << std::endl;
+		std::vector<const Object*> to_remove;
 		
 		// Terminate those which do not fit.
-		for (std::vector<const Atom*>::reverse_iterator ri = termination_candidates.rbegin(); ri != termination_candidates.rend(); ri++)
+//		for (std::map<const Object*, std::vector<const Atom*>* >::reverse_iterator ri = object_to_initial_fact_mappings.rbegin(); ri != object_to_initial_fact_mappings.rend(); ri++)
 		{
-			const Atom* atom = *ri;
+//			const Object* object = (*ri).first;
+//			const std::vector<const Atom*>* initial_facts = (*ri).second;
 			
-			if (!bindings.canUnify(*termination_clause, action_id, *atom, Step::INITIAL_STEP))
+//			std::cout << "Check the object: " << *object << std::endl;
+			
+//			bool supported = false;
+			
+			for (std::vector<const Atom*>::reverse_iterator ri = object_to_initial_facts.begin(); ri != object_to_initial_facts.end(); ri++)
 			{
-				std::cout << "[" << termination_candidates.size() << "/" << initial_state.size() << "] The atom: ";
+				const Atom* atom = *ri;
+				
+				std::cout << "* The clause: ";
 				atom->print(std::cout, bindings, Step::INITIAL_STEP);
-				std::cout << "Cannot be a candidate because it cannot be unified!" << std::endl;
-				termination_candidates.erase(ri.base() - 1);
+				
+				if (!bindings.canUnify(*termination_clause, action_id, *atom, Step::INITIAL_STEP))
+				{
+					std::cout << "[" << object_to_initial_fact_mappings.size() << "/" << initial_state.size() << "] The atom: ";
+					atom->print(std::cout, bindings, Step::INITIAL_STEP);
+					std::cout << "Cannot be a candidate because it cannot be unified!" << std::endl;
+				}
+				else if (!atom->getTerms()[index]->contains(*object, Step::INITIAL_STEP, bindings))
+				{
+					std::cout << "[" << object_to_initial_fact_mappings.size() << "/" << initial_state.size() << "] The atom: ";
+					atom->print(std::cout, bindings, Step::INITIAL_STEP);
+					std::cout << "Cannot be a candidate because the index " << index << " does not contain any of the required objects!" << std::endl;
+				}
+				else
+				{
+					std::cout << "[" << object_to_initial_fact_mappings.size() << "/" << initial_state.size() << "] The atom: ";
+					atom->print(std::cout, bindings, Step::INITIAL_STEP);
+					std::cout << " is a possible candidate!" << std::endl;
+					object_to_initial_facts.erase(ri.base() - 1);
+					break;
+				}
 			}
-			else if (!atom->getTerms()[index]->containsAtLeastOneOf(term.getDomain(Step::INITIAL_STEP, bindings), Step::INITIAL_STEP, bindings))
-			{
-				std::cout << "[" << termination_candidates.size() << "/" << initial_state.size() << "] The atom: ";
-				atom->print(std::cout, bindings, Step::INITIAL_STEP);
-				std::cout << "Cannot be a candidate because the index " << index << " does not contain any of the required objects!" << std::endl;
-				termination_candidates.erase(ri.base() - 1);
-			}
-			else
-			{
-				std::cout << "[" << termination_candidates.size() << "/" << initial_state.size() << "] The atom: ";
-				atom->print(std::cout, bindings, Step::INITIAL_STEP);
-				std::cout << " is a possible candidate!" << std::endl;
-			}
+		}
+		
+		for (std::vector<const Object*>::const_iterator ci = to_remove.begin(); ci != to_remove.end(); ci++)
+		{
+			object_to_initial_fact_mappings.erase(*ci);
 		}
 	}
 	
-	if (termination_candidates.size() > 0)
+	if (object_to_initial_fact_mappings.size() > 0)
 	{
 		return true;
 	}
@@ -123,6 +181,98 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Term& 
 	std::cout << "No termination clauses, continue!" << std::endl;
 	
 	// Check if we need to invoke the recursive function and for which objects.
+	std::map<const Object*, const Term*> recursive_candidates;
+	for (std::vector<const Object*>::const_iterator ci = all_objects.begin(); ci != all_objects.end(); ci++)
+	{
+		const Object* object = *ci;
+		recursive_candidates[object] = NULL;
+	}
+	
+	for (std::vector<std::pair<const Atom*, std::pair<InvariableIndex, InvariableIndex> > >::const_iterator ci = recursive_clause.begin(); ci != recursive_clause.end(); ci++)
+	{
+		const Atom* recursive_clause = (*ci).first;
+		InvariableIndex invariable_index = (*ci).second.first;
+		InvariableIndex recursive_index = (*ci).second.second;
+		
+		std::cout << "Process the recursive clause: ";
+		recursive_clause->print(std::cout, bindings, action_id);
+		std::cout << std::endl;
+		
+		std::vector<const Object*> to_remove;
+		
+		for (std::map<const Object*, std::vector<const Atom*>* >::reverse_iterator ri = object_to_initial_fact_mappings.rbegin(); ri != object_to_initial_fact_mappings.rend(); ri++)
+		{
+			const Object* object = (*ri).first;
+			const std::vector<const Atom*>* initial_facts = (*ri).second;
+			
+			std::cout << "Check the object: " << *object << std::endl;
+			
+///			bool supported = false;
+			
+			for (std::vector<const Atom*>::const_iterator ci = initial_facts->begin(); ci != initial_facts->end(); ci++)
+			{
+				const Atom* atom = *ci;
+				
+				if (bindings.canUnify(*recursive_clause, action_id, *atom, Step::INITIAL_STEP))
+				{
+					bool update_index = false;
+					if (recursive_candidates[object] == NULL)
+					{
+						recursive_candidates[object] = atom->getTerms()[recursive_index];
+						update_index = true;
+					}
+					
+					if (!atom->getTerms()[invariable_index]->contains(*object, Step::INITIAL_STEP, bindings))
+					{
+						std::cout << "Subsequent iteration, ";
+						atom->print(std::cout, bindings, Step::INITIAL_STEP);
+						std::cout << " cannot be an iteration, because the term " << *object << " is not part of the index " << invariable_index << std::endl;
+						to_remove.push_back(object);
+//						object_to_initial_fact_mappings.erase(ri.base() - 1);
+					}
+					else if (update_index)
+					{
+						std::cout << "First iteration, ";
+						atom->print(std::cout, bindings, Step::INITIAL_STEP);
+						std::cout << " can be a candidate!" << std::endl;
+//						recursive_candidates.erase(ri.base() - 1);
+//						recursive_candidates.push_back(std::make_pair(atom, recursive_index));
+					}
+					else
+					{
+						std::cout << "Subsequent iteration, ";
+						atom->print(std::cout, bindings, Step::INITIAL_STEP);
+						std::cout << " can be a candidate!" << std::endl;
+					}
+				}
+				else
+				{
+					std::cout << "Subsequent iteration, ";
+					atom->print(std::cout, bindings, Step::INITIAL_STEP);
+					std::cout << " cannot be an iteration, because it cannot be unified." << std::endl;
+					to_remove.push_back(object);
+//					object_to_initial_fact_mappings.erase(ri.base() - 1);
+				}
+			}
+		}
+		
+		for (std::vector<const Object*>::const_iterator ci = to_remove.begin(); ci != to_remove.end(); ci++)
+		{
+			object_to_initial_fact_mappings.erase(*ci);
+		}
+	}
+	
+	for (std::map<const Object*, std::vector<const Atom*>* >::reverse_iterator ri = object_to_initial_fact_mappings.rbegin(); ri != object_to_initial_fact_mappings.rend(); ri++)
+	{
+		const Object* object = (*ri).first;
+		const Term* recursive_term = recursive_candidates[object];
+		if (execute(closed_list, *recursive_term, initial_state, action_id, bindings))
+		{
+			return true;
+		}
+	}
+	
+/*	// Check if we need to invoke the recursive function and for which objects.
 	std::vector<std::pair<const Atom*, InvariableIndex> > recursive_candidates;
 	for (std::vector<const Atom*>::const_iterator ci = initial_state.begin(); ci != initial_state.end(); ci++)
 	{
@@ -197,6 +347,7 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Term& 
 			return true;
 		}
 	}
+	*/
 	
 	return false;
 }

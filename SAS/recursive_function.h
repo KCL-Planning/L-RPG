@@ -12,6 +12,7 @@ class Atom;
 class Action;
 class Bindings;
 class Term;
+class TermManager;
 
 namespace SAS_Plus {
 
@@ -32,7 +33,7 @@ public:
 	 * Create a recusive function which is linked to the given action. All predicate's terms will be 
 	 * linked to this action's variables.
 	 */
-	RecursiveFunction(const Action& action);
+	RecursiveFunction(const Action& action, const TermManager& term_manager);
 	
 	/**
 	 * Add a predicate which will be part of the termination clause. The atom's terms will be linked to 
@@ -106,6 +107,8 @@ private:
 	std::vector<std::pair<const Atom*, std::pair<InvariableIndex, InvariableIndex> > > recursive_clause;
 	
 	const Action* action_;
+	
+	const TermManager* term_manager_;
 };
 
 std::ostream& operator<<(std::ostream& os, const RecursiveFunction& recursive_function);

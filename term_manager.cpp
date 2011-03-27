@@ -376,6 +376,12 @@ void TermManager::addTerm(const VAL::symbol& symbol, Term& term)
 	(*term_string_indexing_)[symbol.getName()] = &term;
 }
 
+void TermManager::addTerm(const VAL::symbol& symbol, Object& object)
+{
+	addTerm(symbol, (Term&)object);
+	domain_objects_.push_back(&object);
+}
+
 const Term* TermManager::getTerm(const VAL::symbol& symbol) const
 {
 	return (*term_indexing_)[&symbol];

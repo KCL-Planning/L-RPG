@@ -828,7 +828,7 @@ void DomainTransitionGraphManager::mergeDTGs()
 					
 					//std::set<std::pair<const Atom*, InvariableIndex> > recursive_function_preconditions;
 					//std::set<std::pair<const Atom*, InvariableIndex> > recursive_function_recursive_part;
-					RecursiveFunction recursive_function(transition->getStep()->getAction());
+					RecursiveFunction recursive_function(transition->getStep()->getAction(), *term_manager_);
 
 					const std::vector<std::pair<const Atom*, InvariableIndex> >& preconditions = transition->getAllPreconditions();
 
@@ -1117,7 +1117,15 @@ void DomainTransitionGraphManager::mergeDTGs()
 					
 					// TEST the recursive function.
 					std::cout << "Test the recursive function: " << recursive_function << ": " << std::endl;
-					
+					const std::vector<const Object*>& all_objects = term_manager_->getAllObjects();
+					for (std::vector<const Object*>::const_iterator ci = all_objects.begin(); ci != all_objects.end(); ci++)
+					{
+						bool result = recursive_function.execute(**ci, *initial_facts_, transition->getStep()->getStepId(), from_dtg_node->getDTG().getBindings());
+						std::cout << "* The term: ";
+						(*ci)->print(std::cout, from_dtg_node->getDTG().getBindings(), Step::INITIAL_STEP);
+						std::cout << " is: " << result << "." << std::endl;
+					}
+/*
 					for (std::vector<const Atom*>::const_iterator ci = initial_facts_->begin(); ci != initial_facts_->end(); ci++)
 					{
 						const Atom* initial_fact = *ci;
@@ -1131,6 +1139,7 @@ void DomainTransitionGraphManager::mergeDTGs()
 							std::cout << " is: " << result << "." << std::endl;
 						}
 					}
+*/
 				}
 				
 				if (merged) nodes_to_remove.push_back(from_dtg_node);

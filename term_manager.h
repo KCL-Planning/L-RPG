@@ -528,12 +528,16 @@ public:
 
 	// Add a variable (of an action) to the list of types.
 	void addTerm(const VAL::symbol& symbol, Term& term);
+	void addTerm(const VAL::symbol& symbol, Object& term);
 
 	// Get the term object linked to the VAL::symbol as processed by the parser. Note 
 	// that this function can only be called during the parsing phase, afterwards all references
 	// to VAL::symbol are deleted.
 	const Term* getTerm(const VAL::symbol&) const;
 	const Term* getTerm(const std::string& name) const;
+	
+	// Get all the objects in the domain.
+	const std::vector<const Object*>& getAllObjects() const { return domain_objects_; }
 	
 	// Return the type manager.
 	const TypeManager& getTypeManager() const { return *type_manager_; }
@@ -545,6 +549,9 @@ private:
 	// symbol type to TermID.
 	std::map<const VAL::symbol*, const Term*>* term_indexing_;
 	std::map<std::string, const Term*>* term_string_indexing_;
+	
+	// Store the objects from the domain separately.
+	std::vector<const Object*> domain_objects_;
 };
 
 std::ostream& operator<<(std::ostream& os, const TermManager& term_manager);

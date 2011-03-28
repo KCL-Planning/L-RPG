@@ -64,7 +64,7 @@ bool RecursiveFunction::execute(const Object& object, const std::vector<const At
 	return execute(closed_list, object, initial_state, action_id, bindings);
 }
 
-bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Object& object, const std::vector<const Atom*>& initial_state, StepID action_id, const Bindings& bindings) const
+bool RecursiveFunction::execute(std::set<const Object*>& closed_list, const Object& object, const std::vector<const Atom*>& initial_state, StepID action_id, const Bindings& bindings) const
 {
 	if (closed_list.count(&object) != 0)
 	{
@@ -81,7 +81,7 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Object
 		for (std::vector<const Term*>::const_iterator ci = initial_fact->getTerms().begin(); ci != initial_fact->getTerms().end(); ci++)
 		{
 			const Term* term = *ci;
-			if (term->isTheSameAs(Step::INITIAL_STEP, *object, Step::INITIAL_STEP, bindings))
+			if (term->isTheSameAs(Step::INITIAL_STEP, object, Step::INITIAL_STEP, bindings))
 			{
 				object_to_initial_facts.push_back(initial_fact);
 				break;
@@ -137,7 +137,7 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Object
 			
 //			bool supported = false;
 			
-			for (std::vector<const Atom*>::reverse_iterator ri = object_to_initial_facts.begin(); ri != object_to_initial_facts.end(); ri++)
+			for (std::vector<const Atom*>::reverse_iterator ri = object_to_initial_facts.rbegin(); ri != object_to_initial_facts.rend(); ri++)
 			{
 				const Atom* atom = *ri;
 				
@@ -146,19 +146,19 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Object
 				
 				if (!bindings.canUnify(*termination_clause, action_id, *atom, Step::INITIAL_STEP))
 				{
-					std::cout << "[" << object_to_initial_fact_mappings.size() << "/" << initial_state.size() << "] The atom: ";
+					std::cout << "The atom: ";
 					atom->print(std::cout, bindings, Step::INITIAL_STEP);
 					std::cout << "Cannot be a candidate because it cannot be unified!" << std::endl;
 				}
-				else if (!atom->getTerms()[index]->contains(*object, Step::INITIAL_STEP, bindings))
+				else if (!atom->getTerms()[index]->contains(object, Step::INITIAL_STEP, bindings))
 				{
-					std::cout << "[" << object_to_initial_fact_mappings.size() << "/" << initial_state.size() << "] The atom: ";
+					std::cout << "The atom: ";
 					atom->print(std::cout, bindings, Step::INITIAL_STEP);
 					std::cout << "Cannot be a candidate because the index " << index << " does not contain any of the required objects!" << std::endl;
 				}
 				else
 				{
-					std::cout << "[" << object_to_initial_fact_mappings.size() << "/" << initial_state.size() << "] The atom: ";
+					std::cout << "The atom: ";
 					atom->print(std::cout, bindings, Step::INITIAL_STEP);
 					std::cout << " is a possible candidate!" << std::endl;
 					object_to_initial_facts.erase(ri.base() - 1);
@@ -166,14 +166,15 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Object
 				}
 			}
 		}
-		
+/*		
 		for (std::vector<const Object*>::const_iterator ci = to_remove.begin(); ci != to_remove.end(); ci++)
 		{
 			object_to_initial_fact_mappings.erase(*ci);
 		}
+*/
 	}
 	
-	if (object_to_initial_fact_mappings.size() > 0)
+	if (object_to_initial_facts.size() > 0)
 	{
 		return true;
 	}

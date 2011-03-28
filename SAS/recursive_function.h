@@ -11,7 +11,7 @@ namespace MyPOP {
 class Atom;
 class Action;
 class Bindings;
-class Term;
+class Object;
 class TermManager;
 
 namespace SAS_Plus {
@@ -58,12 +58,12 @@ public:
 	
 	/**
 	 * Execute the recursive action and report if the function holds for the given object.
-	 * @param object The term fed into the recursive function.
+	 * @param object The objectfed into the recursive function.
 	 * @param initial_state The initial state of the problem.
 	 * @param action_id The StepID for the given action determines the value of every term.
 	 * @return True if the function holds, false otherwise.
 	 */
-	bool execute(const Term& term, const std::vector<const Atom*>& initial_state, StepID action_id, const Bindings& bindings) const;
+	bool execute(const Object& object, const std::vector<const Atom*>& initial_state, StepID action_id, const Bindings& bindings) const;
 	
 	const std::vector<std::pair<const Atom*, InvariableIndex> >& getTerminationClause() const { return termination_clause; }
 	
@@ -76,7 +76,7 @@ private:
 	/**
 	 * Internally called by execute, contains a closed list, to make sure it does not loop.
 	 */
-	bool execute(std::set<const Term*>& closed_list, const Term& term, const std::vector<const Atom*>& initial_state, StepID action_id, const Bindings& bindings) const;
+	bool execute(std::set<const Object*>& closed_list, const Object& object, const std::vector<const Atom*>& initial_state, StepID action_id, const Bindings& bindings) const;
 	
 	/**
 	 * The predicates added to both clauses need to be transformed in such a way that the terms are equal to

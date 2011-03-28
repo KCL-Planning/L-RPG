@@ -375,7 +375,7 @@ Bindings::Bindings(const TermManager& term_manager, const BindingsPropagator& pr
 
 Bindings::Bindings(const Bindings& other)
 {
-	std::cout << "Bindings::Bindings - copy " << other.binding_mapping_.size() << " bindings!" << std::endl;
+//	std::cout << "Bindings::Bindings - copy " << other.binding_mapping_.size() << " bindings!" << std::endl;
 	term_manager_ = other.term_manager_;
 	propagator_ = other.propagator_;
 	next_free_step_id_ = other.next_free_step_id_;

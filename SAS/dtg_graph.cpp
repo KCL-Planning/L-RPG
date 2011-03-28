@@ -202,7 +202,7 @@ bool DomainTransitionGraph::areMutex(const DomainTransitionGraphNode& dtg_node1,
 
 void DomainTransitionGraph::addBalancedSet(const PropertySpace& property_space, bool create_nodes)
 {
-	std::cout << "[DomainTransitionGraph::addPredicate]; Create node? " << create_nodes << std::endl;
+//	std::cout << "[DomainTransitionGraph::addPredicate]; Create node? " << create_nodes << std::endl;
 	
 	assert (nodes_.size() == 0);
 	
@@ -284,11 +284,11 @@ void DomainTransitionGraph::addBalancedSet(const PropertySpace& property_space, 
 					assert (false);
 				}
 				
-				std::cout << "Update predicate: " << property->getPredicate() << std::endl;
+//				std::cout << "Update predicate: " << property->getPredicate() << std::endl;
 
 				property->setPredicate(*new_predicate);
 				
-				std::cout << "Result: " << property->getPredicate() << std::endl;
+//				std::cout << "Result: " << property->getPredicate() << std::endl;
 			}
 			
 			/**
@@ -331,7 +331,7 @@ void DomainTransitionGraph::addBalancedSet(const PropertySpace& property_space, 
 				const Predicate& predicate = property->getPredicate();
 				unsigned int index = property->getIndex();
 				
-				std::cout << "Create a node with predicate: " << predicate << std::endl;
+//				std::cout << "Create a node with predicate: " << predicate << std::endl;
 				
 				// We create a node which we will add to the DTG. This node is a lifted SAS+ variable which includes
 				// all possible nodes in the DTG with the given predicate. Later we will be able to split this node
@@ -470,29 +470,7 @@ void DomainTransitionGraph::addObjects()
 				objects_.push_back(new_object);
 			}
 		}
-		
-//		objects_.insert(objects_.begin(), domain.begin(), domain.end());
 	}
-///	objects_.insert(objects_.begin(), domain.begin(), domain.end());
-/*
-	// Update the transitions so they reflect this.
-	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
-	{
-		DomainTransitionGraphNode* dtg_node = *ci;
-		
-		for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
-		{
-			BoundedAtom* bounded_atom = *ci;
-			
-			// TEST
-			if (dtg_node->getIndex(*bounded_atom) == NO_INVARIABLE_INDEX) continue;
-			
-			bounded_atom->getAtom().getTerms()[dtg_node->getIndex(*bounded_atom)]->makeDomainEqualTo(bounded_atom->getId(), objects_, *bindings_);
-//			VariableDomain& vd = bindings_->getNonConstVariableDomain(bounded_atom->getId(), *bounded_atom->getAtom().getTerms()[dtg_node->getIndex(*bounded_atom)]->asVariable());
-//			vd.setObjects(objects_);
-		}
-	}
-*/
 }
 
 void DomainTransitionGraph::removeObjects(const std::set<const Object*>& objects)
@@ -765,9 +743,9 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 	{
 		boost::dynamic_bitset<>* reachable_nodes = reachable_set[i];
 		
-		std::cout << "*** The DTG node: ";
-		nodes_[i]->print(std::cout);
-		std::cout << " has the bitset: " << *reachable_nodes << std::endl;
+//		std::cout << "*** The DTG node: ";
+//		nodes_[i]->print(std::cout);
+//		std::cout << " has the bitset: " << *reachable_nodes << std::endl;
 		
 		if (grouped_dtg_nodes.find(*reachable_nodes) != grouped_dtg_nodes.end())
 		{
@@ -843,7 +821,7 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 		time_spend_transitions += transitions_end.tv_sec - transitions_start.tv_sec + (transitions_end.tv_usec - transitions_start.tv_usec) / 1000000.0;
 		subgraphs.push_back(new_dtg);
 		
-		std::cout << "New sub DTG: " << *new_dtg << std::endl;
+//		std::cout << "New sub DTG: " << *new_dtg << std::endl;
 	}
 	
 	gettimeofday(&end_time, NULL);
@@ -1199,9 +1177,9 @@ bool DomainTransitionGraph::removeUnsupportedTransitions()
 		// If one of the variable domains is empty, remove the node.
 		if ((*ci)->containsEmptyVariableDomain())
 		{
-			std::cout << "Remove the node: ";
-			(*ci)->print(std::cout);
-			std::cout << std::endl;
+//			std::cout << "Remove the node: ";
+//			(*ci)->print(std::cout);
+//			std::cout << std::endl;
 			removeNode(**ci);
 			graph_affected = true;
 		}

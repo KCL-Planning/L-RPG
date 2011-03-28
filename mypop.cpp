@@ -247,7 +247,14 @@ int main(int argc,char * argv[])
 //	std::cout << cg << std::endl;
 //	Graphviz::printToDot(cg);
 //	std::cout << " === DONE! Creating the CGs === " << std::endl;
-	
+
+	getitimer(ITIMER_PROF, &timer);
+
+	// Planning time.
+	double t = 1000000.9 - (timer.it_value.tv_sec + timer.it_value.tv_usec * 1e-6);
+	std::cerr << "Time: " << std::max(0, int(1000.0 * t + 0.5)) << std::endl;
+
+	exit (0);
 	// Based on the DTG structures, do domain analysis!
 	SAS_Plus::RelaxedReachabilityAnalyst analyst(dtg_manager);
 	analyst.performReachabilityAnalysis(*initial_effects);
@@ -274,12 +281,12 @@ int main(int argc,char * argv[])
 	getitimer(ITIMER_PROF, &timer);
 
 	// Planning time.
-	double t = 1000000.9 - (timer.it_value.tv_sec + timer.it_value.tv_usec * 1e-6);
-	std::cout << "Time: " << std::max(0, int(1000.0 * t + 0.5)) << std::endl;
-	std::cout << "Number of steps: " << solution_plan->getSteps().size() - 2 << std::endl;
-	std::cout << "Plans generated: " << Plan::getPlansGenerated() << std::endl;
-	std::cout << "Plans visited: " << planner.getPlansVisited() << std::endl;
-	std::cout << "Dead ends encountered: " << planner.getDeadEnds() << std::endl;
+//	double t = 1000000.9 - (timer.it_value.tv_sec + timer.it_value.tv_usec * 1e-6);
+//	std::cout << "Time: " << std::max(0, int(1000.0 * t + 0.5)) << std::endl;
+//	std::cout << "Number of steps: " << solution_plan->getSteps().size() - 2 << std::endl;
+//	std::cout << "Plans generated: " << Plan::getPlansGenerated() << std::endl;
+//	std::cout << "Plans visited: " << planner.getPlansVisited() << std::endl;
+//	std::cout << "Dead ends encountered: " << planner.getDeadEnds() << std::endl;
 
 	// Don't leave any mess!
 	delete propagator;

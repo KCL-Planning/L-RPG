@@ -147,7 +147,7 @@ public:
 	 */
 	bool containsEmptyVariableDomain() const;
 
-	void removeUnsupportedTransitions();
+	bool removeUnsupportedTransitions();
 	
 	void print(std::ostream& os) const;
 	

@@ -935,8 +935,9 @@ void DomainTransitionGraph::establishTransitions()
 }
 
 
-void DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* >& split_graphs)
+bool DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* >& split_graphs)
 {
+	bool affected = false;
 //	std::cout << "[DomainTransitionGraph::splitNodes] Process DTG: " << *this << std::endl;
 	for (std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* >::const_iterator ci = split_graphs.begin(); ci != split_graphs.end(); ci++)
 	{
@@ -1018,7 +1019,6 @@ void DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, st
 					/**
 					 * If a node was found, then we need to update the variable which corresponds to the splitted DTG's invariable.
 					 */
-					///const VariableDomain* affected_variable_domain = NULL;
 					const Term* affected_term = NULL;
 					for (std::vector<BoundedAtom*>::const_iterator ci = matched_dtg_nodes[0]->getAtoms().begin(); ci != matched_dtg_nodes[0]->getAtoms().end(); ci++)
 					{
@@ -1115,7 +1115,7 @@ void DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, st
 				
 				/**
 				 * Update counter.
-				 * Check if we have reached the maximum of the current conter.
+				 * Check if we have reached the maximum of the current counter.
 				 */
 				if (counter[active_counter] == results_of_split->size() - 1)
 				{
@@ -1146,7 +1146,14 @@ void DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, st
 		{
 			addNode(**ci);
 		}
+		
+		if (nodes_to_add.size() > 0)
+		{
+			affected = true;
+		}
 	}
+	
+	return affected;
 }
 
 void DomainTransitionGraph::groundTerm(std::vector<DomainTransitionGraphNode*>& affected_nodes, std::vector<DomainTransitionGraphNode*>& grounded_nodes, const MyPOP::Term& term_to_ground, StepID term_id)
@@ -1176,14 +1183,18 @@ bool DomainTransitionGraph::isSupported(unsigned int id, const MyPOP::Atom& atom
 	return false;
 }
 
-void DomainTransitionGraph::removeUnsupportedTransitions()
+bool DomainTransitionGraph::removeUnsupportedTransitions()
 {
+	bool graph_affected = false;
 	for (std::vector<DomainTransitionGraphNode*>::reverse_iterator ci = nodes_.rbegin(); ci != nodes_.rend(); ci++)
 	{
 //		std::cout << "Remove the unsupported transitions from the DTG node: ";
 //		(*ci)->print(std::cout);
 //		std::cout << std::endl;
-		(*ci)->removeUnsupportedTransitions();
+		if ((*ci)->removeUnsupportedTransitions())
+		{
+			graph_affected = true;
+		}
 		
 		// If one of the variable domains is empty, remove the node.
 		if ((*ci)->containsEmptyVariableDomain())
@@ -1192,8 +1203,11 @@ void DomainTransitionGraph::removeUnsupportedTransitions()
 			(*ci)->print(std::cout);
 			std::cout << std::endl;
 			removeNode(**ci);
+			graph_affected = true;
 		}
 	}
+	
+	return graph_affected;
 }
 
 void DomainTransitionGraph::merge(const MyPOP::SAS_Plus::DomainTransitionGraph& other)

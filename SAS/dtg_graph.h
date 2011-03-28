@@ -201,8 +201,9 @@ public:
 	 * occur.
 	 * @param split_graphs These are all the graphs that have been split, thus the graphs we need to
 	 * compare the preconditions of this DTG with.
+	 * @return True if a node has been split, false otherwise.
 	 */
-	void splitNodes(const std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* >& split_graphs);
+	bool splitNodes(const std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* >& split_graphs);
 	
 	/**
 	 * Ground out a specific term of all Atoms. All possible instantiations are produced and stored in the given vector. The nodes
@@ -227,8 +228,9 @@ public:
 	
 	/**
 	 * Remove all transitions which are not supported.
+	 * @return True if the graph is affected by either removing a transition, a node or both.
 	 */
-	void removeUnsupportedTransitions();
+	bool removeUnsupportedTransitions();
 
 	friend std::ostream& operator<<(std::ostream& os, const DomainTransitionGraph& dtg);
 

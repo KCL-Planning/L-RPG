@@ -2,15 +2,18 @@
 #define SAS_PLUS_RECURSIVE_FUNCTION_H
 #include <vector>
 #include <set>
+#include <map>
 #include <ostream>
 #include "dtg_types.h"
 #include "../plan_types.h"
+#include <boost/dynamic_bitset.hpp>
 
 namespace MyPOP {
 
 class Atom;
 class Action;
 class Bindings;
+class Object;
 class Term;
 class TermManager;
 
@@ -33,7 +36,7 @@ public:
 	 * Create a recusive function which is linked to the given action. All predicate's terms will be 
 	 * linked to this action's variables.
 	 */
-	RecursiveFunction(const Action& action, const TermManager& term_manager);
+	RecursiveFunction(const Action& action, const TermManager& term_manager, const std::vector<const Object*>& applicable_objects);
 	
 	/**
 	 * Add a predicate which will be part of the termination clause. The atom's terms will be linked to 
@@ -109,6 +112,36 @@ private:
 	const Action* action_;
 	
 	const TermManager* term_manager_;
+	
+	const std::vector<const Object*>* applicable_objects_;
+};
+
+class BoundedRecursiveFunction : public RecursiveFunction
+{
+public:
+	BoundedRecursiveFunction(const Action& action, const TermManager& term_manager, const std::vector<const Object*>& applicable_objects, const std::vector<const Atom*>& initial_state, StepID action_id, const Bindings& bindings);
+
+	bool evaluate(const Term& term) const;
+
+private:
+	const std::vector<const Atom*>* initial_state_;
+	StepID action_id_;
+	const Bindings* bindings_;
+};
+
+class RecursiveFunctionManager
+{
+public:
+	RecursiveFunctionManager();
+	
+	void addRecursiveFunction(const BoundedRecursiveFunction& function);
+	
+	void evaluateObjects(std::map<const Object*, boost::dynamic_bitset<> >& result, const std::vector<const Object*>& objects) const;
+	
+	boost::dynamic_bitset<> evaluateObject(const Object& object) const;
+		
+private:
+	std::vector<const BoundedRecursiveFunction*> functions_;
 };
 
 std::ostream& operator<<(std::ostream& os, const RecursiveFunction& recursive_function);

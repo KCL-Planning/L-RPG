@@ -13,8 +13,8 @@ namespace MyPOP {
 	
 namespace SAS_Plus {
 
-RecursiveFunction::RecursiveFunction(const MyPOP::Action& action, const TermManager& term_manager)
-	: action_(&action), term_manager_(&term_manager)
+RecursiveFunction::RecursiveFunction(const MyPOP::Action& action, const TermManager& term_manager, const std::vector<const Object*>& applicable_objects)
+	: action_(&action), term_manager_(&term_manager), applicable_objects_(&applicable_objects)
 {
 
 }
@@ -76,7 +76,39 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Term& 
 	term.print(std::cout, bindings, Step::INITIAL_STEP);
 	std::cout << std::endl;
 	
-	const std::vector<const Object*>& domain = term.getDomain(Step::INITIAL_STEP, bindings);
+	std::cout << "Applicable objects: ";
+	for (std::vector<const Object*>::const_iterator ci = applicable_objects_->begin(); ci != applicable_objects_->end(); ci++)
+	{
+		std::cout << **ci << ", ";
+	}
+	
+	std::vector<const Object*> domain = term.getDomain(Step::INITIAL_STEP, bindings);
+	for (std::vector<const Object*>::reverse_iterator ri = domain.rbegin(); ri != domain.rend(); ri++)
+	{
+		const Object* domain_object = *ri;
+		bool applicable = false;
+		for (std::vector<const Object*>::const_iterator ci = applicable_objects_->begin(); ci != applicable_objects_->end(); ci++)
+		{
+			if (*ci == domain_object)
+			{
+				applicable = true;
+				break;
+			}
+		}
+		
+		if (!applicable)
+		{
+			domain.erase(ri.base() - 1);
+		}
+	}
+	
+	std::cout << " left(" << domain.size() << ")" << std::endl;
+	
+	if (domain.size() == 0)
+	{
+		return false;
+	}
+	
 	
 	std::vector<const Atom*> object_to_initial_facts;
 	for (std::vector<const Atom*>::const_iterator ci = initial_state.begin(); ci != initial_state.end(); ci++)
@@ -229,6 +261,76 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Term& 
 	}
 	return false;
 }
+
+/********************************
+ *
+ * BoundedRecursiveFunction
+ *
+ *******************************/
+
+BoundedRecursiveFunction::BoundedRecursiveFunction(const Action& action, const TermManager& term_manager, const std::vector<const Object*>& applicable_objects, const std::vector<const Atom*>& initial_state, StepID action_id, const Bindings& bindings)
+	: RecursiveFunction(action, term_manager, applicable_objects), initial_state_(&initial_state), action_id_(action_id), bindings_(&bindings)
+{
+	
+}
+
+bool BoundedRecursiveFunction::evaluate(const Term& term) const
+{
+	return execute(term, *initial_state_, action_id_, *bindings_);
+}
+
+/********************************
+ *
+ * RecursiveFunctionManager
+ *
+ *******************************/
+
+RecursiveFunctionManager::RecursiveFunctionManager()
+{
+	
+}
+	
+void RecursiveFunctionManager::addRecursiveFunction(const BoundedRecursiveFunction& function)
+{
+	functions_.push_back(&function);
+}
+	
+void RecursiveFunctionManager::evaluateObjects(std::map<const Object*, boost::dynamic_bitset<> >& result, const std::vector<const Object*>& objects) const
+{
+	for (unsigned int i = 0; i < objects.size(); i++)
+	{
+		const Object* object = objects[i];
+		
+		boost::dynamic_bitset<> bitset = evaluateObject(*object);
+		result[object] = bitset;
+	}
+}
+	
+boost::dynamic_bitset<> RecursiveFunctionManager::evaluateObject(const Object& object) const
+{
+	boost::dynamic_bitset<> bitset(functions_.size());
+	std::cout << "Evaluate: " << object << std::endl;
+	
+	for (unsigned int i = 0; i < functions_.size(); i++)
+	{
+		std::cout << "- " << *functions_[i] << " - ";
+		if (functions_[i]->evaluate(object))
+		{
+			std::cout << " YES!";
+			bitset[i] = 1;
+		}
+		else
+		{
+			std::cout << " NO!";
+			bitset[i] = 0;
+		}
+		std::cout << std::endl;
+	}
+	
+	return bitset;
+}
+
+
 	
 std::ostream& operator<<(std::ostream& os, const RecursiveFunction& recursive_function)
 {

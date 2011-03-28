@@ -620,8 +620,9 @@ bool DomainTransitionGraphNode::containsEmptyVariableDomain() const
 	return false;
 }
 
-void DomainTransitionGraphNode::removeUnsupportedTransitions()
+bool DomainTransitionGraphNode::removeUnsupportedTransitions()
 {
+	bool transition_removed = false;
 	for (std::vector<const Transition*>::reverse_iterator i = transitions_.rbegin(); i != transitions_.rend(); i++)
 	{
 		const Transition* transition = *i;
@@ -647,10 +648,13 @@ void DomainTransitionGraphNode::removeUnsupportedTransitions()
 				precondition->print(std::cout, dtg_->getBindings(), transition->getStep()->getStepId());
 				std::cout << std::endl;
 				removeTransition(**i);
+				transition_removed = true;
 				break;
 			}
 		}
 	}
+	
+	return transition_removed;
 }
 
 void DomainTransitionGraphNode::getPossibleActions(std::vector<const Action*>& possible_actions, const DomainTransitionGraphNode& dtg_node) const

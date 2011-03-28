@@ -11,7 +11,7 @@ namespace MyPOP {
 class Atom;
 class Action;
 class Bindings;
-class Object;
+class Term;
 class TermManager;
 
 namespace SAS_Plus {
@@ -63,7 +63,7 @@ public:
 	 * @param action_id The StepID for the given action determines the value of every term.
 	 * @return True if the function holds, false otherwise.
 	 */
-	bool execute(const Object& object, const std::vector<const Atom*>& initial_state, StepID action_id, const Bindings& bindings) const;
+	bool execute(const Term& term, const std::vector<const Atom*>& initial_state, StepID action_id, const Bindings& bindings) const;
 	
 	const std::vector<std::pair<const Atom*, InvariableIndex> >& getTerminationClause() const { return termination_clause; }
 	
@@ -76,7 +76,7 @@ private:
 	/**
 	 * Internally called by execute, contains a closed list, to make sure it does not loop.
 	 */
-	bool execute(std::set<const Object*>& closed_list, const Object& object, const std::vector<const Atom*>& initial_state, StepID action_id, const Bindings& bindings) const;
+	bool execute(std::set<const Term*>& closed_list, const Term& term, const std::vector<const Atom*>& initial_state, StepID action_id, const Bindings& bindings) const;
 	
 	/**
 	 * The predicates added to both clauses need to be transformed in such a way that the terms are equal to

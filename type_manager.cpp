@@ -213,7 +213,6 @@ Type* TypeManager::processType(const VAL::pddl_type& type)
 		Type* type_to_add = new Type(type.getName(), parent_type);
 		addManagableObject(type_to_add);
 		new_type = type_to_add;
-		//(*types_indexing_)[&type] = new_type;
 		types_mapping_[type.getName()] = new_type;
 		
 		// If the type is new add it to the parent type as subtype.

@@ -202,6 +202,7 @@ public:
 	 * Warning: Very expensive operation and should not be necessary during planning!
 	 */
 	void removeBindings(StepID step);
+	void removeBindings(StepID step, const Variable& variable);
 
 	/**
 	 * Check if two atoms can be unified. This function will call the function canUnify for every
@@ -276,6 +277,7 @@ public:
 	 */
 	void postProcessMerge(VariableDomain& lhs, const VariableDomain& rhs);
 
+	unsigned int getNr() const { return binding_mapping_.size(); }
 protected:
 	/**
 	 * The term manager.

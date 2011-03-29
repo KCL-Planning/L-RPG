@@ -83,60 +83,6 @@ bool BoundedAtom::isMutexWith(const BoundedAtom& other) const
 	return false;
 }
 
-/*bool BoundedAtom::isMutexWith(StepID id, const Atom& atom, InvariableIndex invariable_index, const Bindings& bindings) const
-{
-	if (property_ == NULL)
-	{
-//		std::cout << "[BoundedAtom::isMutexWith] No property state, can't test mutexes..." << std::endl;
-		return false;
-	}
-	
-	std::cout << "[BoundedAtom::isMutexWith] ";
-	print(std::cout, bindings);
-	std::cout << std::endl;
-	std::cout << "[BoundedAtom::isMutexWith] Test against: " << atom.getPredicate() << "[" << invariable_index << "]" << std::endl;
-	
-	// If the predicate is present in this bounded atom's property state it isn't mutex.
-	const std::vector<Property*>& lhs_properties = property_->getPropertyState().getProperties();
-	for (std::vector<Property*>::const_iterator ci = lhs_properties.begin(); ci != lhs_properties.end(); ci++)
-	{
-		const Property* property = *ci;
-///		std::cout << "[BoundedAtom::isMutexWith] LHS property: " << property->getPredicate().getName() << "[" << property->getIndex() << "]" << std::endl;
-		if (property->getPredicate().getName() == atom.getPredicate().getName() && property->getIndex() == invariable_index)
-		{
-			return false;
-		}
-	}
-
-	for (std::vector<const PropertyState*>::const_iterator ci = property_->getPropertyState().getPropertySpace().getPropertyStates().begin(); ci !=  property_->getPropertyState().getPropertySpace().getPropertyStates().end(); ci++)
-	{
-		const PropertyState* property_state = *ci;
-		const std::vector<Property*>& properties = property_state->getProperties();
-		if (property_state == &property_->getPropertyState())
-		{
-			continue;
-		}
-		
-		for (std::vector<Property*>::const_iterator ci = properties.begin(); ci != properties.end(); ci++)
-		{
-			const Property* property = *ci;
-			std::cout << "[BoundedAtom::isMutexWith] Check against: " << property->getPredicate().getName() << "[" << property->getIndex() << "]" << std::endl;
-			
-			std::cout << 
-			std::cout << *atom.getTerms()[invariable_index] << std::endl;
-			std::cout << *atom_->getTerms()[invariable_index] << std::endl;
-			
-			if (property->getPredicate().getName() == atom.getPredicate().getName() && property->getIndex() == invariable_index &&
-			    atom.getTerms()[invariable_index]->canUnify(id, *atom_->getTerms()[invariable_index], id_, bindings))
-			{
-				return true;
-			}
-		}
-	}
-	
-	return false;
-}*/
-
 bool BoundedAtom::isMutexWith(const Atom& atom, StepID step_id, const Bindings& bindings, InvariableIndex invariable_index) const
 {
 	if (property_ == NULL)
@@ -391,19 +337,19 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 		
 		dtg->addBalancedSet(*dtg_property_space, true);
 
-//		std::cout << " === DTG after adding all predicates === " << std::endl;
+//		std::cout << " === DTG after adding all predicates (" << dtg->getBindings().getNr() << ") === " << std::endl;
 //		std::cout << *dtg << std::endl;
 //		std::cout << " === END DTG === " << std::endl;
 		
 		dtg->establishTransitions();
 
-//		std::cout << " === DTG after adding all transitions === " << std::endl;
+//		std::cout << " === DTG after adding all transitions (" << dtg->getBindings().getNr() << ") === " << std::endl;
 //		std::cout << *dtg << std::endl;
 //		std::cout << " === END DTG === " << std::endl;
 
 		dtg->addObjects();
 
-//		std::cout << " === DTG after adding all objects === " << std::endl;
+//		std::cout << " === DTG after adding all objects (" << dtg->getBindings().getNr() << ") === " << std::endl;
 //		std::cout << *dtg << std::endl;
 //		std::cout << " === END DTG === " << std::endl;
 
@@ -787,12 +733,12 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 
 //	std::cout << " === End === " << std::endl;
 	
-//	std::cout << "FINAL RESULTS" << std::endl;
-//	std::cout << " === Result === " << std::endl;
-//	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
-//	{
-//		std::cout << **ci << std::endl;
-//	}
+	std::cout << "FINAL RESULTS" << std::endl;
+	std::cout << " === Result === " << std::endl;
+	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
+	{
+		std::cout << **ci << std::endl;
+	}
 }
 
 void DomainTransitionGraphManager::mergeDTGs()

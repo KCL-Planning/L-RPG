@@ -310,6 +310,11 @@ void VariableDomain::removeVariable(MyPOP::StepID step)
 	}
 }
 
+void Bindings::removeBindings(StepID step, const Variable& variable)
+{
+	assert (binding_mapping_.erase(std::make_pair(step, &variable)) != 0);
+}
+
 void VariableDomain::setObjects(std::vector<const Object*>& objects)
 {
 	domain_.clear();
@@ -668,7 +673,7 @@ void Bindings::postProcessMerge(VariableDomain& lhs_vd, const VariableDomain& rh
 	{
 		binding_mapping_[std::make_pair((*ci).first, (*ci).second)] = &lhs_vd;
 	}
-	
+
 	// Next we need to make sure that all references to unequal variables are restored as the original pointer
 	// might have changed due to the above merge.
 	for (std::vector<VariableDomain*>::iterator ci = variable_domains_.begin(); ci != variable_domains_.end(); ci++)

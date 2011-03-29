@@ -16,6 +16,7 @@ class Predicate;
 
 class Atom;
 class Action;
+class Bindings;
 class Variable;
 	
 namespace SAS_Plus {
@@ -143,11 +144,12 @@ private:
 	
 	static Transition* createSimpleTransition(const std::vector<BoundedAtom>& enablers, const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
 
-	
 	/**
 	 * Check if the variable domains of the bounded atom and the atom linked to this transition are shared.
 	 */
 	bool shareVariableDomains(const BoundedAtom& bounded_atom, const Atom& atom) const;
+	
+	static void cleanUpBindings(StepID new_action_step_id, const Action& action, Bindings& bindings);
 
 	// A transition is not to be created manualy.
 	Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map< const MyPOP::SAS_Plus::PropertySpace*, const MyPOP::Variable* >& action_invariables, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& all_precondition_mappings);

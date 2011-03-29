@@ -45,14 +45,19 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		}
 	}
 	
+	Transition* transition = NULL;
+	
 	if (contains_invariables)
 	{
-		return Transition::createTransition(enablers, action_step, from_node, to_node, initial_facts);
+		transition = Transition::createTransition(enablers, action_step, from_node, to_node, initial_facts);
 	}
 	else
 	{
-		return Transition::createSimpleTransition(enablers, action_step, from_node, to_node, initial_facts);
+		transition = Transition::createSimpleTransition(enablers, action_step, from_node, to_node, initial_facts);
 	}
+	
+	cleanUpBindings(action_step_id, action, bindings);
+	return transition;
 }
 
 Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& enablers, const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts)
@@ -376,6 +381,7 @@ Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& e
 //			std::cout << " couldn't bind with: ";
 //			added_effect->print(std::cout, bindings, new_action_step_id);
 //			std::cout << std::endl;
+			cleanUpBindings(new_action_step_id, action, bindings);
 			return NULL;
 		}
 	}
@@ -393,6 +399,7 @@ Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& e
 //			std::cout << " couldn't bind with: ";
 //			precondition->print(std::cout, bindings, new_action_step_id);
 //			std::cout << std::endl;
+			cleanUpBindings(new_action_step_id, action, bindings);
 			return NULL;
 		}
 	}
@@ -1356,6 +1363,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 							precondition->print(std::cout, bindings, action_step_id);
 							std::cout << std::endl;
 #endif
+							cleanUpBindings(new_action_step_id, action, bindings);
 							return NULL;
 						}
 					}
@@ -1379,6 +1387,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			added_effect->print(std::cout, bindings, new_action_step_id);
 			std::cout << std::endl;
 #endif
+			cleanUpBindings(new_action_step_id, action, bindings);
 			return NULL;
 		}
 	}
@@ -1398,6 +1407,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			precondition->print(std::cout, bindings, new_action_step_id);
 			std::cout << std::endl;
 #endif
+			cleanUpBindings(new_action_step_id, action, bindings);
 			return NULL;
 		}
 	}
@@ -1490,6 +1500,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 					std::cout << "Could not unify a persistent fact with the from_node." << std::endl;
 #endif
+					cleanUpBindings(new_action_step_id, action, bindings);
 					return NULL;
 				}
 
@@ -1531,6 +1542,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 				precondition->print(std::cout, bindings, new_action_step_id);
 				std::cout << " is not supported!" << std::endl;
 #endif
+				cleanUpBindings(new_action_step_id, action, bindings);
 				return NULL;
 			}
 		}
@@ -1707,9 +1719,9 @@ bool Transition::isPreconditionPersistent(const Atom& atom, InvariableIndex inde
 	{
 		const Atom* persistent_atom = (*ci).first;
 		InvariableIndex persistent_index = (*ci).second;
-		std::cout << "is (" << &atom << "){" << index << "} persistent with: ";
-		persistent_atom->print(std::cout, from_node_->getDTG().getBindings(), step_->getStepId());
-		std::cout << "(" << persistent_atom << "){" << persistent_index << "}?" << std::endl;
+//		std::cout << "is (" << &atom << "){" << index << "} persistent with: ";
+//		persistent_atom->print(std::cout, from_node_->getDTG().getBindings(), step_->getStepId());
+//		std::cout << "(" << persistent_atom << "){" << persistent_index << "}?" << std::endl;
 		
 		if (&atom == persistent_atom && persistent_index == index)
 		{
@@ -1743,6 +1755,14 @@ bool Transition::shareVariableDomains(const BoundedAtom& bounded_atom, const Ato
 	}
 
 	return true;
+}
+
+void Transition::cleanUpBindings(StepID new_action_step_id, const Action& action, Bindings& bindings)
+{
+	for (std::vector<const Variable*>::const_iterator ci = action.getVariables().begin(); ci != action.getVariables().end(); ci++)
+	{
+		bindings.removeBindings(new_action_step_id, **ci);
+	}
 }
 
 bool Utilities::TransitionToNodeEquals::operator()(const Transition* transition, const DomainTransitionGraphNode* dtg_node) const

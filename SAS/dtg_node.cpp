@@ -584,6 +584,11 @@ bool DomainTransitionGraphNode::removeTransition(const Transition& transition)
 		if (*i == &transition)
 		{
 			transitions_.erase(i);
+			for (std::vector<const Variable*>::const_iterator ci = transition.getStep()->getAction().getVariables().begin(); ci != transition.getStep()->getAction().getVariables().end(); ci++)
+			{
+				const Variable* variable = *ci;
+				dtg_->getBindings().removeBindings(transition.getStep()->getStepId(), *variable);
+			}
 			return true;
 		}
 	}
@@ -593,6 +598,18 @@ bool DomainTransitionGraphNode::removeTransition(const Transition& transition)
 
 void DomainTransitionGraphNode::removeTransitions(bool reset_cached_actions)
 {
+	// Remove all bindings as well!
+	for (std::vector<const Transition*>::iterator ci = transitions_.begin(); ci != transitions_.end(); ci++)
+	{
+		const Transition* transition = *ci;
+		StepID transition_id = transition->getStep()->getStepId();
+		
+		for (std::vector<const Variable*>::const_iterator ci = transition->getStep()->getAction().getVariables().begin(); ci != transition->getStep()->getAction().getVariables().end(); ci++)
+		{
+			const Variable* variable = *ci;
+			dtg_->getBindings().removeBindings(transition_id, *variable);
+		}
+	}
 	transitions_.clear();
 	
 	if (reset_cached_actions)

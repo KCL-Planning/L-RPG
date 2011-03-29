@@ -834,10 +834,7 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 
 void DomainTransitionGraph::reestablishTransitions()
 {
-//	std::cout << "=== Reestablish transitions for the DTG === " << std::endl << *this << std::endl;
-	/**
-	 * Only consider those transitions which were already part of the DTG node can be added.
-	 */
+//	std::cout << "=== ReestablishTransitions: === (" << bindings_->getNr() << ") " << std::endl << *this << std::endl;
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 	{
 		DomainTransitionGraphNode* from_node = *ci;
@@ -861,7 +858,6 @@ void DomainTransitionGraph::reestablishTransitions()
 			for (std::vector<const Action*>::const_iterator ci = possible_transitions.begin(); ci != possible_transitions.end(); ci++)
 			{
 				const Action* action = *ci;
-//				std::cout << *action << ", ";
 				std::vector<BoundedAtom>* enabler_dummy = new std::vector<BoundedAtom>();
 
 				Transition* transition = Transition::createTransition(*enabler_dummy, *action, *from_node, *to_node, *initial_facts_);
@@ -870,20 +866,17 @@ void DomainTransitionGraph::reestablishTransitions()
 					from_node->addTransition(*transition, false);
 				}
 			}
-			
-//			std::cout << std::endl;
 		}
 	}
 	
-//	std::cout << "=== Result: ===" << std::endl << *this << std::endl;
+//	std::cout << "=== Result: === (" << bindings_->getNr() << ") " << std::endl << *this << std::endl;
 }
 
 void DomainTransitionGraph::establishTransitions()
 {
-//	std::cout << "Establish transitions for: " << *this << std::endl;
+//	std::cout << "Establish transitions for: (" << bindings_->getNr() << ") " << *this << std::endl;
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 	{
-		//assert ((*ci)->getTransitions().empty());
 		(*ci)->removeTransitions(true);
 	}
 	
@@ -895,6 +888,7 @@ void DomainTransitionGraph::establishTransitions()
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 		{
 			DomainTransitionGraphNode* from_node = *ci;
+
 			for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 			{
 				DomainTransitionGraphNode* to_node = *ci;
@@ -909,9 +903,8 @@ void DomainTransitionGraph::establishTransitions()
 		}
 	}
 	
-//	std::cout << "=== Result: ===" << std::endl << *this << std::endl;
+//	std::cout << "=== Result: === (" << bindings_->getNr() << ") " << std::endl << *this << std::endl;
 }
-
 
 bool DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* >& split_graphs)
 {

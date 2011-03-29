@@ -56,7 +56,13 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		transition = Transition::createSimpleTransition(enablers, action_step, from_node, to_node, initial_facts);
 	}
 	
-	cleanUpBindings(action_step_id, action, bindings);
+	if (transition == NULL)
+	{
+		for (std::vector<const Variable*>::const_iterator ci = action.getVariables().begin(); ci != action.getVariables().end(); ci++)
+		{
+			bindings.removeBindings(action_step_id, **ci);
+		}
+	}
 	return transition;
 }
 
@@ -364,24 +370,19 @@ Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& e
 	/**
 	 * Start making the actual bindings!
 	 */
-	StepID new_action_step_id = bindings.createVariableDomains(action);
-	StepPtr new_action_step(new Step(new_action_step_id, action));
-	
-	
 //	std::cout << "[Transition::createTransition] Unify the effects!" << std::endl;
 	for (std::vector<std::pair<const Atom*, const BoundedAtom*> >::const_iterator ci = add_effects_to_to_node_bindings.begin(); ci != add_effects_to_to_node_bindings.end(); ci++)
 	{
 		const Atom* added_effect = (*ci).first;
 		const BoundedAtom* to_node_atom = (*ci).second;
 		
-		if (!bindings.unify(*added_effect, new_action_step_id, to_node_atom->getAtom(), to_node_atom->getId()))
+		if (!bindings.unify(*added_effect, action_step_id, to_node_atom->getAtom(), to_node_atom->getId()))
 		{
 //			std::cout << "[Transition::createTransition] Could not perform the actual bindings on effects!" << std::endl;
 //			to_node_atom->print(std::cout, bindings);
 //			std::cout << " couldn't bind with: ";
 //			added_effect->print(std::cout, bindings, new_action_step_id);
 //			std::cout << std::endl;
-			cleanUpBindings(new_action_step_id, action, bindings);
 			return NULL;
 		}
 	}
@@ -392,14 +393,13 @@ Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& e
 		const Atom* precondition = (*ci).first;
 		const BoundedAtom* from_node_atom = (*ci).second;
 		
-		if (!bindings.unify(*precondition, new_action_step_id, from_node_atom->getAtom(), from_node_atom->getId()))
+		if (!bindings.unify(*precondition, action_step_id, from_node_atom->getAtom(), from_node_atom->getId()))
 		{
 //			std::cout << "[Transition::createTransition] Could not perform the actual bindings on preconditions!" << std::endl;
 //			from_node_atom->print(std::cout, bindings);
 //			std::cout << " couldn't bind with: ";
 //			precondition->print(std::cout, bindings, new_action_step_id);
 //			std::cout << std::endl;
-			cleanUpBindings(new_action_step_id, action, bindings);
 			return NULL;
 		}
 	}
@@ -423,7 +423,7 @@ Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& e
 */
 	std::map<const PropertySpace*, const Variable*>* property_space_action_invariables = new std::map<const PropertySpace*, const Variable*>();
 	
-	return new Transition(enablers, new_action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, persistent_preconditions, *property_space_action_invariables, all_precondition_mappings);
+	return new Transition(enablers, action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, persistent_preconditions, *property_space_action_invariables, all_precondition_mappings);
 }
 
 Transition* Transition::createTransition(const std::vector<BoundedAtom>& enablers, const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts)
@@ -1291,10 +1291,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	/**
 	 * Start making the actual bindings!
 	 */
-	StepID new_action_step_id = bindings.createVariableDomains(action);
-	StepPtr new_action_step(new Step(new_action_step_id, action));
-	
-	
 	// TEST...
 	const PropertySpace* invariable_property_space = NULL;
 	const std::vector<const Object*>* invariable_property_space_action_variable = NULL;
@@ -1354,7 +1350,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 //						precondition->print(std::cout, bindings, action_step_id);
 //						std::cout << std::endl;
 
-						if (!bindings.unify(*precondition, new_action_step_id, persistent_fact->getAtom(), persistent_fact->getId()))
+						if (!bindings.unify(*precondition, action_step_id, persistent_fact->getAtom(), persistent_fact->getId()))
 						{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 							std::cout << "Could not bind the optional precondition: " << std::endl;
@@ -1363,7 +1359,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 							precondition->print(std::cout, bindings, action_step_id);
 							std::cout << std::endl;
 #endif
-							cleanUpBindings(new_action_step_id, action, bindings);
 							return NULL;
 						}
 					}
@@ -1378,7 +1373,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		const Atom* added_effect = (*ci).first;
 		const BoundedAtom* to_node_atom = (*ci).second;
 		
-		if (!bindings.unify(*added_effect, new_action_step_id, to_node_atom->getAtom(), to_node_atom->getId()))
+		if (!bindings.unify(*added_effect, action_step_id, to_node_atom->getAtom(), to_node_atom->getId()))
 		{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 			std::cout << "[Transition::createTransition] Could not perform the actual bindings on effects!" << std::endl;
@@ -1387,7 +1382,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			added_effect->print(std::cout, bindings, new_action_step_id);
 			std::cout << std::endl;
 #endif
-			cleanUpBindings(new_action_step_id, action, bindings);
 			return NULL;
 		}
 	}
@@ -1398,7 +1392,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		const Atom* precondition = (*ci).first;
 		const BoundedAtom* from_node_atom = (*ci).second;
 		
-		if (!bindings.unify(*precondition, new_action_step_id, from_node_atom->getAtom(), from_node_atom->getId()))
+		if (!bindings.unify(*precondition, action_step_id, from_node_atom->getAtom(), from_node_atom->getId()))
 		{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 			std::cout << "[Transition::createTransition] Could not perform the actual bindings on preconditions!" << std::endl;
@@ -1407,7 +1401,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			precondition->print(std::cout, bindings, new_action_step_id);
 			std::cout << std::endl;
 #endif
-			cleanUpBindings(new_action_step_id, action, bindings);
 			return NULL;
 		}
 	}
@@ -1443,7 +1436,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			const Atom* precondition = *ci;
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 			std::cout << " - v.s. ";
-			precondition->print(std::cout, bindings, new_action_step_id);
+			precondition->print(std::cout, bindings, action_step_id);
 			std::cout << " -=- invariable = " << invariable_term << std::endl;
 #endif
 			
@@ -1484,23 +1477,22 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 				continue;
 			}
 			
-			if (bindings.canUnify(*precondition, new_action_step_id, from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId()))
+			if (bindings.canUnify(*precondition, action_step_id, from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId()))
 ///		&& &precondition->getTerms()[from_node.getIndex(*from_node_persistent_fact)]->getDomain(action_step_id, bindings) == invariable_term)
 			{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 				std::cout << "Unify persistent fact: ";
 				from_node_persistent_fact->print(std::cout, bindings);
 				std::cout << " with the precondition ";
-				precondition->print(std::cout, bindings, new_action_step_id);
+				precondition->print(std::cout, bindings, action_step_id);
 				std::cout << std::endl;
 #endif
 				
-				if (!bindings.unify(*precondition, new_action_step_id, from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId()))
+				if (!bindings.unify(*precondition, action_step_id, from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId()))
 				{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 					std::cout << "Could not unify a persistent fact with the from_node." << std::endl;
 #endif
-					cleanUpBindings(new_action_step_id, action, bindings);
 					return NULL;
 				}
 
@@ -1528,7 +1520,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
 			{
 				const Atom* initial_fact = *ci;
-				if (bindings.canUnify(*initial_fact, Step::INITIAL_STEP, *precondition, new_action_step_id))
+				if (bindings.canUnify(*initial_fact, Step::INITIAL_STEP, *precondition, action_step_id))
 				{
 					is_supported = true;
 					break;
@@ -1539,10 +1531,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 				std::cout << "[Transition::createTransition] The static precondition: ";
-				precondition->print(std::cout, bindings, new_action_step_id);
+				precondition->print(std::cout, bindings, action_step_id);
 				std::cout << " is not supported!" << std::endl;
 #endif
-				cleanUpBindings(new_action_step_id, action, bindings);
 				return NULL;
 			}
 		}
@@ -1615,10 +1606,10 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	std::cout << " to " << std::endl;
 	std::cout << to_node << std::endl;
 	std::cout << "Action: ";
-	new_action_step->getAction().print(std::cout, from_node.getDTG().getBindings(), new_action_step->getStepId());
+	action_step->getAction().print(std::cout, from_node.getDTG().getBindings(), action_step->getStepId());
 	std::cout << std::endl;
 #endif
-	return new Transition(enablers, new_action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, persistent_preconditions, *property_space_action_invariables, all_precondition_mappings);
+	return new Transition(enablers, action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, persistent_preconditions, *property_space_action_invariables, all_precondition_mappings);
 }
 
 Transition::Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map<const PropertySpace*, const Variable*>& action_invariables, const std::vector<std::pair<const Atom*, InvariableIndex> >& all_precondition_mappings)
@@ -1755,14 +1746,6 @@ bool Transition::shareVariableDomains(const BoundedAtom& bounded_atom, const Ato
 	}
 
 	return true;
-}
-
-void Transition::cleanUpBindings(StepID new_action_step_id, const Action& action, Bindings& bindings)
-{
-	for (std::vector<const Variable*>::const_iterator ci = action.getVariables().begin(); ci != action.getVariables().end(); ci++)
-	{
-		bindings.removeBindings(new_action_step_id, **ci);
-	}
 }
 
 bool Utilities::TransitionToNodeEquals::operator()(const Transition* transition, const DomainTransitionGraphNode* dtg_node) const

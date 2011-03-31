@@ -234,7 +234,6 @@ bool VariableDomain::makeUnequalTo(VariableDomain& other_domain)
 
 void VariableDomain::getIntersection(std::vector<const Object*>& intersection, const std::vector<const Object*>& other_domain) const
 {
-	//for (std::vector<const Object*>::const_iterator ci = other.domain_.begin(); ci != other.domain_.end(); ci++)
 	for (std::vector<const Object*>::const_iterator ci = other_domain.begin(); ci != other_domain.end(); ci++)
 	{
 		for (std::vector<const Object*>::const_iterator ci2 = domain_.begin(); ci2 != domain_.end(); ci2++)
@@ -673,7 +672,7 @@ void Bindings::postProcessMerge(VariableDomain& lhs_vd, const VariableDomain& rh
 	{
 		binding_mapping_[std::make_pair((*ci).first, (*ci).second)] = &lhs_vd;
 	}
-
+/*
 	// Next we need to make sure that all references to unequal variables are restored as the original pointer
 	// might have changed due to the above merge.
 	for (std::vector<VariableDomain*>::iterator ci = variable_domains_.begin(); ci != variable_domains_.end(); ci++)
@@ -689,6 +688,7 @@ void Bindings::postProcessMerge(VariableDomain& lhs_vd, const VariableDomain& rh
 			}
 		}
 	}
+*/
 }
 
 StepID Bindings::getNextStep(StepID step_id)

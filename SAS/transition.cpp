@@ -890,26 +890,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 				return NULL;
 			}
 		}
-		/*
-		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
-		{
-			const Atom* precondition = *ci;
-			if (bindings.canUnify(*precondition, action_step_id, to_persistent_atom->getAtom(), to_persistent_atom->getId()))
-			{
-				if (property_space_invariables[&to_persistent_atom->getProperty()->getPropertyState().getPropertySpace()] == NULL &&
-				    to_node.getIndex(*to_persistent_atom) == NO_INVARIABLE_INDEX)
-				{
-					const std::vector<const Object*>& precondition_invariable_term = precondition->getTerms()[to_node.getIndex(*to_persistent_atom)]->getDomain(action_step_id, bindings);
-					std::cout << "Add the persistent node: ";
-					to_persistent_atom->print(std::cout, bindings);
-					std::cout << " to the invariable list..." << std::endl;
-					property_space_invariables[&to_persistent_atom->getProperty()->getPropertyState().getPropertySpace()] = &precondition_invariable_term;
-				}
-			}
-		}*/
 	}
-	
-	
 	
 	/**
 	 * After we have found all the invariable of each property space, check there are no mutex preconditions or effects.
@@ -945,7 +926,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 //			std::cout << std::endl;
 			
 			// Make sure the precondition is linked to the invariable.
-			///bool precondition_is_relevant = false;
 			const Term* invariable_precondition_term = NULL;
 			for (std::map<const PropertySpace*, const std::vector<const Object*>*>::const_iterator ci = property_space_invariables.begin(); ci != property_space_invariables.end(); ci++)
 			{
@@ -1049,7 +1029,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 //			std::cout << std::endl;
 
 			// Make sure the precondition is linked to the invariable.
-			///bool effect_is_relevant = false;
 			const Term* invariable_effect_term = NULL;
 			for (std::map<const PropertySpace*, const std::vector<const Object*>*>::const_iterator ci = property_space_invariables.begin(); ci != property_space_invariables.end(); ci++)
 			{
@@ -1291,7 +1270,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	/**
 	 * Start making the actual bindings!
 	 */
-	// TEST...
 	const PropertySpace* invariable_property_space = NULL;
 	const std::vector<const Object*>* invariable_property_space_action_variable = NULL;
 	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
@@ -1478,7 +1456,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			}
 			
 			if (bindings.canUnify(*precondition, action_step_id, from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId()))
-///		&& &precondition->getTerms()[from_node.getIndex(*from_node_persistent_fact)]->getDomain(action_step_id, bindings) == invariable_term)
 			{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 				std::cout << "Unify persistent fact: ";

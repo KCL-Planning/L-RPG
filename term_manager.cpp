@@ -32,6 +32,25 @@ bool Term::canUnify(StepID lhs_id, const Term& rhs, StepID rhs_id, const Binding
 ///	std::cout << *this << "(" << lhs_id << ") unify with *****(" << rhs_id << ")" << std::endl;
 ///	std::cout << *this << "(" << lhs_id << ") unify with " << rhs << "(" << rhs_id << ")" << std::endl;
 	
+	const std::vector<const Object*>& lhs_domain = getDomain(lhs_id, lhs_bindings);
+	const std::vector<const Object*>& rhs_domain = rhs.getDomain(rhs_id, *rhs_bindings);
+	
+	for (std::vector<const Object*>::const_iterator ci = lhs_domain.begin(); ci != lhs_domain.end(); ci++)
+	{
+		const Object* lhs_object = *ci;
+		for (std::vector<const Object*>::const_iterator ci = rhs_domain.begin(); ci != rhs_domain.end(); ci++)
+		{
+			const Object* rhs_object = *ci;
+			
+			if (lhs_object == rhs_object)
+			{
+				return true;
+			}
+		}
+	}
+	
+	return false;
+/*
 	std::vector<const Object*> lhs_domain = getDomain(lhs_id, lhs_bindings);
 	const std::vector<const Object*>& rhs_domain = rhs.getDomain(rhs_id, *rhs_bindings);
 	lhs_domain.insert(lhs_domain.end(), rhs_domain.begin(), rhs_domain.end());
@@ -41,6 +60,7 @@ bool Term::canUnify(StepID lhs_id, const Term& rhs, StepID rhs_id, const Binding
 	// to guarantee that the two terms can unify. This is because we are guaranteed that a domain cannot
 	// contain the same object twice.
 	return std::unique(lhs_domain.begin(), lhs_domain.end()) != lhs_domain.end();
+*/
 }
 
 bool Term::contains(const Object& object, StepID lhs_id, const Bindings& bindings) const
@@ -285,9 +305,11 @@ bool Variable::unifyWith(StepID lhs_id, const Variable& variable, StepID rhs_id,
 */
 	VariableDomain& lhs_vd = bindings.getNonConstVariableDomain(lhs_id, *this);
 	VariableDomain& rhs_vd = bindings.getNonConstVariableDomain(rhs_id, variable);
-	/*bool result = */lhs_vd.makeEqualTo(rhs_vd);
 	
-	bindings.postProcessMerge(lhs_vd, rhs_vd);
+	if (lhs_vd.makeEqualTo(rhs_vd))
+	{
+		bindings.postProcessMerge(lhs_vd, rhs_vd);
+	}
 	
 	//std::cout << "Result: " << result << std::endl;
 	

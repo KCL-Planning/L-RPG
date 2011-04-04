@@ -250,7 +250,6 @@ public:
 	 */
 	void merge(const DomainTransitionGraph& dtg);
 
-	
 private:
 	
 	const DomainTransitionGraphManager* dtg_manager_;

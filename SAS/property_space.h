@@ -23,8 +23,6 @@ class PropertyState
 public:
 	PropertyState(const PropertySpace& property_space, Property& property);
 	
-	//PropertyState(const PropertySpace& property_space, const std::vector<const Property*>& properties);
-	
 	PropertyState(const PropertySpace& property_space, const std::vector<std::pair<const Predicate*, InvariableIndex> >& properties);
 	
 	bool contains(InvariableIndex index, const Predicate& predicate) const;
@@ -77,6 +75,7 @@ private:
 	std::vector<const PropertyState*> property_states_;
 };
 
+std::ostream& operator<<(std::ostream& os, const Property& property);
 std::ostream& operator<<(std::ostream& os, const PropertySpace& property_space);
 std::ostream& operator<<(std::ostream& os, const PropertyState& property_state);
 

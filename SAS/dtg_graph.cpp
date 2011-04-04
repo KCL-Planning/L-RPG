@@ -72,18 +72,6 @@ bool DTGBindings::canUnifyDTGNodes(const MyPOP::SAS_Plus::DomainTransitionGraphN
 	return true;
 }
 
-std::ostream& operator<<(std::ostream& os, const PropertyState& property_state)
-{
-	os << "property state: ";
-	for (std::vector<Property*>::const_iterator ci = property_state.getProperties().begin(); ci != property_state.getProperties().end(); ci++)
-	{
-		os << (*ci)->getPredicate() << "(" << (*ci)->getIndex() << "), ";
-	}
-	os << std::endl;
-	return os;
-}
-
-
 ///DomainTransitionGraph::DomainTransitionGraph(const DomainTransitionGraphManager& dtg_manager, PropertySpace& property_space, const TypeManager& type_manager, const ActionManager& action_manager, const PredicateManager& predicate_manager, const DTGBindings& bindings, const std::vector<const Atom*>& initial_facts)
 DomainTransitionGraph::DomainTransitionGraph(const DomainTransitionGraphManager& dtg_manager, const TypeManager& type_manager, const ActionManager& action_manager, const PredicateManager& predicate_manager, const DTGBindings& bindings, const std::vector<const Atom*>& initial_facts)
 	: dtg_manager_(&dtg_manager), dtg_term_manager_(new TermManager(type_manager)), action_manager_(&action_manager), predicate_manager_(&predicate_manager), bindings_(new DTGBindings(bindings)), initial_facts_(&initial_facts), type_(NULL)
@@ -189,7 +177,6 @@ bool DomainTransitionGraph::areMutex(const DomainTransitionGraphNode& dtg_node1,
 //			InvariableIndex index2 = dtg_node2.getIndex(*bounded_atom2);
 
 			// Check if these are mutal exclusive.
-			///if (areMutex(bounded_atom1->getAtom().getPredicate(), index1, bounded_atom2->getAtom().getPredicate(), index2))
 			if (bounded_atom1->isMutexWith(*bounded_atom2))
 			{
 				return true;
@@ -212,12 +199,9 @@ void DomainTransitionGraph::addBalancedSet(const PropertySpace& property_space, 
 	 * Adding a balanced set, we need to update the type of the invariable to the most specific subtype.
 	 */
 	bool type_changed = false;
-///	for (std::vector<PropertyState*>::const_iterator ci = predicates_to_add.begin(); ci != predicates_to_add.end(); ci++)
 	for (std::vector<const PropertyState*>::const_iterator ci = property_space.getPropertyStates().begin(); ci != property_space.getPropertyStates().end(); ci++)
 	{
 		const PropertyState* property_state = *ci;
-		
-///		property_space_->addPropertyState(*property_state);
 		
 		for (std::vector<Property*>::const_iterator ci = property_state->getProperties().begin(); ci != property_state->getProperties().end(); ci++)
 		{
@@ -852,12 +836,13 @@ void DomainTransitionGraph::reestablishTransitions()
 //			from_node->print(std::cout);
 //			std::cout << " to ";
 //			to_node->print(std::cout);
-//			std::cout << " have the following possible actions: ";
+//			std::cout << " have the following possible actions: " << std::endl;
 
 			// Otherwise try all these transitiosn.
 			for (std::vector<const Action*>::const_iterator ci = possible_transitions.begin(); ci != possible_transitions.end(); ci++)
 			{
 				const Action* action = *ci;
+//				std::cout << "- " << *action << std::endl;
 				std::vector<BoundedAtom>* enabler_dummy = new std::vector<BoundedAtom>();
 
 				Transition* transition = Transition::createTransition(*enabler_dummy, *action, *from_node, *to_node, *initial_facts_);

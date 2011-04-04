@@ -45,12 +45,12 @@ const Atom* RecursiveFunction::mapAtomTerms(const Atom& atom, StepID action_id, 
 			if (atom_term->isTheSameAs(action_id, *action_variable, action_id, bindings))
 			{
 				new_terms->push_back(action_variable);
-				std::cout << "%" << *action_variable;
+//				std::cout << "%" << *action_variable;
 			
-				if (ci != action_->getVariables().end() - 1)
-				{
-					std::cout << ", ";
-				}
+//				if (ci != action_->getVariables().end() - 1)
+//				{
+//					std::cout << ", ";
+//				}
 				break;
 			}
 		}

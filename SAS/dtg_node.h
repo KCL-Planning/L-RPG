@@ -190,7 +190,6 @@ private:
 	std::map<const BoundedAtom*, InvariableIndex> indexes_;
 	
 	std::vector<unsigned int> unique_ids_;
-	//std::map<unsigned int, std::vector<const Action* >* > possible_actions_;
 	std::multimap<unsigned int, const Action*> possible_actions_;
 };
 

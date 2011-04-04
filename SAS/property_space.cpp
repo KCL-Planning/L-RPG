@@ -16,12 +16,6 @@ PropertyState::PropertyState(const PropertySpace& property_space, Property& prop
 	property_.push_back(&property);
 }
 
-/*PropertyState::PropertyState(const PropertySpace& property_space, const std::vector<const Property*>& properties)
-	: property_space_(&property_space)
-{
-	property_.insert(property_.end(), properties.begin(), properties.end());
-}*/
-
 PropertyState::PropertyState(const PropertySpace& property_space, const std::vector<std::pair<const Predicate*, InvariableIndex> >& properties)
 	: property_space_(&property_space)
 {
@@ -54,6 +48,16 @@ const PropertySpace& PropertyState::getPropertySpace() const
 	return *property_space_;
 }
 
+std::ostream& operator<<(std::ostream& os, const PropertyState& property_state)
+{
+	os << "property state: ";
+	for (std::vector<Property*>::const_iterator ci = property_state.getProperties().begin(); ci != property_state.getProperties().end(); ci++)
+	{
+		os << **ci << ", ";
+	}
+	os << std::endl;
+	return os;
+}
 
 /*****************************
  * Property.
@@ -130,6 +134,12 @@ bool Property::isMutexWith(const Property* property) const
 	}
 	
 	return false;
+}
+
+std::ostream& operator<<(std::ostream& os, const Property& property)
+{
+	os << property.getPredicate() << "(" << property.getIndex() << ")";
+	return os;
 }
 
 /*****************************

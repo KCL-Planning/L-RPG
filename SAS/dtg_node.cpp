@@ -18,6 +18,8 @@
 #include "../bindings_propagator.h"
 #include "../plan.h"
 
+///#define MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_DEBUG
+
 namespace MyPOP {
 
 namespace SAS_Plus {
@@ -256,8 +258,6 @@ void DomainTransitionGraphNode::addAtom(BoundedAtom* bounded_atom, InvariableInd
 
 bool DomainTransitionGraphNode::merge(const DomainTransitionGraphNode& other)
 {
-//	dtg_->mergePredicates(other.getDTG());
-	
 	// Copy all atoms from the given node to this one.
 	bool merged = false;
 	for (std::vector<BoundedAtom*>::const_iterator ci = other.getAtoms().begin(); ci != other.getAtoms().end(); ci++)
@@ -279,8 +279,7 @@ bool DomainTransitionGraphNode::merge(const DomainTransitionGraphNode& other)
 				std::cout << " already exists: ";
 				bounded_atom->print(std::cout, getDTG().getBindings());
 				std::cout << std::endl;
-///				already_present = true;
-
+				already_present = true;
 				break;
 			}
 		}
@@ -331,13 +330,18 @@ bool DomainTransitionGraphNode::merge(const DomainTransitionGraphNode& other)
 		possible_actions_.insert(other.possible_actions_.begin(), other.possible_actions_.end());
 	}
 	
-	// TEST
+	/**
+	 * Update the property state to include the new propertise added.
+	 */
+	
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_DEBUG
 	// Make sure all the indexes are accounted for.
 	for (std::vector<BoundedAtom*>::const_iterator ci = getAtoms().begin(); ci != getAtoms().end(); ci++)
 	{
 		BoundedAtom* bounded_atom = *ci;
 		getIndex(*bounded_atom);
 	}
+#endif
 	
 	return merged;
 }
@@ -738,7 +742,7 @@ std::ostream& operator<<(std::ostream& os, const DomainTransitionGraphNode& node
 		os << *ci << "  ";
 	}
 	os << "%";*/
-	
+
 	for (std::vector<BoundedAtom*>::const_iterator ci = node.getAtoms().begin(); ci != node.getAtoms().end(); ci++)
 	{
 		(*ci)->getAtom().print(os, node.getDTG().getBindings(), (*ci)->getId());

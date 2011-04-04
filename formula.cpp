@@ -48,10 +48,10 @@ void Formula::print(std::ostream& os, const Bindings& bindings, StepID step_id) 
 Atom::Atom(const Predicate& predicate, const std::vector<const Term*>& terms, bool is_negative)
 	: Formula(is_negative), predicate_(&predicate), terms_(&terms)
 {
-	for (unsigned int i = 0; i < terms.size(); i++)
-	{
-		assert (terms[i]->getType() == predicate.getTypes()[i]);
-	}
+//	for (unsigned int i = 0; i < terms.size(); i++)
+//	{
+//		assert (terms[i]->getType() == predicate.getTypes()[i]);
+//	}
 }
 
 Atom::~Atom()
@@ -101,7 +101,7 @@ void Atom::print(std::ostream& os, const Bindings& bindings, StepID step_id) con
 	{
 		const Term* term = *ci;
 		term->print(os, bindings, step_id);
-///		os << "%" << &(term->getDomain(step_id, bindings)) << "%";
+		os << "%" << &(term->getDomain(step_id, bindings)) << "%";
 		if (ci + 1 != terms_->end())
 			os << " ";
 	}

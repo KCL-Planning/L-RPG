@@ -12,6 +12,7 @@
 #include "../term_manager.h"
 
 ///#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+///#define ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 
 namespace MyPOP {
 	
@@ -938,16 +939,24 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 //						std::cout << "The term: ";
 //						term->print(std::cout, bindings, action_step_id);
 //						std::cout << " is relevant!" << std::endl;
+
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 						if (invariable_precondition_term != NULL)
 						{
 							assert (term == invariable_precondition_term);
 						}
+#endif
 						invariable_precondition_term = term;
-///						break;
+
+#ifndef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
+						break;
+#endif
 					}
 				}
-				
-///				if (invariable_precondition_term != NULL) break;
+
+#ifndef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
+				if (invariable_precondition_term != NULL) break;
+#endif
 			}
 			
 			if (invariable_precondition_term == NULL)
@@ -1041,17 +1050,22 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 //						std::cout << "The term: ";
 //						term->print(std::cout, bindings, action_step_id);
 //						std::cout << " is relevant!" << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 						if (invariable_effect_term != NULL)
 						{
 							assert (invariable_effect_term == term);
 						}
+#endif
 						invariable_effect_term = term;
-						///effect_is_relevant = true;
-						///break;
+
+#ifndef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
+						break;
+#endif
 					}
 				}
-				
-///				if (invariable_effect_term != NULL) break;
+#ifndef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
+				if (invariable_effect_term != NULL) break;
+#endif
 			}
 			
 			if (invariable_effect_term == NULL)
@@ -1357,7 +1371,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			std::cout << "[Transition::createTransition] Could not perform the actual bindings on effects!" << std::endl;
 			to_node_atom->print(std::cout, bindings);
 			std::cout << " couldn't bind with: ";
-			added_effect->print(std::cout, bindings, new_action_step_id);
+			added_effect->print(std::cout, bindings, action_step_id);
 			std::cout << std::endl;
 #endif
 			return NULL;
@@ -1376,7 +1390,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			std::cout << "[Transition::createTransition] Could not perform the actual bindings on preconditions!" << std::endl;
 			from_node_atom->print(std::cout, bindings);
 			std::cout << " couldn't bind with: ";
-			precondition->print(std::cout, bindings, new_action_step_id);
+			precondition->print(std::cout, bindings, action_step_id);
 			std::cout << std::endl;
 #endif
 			return NULL;
@@ -1391,6 +1405,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		const BoundedAtom* from_node_persistent_fact = (*ci).first;
 
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+
 		const PropertySpace& property_space = from_node_persistent_fact->getProperty()->getPropertyState().getPropertySpace();
 		const std::vector<const Object*>* invariable_term = property_space_invariables[&property_space];
 		if (invariable_term == NULL)
@@ -1400,7 +1415,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			std::cout << "[" << from_node.getIndex(*from_node_persistent_fact) << "]" << std::endl;
 		}
 #endif
-
 		InvariableIndex invariable_index = from_node.getIndex(*from_node_persistent_fact);
 
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
@@ -1430,13 +1444,22 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 					if (&term->getDomain(action_step_id, bindings) == domain)
 					{
 //						std::cout << "Possible state variable to merge with: " << *property_space << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 						if (invariable_precondition_term != NULL)
 						{
 							assert (term == invariable_precondition_term);
 						}
+#endif
 						invariable_precondition_term = term;
+						
+#ifndef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
+						break;
+#endif
 					}
 				}
+#ifndef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
+				if (invariable_precondition_term != NULL) break;
+#endif
 			}
 			
 			if (invariable_precondition_term == NULL)
@@ -1444,7 +1467,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 				std::cout << "Persistent does not contain the invariable, move on!" << std::endl;
 #endif
-				continue;
+///				continue;
 			}
 			
 			if (precondition->getTerms()[invariable_index] != invariable_precondition_term)
@@ -1452,7 +1475,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 				std::cout << "Invariables don't match, move on!" << std::endl;
 #endif
-				continue;
+///				continue;
 			}
 			
 			if (bindings.canUnify(*precondition, action_step_id, from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId()))

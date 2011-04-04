@@ -291,6 +291,11 @@ bool Variable::unifyWith(StepID lhs_id, const Object& object, Bindings& bindings
 
 bool Variable::unifyWith(StepID lhs_id, const Variable& variable, StepID rhs_id, Bindings& bindings) const
 {
+	if (isTheSameAs(lhs_id, variable, rhs_id, bindings))
+	{
+		return true;
+	}
+
 	if (!canUnify(lhs_id, variable, rhs_id, bindings))
 //	if (!bindings.canUnify(*this, lhs_id, variable, rhs_id))
 	{

@@ -12,6 +12,8 @@
 #include "type_manager.h"
 #include "action_manager.h"
 
+///#define MYPOP_VARIABLE_DOMAIN_DEBUG
+
 namespace MyPOP {
 
 /*************************
@@ -83,10 +85,9 @@ bool VariableDomain::makeEqualTo(const VariableDomain& variable_domain)
 	{
 		return false;
 	}
-	if (Logging::verbosity <= Logging::DEBUG)
-	{
-		std::cout << "Restrict " << *this << " to " << variable_domain << std::endl;	
-	}
+#ifdef MYPOP_VARIABLE_DOMAIN_DEBUG
+	std::cout << "Restrict " << *this << " to " << variable_domain << std::endl;	
+#endif
 	
 	// Make sure we do not do the restriction if it is already in place. To do this, we will compare 
 	// a step, variable pair from the given variable domain agains all those of this variable domain.
@@ -96,17 +97,17 @@ bool VariableDomain::makeEqualTo(const VariableDomain& variable_domain)
 	bool already_included = false;
 	for (std::vector<std::pair<StepID, const Variable*> >::const_iterator ci = equal_variables_.begin(); ci != equal_variables_.end(); ci++)
 	{
-		if (Logging::verbosity <= Logging::DEBUG)
-		{
-			std::cout << "Compare: " << (*ci).first << " == " << step << " && " << *(*ci).second << " == " << variable << std::endl;
-		}
+		StepID equal_variable_step = (*ci).first;
+		const Variable* equal_variable = (*ci).second;
+#ifdef MYPOP_VARIABLE_DOMAIN_DEBUG
+		std::cout << "Compare: " << (*ci).first << " == " << step << " && " << *(*ci).second << " == " << variable << std::endl;
+#endif
 		
-		if ((*ci).first == step && (*ci).second == &variable)
+		if (equal_variable_step == step && equal_variable == &variable)
 		{
-			if (Logging::verbosity <= Logging::DEBUG)
-			{
-				std::cout << "EQUAL!" << std::endl;
-			}
+#ifdef MYPOP_VARIABLE_DOMAIN_DEBUG
+			std::cout << "EQUAL!" << std::endl;
+#endif
 			already_included = true;
 			break;
 		}
@@ -126,9 +127,14 @@ bool VariableDomain::makeEqualTo(const VariableDomain& variable_domain)
 	for (std::vector<std::pair<StepID, const Variable*> >::const_iterator ci = variable_domain.equal_variables_.begin(); ci != variable_domain.equal_variables_.end(); ci++)
 	{
 		bool contains_relationship = false;
+		StepID equal_variable_step = (*ci).first;
+		const Variable* equal_variable = (*ci).second;
+		
 		for (std::vector<std::pair<StepID, const Variable*> >::const_iterator ci2 = equal_variables_.begin(); ci2 != equal_variables_.end(); ci2++)
 		{
-			if ((*ci).first == (*ci2).first && (*ci).second == (*ci2).second)
+			StepID equal_variable_step2 = (*ci2).first;
+			const Variable* equal_variable2 = (*ci2).second;
+			if (equal_variable_step == equal_variable_step2 && equal_variable == equal_variable2)
 			{
 				contains_relationship = true;
 				break;
@@ -147,10 +153,9 @@ bool VariableDomain::makeEqualTo(const VariableDomain& variable_domain)
 		makeUnequalTo(**ci);
 	}
 
-	if (Logging::verbosity <= Logging::DEBUG)
-	{
-		std::cout << "Result of merge: " << *this << std::endl;
-	}
+#ifdef MYPOP_VARIABLE_DOMAIN_DEBUG
+	std::cout << "Result of merge: " << *this << std::endl;
+#endif
 	
 	return true;
 }
@@ -442,17 +447,13 @@ const VariableDomain& Bindings::getVariableDomain(StepID step_id, const Variable
 	std::map<std::pair<StepID, const Variable*>, VariableDomain*>::const_iterator ci = binding_mapping_.find(std::make_pair(step_id, &variable));
 	if (ci == binding_mapping_.end())
 	{
-		
 		for (std::map<std::pair<StepID, const Variable*>, VariableDomain*>::const_iterator i = binding_mapping_.begin(); i != binding_mapping_.end(); i++)
 		{
 			std::pair<StepID, const Variable*> binding = (*i).first;
 			std::cout << binding.first << " and " << *binding.second << std::endl;
 		}
 		
-		if (Logging::verbosity <= Logging::ERROR)
-		{
-			std::cout << "Could not find the variable domain for: Step id: " << step_id << " " << variable << std::endl;
-		}
+		std::cout << "Could not find the variable domain for: Step id: " << step_id << " " << variable << std::endl;
 		throw RequestNonExistingVariableBindingException();
 	}
 	return *(*ci).second;
@@ -653,13 +654,12 @@ bool Bindings::affects(const Atom& atom1, StepID step1, const Atom& atom2, const
 		return false;
 	}
 
-	if (Logging::verbosity <= Logging::DEBUG)
-	{
-		atom1.print(std::cout);
-		std::cout << "[" << step1 << "] affects ";
-		atom2.print(std::cout);
-		std::cout << "[" << step2 << "]" << std::endl;
-	}
+#ifdef MYPOP_VARIABLE_DOMAIN_DEBUG
+	atom1.print(std::cout);
+	std::cout << "[" << step1 << "] affects ";
+	atom2.print(std::cout);
+	std::cout << "[" << step2 << "]" << std::endl;
+#endif
 
 	return true;
 }

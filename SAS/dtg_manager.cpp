@@ -25,6 +25,8 @@
 #include "../plan.h"
 #include "recursive_function.h"
 
+///#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+
 namespace MyPOP {
 
 namespace SAS_Plus {
@@ -337,21 +339,21 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 		
 		dtg->addBalancedSet(*dtg_property_space, true);
 
-//		std::cout << " === DTG after adding all predicates (" << dtg->getBindings().getNr() << ") === " << std::endl;
-//		std::cout << *dtg << std::endl;
-//		std::cout << " === END DTG === " << std::endl;
+		std::cout << " === DTG after adding all predicates (" << dtg->getBindings().getNr() << ") === " << std::endl;
+		std::cout << *dtg << std::endl;
+		std::cout << " === END DTG === " << std::endl;
 		
 		dtg->establishTransitions();
 
-//		std::cout << " === DTG after adding all transitions (" << dtg->getBindings().getNr() << ") === " << std::endl;
-//		std::cout << *dtg << std::endl;
-//		std::cout << " === END DTG === " << std::endl;
+		std::cout << " === DTG after adding all transitions (" << dtg->getBindings().getNr() << ") === " << std::endl;
+		std::cout << *dtg << std::endl;
+		std::cout << " === END DTG === " << std::endl;
 
 		dtg->addObjects();
 
-//		std::cout << " === DTG after adding all objects (" << dtg->getBindings().getNr() << ") === " << std::endl;
-//		std::cout << *dtg << std::endl;
-//		std::cout << " === END DTG === " << std::endl;
+		std::cout << " === DTG after adding all objects (" << dtg->getBindings().getNr() << ") === " << std::endl;
+		std::cout << *dtg << std::endl;
+		std::cout << " === END DTG === " << std::endl;
 
 		addManagableObject(dtg);
 	}
@@ -380,12 +382,12 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	time_spend = end_time_tim_translation.tv_sec - start_time_tim_translation.tv_sec + (end_time_tim_translation.tv_usec - start_time_tim_translation.tv_usec) / 1000000.0;
 	std::cerr << "Merging DTGs took: " << time_spend << " seconds" << std::endl;
 	
-//	std::cout << "RESULTS AFTER MERGING" << std::endl;
-//	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
-//	{
-//		DomainTransitionGraph* dtg = *ci;
-//		std::cout << "Resulting DTG after merging: " << *dtg << std::endl;
-//	}
+	std::cout << "RESULTS AFTER MERGING" << std::endl;
+	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
+	{
+		DomainTransitionGraph* dtg = *ci;
+		std::cout << "Resulting DTG after merging: " << *dtg << std::endl;
+	}
 	
 	/**
 	 * Split phase:
@@ -398,12 +400,12 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	time_spend = end_time_tim_translation.tv_sec - start_time_tim_translation.tv_sec + (end_time_tim_translation.tv_usec - start_time_tim_translation.tv_usec) / 1000000.0;
 	std::cerr << "Grounding DTGs took: " << time_spend << " seconds" << std::endl;
 	
-//	std::cout << "RESULTS AFTER GROUNDING" << std::endl;
-//	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
-//	{
-//		DomainTransitionGraph* dtg = *ci;
-//		std::cout << "Resulting DTG after grounding: " << *dtg << std::endl;
-//	}
+	std::cout << "RESULTS AFTER GROUNDING" << std::endl;
+	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
+	{
+		DomainTransitionGraph* dtg = *ci;
+		std::cout << "Resulting DTG after grounding: " << *dtg << std::endl;
+	}
 	
 	/**
 	 * Some predicates are not seen as DTGs by TIM, these come in two categories:
@@ -1331,14 +1333,20 @@ void DomainTransitionGraphManager::mergeDTGs()
 
 void DomainTransitionGraphManager::splitDTGs()
 {
-//	std::cout << " *********** SPLIT DTGs!!!! ************** " << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+	std::cout << " *********** SPLIT DTGs!!!! ************** " << std::endl;
+#endif
+
 	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
 	{
 		DomainTransitionGraph* dtg = *ci;
 		std::vector<DomainTransitionGraphNode*> nodes_to_remove;
 		std::vector<DomainTransitionGraphNode*> nodes_to_add;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+		std::cout << "Check DTG: " << *dtg << std::endl;
+#endif
 		
-//		std::cout << "Check DTG: " << *dtg << std::endl;
+		std::set<const std::vector<const Object*>*> term_domains_not_to_ground;
 		
 		std::map<const DomainTransitionGraphNode*, std::set<std::pair<const Property*, InvariableIndex> >*> properties_to_ground;
 		
@@ -1349,13 +1357,12 @@ void DomainTransitionGraphManager::splitDTGs()
 			std::set<std::pair<const Property*, InvariableIndex> >* to_ground_table = new std::set<std::pair<const Property*, InvariableIndex> >();
 			properties_to_ground[from_dtg_node] = to_ground_table;
 		}
-		
+
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ci++)
 		{
 			DomainTransitionGraphNode* from_dtg_node = *ci;
 			
-//			std::set<std::pair<const Property*, InvariableIndex> >* to_ground_table = properties_to_ground[from_dtg_node];
-/*
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 			std::cout << "Process the dtg node: ";
 			from_dtg_node->print(std::cout);
 			std::cout << std::endl;
@@ -1372,46 +1379,38 @@ void DomainTransitionGraphManager::splitDTGs()
 					std::cout << " **" << &term->getDomain(bounded_atom->getId(), dtg->getBindings()) << "." << std::endl;
 				}
 			}
-*/
+#endif
+
 			for (std::vector<const Transition*>::const_iterator ci = from_dtg_node->getTransitions().begin(); ci != from_dtg_node->getTransitions().end(); ci++)
 			{
 				const Transition* transition = *ci;
 				
-//				std::cout << *transition << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+				std::cout << *transition << std::endl;
 				
-/*				
 				std::cout << "Transition: from ";
 				transition->getFromNode().print(std::cout);
 				std::cout << " to ";
 				transition->getToNode().print(std::cout);
 				std::cout << "[" << transition->getStep()->getAction() << "]" << std::endl;
-*/
+#endif
 
 				const std::vector<std::pair<const Atom*, InvariableIndex> >& preconditions = transition->getAllPreconditions();
-//				std::vector<std::pair<const Atom*, InvariableIndex> > preconditions;
-//				transition->getAllPreconditions(preconditions);
 				
 				// Check which of the preconditions of this action refers to an external DTG.
 				for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 				{
 					const Atom* precondition = (*ci).first;
 					InvariableIndex invariable = (*ci).second;
-					
-//					std::cout << "- Check if the precondition is linked to this DTG: ";
-//					precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
-//					std::cout << "(" << invariable << "){" << precondition << "}" << std::endl;
+
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+					std::cout << "- Check if the precondition is linked to this DTG: ";
+					precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
+					std::cout << "(" << invariable << "){" << precondition << "}" << std::endl;
+#endif
 					
 					std::vector<const DomainTransitionGraphNode*> precondition_linked_to_this_dtg;
 					dtg->getNodes(precondition_linked_to_this_dtg, transition->getStep()->getStepId(), *precondition, dtg->getBindings(), invariable);
-					
-					/** 
-					 * If the precondition is linked to this DTG, we might need to do something special, but we'll skip that for now.
-					 */
-					///if (precondition_linked_to_this_dtg.size() != 0)
-//					{
-///						std::cout << "The precondition is part of this DTG node, skip!" << std::endl;
-///						continue;
-//					}
 
 					/**
 					 * If the precondition is linked to this DTG and shares a property space with it we cannot ground it.
@@ -1434,7 +1433,9 @@ void DomainTransitionGraphManager::splitDTGs()
 								// TODO: Make sure the invariable is linked up.
 								if (dtg->getBindings().canUnify(bounded_atom->getAtom(), bounded_atom->getId(), *precondition, transition->getStep()->getStepId()))
 								{
-//									std::cout << "--- The precondition is part of this DTG node, skip!" << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+									std::cout << "--- The precondition is part of this DTG node, skip!" << std::endl;
+#endif
 									skip = true;
 									break;
 								}
@@ -1452,9 +1453,11 @@ void DomainTransitionGraphManager::splitDTGs()
 						}
 					}
 					
-//					std::cout << "-- Process the precondition: ";
-//					precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
-//					std::cout << "(" << invariable << "){" << precondition << "}" << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+					std::cout << "-- Process the precondition: ";
+					precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
+					std::cout << "(" << invariable << "){" << precondition << "}" << std::endl;
+#endif
 					
 					/**
 					 * Check which of the variable domains of the preconditions are linked to the from node, these need to be grounded, unless they correspond
@@ -1465,20 +1468,24 @@ void DomainTransitionGraphManager::splitDTGs()
 						assert (&transition->getFromNode().getDTG() == dtg);
 						const Term* precondition_term = precondition->getTerms()[precondition_term_index];
 						
-//						std::cout << "--- Precondition term: ";
-//						precondition_term->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
-//						std::cout << "(" << &precondition_term->getDomain(transition->getStep()->getStepId(), dtg->getBindings()) << ")" << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+						std::cout << "--- Precondition term: ";
+						precondition_term->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
+						std::cout << "(" << &precondition_term->getDomain(transition->getStep()->getStepId(), dtg->getBindings()) << ")" << std::endl;
 
-//						std::cout << "Transitions: " << transition->getPreconditions().size() << std::endl;
+						std::cout << "Transitions: " << transition->getPreconditions().size() << std::endl;
+#endif
 						
 						for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = transition->getPreconditions().begin(); ci != transition->getPreconditions().end(); ci++)
 						{
 							const Atom* from_atom = (*ci).first;
 							InvariableIndex from_atom_invariable = (*ci).second;
 							
-//							std::cout << "---- Compare the precondition term with the terms of all preconditions linked to the from_node. From_node precondition under consideration: ";
-//							from_atom->print(std::cout, transition->getFromNode().getDTG().getBindings(), transition->getStep()->getStepId());
-//							std::cout << "(" << transition->getPreconditions().size() << ")" << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+							std::cout << "---- Compare the precondition term with the terms of all preconditions linked to the from_node. From_node precondition under consideration: ";
+							from_atom->print(std::cout, transition->getFromNode().getDTG().getBindings(), transition->getStep()->getStepId());
+							std::cout << "(" << transition->getPreconditions().size() << ")" << std::endl;
+#endif
 							
 							for (unsigned int from_atom_term_index = 0; from_atom_term_index < from_atom->getTerms().size(); from_atom_term_index++)
 							{
@@ -1486,32 +1493,46 @@ void DomainTransitionGraphManager::splitDTGs()
 								if (precondition_term->canUnify(transition->getStep()->getStepId(), *from_atom->getTerms()[from_atom_term_index], transition->getStep()->getStepId(), dtg->getBindings()) &&
 								    from_atom_term_index == from_atom_invariable)
 								{
-//									std::cout << "----- Term refers to the invariable of this DTG, skip!" << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+									std::cout << "----- Term refers to the invariable of this DTG, skip!" << std::endl;
+#endif
 									continue;
 								}
 								
 								const Term* dtg_term = from_atom->getTerms()[from_atom_term_index];
-								
-//								std::cout << "----- Compare to precondition: ";
-//								dtg_term->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
-//								std::cout << "(" << &dtg_term->getDomain(transition->getStep()->getStepId(), dtg->getBindings()) << ")" << std::endl;
+
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+								std::cout << "----- Compare to precondition: ";
+								dtg_term->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
+								std::cout << "(" << &dtg_term->getDomain(transition->getStep()->getStepId(), dtg->getBindings()) << ")" << std::endl;
+#endif
 
 								// If they are the same, we need to ground it.
 								if (precondition_term->isTheSameAs(transition->getStep()->getStepId(), *dtg_term, transition->getStep()->getStepId(), dtg->getBindings()))
 								{
 									std::vector<const SAS_Plus::DomainTransitionGraphNode*> supporting_dtg_nodes;
+									
+									/**
+									 * Make sure that the term we want to ground is not part of another DTG in which the term is an invariable. We must consider
+									 * all preconditions in which this term comes to the fore.
+									 */
+									
 									getDTGNodes(supporting_dtg_nodes, transition->getStep()->getStepId(), *precondition, dtg->getBindings(), invariable);
 									
-//									std::cout << "------ Do we need to ground the term: " << *dtg_term << "?" << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+									std::cout << "------ Do we need to ground the term: " << *dtg_term << "?" << std::endl;
+#endif
 									
 									bool ground = true;
 									// Check if the precondition is linked to the invariable of the other DTG, if this is the case we cannot ground otherwise we must.
 									for (std::vector<const SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = supporting_dtg_nodes.begin(); ci != supporting_dtg_nodes.end(); ci++)
 									{
 										const DomainTransitionGraphNode* dtg_node = *ci;
-//										std::cout << "------ Found the dtg node representing this precondition: ";
-//										dtg_node->print(std::cout);
-//										std::cout << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+										std::cout << "------ Found the dtg node representing this precondition: ";
+										dtg_node->print(std::cout);
+										std::cout << std::endl;
+#endif
 
 										/**
 										 * If the predicate is marked as invariable in the corresponding DTG, we cannot split!
@@ -1524,7 +1545,11 @@ void DomainTransitionGraphManager::splitDTGs()
 											    bounded_atom->getProperty()->getPredicate().getArity() == precondition->getPredicate().getArity() &&
 											    bounded_atom->getProperty()->getIndex() == precondition_term_index)
 											{
-//												std::cout << "------- Index " << precondition->getPredicate() << " [" << precondition_term_index << "] is invariable in the DTG: " << dtg_node->getDTG() << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+												std::cout << "------- Index " << precondition->getPredicate() << " [" << precondition_term_index << "] is invariable in the DTG: " << dtg_node->getDTG() << std::endl;
+												std::cout << "DO NOT GROUND: " << dtg_term << std::endl;
+#endif
+												term_domains_not_to_ground.insert(&dtg_term->getDomain(transition->getStep()->getStepId(), dtg->getBindings()));
 												ground = false;
 												break;
 											}
@@ -1535,9 +1560,11 @@ void DomainTransitionGraphManager::splitDTGs()
 									
 									if (ground)
 									{
-//										std::cout << "------ Ground the term: ";
-//										from_atom->print(std::cout, transition->getFromNode().getDTG().getBindings(), transition->getStep()->getStepId());
-//										std::cout << "(" << from_atom_term_index << "){" << *dtg_term << "}" << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+										std::cout << "------ Ground the term: ";
+										from_atom->print(std::cout, transition->getFromNode().getDTG().getBindings(), transition->getStep()->getStepId());
+										std::cout << "(" << from_atom_term_index << "){" << *dtg_term << "}" << std::endl;
+#endif
 										
 										/**
 										 * Whenever we ground a variable which appears in the persistent set of a transition we must also
@@ -1547,6 +1574,8 @@ void DomainTransitionGraphManager::splitDTGs()
 										{
 											const DomainTransitionGraphNode& to_dtg_node = transition->getToNode();
 											
+											std::cout << "Persistent property: " << from_atom->getPredicate() << "(" << from_atom_term_index << ") +==--> " << std::endl;
+											
 											for (std::vector<BoundedAtom*>::const_iterator ci = to_dtg_node.getAtoms().begin(); ci != to_dtg_node.getAtoms().end(); ci++)
 											{
 												const BoundedAtom* bounded_atom = *ci;
@@ -1554,10 +1583,11 @@ void DomainTransitionGraphManager::splitDTGs()
 												    dtg->getBindings().canUnify(bounded_atom->getAtom(), bounded_atom->getId(), *from_atom, transition->getStep()->getStepId()))
 												{
 														std::set<std::pair<const Property*, InvariableIndex> >* tmp_to_ground_table = properties_to_ground[&to_dtg_node];
-														
-//														std::cout << "------- Ground the persistent property: " << bounded_atom->getProperty()->getPredicate() << "(" << from_atom_term_index << ") +==--> ";
-//														to_dtg_node.print(std::cout);
-//														std::cout << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+														std::cout << "------- Ground the persistent property: " << bounded_atom->getProperty()->getPredicate() << "(" << from_atom_term_index << ") +==--> ";
+														to_dtg_node.print(std::cout);
+														std::cout << std::endl;
+#endif
 														tmp_to_ground_table->insert(std::make_pair(bounded_atom->getProperty(), from_atom_term_index));
 												}
 											}
@@ -1578,10 +1608,13 @@ void DomainTransitionGraphManager::splitDTGs()
 													if (term->isTheSameAs(bounded_atom->getId(), *dtg_term, transition->getStep()->getStepId(), dtg->getBindings()))
 													{
 														std::set<std::pair<const Property*, InvariableIndex> >* tmp_to_ground_table = properties_to_ground[node];
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+														std::cout << "------- Ground the property: " << bounded_atom->getProperty()->getPredicate() << "(" << i << ") +==--> ";
+														node->print(std::cout);
+														std::cout << std::endl;
 														
-//														std::cout << "------- Ground the property: " << bounded_atom->getProperty()->getPredicate() << "(" << i << ") +==--> ";
-//														node->print(std::cout);
-//														std::cout << std::endl;
+														std::cout << "GROUND: " << &bounded_atom->getAtom().getTerms()[i]->getDomain(bounded_atom->getId(), dtg->getBindings()) << std::endl;
+#endif
 														tmp_to_ground_table->insert(std::make_pair(bounded_atom->getProperty(), i));
 													}
 												}
@@ -1589,14 +1622,16 @@ void DomainTransitionGraphManager::splitDTGs()
 										}
 									}
 								}
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 								else
 								{
-//									std::cout << "FAIL! ";
-//									precondition_term->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
-//									std::cout << " is not the same as: ";
-//									dtg_term->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
-//									std::cout << std::endl;
+									std::cout << "FAIL! ";
+									precondition_term->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
+									std::cout << " is not the same as: ";
+									dtg_term->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
+									std::cout << std::endl;
 								}
+#endif
 							}
 						}
 					}
@@ -1604,7 +1639,42 @@ void DomainTransitionGraphManager::splitDTGs()
 			}
 		}
 		
-//		std::cout << " =======++++======= Move to actual grounding! =======++++======= " << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+		std::cout << " =======++++======= Move to actual grounding! =======++++======= " << std::endl;
+#endif
+		
+		///std::set<std::pair<const Predicate*, InvariableIndex> > predicates_not_to_ground;
+		for (std::map<const DomainTransitionGraphNode*, std::set<std::pair<const Property*, InvariableIndex> >*>::const_iterator ci = properties_to_ground.begin(); ci != properties_to_ground.end(); ci++)
+		{
+			const DomainTransitionGraphNode* node_to_split = (*ci).first;
+			
+			std::set<std::pair<const Property*, InvariableIndex> >* properties_to_ground = (*ci).second;
+			std::vector<std::pair<const Property*, InvariableIndex> > to_remove;
+			
+			for (std::set<std::pair<const Property*, InvariableIndex> >::const_iterator ci = properties_to_ground->begin(); ci != properties_to_ground->end(); ci++)
+			{
+				std::pair<const Property*, InvariableIndex> property_to_ground = *ci;
+			
+				for (std::vector<BoundedAtom*>::const_iterator ci = node_to_split->getAtoms().begin(); ci != node_to_split->getAtoms().end(); ci++)
+				{
+					const BoundedAtom* bounded_atom = *ci;
+					
+					if (bounded_atom->getProperty() == property_to_ground.first &&
+					    term_domains_not_to_ground.count(&bounded_atom->getAtom().getTerms()[property_to_ground.second]->getDomain(bounded_atom->getId(), dtg->getBindings())) != 0)
+					{
+///						predicates_not_to_ground.insert(std::make_pair(&bounded_atom->getAtom().getPredicate(), 
+						///properties_to_ground->erase(ri.base() - 1);
+						to_remove.push_back(property_to_ground);
+						break;
+					}
+				}
+			}
+			
+			for (std::vector<std::pair<const Property*, InvariableIndex> >::const_iterator ci = to_remove.begin(); ci != to_remove.end(); ci++)
+			{
+				properties_to_ground->erase(*ci);
+			}
+		}
 		
 		/**
 		 * Perform the actual splitting.
@@ -1619,31 +1689,60 @@ void DomainTransitionGraphManager::splitDTGs()
 			std::vector<DomainTransitionGraphNode*> new_dtg_nodes;
 			dtg_nodes_to_ground.push_back(org_node_to_split);
 			
-//			std::cout << " ==+++--> ";
-//			org_node_to_split->print(std::cout);
-//			std::cout << " (((" << properties_to_ground->size() << ")))" << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+			std::cout << " ==+++--> ";
+			org_node_to_split->print(std::cout);
+			std::cout << " (((" << properties_to_ground->size() << ")))" << std::endl;
+#endif
 			
 			for (std::set<std::pair<const Property*, InvariableIndex> >::const_iterator ci = properties_to_ground->begin(); ci != properties_to_ground->end(); ci++)
 			{
 				std::pair<const Property*, InvariableIndex> property_to_ground = *ci;
 				
-//				std::cout << "Process the property to ground: " << property_to_ground.first->getPredicate() << "[" << property_to_ground.first->getIndex() << "] (" << property_to_ground.second << ")" << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+				std::cout << "Process the property to ground: " << property_to_ground.first->getPredicate() << "[" << property_to_ground.first->getIndex() << "] (" << property_to_ground.second << ")" << std::endl;
+#endif
 				
+				bool is_grounded = false;
 				for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = dtg_nodes_to_ground.begin(); ci != dtg_nodes_to_ground.end(); ci++)
 				{
 					const DomainTransitionGraphNode* dtg_node_to_split = *ci;
-					///bool split = false;
 					
 					for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node_to_split->getAtoms().begin(); ci != dtg_node_to_split->getAtoms().end(); ci++)
 					{
 						const BoundedAtom* bounded_atom = *ci;
 						
-//						std::cout << "-- compare v.s.: " << bounded_atom->getProperty()->getPredicate() << "[" << bounded_atom->getProperty()->getIndex() << "]" << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+						std::cout << "-- compare v.s.: " << bounded_atom->getProperty()->getPredicate() << "[" << bounded_atom->getProperty()->getIndex() << "]" << std::endl;
+#endif
 						
 						if (property_to_ground.first == bounded_atom->getProperty())
 						{
-							dtg_node_to_split->groundTerm(new_dtg_nodes, *bounded_atom->getAtom().getTerms()[property_to_ground.second], bounded_atom->getId());
-					///		split = true;
+							const Term* term_to_ground = bounded_atom->getAtom().getTerms()[property_to_ground.second];
+/*							bool need_to_ground = true;
+							
+							for (std::set<std::pair<const Term*, StepID> >::const_iterator ci = terms_not_to_ground.begin(); ci != terms_not_to_ground.end(); ci++)
+							{
+								const Term* term = (*ci).first;
+								StepID term_id = (*ci).second;
+								
+								if (term->isTheSameAs(term_id, *term_to_ground, bounded_atom->getId(), org_node_to_split->getDTG().getBindings()))
+								{
+									need_to_ground = false;
+									break;
+								}
+							}
+							
+							if (!need_to_ground)
+							{
+								std::cout << "Do not ground: ";
+								term_to_ground->print(std::cout, org_node_to_split->getDTG().getBindings(), bounded_atom->getId());
+								std::cout << std::endl;
+								continue;
+							}
+*/
+							is_grounded = true;
+							dtg_node_to_split->groundTerm(new_dtg_nodes, *term_to_ground, bounded_atom->getId());
 							break;
 						}
 					}
@@ -1652,26 +1751,31 @@ void DomainTransitionGraphManager::splitDTGs()
 				/**
 				 * Update the DTG.
 				 */
-				for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = dtg_nodes_to_ground.begin(); ci != dtg_nodes_to_ground.end(); ci++)
+				if (is_grounded)
 				{
-					dtg->removeNode(**ci);
-				}
-				
-				for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = new_dtg_nodes.begin(); ci != new_dtg_nodes.end(); ci++)
-				{
-					dtg->addNode(**ci);
-				}
+					for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = dtg_nodes_to_ground.begin(); ci != dtg_nodes_to_ground.end(); ci++)
+					{
+						dtg->removeNode(**ci);
+					}
+					
+					for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = new_dtg_nodes.begin(); ci != new_dtg_nodes.end(); ci++)
+					{
+						dtg->addNode(**ci);
+					}
 
-				/**
-				 * After grounding the terms and getting new results, we remove the splitted node and add the resulting nodes to the DTG.
-				 */
-				dtg_nodes_to_ground.clear();
-				dtg_nodes_to_ground.insert(dtg_nodes_to_ground.end(), new_dtg_nodes.begin(), new_dtg_nodes.end());
-				new_dtg_nodes.clear();
+					/**
+					* After grounding the terms and getting new results, we remove the splitted node and add the resulting nodes to the DTG.
+					*/
+					dtg_nodes_to_ground.clear();
+					dtg_nodes_to_ground.insert(dtg_nodes_to_ground.end(), new_dtg_nodes.begin(), new_dtg_nodes.end());
+					new_dtg_nodes.clear();
+				}
 			}
 		}
 		
-//		std::cout << " =======++++======= Done with grounding! =======++++======= " << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+		std::cout << " =======++++======= Done with grounding! =======++++======= " << std::endl;
+#endif
 		
 		dtg->reestablishTransitions();
 	}

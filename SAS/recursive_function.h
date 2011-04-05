@@ -123,6 +123,7 @@ public:
 
 	bool evaluate(const Term& term) const;
 
+	friend std::ostream& operator<<(std::ostream& os, const BoundedRecursiveFunction& function);
 private:
 	const std::vector<const Atom*>* initial_state_;
 	StepID action_id_;

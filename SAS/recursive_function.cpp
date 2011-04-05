@@ -8,6 +8,7 @@
 #include "../plan.h"
 #include "../term_manager.h"
 
+///#define MYPOP_SAS_PLUS_RECURSIVE_FUNCTION_COMMENTS
 
 namespace MyPOP {
 	
@@ -45,16 +46,13 @@ const Atom* RecursiveFunction::mapAtomTerms(const Atom& atom, StepID action_id, 
 			if (atom_term->isTheSameAs(action_id, *action_variable, action_id, bindings))
 			{
 				new_terms->push_back(action_variable);
-//				std::cout << "%" << *action_variable;
-			
-//				if (ci != action_->getVariables().end() - 1)
-//				{
-//					std::cout << ", ";
-//				}
 				break;
 			}
 		}
 	}
+	
+	assert (new_terms->size() == atom.getArity());
+	
 	return new Atom(atom.getPredicate(), *new_terms, atom.isNegative());
 }
 
@@ -71,7 +69,8 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Term& 
 		return false;
 	}
 	closed_list.insert(&term);
-	
+
+#ifdef MYPOP_SAS_PLUS_RECURSIVE_FUNCTION_COMMENTS
 	std::cout << "Check the term: ";
 	term.print(std::cout, bindings, Step::INITIAL_STEP);
 	std::cout << std::endl;
@@ -81,7 +80,8 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Term& 
 	{
 		std::cout << **ci << ", ";
 	}
-	
+#endif
+
 	std::vector<const Object*> domain = term.getDomain(Step::INITIAL_STEP, bindings);
 	for (std::vector<const Object*>::reverse_iterator ri = domain.rbegin(); ri != domain.rend(); ri++)
 	{
@@ -101,8 +101,6 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Term& 
 			domain.erase(ri.base() - 1);
 		}
 	}
-	
-	std::cout << " left(" << domain.size() << ")" << std::endl;
 	
 	if (domain.size() == 0)
 	{
@@ -132,9 +130,12 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Term& 
 		const Atom* termination_clause = (*ci).first;
 		InvariableIndex index = (*ci).second;
 		
+#ifdef MYPOP_SAS_PLUS_RECURSIVE_FUNCTION_COMMENTS
 		std::cout << "Check the termination clause: ";
 		termination_clause->print(std::cout, bindings, action_id);
 		std::cout << "[" << index << "]" << std::endl;
+#endif
+
 		std::vector<const Object*> to_remove;
 		
 		bool clause_satisfied = false;
@@ -142,28 +143,10 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Term& 
 		for (std::vector<const Atom*>::const_iterator ci = object_to_initial_facts.begin(); ci != object_to_initial_facts.end(); ci++)
 		{
 			const Atom* atom = *ci;
-			
-			std::cout << "* The clause: ";
-			atom->print(std::cout, bindings, Step::INITIAL_STEP);
-			std::cout << std::endl;
-			
-			if (!bindings.canUnify(*termination_clause, action_id, *atom, Step::INITIAL_STEP))
+
+			if (bindings.canUnify(*termination_clause, action_id, *atom, Step::INITIAL_STEP) &&
+			    atom->getTerms()[index]->containsAtLeastOneOf(domain, Step::INITIAL_STEP, bindings))
 			{
-				std::cout << "The atom: ";
-				atom->print(std::cout, bindings, Step::INITIAL_STEP);
-				std::cout << "Cannot be a candidate because it cannot be unified!" << std::endl;
-			}
-			else if (!atom->getTerms()[index]->containsAtLeastOneOf(domain, Step::INITIAL_STEP, bindings))
-			{
-				std::cout << "The atom: ";
-				atom->print(std::cout, bindings, Step::INITIAL_STEP);
-				std::cout << "Cannot be a candidate because the index " << index << " does not contain any of the required objects!" << std::endl;
-			}
-			else
-			{
-				std::cout << "The atom: ";
-				atom->print(std::cout, bindings, Step::INITIAL_STEP);
-				std::cout << " is a possible candidate!" << std::endl;
 				clause_satisfied = true;
 				break;
 			}
@@ -181,7 +164,9 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Term& 
 		return true;
 	}
 	
+#ifdef MYPOP_SAS_PLUS_RECURSIVE_FUNCTION_COMMENTS
 	std::cout << "No termination clauses, continue!" << std::endl;
+#endif
 	
 	// Check if we need to invoke the recursive function and for which objects.
 	std::set<const Term*> recursive_candidates;
@@ -192,9 +177,11 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Term& 
 		InvariableIndex invariable_index = (*ci).second.first;
 		InvariableIndex recursive_index = (*ci).second.second;
 		
+#ifdef MYPOP_SAS_PLUS_RECURSIVE_FUNCTION_COMMENTS
 		std::cout << "Process the recursive clause: ";
 		recursive_atom->print(std::cout, bindings, action_id);
 		std::cout << std::endl;
+#endif
 		
 		std::set<const Term*> matching_candidates;
 		
@@ -202,13 +189,16 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Term& 
 		{
 			const Atom* atom = *ci2;
 			
+#ifdef MYPOP_SAS_PLUS_RECURSIVE_FUNCTION_COMMENTS
 			std::cout << "Check the initial fact: ";
 			atom->print(std::cout, bindings, Step::INITIAL_STEP);
+#endif
 			
 			if (bindings.canUnify(*recursive_atom, action_id, *atom, Step::INITIAL_STEP))
 			{
 				if (!atom->getTerms()[invariable_index]->containsAtLeastOneOf(domain, Step::INITIAL_STEP, bindings))
 				{
+#ifdef MYPOP_SAS_PLUS_RECURSIVE_FUNCTION_COMMENTS
 					std::cout << " ... (Subsequent iteration): ";
 					atom->print(std::cout, bindings, Step::INITIAL_STEP);
 					std::cout << " cannot be an iteration, because the object(s) (";
@@ -221,21 +211,26 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Term& 
 						}
 					}
 					std::cout << ") is not part of the index " << invariable_index << std::endl;
+#endif
 				}
 				else
 				{
+#ifdef MYPOP_SAS_PLUS_RECURSIVE_FUNCTION_COMMENTS
 					std::cout << " ... (Subsequent iteration): ";
 					atom->print(std::cout, bindings, Step::INITIAL_STEP);
 					std::cout << " can be a candidate!" << std::endl;
+#endif
 					matching_candidates.insert(atom->getTerms()[recursive_index]);
 				}
 			}
+#ifdef MYPOP_SAS_PLUS_RECURSIVE_FUNCTION_COMMENTS
 			else
 			{
 				std::cout << " ... (Subsequent iteration): ";
 				atom->print(std::cout, bindings, Step::INITIAL_STEP);
 				std::cout << " cannot be an iteration, because it cannot be unified." << std::endl;
 			}
+#endif
 		}
 		
 		if (ci == recursive_clause.begin())
@@ -269,14 +264,53 @@ bool RecursiveFunction::execute(std::set<const Term*>& closed_list, const Term& 
  *******************************/
 
 BoundedRecursiveFunction::BoundedRecursiveFunction(const Action& action, const TermManager& term_manager, const std::vector<const Object*>& applicable_objects, const std::vector<const Atom*>& initial_state, StepID action_id, const Bindings& bindings)
-	: RecursiveFunction(action, term_manager, applicable_objects), initial_state_(&initial_state), action_id_(action_id), bindings_(&bindings)
+	: RecursiveFunction(action, term_manager, applicable_objects), initial_state_(&initial_state), action_id_(action_id), bindings_(new Bindings(bindings))
 {
-	
+//	std::cout << "Created a bounded recursive function: " << *this << std::endl;
 }
 
 bool BoundedRecursiveFunction::evaluate(const Term& term) const
 {
 	return execute(term, *initial_state_, action_id_, *bindings_);
+}
+
+std::ostream& operator<<(std::ostream& os, const BoundedRecursiveFunction& function)
+{
+	const std::vector<std::pair<const Atom*, InvariableIndex> >& termination_clause = function.getTerminationClause();
+	const std::vector<std::pair<const Atom*, std::pair<InvariableIndex, InvariableIndex> > >& recursive_clause = function.getRecursiveClause();
+	
+	if (termination_clause.size() > 0 || recursive_clause.size() > 0)
+	{
+		os << function.getAction() << " - Recursive function: f(c): (";
+
+		for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = termination_clause.begin(); ci != termination_clause.end(); ci++)
+		{
+			const Atom* atom = (*ci).first;
+			atom->print(os, *function.bindings_, function.action_id_);
+			os << "[" << (*ci).second << "]";
+			if (ci != termination_clause.end() - 1)
+			{
+				os << " /\\ ";
+			}
+		}
+
+		os << ") \\/ (";
+
+		for (std::vector<std::pair<const Atom*, std::pair<InvariableIndex, InvariableIndex> > >::const_iterator ci = recursive_clause.begin(); ci != recursive_clause.end(); ci++)
+		{
+			const Atom* atom = (*ci).first;
+			std::pair<InvariableIndex, InvariableIndex> indexes = (*ci).second;
+			
+			atom->print(os, *function.bindings_, function.action_id_);
+			os << "(" << indexes.first << ")[" << indexes.second << "]";
+			if (ci != recursive_clause.end() - 1)
+			{
+				os << " /\\ ";
+			}
+		}
+		os << " /\\ f(c) )" << std::endl;
+	}
+	return os;
 }
 
 /********************************
@@ -292,6 +326,7 @@ RecursiveFunctionManager::RecursiveFunctionManager()
 	
 void RecursiveFunctionManager::addRecursiveFunction(const BoundedRecursiveFunction& function)
 {
+//	std::cout << "Added the recursive function: " << function << std::endl;
 	functions_.push_back(&function);
 }
 	
@@ -309,22 +344,22 @@ void RecursiveFunctionManager::evaluateObjects(std::map<const Object*, boost::dy
 boost::dynamic_bitset<> RecursiveFunctionManager::evaluateObject(const Object& object) const
 {
 	boost::dynamic_bitset<> bitset(functions_.size());
-	std::cout << "Evaluate: " << object << std::endl;
+//	std::cout << "Evaluate: " << object << std::endl;
 	
 	for (unsigned int i = 0; i < functions_.size(); i++)
 	{
-		std::cout << "- " << *functions_[i] << " - ";
+//		std::cout << "- " << *functions_[i] << " - ";
 		if (functions_[i]->evaluate(object))
 		{
-			std::cout << " YES!";
+//			std::cout << " YES!";
 			bitset[i] = 1;
 		}
 		else
 		{
-			std::cout << " NO!";
+//			std::cout << " NO!";
 			bitset[i] = 0;
 		}
-		std::cout << std::endl;
+//		std::cout << std::endl;
 	}
 	
 	return bitset;

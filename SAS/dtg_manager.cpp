@@ -1084,16 +1084,7 @@ void DomainTransitionGraphManager::mergeDTGs()
 					// TEST the recursive function.
 					if (recursive_function->getRecursiveClause().size() + recursive_function->getTerminationClause().size() > 0)
 					{
-//						std::cout << "Test the recursive function: " << *recursive_function << ": " << std::endl;
 						recursive_function_manager.addRecursiveFunction(*recursive_function);
-//						const std::vector<const Object*>& all_objects = term_manager_->getAllObjects();
-//						for (std::vector<const Object*>::const_iterator ci = all_objects.begin(); ci != all_objects.end(); ci++)
-//						{
-//							bool result = recursive_function->execute(**ci, *initial_facts_, transition->getStep()->getStepId(), from_dtg_node->getDTG().getBindings());
-//							std::cout << "* The term: ";
-//							(*ci)->print(std::cout, from_dtg_node->getDTG().getBindings(), Step::INITIAL_STEP);
-//							std::cout << " is: " << result << "." << std::endl;
-//						}
 					}
 					else
 					{
@@ -1334,6 +1325,20 @@ void DomainTransitionGraphManager::mergeDTGs()
 			}
 		}
 		dtg->establishTransitions();
+	}
+	
+	/**
+	 * Evaluate the recursive functions and create new DTGs for each type discovered.
+	 */
+	std::map<const Object*, boost::dynamic_bitset<> > evaluation_results;
+	recursive_function_manager.evaluateObjects(evaluation_results, term_manager_->getAllObjects());
+	
+	for (std::map<const Object*, boost::dynamic_bitset<> >::const_iterator ci = evaluation_results.begin(); ci != evaluation_results.end(); ci++)
+	{
+		const Object* object = (*ci).first;
+		const boost::dynamic_bitset<>& bitset = (*ci).second;
+		
+		std::cout << "The object: " << *object << " is " << bitset << std::endl;
 	}
 }
 

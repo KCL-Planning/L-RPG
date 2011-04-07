@@ -347,21 +347,21 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 		
 		dtg->addBalancedSet(*dtg_property_space, true);
 
-//		std::cout << " === DTG after adding all predicates (" << dtg->getBindings().getNr() << ") === " << std::endl;
-//		std::cout << *dtg << std::endl;
-//		std::cout << " === END DTG === " << std::endl;
+		std::cout << " === DTG after adding all predicates (" << dtg->getBindings().getNr() << ") === " << std::endl;
+		std::cout << *dtg << std::endl;
+		std::cout << " === END DTG === " << std::endl;
 		
 		dtg->establishTransitions();
 
-//		std::cout << " === DTG after adding all transitions (" << dtg->getBindings().getNr() << ") === " << std::endl;
-//		std::cout << *dtg << std::endl;
-//		std::cout << " === END DTG === " << std::endl;
+		std::cout << " === DTG after adding all transitions (" << dtg->getBindings().getNr() << ") === " << std::endl;
+		std::cout << *dtg << std::endl;
+		std::cout << " === END DTG === " << std::endl;
 
 		dtg->addObjects();
 
-//		std::cout << " === DTG after adding all objects (" << dtg->getBindings().getNr() << ") === " << std::endl;
-//		std::cout << *dtg << std::endl;
-//		std::cout << " === END DTG === " << std::endl;
+		std::cout << " === DTG after adding all objects (" << dtg->getBindings().getNr() << ") === " << std::endl;
+		std::cout << *dtg << std::endl;
+		std::cout << " === END DTG === " << std::endl;
 
 		addManagableObject(dtg);
 	}
@@ -390,12 +390,12 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	time_spend = end_time_tim_translation.tv_sec - start_time_tim_translation.tv_sec + (end_time_tim_translation.tv_usec - start_time_tim_translation.tv_usec) / 1000000.0;
 	std::cerr << "Merging DTGs took: " << time_spend << " seconds" << std::endl;
 	
-//	std::cout << "RESULTS AFTER MERGING" << std::endl;
-//	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
-//	{
-//		DomainTransitionGraph* dtg = *ci;
-//		std::cout << "Resulting DTG after merging: " << *dtg << std::endl;
-//	}
+	std::cout << "RESULTS AFTER MERGING" << std::endl;
+	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
+	{
+		DomainTransitionGraph* dtg = *ci;
+		std::cout << "Resulting DTG after merging: " << *dtg << std::endl;
+	}
 	
 	/**
 	 * Split phase:
@@ -771,10 +771,10 @@ void DomainTransitionGraphManager::mergeDTGs()
 			 */
 			if (dtgs_to_remove.count(dtg) != 0)
 			{
-///				std::cout << "Skip: " << *dtg << std::endl;
+				std::cout << "Skip: " << *dtg << std::endl;
 				continue;
 			}
-//			std::cout << "Check DTG: " << *dtg << std::endl;
+			std::cout << "Check DTG: " << *dtg << std::endl;
 			
 			std::vector<DomainTransitionGraphNode*> nodes_to_remove;
 			std::vector<DomainTransitionGraphNode*> nodes_to_add;
@@ -938,9 +938,9 @@ void DomainTransitionGraphManager::mergeDTGs()
 							{
 								BoundedAtom* bounded_atom = *ci;
 
-//								std::cout << "* BoundedAtom: ";
-//								bounded_atom->print(std::cout, precondition_dtg_node->getDTG().getBindings());
-//								std::cout << std::endl;
+								std::cout << "* BoundedAtom: ";
+								bounded_atom->print(std::cout, precondition_dtg_node->getDTG().getBindings());
+								std::cout << std::endl;
 
 								bool matches_precondition_dtg_invariable = false;
 								if (precondition_dtg_node->getIndex(*bounded_atom) != invariable)
@@ -970,11 +970,11 @@ void DomainTransitionGraphManager::mergeDTGs()
 							if (dtg_node_atom != NULL || variable_dtg_node_atom != NULL)
 							{
 								
-//								std::cout << "!!! Merge node matching the precondition: ";
-//								precondition_dtg_node->print(std::cout);
-//								std::cout << std::endl << " and the from node: ";
-//								from_dtg_node->print(std::cout);
-//								std::cout << std::endl;
+								std::cout << "!!! Merge node matching the precondition: ";
+								precondition_dtg_node->print(std::cout);
+								std::cout << std::endl << " and the from node: ";
+								from_dtg_node->print(std::cout);
+								std::cout << std::endl;
 
 								/**
 								 * Three cases of merging need to be distincted here.
@@ -1035,9 +1035,9 @@ void DomainTransitionGraphManager::mergeDTGs()
 										{
 											dtg_altered = true;
 
-//											std::cout << "Result of the merge: ";
-//											clone_from_dtg_node->print(std::cout);
-//											std::cout << std::endl;
+											std::cout << "Result of the merge: ";
+											clone_from_dtg_node->print(std::cout);
+											std::cout << std::endl;
 										}
 										else
 										{
@@ -1081,7 +1081,6 @@ void DomainTransitionGraphManager::mergeDTGs()
 						}
 					}
 					
-					// TEST the recursive function.
 					if (recursive_function->getRecursiveClause().size() + recursive_function->getTerminationClause().size() > 0)
 					{
 						recursive_function_manager.addRecursiveFunction(*recursive_function);
@@ -1102,11 +1101,9 @@ void DomainTransitionGraphManager::mergeDTGs()
 
 			for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_to_add.begin(); ci != nodes_to_add.end(); ci++)
 			{
-/*
 				std::cout << "Add the node: ";
 				(*ci)->print(std::cout);
 				std::cout << std::endl;
-*/
 				dtg->addNode(**ci);
 			}
 			dtg->reestablishTransitions();
@@ -1116,8 +1113,8 @@ void DomainTransitionGraphManager::mergeDTGs()
 		{
 			DomainTransitionGraph* dtg = const_cast<DomainTransitionGraph*>((*ci).first);
 			std::set<const Object*>* objects_to_remove = (*ci).second;
-/*
-			std::cout << "Process DTG: " << *dtg << std::endl;
+
+			std::cout << "Process DTG to remove: " << *dtg << std::endl;
 			
 			std::cout << "Objects to remove: ";
 			for (std::set<const Object*>::const_iterator ci = objects_to_remove->begin(); ci != objects_to_remove->end(); ci++)
@@ -1125,7 +1122,6 @@ void DomainTransitionGraphManager::mergeDTGs()
 				std::cout << **ci << ", ";
 			}
 			std::cout << std::endl;
-*/
 
 			dtg->removeObjects(*objects_to_remove);
 			
@@ -1137,21 +1133,7 @@ void DomainTransitionGraphManager::mergeDTGs()
 			}
 		}
 	}
-	
-	/**
-	 * Check the type of each object based on which recursive functions are applicable.
-	 */
-/*	std::map<const Object*, boost::dynamic_bitset<> > recursive_results;
-	recursive_function_manager.evaluateObjects(recursive_results, term_manager_->getAllObjects());
-	
-	for (std::map<const Object*, boost::dynamic_bitset<> >::const_iterator ci = recursive_results.begin(); ci != recursive_results.end(); ci++)
-	{
-		const Object* object = (*ci).first;
-		const boost::dynamic_bitset<>& result = (*ci).second;
-		
-		std::cout << "The bitset of " << *object << " is: " << result << std::endl;
-	}*/
-	
+
 	/**
 	 * Merge dependened invariable DTG nodes.
 	 */
@@ -1161,184 +1143,16 @@ void DomainTransitionGraphManager::mergeDTGs()
 		DomainTransitionGraph* dtg = *ci;
 
 //		std::cout << "Check DTG: " << *dtg << "(pointer address=" << dtg << ")" << std::endl;
-		
-		std::vector<DomainTransitionGraphNode*> nodes_to_remove;
-		std::vector<DomainTransitionGraphNode*> nodes_to_add;
-		
-		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ci++)
-		{
-			DomainTransitionGraphNode* from_dtg_node = *ci;
-			
-			for (std::vector<const Transition*>::const_iterator ci = from_dtg_node->getTransitions().begin(); ci != from_dtg_node->getTransitions().end(); ci++)
-			{
-				const Transition* transition = *ci;
-
-//				std::cout << "Transition: from ";
-//				transition->getFromNode().print(std::cout);
-//				std::cout << " to ";
-//				transition->getToNode().print(std::cout);
-//				std::cout << "[" << transition->getStep()->getAction() << "]" << std::endl;
-
-				const std::vector<std::pair<const Atom*, InvariableIndex> >& preconditions = transition->getAllPreconditions();
-				
-				// Check which of the preconditions of this action refers to an external DTG.
-				for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
-				{
-					const Atom* precondition = (*ci).first;
-					InvariableIndex invariable = (*ci).second;
-
-//					std::cout << "Process the precondition: ";
-//					precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
-//					std::cout << "(" << invariable << ")" << std::endl;
-
-					std::vector<const DomainTransitionGraphNode*> found_dtg_nodes;
-					getDTGNodes(found_dtg_nodes, transition->getStep()->getStepId(), *precondition, dtg->getBindings(), invariable);
-					
-					/**
-					 * If the precondition isn't to the invariable of this DTG node there are two scenarios:
-					 * - The precondition is part of another DTG node and its invariable is linked to a node in the from_node. If this is the
-					 * case then the precondition must be merged with this node.
-					 * - If the precondition's invariable is not linked to this node we need to ground it.
-					 */
-					if (invariable == NO_INVARIABLE_INDEX)
-					{
-//						std::cout << " - The precondition isn't linked to the invariable. Check if the term is invariable in another DTG." << std::endl;
-						// Check if the precondition is invariable in their respective DTG(s).
-						std::vector<const DomainTransitionGraphNode*> matching_dtg_nodes;
-						getDTGNodes(matching_dtg_nodes, transition->getStep()->getStepId(), *precondition, dtg->getBindings());
-						
-						///InvariableIndex precondition_invariable = NO_INVARIABLE_INDEX;
-						///const Property* precondition_property = NULL;
-						std::vector<std::pair<InvariableIndex, const Property*> > precondition_properties;
-						bool merge_with_self = false;
-						
-						for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = matching_dtg_nodes.begin(); ci != matching_dtg_nodes.end(); ci++)
-						{
-							const DomainTransitionGraphNode* matching_dtg_node = *ci;
-							
-/*							if (&matching_dtg_node->getDTG() == dtg)
-							{
-								std::cout << "Alert! Proposing a DTG to merge with itself!!!" << std::endl;
-								continue;
-							}*/
-							
-							// Figure out what the invariable is.
-							for (std::vector<BoundedAtom*>::const_iterator ci = matching_dtg_node->getAtoms().begin(); ci != matching_dtg_node->getAtoms().end(); ci++)
-							{
-								const BoundedAtom* bounded_atom = *ci;
-								if (dtg->getBindings().canUnify(*precondition, transition->getStep()->getStepId(), bounded_atom->getAtom(), bounded_atom->getId(), &matching_dtg_node->getDTG().getBindings()))
-								{
-									InvariableIndex matching_invariable_index = matching_dtg_node->getIndex(*bounded_atom);
-									
-//									std::cout << " -= Precondition is invariable in the DTG node: ";
-//									matching_dtg_node->print(std::cout);
-//									std::cout << "[" << matching_invariable_index << "]" << std::endl;
-									
-									// TEST
-									if (matching_invariable_index == NO_INVARIABLE_INDEX) continue;
-									
-									assert (&matching_dtg_node->getDTG() != NULL);
-									
-									if (dtg->containsPropertySpace(bounded_atom->getProperty()->getPropertyState().getPropertySpace()))
-									{
-//										std::cout << "Alert! Proposing a DTG to merge with itself!!!" << std::endl;
-
-										merge_with_self = true;
-										precondition_properties.clear();
-
-										break;
-									}
-									
-									precondition_properties.push_back(std::make_pair(matching_invariable_index, bounded_atom->getProperty()));
-									
-//									std::cout << "Candidate to bind: ";
-//									bounded_atom->print(std::cout, matching_dtg_node->getDTG().getBindings());
-//									std::cout << "[" << &bounded_atom->getProperty()->getPropertyState().getPropertySpace() << "]" << std::endl;
-									
-//									std::cout << "From DTG node: ";
-//									matching_dtg_node->print(std::cout);
-//									std::cout << " (pointer address=" << &matching_dtg_node->getDTG() << ")" << std::endl;
-								}
-							}
-							
-							if (merge_with_self)
-							{
-								break;
-							}
-						}
-						
-						/**
-						 * Not sure what to do if the same precondition is able to get two new atoms in the DTG node...
-						 */
-						unsigned int counter = 0;
-						
-						for (std::vector<std::pair<InvariableIndex, const Property*> >::const_iterator ci = precondition_properties.begin(); ci != precondition_properties.end(); ci++)
-						{
-							
-							InvariableIndex precondition_invariable = (*ci).first;
-							const Property* precondition_property = (*ci).second;
-							/**
-							 * Check if the variable in the precondition is present in the from node. If this is not
-							 * the case then the value of this variable is irrelevant.
-							 */
-							bool need_to_merge = false;
-							bool already_exists = false;
-							for (std::vector< BoundedAtom*>::const_iterator ci = from_dtg_node->getAtoms().begin(); ci != from_dtg_node->getAtoms().end(); ci++)
-							{
-								const BoundedAtom* bounded_atom = *ci;
-								
-								for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
-								{
-									const Term* term = *ci;
-									
-									if (term->isTheSameAs(bounded_atom->getId(), *precondition->getTerms()[precondition_invariable], transition->getStep()->getStepId(), dtg->getBindings()))
-									{
-										need_to_merge = true;
-									}
-									
-									// TEST
-									if (from_dtg_node->getDTG().getBindings().canUnify(bounded_atom->getAtom(), bounded_atom->getId(), *precondition, transition->getStep()->getStepId(), &dtg->getBindings()))
-									{
-										already_exists = true;
-										break;
-									}
-								}
-								
-								// TEST
-								if (already_exists) break;
-							}
-							
-							if (need_to_merge && !already_exists)
-							{
-//								std::cout << "Need to merge external invariable: ";
-//								precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
-//								std::cout << "(" << precondition_invariable << ") property space: " << &precondition_property->getPropertyState().getPropertySpace() << std::endl;
-								assert (counter == 0);
-								++counter;
-
-								StepID external_invariable_id = dtg->getBindings().createVariableDomains(*precondition);
-								from_dtg_node->addAtom(new BoundedAtom(external_invariable_id, *precondition, precondition_property), precondition_invariable);
-							}
-						}
-					}
-				}
-			}
-		}
-		dtg->establishTransitions();
+		dtg->mergeInvariableDTGs();
 	}
 	
 	/**
 	 * Evaluate the recursive functions and create new DTGs for each type discovered.
 	 */
-	std::map<const Object*, boost::dynamic_bitset<> > evaluation_results;
-	recursive_function_manager.evaluateObjects(evaluation_results, term_manager_->getAllObjects());
-	
-	for (std::map<const Object*, boost::dynamic_bitset<> >::const_iterator ci = evaluation_results.begin(); ci != evaluation_results.end(); ci++)
+	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
 	{
-		const Object* object = (*ci).first;
-		const boost::dynamic_bitset<>& bitset = (*ci).second;
-		
-		std::cout << "The object: " << *object << " is " << bitset << std::endl;
+		DomainTransitionGraph* dtg = *ci;
+		dtg->separateObjects(recursive_function_manager);
 	}
 }
 

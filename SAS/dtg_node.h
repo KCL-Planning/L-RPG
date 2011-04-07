@@ -16,6 +16,7 @@ class Atom;
 class Action;
 class Term;
 class Bindings;
+class Object;
 
 namespace SAS_Plus {
 
@@ -55,7 +56,6 @@ public:
 	/**
 	 * Add an atom to this node.
 	 */
-	//void addAtom(const Atom& atom, StepID id, InvariableIndex index);
 	void addAtom(BoundedAtom* bounded_atom, InvariableIndex index);
 
 	/**
@@ -163,6 +163,21 @@ public:
 	
 	void getPossibleActions(std::vector< const MyPOP::Action* >& possible_actions, const MyPOP::SAS_Plus::DomainTransitionGraphNode& dtg_node) const;
 
+	/**
+	 * Utility function, used to evaluate which objects are part of the invariable term's domain. First of all the term_mappings
+	 * contain the mappings of the first mapping of an initial fact to the first bounded atom of a node. This function recursively
+	 * explores the other bounded atoms and evaluates if the bindings hold or not.
+	 * @param dtg_node The DTG node which is evaluated.
+	 * @param begin An iterator pointing to the BoundedAtom which should be evalulated.
+	 * @param end An iterator pointing one past the last BoundedAtom to be evaluated.
+	 * @param initial_facts The list of initial facts.
+	 * @param term_mappings The mapping from terms to the corresponding domains.
+	 * @return True if the given mapping is possible with respect to the bounded atoms in the interval [begin, end);
+	 */
+	bool validateTermMappings(std::vector<BoundedAtom*>::const_iterator begin,
+                             std::vector<BoundedAtom*>::const_iterator end,
+                             const std::vector<const Atom*>& initial_facts,
+                             const std::map<const std::vector<const Object*>*, std::vector<const Object*>* >& term_mappings) const;
 
 private:
 
@@ -170,6 +185,7 @@ private:
 	 * Utility function of the copy constructor. Copy all the atoms to the new copy of the DTG node.
 	 */
 	void copyAtoms(const DomainTransitionGraphNode& dtg_node);
+
 	
 	// The DTG this node is part of.
 	DomainTransitionGraph* dtg_;

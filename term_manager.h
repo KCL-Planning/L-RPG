@@ -521,6 +521,7 @@ class TermManager : public Manager<Term> {
 
 public:
 	TermManager(const TypeManager& type_manager);
+	TermManager(const TermManager& term_manager);
 	virtual ~TermManager();
 
 	// Process the variables linked to the actions.

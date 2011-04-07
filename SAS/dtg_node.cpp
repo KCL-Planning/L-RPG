@@ -720,6 +720,87 @@ bool DomainTransitionGraphNode::isSupported(unsigned int id, const Atom& atom, c
 	return false;
 }
 
+// Recursive function.
+bool DomainTransitionGraphNode::validateTermMappings(std::vector<BoundedAtom*>::const_iterator begin,
+                                                     std::vector<BoundedAtom*>::const_iterator end,
+                                                     const std::vector<const Atom*>& initial_facts,
+                                                     const std::map<const std::vector<const Object*>*, std::vector<const Object*>* >& term_mappings) const
+{
+	if (begin == end)
+		return true;
+	
+	const BoundedAtom* bounded_atom = *begin;
+	const Atom& dtg_node_atom = bounded_atom->getAtom();
+	StepID dtg_node_atom_id = bounded_atom->getId();
+	
+	for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
+	{
+		const Atom* initial_fact = *ci;
+		if (dtg_->getBindings().canUnify(*initial_fact, Step::INITIAL_STEP, dtg_node_atom, dtg_node_atom_id))
+		{
+			// Add this object to the DTGs objects! :)
+			std::map<const std::vector<const Object*>*, std::vector<const Object*>* > new_term_mappings(term_mappings);
+			
+			// Check if the terms can be unified with the giving mappings.
+			bool can_be_mapped = true;
+			for (unsigned int i = 0; i < dtg_node_atom.getArity(); i++)
+			{
+				const Term* bounded_term = dtg_node_atom.getTerms()[i];
+				const std::vector<const Object*>& term_domain = bounded_term->getDomain(dtg_node_atom_id, dtg_->getBindings());
+				const std::vector<const Object*>& initial_fact_domain = initial_fact->getTerms()[i]->getDomain(Step::INITIAL_STEP, dtg_->getBindings());
+
+				bool domain_empty = true;
+				
+				std::vector<const Object*>* org_current_domain = new_term_mappings[&term_domain];
+				std::vector<const Object*>* new_current_domain = new std::vector<const Object*>(*org_current_domain);
+				
+				new_term_mappings[&term_domain] = new_current_domain;
+				
+				// Limit the domain to those objects present in both.
+				for (std::vector<const Object*>::reverse_iterator ri = new_current_domain->rbegin(); ri != new_current_domain->rend(); ri++)
+				{
+					const Object* object = *ri;
+					bool present = false;
+					for (std::vector<const Object*>::const_iterator ci = initial_fact_domain.begin(); ci != initial_fact_domain.end(); ci++)
+					{
+						const Object* initial_object = *ci;
+						if (initial_object == object)
+						{
+							present = true;
+							domain_empty = false;
+							break;
+						}
+					}
+					
+					if (!present)
+					{
+						new_current_domain->erase(ri.base() - 1);
+					}
+				}
+				
+				// If the domain has become empty, it is a false unification and ew need to break.
+				if (domain_empty)
+				{
+					can_be_mapped = false;
+					break;
+				}
+			}
+			
+			if (!can_be_mapped)
+			{
+				continue;
+			}
+			
+			// Call the function recursively and try to unify with the next bounded atom.
+			if (validateTermMappings(begin + 1, end, initial_facts, new_term_mappings))
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void DomainTransitionGraphNode::print(std::ostream& os) const
 {
 	for (std::vector<BoundedAtom*>::const_iterator ci = getAtoms().begin(); ci != getAtoms().end(); ci++)

@@ -22,6 +22,9 @@ class BindingsPropagator;
 	
 namespace SAS_Plus {
 
+class RecursiveFunctionManager;
+
+
 class BoundedAtom;
 class DomainTransitionGraphNode;
 class DomainTransitionGraphManager;
@@ -132,12 +135,12 @@ public:
 	/**
 	 * Return the predicate manager.
 	 */
-	const PredicateManager& getPredicateManager() const { return *predicate_manager_; }
+	//const PredicateManager& getPredicateManager() const { return *predicate_manager_; }
 
 	/**
 	 * Return the term manager.
 	 */
-	const TermManager& getTermManager() const { return *dtg_term_manager_; }
+	//const TermManager& getTermManager() const { return *dtg_term_manager_; }
 
 	/**
 	 * Check if the given index of the given predicate is an invariable variable. The predicates will only
@@ -147,12 +150,6 @@ public:
 	 * @param index The index to check.
 	 */
 	bool isValidPredicateIndex(const Predicate& predicate, unsigned int index) const;
-	
-	/**
-	 * Create a new DTG node with the given atom and add bind t to this DTG's bindings. The node is not added though!
-	 * @param atom The atom to create the lifted DTG node from.
-	 */
-	DomainTransitionGraphNode* createDTGNode(const Atom& atom, unsigned int index, const Property* property);
 	
 	/**
 	 * Remove a node from the DTG node.
@@ -232,8 +229,6 @@ public:
 	 */
 	bool removeUnsupportedTransitions();
 
-	friend std::ostream& operator<<(std::ostream& os, const DomainTransitionGraph& dtg);
-
 	/**
 	 * Try all possible transitions on the set of nodes in this DTG and add those that are possible.
 	 */
@@ -249,8 +244,22 @@ public:
 	 * Add the property spaces of the given DTG to this DTG. In the future this function should take care of more properties of the merge.
 	 */
 	void merge(const DomainTransitionGraph& dtg);
+	
+	/**
+	 * Separate the objects into groups based on membership of a set of recursive functions.
+	 */
+	void separateObjects(const RecursiveFunctionManager& recursive_function_manager);
+	
+	void mergeInvariableDTGs();
 
+	friend std::ostream& operator<<(std::ostream& os, const DomainTransitionGraph& dtg);
 private:
+	
+	/**
+	 * Create a new DTG node with the given atom and add bind t to this DTG's bindings. The node is not added though!
+	 * @param atom The atom to create the lifted DTG node from.
+	 */
+	DomainTransitionGraphNode* createDTGNode(const Atom& atom, unsigned int index, const Property* property);
 	
 	const DomainTransitionGraphManager* dtg_manager_;
 	
@@ -280,6 +289,9 @@ private:
 
 	// The objects which share this DTG.
 	std::vector<const Object*> objects_;
+	
+	// Set of objects which correspond to membership of recursive functions.
+	std::vector<std::vector<const Object*>* > objects_sets_;
 
 	// To create a DTG a set of predicates are combined to construct a 'balanced set', i.e.
 	// taken all the effects of all actions involving these predicates there will always be

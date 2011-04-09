@@ -234,7 +234,6 @@ void DomainTransitionGraph::addBalancedSet(const PropertySpace& property_space, 
 	/**
 	 * After detecting the most specific type, update all the types of the invariables.
 	 */
-	///for (std::vector<PropertyState*>::const_iterator ci = predicates_to_add.begin(); ci != predicates_to_add.end(); ci++)
 	for (std::vector<const PropertyState*>::const_iterator ci = property_space.getPropertyStates().begin(); ci != property_space.getPropertyStates().end(); ci++)
 	{
 		const PropertyState* property_state = *ci;
@@ -300,7 +299,6 @@ void DomainTransitionGraph::addBalancedSet(const PropertySpace& property_space, 
 		/**
 		 * Create a separate DTG node for each property state.
 		 */
-///		for (std::vector<PropertyState*>::const_iterator ci = predicates_to_add.begin(); ci != predicates_to_add.end(); ci++)
 		for (std::vector<const PropertyState*>::const_iterator ci = property_space.getPropertyStates().begin(); ci != property_space.getPropertyStates().end(); ci++)
 		{
 			const PropertyState* property_state = *ci;
@@ -1250,6 +1248,7 @@ void DomainTransitionGraph::separateObjects(const RecursiveFunctionManager& recu
 
 void DomainTransitionGraph::mergeInvariableDTGs()
 {
+	std::cout << "[DomainTransitionGraph::mergeInvariableDTGs] " << *this << std::endl;
 	std::vector<DomainTransitionGraphNode*> nodes_to_remove;
 	std::vector<DomainTransitionGraphNode*> nodes_to_add;
 		
@@ -1261,11 +1260,11 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 		{
 			const Transition* transition = *ci;
 
-			std::cout << "Transition: from ";
+			std::cout << "* Transition: from " << std::endl;
 			transition->getFromNode().print(std::cout);
-			std::cout << " to ";
+			std::cout << std::endl << " to " << std::endl;
 			transition->getToNode().print(std::cout);
-			std::cout << "[" << transition->getStep()->getAction() << "]" << std::endl;
+			std::cout << std::endl << "[" << transition->getStep()->getAction() << "]" << std::endl;
 
 			const std::vector<std::pair<const Atom*, InvariableIndex> >& preconditions = transition->getAllPreconditions();
 			
@@ -1275,7 +1274,7 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 				const Atom* precondition = (*ci).first;
 				InvariableIndex invariable = (*ci).second;
 
-				std::cout << "Process the precondition: ";
+				std::cout << " * * Process the precondition: ";
 				precondition->print(std::cout, *bindings_, transition->getStep()->getStepId());
 				std::cout << "(" << invariable << ")" << std::endl;
 
@@ -1287,7 +1286,7 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 					*/
 				if (invariable == NO_INVARIABLE_INDEX)
 				{
-					std::cout << " - The precondition isn't linked to the invariable. Check if the term is invariable in another DTG." << std::endl;
+					std::cout << " * * * The precondition isn't linked to the invariable. Check if the term is invariable in another DTG." << std::endl;
 					// Check if the precondition is invariable in their respective DTG(s).
 					std::vector<const DomainTransitionGraphNode*> matching_dtg_nodes;
 					dtg_manager_->getDTGNodes(matching_dtg_nodes, transition->getStep()->getStepId(), *precondition, *bindings_);
@@ -1315,7 +1314,7 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 							{
 								InvariableIndex matching_invariable_index = matching_dtg_node->getIndex(*bounded_atom);
 								
-								std::cout << " -= Precondition is invariable in the DTG node: ";
+								std::cout << " * * * * Precondition is invariable in the DTG node: ";
 								matching_dtg_node->print(std::cout);
 								std::cout << "[" << matching_invariable_index << "]" << std::endl;
 								
@@ -1326,8 +1325,9 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 								
 								if (containsPropertySpace(bounded_atom->getProperty()->getPropertyState().getPropertySpace()))
 								{
-									std::cout << "Alert! Proposing a DTG to merge with itself!!!" << std::endl;
+									std::cout << " * * * * Alert! Proposing a DTG to merge with itself!!!" << std::endl;
 
+									// TODO: Fix this bit :).
 									merge_with_self = true;
 									precondition_properties.clear();
 
@@ -1336,11 +1336,11 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 								
 								precondition_properties.push_back(std::make_pair(matching_invariable_index, bounded_atom->getProperty()));
 								
-								std::cout << "Candidate to bind: ";
+								std::cout << " * * * * Candidate to bind: ";
 								bounded_atom->print(std::cout, matching_dtg_node->getDTG().getBindings());
 								std::cout << "[" << &bounded_atom->getProperty()->getPropertyState().getPropertySpace() << "]" << std::endl;
 								
-								std::cout << "From DTG node: ";
+								std::cout << " * * * * From DTG node: ";
 								matching_dtg_node->print(std::cout);
 								std::cout << " (pointer address=" << &matching_dtg_node->getDTG() << ")" << std::endl;
 							}
@@ -1394,7 +1394,7 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 						
 						if (need_to_merge && !already_exists)
 						{
-							std::cout << "Need to merge external invariable: ";
+							std::cout << " * * * Need to merge external invariable: ";
 							precondition->print(std::cout, *bindings_, transition->getStep()->getStepId());
 							std::cout << "(" << precondition_invariable << ") property space: " << &precondition_property->getPropertyState().getPropertySpace() << std::endl;
 							assert (counter == 0);

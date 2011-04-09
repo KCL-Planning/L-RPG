@@ -100,7 +100,8 @@ void Atom::print(std::ostream& os, const Bindings& bindings, StepID step_id) con
 	for (std::vector<const Term*>::const_iterator ci = terms_->begin(); ci != terms_->end(); ci++)
 	{
 		const Term* term = *ci;
-		term->print(os, bindings, step_id);
+		os << *term;
+		///term->print(os, bindings, step_id);
 		///os << "%" << &(term->getDomain(step_id, bindings)) << "%";
 		if (ci + 1 != terms_->end())
 			os << " ";

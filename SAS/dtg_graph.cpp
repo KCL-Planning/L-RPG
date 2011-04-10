@@ -389,8 +389,6 @@ void DomainTransitionGraph::addObjects()
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator dtg_node_ci = nodes_.begin(); dtg_node_ci != nodes_.end(); dtg_node_ci++)
 	{
 		DomainTransitionGraphNode* dtg_node = *dtg_node_ci;
-		
-		std::cout << "Process the dtg node: " << *dtg_node << std::endl;
 
 		const BoundedAtom* invariable_bounded_atom = NULL;
 		
@@ -472,7 +470,6 @@ void DomainTransitionGraph::addObjects()
 						const Object* object = *ci;
 						objects_.push_back(object);
 					}
-					std::cout << "}" << std::endl;
 				}
 			}
 		}
@@ -853,7 +850,7 @@ void DomainTransitionGraph::reestablishTransitions()
 
 void DomainTransitionGraph::establishTransitions()
 {
-//	std::cout << "Establish transitions for: (" << bindings_->getNr() << ") " << *this << std::endl;
+	std::cout << "Establish transitions for: (" << bindings_->getNr() << ") " << *this << std::endl;
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 	{
 		(*ci)->removeTransitions(true);
@@ -1328,10 +1325,11 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 									std::cout << " * * * * Alert! Proposing a DTG to merge with itself!!!" << std::endl;
 
 									// TODO: Fix this bit :).
-									merge_with_self = true;
-									precondition_properties.clear();
+//									merge_with_self = true;
+//									precondition_properties.clear();
 
-									break;
+//									break;
+									continue;
 								}
 								
 								precondition_properties.push_back(std::make_pair(matching_invariable_index, bounded_atom->getProperty()));

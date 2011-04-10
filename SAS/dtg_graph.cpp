@@ -468,7 +468,22 @@ void DomainTransitionGraph::addObjects()
 					for (std::vector<const Object*>::const_iterator ci = domain.begin(); ci != domain.end(); ci++)
 					{
 						const Object* object = *ci;
-						objects_.push_back(object);
+						
+						// Make sure the object isn't already present.
+						bool is_present = false;
+						for (std::vector<const Object*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
+						{
+							if (*ci == object)
+							{
+								is_present = true;
+								break;
+							}
+						}
+						
+						if (!is_present)
+						{
+							objects_.push_back(object);
+						}
 					}
 				}
 			}

@@ -5,8 +5,6 @@
 #include <assert.h>
 #include <sys/time.h>
 
-#include "logging.h"
-
 #include "VALfiles/ptree.h"
 #include "VALfiles/TIM.h"
 #include "VALfiles/ToFunction.h"
@@ -29,6 +27,8 @@
 #include "SAS/relaxed_reachability_analyst.h"
 #include "relaxed_planning_graph.h"
 //#include "action_graph.h"
+
+///#define MYPOP_COMMENTS
 
 extern int yyparse();
 extern int yydebug;
@@ -55,33 +55,16 @@ int main(int argc,char * argv[])
 {
 
 	// The first line is the debug level.
-	if (argc != 4)
+	if (argc != 3)
 	{
-		std::cout << "Usage: mypop <debug level> <domain file> <problem file>." << std::endl;
-		exit(0);
+		std::cout << "Usage: mypop <domain file> <problem file>." << std::endl;
+		exit(1);
 	}
 
 	struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
 	setitimer ( ITIMER_PROF, &timer, NULL );
 
-	int log_level = -1;
-	std::string log_level_str(argv[1]);
-	std::stringstream in(log_level_str);
-	in >> log_level;
-
-	// Set the log level:
-	if (log_level < Logging::DEBUG || log_level > Logging::ERROR)
-	{
-		std::cout << "The log level should be between " << Logging::DEBUG << "(DEBUG) and " << Logging::ERROR << "(ERROR)." << std::endl;
-		exit(0);
-	}
-	Logging::setLogLevel(log_level);
-	if (Logging::verbosity <= Logging::INFO)
-	{
-		std::cout << "Logging level set to " << Logging::LogLevelString[Logging::verbosity] << std::endl;
-	}
-
-	TIM::performTIMAnalysis(&argv[2]);
+	TIM::performTIMAnalysis(&argv[1]);
 	for_each(TA->pbegin(),TA->pend(), ptrwriter<PropertySpace>(cout,"\n"));
 	for_each(TA->abegin(),TA->aend(), ptrwriter<PropertySpace>(cout,"\n"));
 
@@ -188,34 +171,30 @@ int main(int argc,char * argv[])
 	// Create the initial step, which is a custom action with the atoms of the initial state as its effects.
 	Action* initial_action = new Action("Initial action", Formula::TRUE, initial_action_variables, initial_effects);
 
-	if (Logging::verbosity <= Logging::DEBUG)
-	{
-		std::cout << "Print initial action" << std::endl;
-		std::cout << *initial_action << std::endl;
-	}
+#ifdef MYPOP_COMMENTS
+	std::cout << "Print initial action" << std::endl;
+	std::cout << *initial_action << std::endl;
+#endif
 
 	// Create the goal, which is a custom action with the goal atoms as preconditions.
-	if (Logging::verbosity <= Logging::DEBUG)
-	{
-		std::cout << "Create goal action" << std::endl;
-	}
+#ifdef MYPOP_COMMENTS
+	std::cout << "Create goal action" << std::endl;
+#endif
 	std::vector<const Variable*>* goal_action_variables = new std::vector<const Variable*>();
 	std::vector<const Atom*>* goal_action_effects = new std::vector<const Atom*>();
 	Action* goal_action = new Action("Goal action", *goal, goal_action_variables, goal_action_effects);
 
 
-	if (Logging::verbosity <= Logging::DEBUG)
-	{
-		std::cout << "Print goal action" << std::endl;
-		std::cout << *goal_action << std::endl;
-	}
+#ifdef MYPOP_COMMENTS
+	std::cout << "Print goal action" << std::endl;
+	std::cout << *goal_action << std::endl;
+#endif
 
 	plan->makeInitialPlan(*initial_action, *goal_action);
 
-	if (Logging::verbosity <= Logging::DEBUG)
-	{
-		std::cout << "Initial plan" << *plan << std::endl;
-	}
+#ifdef MYPOP_COMMENTS
+	std::cout << "Initial plan" << *plan << std::endl;
+#endif
 
 	assert (plan->getSteps().size() == 2);
 

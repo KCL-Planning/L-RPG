@@ -112,6 +112,8 @@ protected:
 	void mapObjectToType(const Object& object, const Type& type);
 
 private:
+	
+	bool containsSuperTypes(const VAL::pddl_type& type, VAL::pddl_type_list& other_types, bool* closed_list) const;
 	// During construction of the types keep track of the indexing from the
 	// pddl type to TypeID. This allows us to instantiate all the types in a
 	// single iteration.

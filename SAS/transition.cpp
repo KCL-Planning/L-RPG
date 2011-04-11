@@ -918,11 +918,11 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		const std::vector<const Object*>* invariable_term = property_space_invariables[&property_space];
 		if (invariable_term == NULL)
 		{
-			#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 			std::cout << "Could not find the invariable term of ";
 			bounded_atom->print(std::cout, bindings);
 			std::cout << "[" << from_node.getIndex(*bounded_atom) << "]" << std::endl;
-			#endif
+#endif
 			continue;
 		}
 

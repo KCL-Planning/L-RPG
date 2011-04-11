@@ -19,7 +19,9 @@
 #include "action_manager.h"
 #include "predicate_manager.h"
 #include "plan_bindings.h"
-#include "logging.h"
+
+
+///#define MYPOP_PLANNER_COMMENTS
 
 namespace MyPOP {
 
@@ -42,10 +44,9 @@ Planner::~Planner()
 	{
 		const Plan* plan = plans_.top();
 		delete plan;
-		if (Logging::verbosity <= Logging::DEBUG)
-		{
-			std::cout << "Delete plan!" << std::endl;
-		}
+#ifdef MYPOP_PLANNER_COMMENTS
+		std::cout << "Delete plan!" << std::endl;
+#endif
 		plans_.pop();
 	}
 }
@@ -56,11 +57,9 @@ const Plan* Planner::getSolution()
 	while (!plans_.empty())
 	{
 		const Plan* current_plan = plans_.top();
-		if (Logging::verbosity <= Logging::INFO)
-		{
-			std::cout << Logging::verbosity << " v.s. " <<  Logging::INFO << std::endl;
-			std::cout << "*** Current plan:" << std::endl << *current_plan << std::endl;
-		}
+#ifdef MYPOP_PLANNER_COMMENTS
+		std::cout << "*** Current plan:" << std::endl << *current_plan << std::endl;
+#endif
 		plans_.pop();
 
 		// If there are no more flaws to work on, return the plan!
@@ -78,21 +77,19 @@ const Plan* Planner::getSolution()
 		// Get all the refinements on this plan and put them into the queue.
 		std::vector<const Plan*> refinements;
 		flaw.handleFlaw(refinements, *this, *current_plan);
-		if (Logging::verbosity <= Logging::INFO)
+#ifdef MYPOP_PLANNER_COMMENTS
+		std::cout << "Possible refinements:" << std::endl;
+		for (std::vector<const Plan*>::const_iterator ci = refinements.begin(); ci != refinements.end(); ci++)
 		{
-			std::cout << "Possible refinements:" << std::endl;
-			for (std::vector<const Plan*>::const_iterator ci = refinements.begin(); ci != refinements.end(); ci++)
-			{
-				std::cout << **ci << std::endl;
-			}
+			std::cout << **ci << std::endl;
 		}
+#endif
 
 		if (refinements.size() == 0)
 		{
-			if (Logging::verbosity <= Logging::INFO)
-			{
-				std::cout << "Dead end..." << std::endl;
-			}
+#ifdef MYPOP_PLANNER_COMMENTS
+			std::cout << "Dead end..." << std::endl;
+#endif
 			++dead_ends_;
 		}
 
@@ -267,10 +264,7 @@ bool Planner::promote(std::vector<const Plan*>& refinements, const Plan& plan, c
 
 void Planner::handleMutex(std::vector<const Plan*>& refinement, const Plan& plan, const Mutex& mutex)
 {
-	if (Logging::verbosity <= Logging::ERROR)
-	{
-		std::cout << "Function not yet implemented!" << std::endl;
-	}
+	std::cout << "Function not yet implemented!" << std::endl;
 	assert(false);
 }
 
@@ -287,13 +281,12 @@ void Planner::handleUnsafe(std::vector<const Plan*>& refinements, const Plan& pl
 	// The effect.
 	//const Atom& effect = unsafe.getEffect();
 
-	if (Logging::verbosity <= Logging::INFO)
-	{
-		std::cout << unsafe << std::endl;
-		//std::cout << "Refine unsafe: " << *threatening_step << " -> " << *threatened_step << " Effect: ";
-		//effect.print(std::cout);
-		//std::cout << std::endl;
-	}
+#ifdef MYPOP_PLANNER_COMMENTS
+	std::cout << unsafe << std::endl;
+	//std::cout << "Refine unsafe: " << *threatening_step << " -> " << *threatened_step << " Effect: ";
+	//effect.print(std::cout);
+	//std::cout << std::endl;
+#endif
 	
 	// Check if this unsafe is still valid, it might already been solved due to other orderings
 	// and separations constraints added to the plan in an attempt to resolve other unsafes as well.
@@ -320,31 +313,28 @@ void Planner::handleOpenCondition(std::vector<const Plan*>& refinements, const P
 	StepPtr step = oc.getStep();
 	const Atom& atom = oc.getAtom();
 
-	if (Logging::verbosity <= Logging::INFO)
-	{
-		std::cout << "Refine [" << step->getStepId() << "] ";
-		atom.print(std::cout);
-		std::cout << std::endl;
-	}
+#ifdef MYPOP_PLANNER_COMMENTS
+	std::cout << "Refine [" << step->getStepId() << "] ";
+	atom.print(std::cout);
+	std::cout << std::endl;
+#endif
 
 	// Find all actions which can achieve the asked atom.
 	std::vector<std::pair<const Action*, const Atom*> > actions;
 	action_manager_->getAchievingActions(actions, atom);
 	
-	if (Logging::verbosity <= Logging::INFO)
-	{
-		std::cout << "--- Possible achievers: " << std::endl;
-	}
+#ifdef MYPOP_PLANNER_COMMENTS
+	std::cout << "--- Possible achievers: " << std::endl;
+#endif
 
 	for (std::vector<std::pair<const Action*, const Atom*> >::const_iterator ci = actions.begin(); ci != actions.end(); ci++)
 	{
 		const Action* achieving_action = (*ci).first;
 		const Atom* achieving_action_effect = (*ci).second;
 
-		if (Logging::verbosity <= Logging::INFO)
-		{
-			std::cout << *achieving_action << std::endl;
-		}
+#ifdef MYPOP_PLANNER_COMMENTS
+		std::cout << *achieving_action << std::endl;
+#endif
 
 		// The new step to be added.
 		Plan* new_plan = new Plan(plan);
@@ -353,27 +343,24 @@ void Planner::handleOpenCondition(std::vector<const Plan*>& refinements, const P
 		// Create a causal link.
 		if (!new_plan->createCausalLink(new_step, *achieving_action_effect, oc, true))
 		{
-			if (Logging::verbosity <= Logging::INFO)
-			{
-				std::cout << "Could not be impose causal link :(" << std::endl;
-			}
+#ifdef MYPOP_PLANNER_COMMENTS
+			std::cout << "Could not be impose causal link :(" << std::endl;
+#endif
 			delete new_plan;
 			continue;
 		}
 
-		if (Logging::verbosity <= Logging::INFO)
-		{
-			std::cout << *new_plan << std::endl;
-		}
+#ifdef MYPOP_PLANNER_COMMENTS
+		std::cout << *new_plan << std::endl;
+#endif
 		refinements.push_back(new_plan);
 	}
 
 	// Next check if we can reuse any of the actions from the plan.
 	const std::vector<StepPtr>& steps = plan.getSteps();
-	if (Logging::verbosity <= Logging::INFO)
-	{
-		std::cout << "--- Possible actions to reuse: " << std::endl;
-	}
+#ifdef MYPOP_PLANNER_COMMENTS
+	std::cout << "--- Possible actions to reuse: " << std::endl;
+#endif
 	for (std::vector<StepPtr>::const_iterator ci = steps.begin(); ci != steps.end(); ci++)
 	{
 		StepPtr existing_step = *ci;
@@ -381,19 +368,17 @@ void Planner::handleOpenCondition(std::vector<const Plan*>& refinements, const P
 		// Check if the step can be ordered before the step we want to support.
 		if (!plan.getOrderings().canBeOrderedBefore((*existing_step).getStepId(), StepTime::dummy_step_time, (*step).getStepId(), StepTime::dummy_step_time))
 		{
-			if (Logging::verbosity <= Logging::DEBUG)
-			{
-				std::cout << "We cannot order " << *existing_step << " before " << *step << std::endl;
-			}
+#ifdef MYPOP_PLANNER_COMMENTS
+			std::cout << "We cannot order " << *existing_step << " before " << *step << std::endl;
+#endif
 			continue;
 		}
 
 		// Get the action.
 		const Action& action = (*existing_step).getAction();
-		if (Logging::verbosity <= Logging::INFO)
-		{
-			std::cout << action << std::endl;
-		}
+#ifdef MYPOP_PLANNER_COMMENTS
+		std::cout << action << std::endl;
+#endif
 
 		// Check if any of the effects can satisfy the open condition.
 		std::vector<const Atom*> achieving_effects;
@@ -408,18 +393,16 @@ void Planner::handleOpenCondition(std::vector<const Plan*>& refinements, const P
 			Plan* new_plan = new Plan(plan);
 			if (!new_plan->createCausalLink(existing_step, *achieving_effect, oc, false))
 			{
-				if (Logging::verbosity <= Logging::INFO)
-				{
-					std::cout << "Could not be impose causal link :(" << std::endl;
-				}
+#ifdef MYPOP_PLANNER_COMMENTS
+				std::cout << "Could not be impose causal link :(" << std::endl;
+#endif
 				delete new_plan;
 				continue;
 			}
 
-			if (Logging::verbosity <= Logging::INFO)
-			{
-				std::cout << *new_plan << std::endl;
-			}
+#ifdef MYPOP_PLANNER_COMMENTS
+			std::cout << *new_plan << std::endl;
+#endif
 			refinements.push_back(new_plan);
 		}
 	}

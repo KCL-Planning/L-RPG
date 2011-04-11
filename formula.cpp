@@ -1,11 +1,12 @@
 #include "formula.h"
 #include "term_manager.h"
-#include "logging.h"
 #include "plan.h"
 #include "pointers.h"
 #include "plan_flaws.h"
 #include "plan_bindings.h"
 #include "predicate_manager.h"
+
+///#define MYPOP_FORMULA_COMMENTS
 
 namespace MyPOP {
 
@@ -56,10 +57,9 @@ Atom::Atom(const Predicate& predicate, const std::vector<const Term*>& terms, bo
 
 Atom::~Atom()
 {
-	if (Logging::verbosity <= Logging::DEBUG)
-	{
-		std::cout << predicate_ << " is deleted!" << std::endl;
-	}
+#ifdef MYPOP_FORMULA_COMMENTS
+	std::cout << predicate_ << " is deleted!" << std::endl;
+#endif
 	delete terms_;
 }
 

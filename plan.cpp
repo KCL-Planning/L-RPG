@@ -9,8 +9,9 @@
 #include "plan_orderings.h"
 #include "formula.h"
 #include "plan_flaws.h"
-#include "logging.h"
 #include "exceptions.h"
+
+///#define MYPOP_PLAN_COMMENTS
 
 namespace MyPOP {
 
@@ -196,10 +197,9 @@ bool Plan::createCausalLink(StepPtr from_step, const Atom& supporting_effect, co
 		
 	if (!can_unify)
 	{
-		if (Logging::verbosity <= Logging::INFO)
-		{
-			std::cout << "Could not be unified :(" << std::endl;
-		}
+#ifdef MYPOP_PLAN_COMMENTS
+		std::cout << "Could not be unified :(" << std::endl;
+#endif
 		return false;
 	}
 	
@@ -250,10 +250,9 @@ bool Plan::isThreat(const Unsafe& unsafe) const
 	if (!orderings_->canBeOrderedBefore((*step).getStepId(), StepTime::dummy_step_time, (*to_step).getStepId(), StepTime::dummy_step_time) ||
 		!orderings_->canBeOrderedAfter((*step).getStepId(), StepTime::dummy_step_time, (*from_step).getStepId(), StepTime::dummy_step_time))
 	{
-		if (Logging::verbosity <= Logging::DEBUG)
-		{
-			std::cout << "Ordering cannot be imposed for the step to be a threat!" << unsafe << std::endl;
-		}
+#ifdef MYPOP_PLAN_COMMENTS
+		std::cout << "Ordering cannot be imposed for the step to be a threat!" << unsafe << std::endl;
+#endif
 		return false;
 	}
 
@@ -281,20 +280,18 @@ void Plan::checkThreat(StepPtr step, LinkPtr link)
 	StepPtr to_step = (*link).getToStep();
 	const Atom& condition = (*link).getCondition();
 
-	if (Logging::verbosity <= Logging::DEBUG)
-	{
-		std::cout << "Check treat by " << step->getStepId() << " to " << *link << std::endl;
-	}
+#ifdef MYPOP_PLAN_COMMENTS
+	std::cout << "Check treat by " << step->getStepId() << " to " << *link << std::endl;
+#endif
 
 	// First of all check if this step could potentially interfere. I.e. it can be ordered before the
 	// step related to the open condition or after the step which satisfies it.
 	if (!orderings_->canBeOrderedBefore((*step).getStepId(), StepTime::dummy_step_time, (*to_step).getStepId(), StepTime::dummy_step_time) ||
 		!orderings_->canBeOrderedAfter((*step).getStepId(), StepTime::dummy_step_time, (*from_step).getStepId(), StepTime::dummy_step_time))
 	{
-		if (Logging::verbosity <= Logging::DEBUG)
-		{
-			std::cout << "Ordering cannot be imposed for the step to be a threat!" << *link << std::endl;
-		}
+#ifdef MYPOP_PLAN_COMMENTS
+		std::cout << "Ordering cannot be imposed for the step to be a threat!" << *link << std::endl;
+#endif
 		return;
 	}
 
@@ -312,17 +309,18 @@ void Plan::checkThreat(StepPtr step, LinkPtr link)
 			// Found a new unsafe!
 			UnsafePtr unsafe(new Unsafe(step, *effect, link));
 			
-			if (Logging::verbosity <= Logging::DEBUG)
-			{
-				std::cout << "Found an unsafe relation: " << *unsafe << std::endl;
-			}
+#ifdef MYPOP_PLAN_COMMENTS
+			std::cout << "Found an unsafe relation: " << *unsafe << std::endl;
+#endif
 			
 			unsafes_.push_back(unsafe);
 		}
-		else if (Logging::verbosity <= Logging::DEBUG)
+#ifdef MYPOP_PLAN_COMMENTS
+		else
 		{
 			std::cout << "Does not affect!" << *link << std::endl;
 		}
+#endif
 	}
 }
 

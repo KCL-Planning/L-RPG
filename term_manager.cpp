@@ -1,7 +1,8 @@
 #include "term_manager.h"
 #include "type_manager.h"
-#include "logging.h"
 #include "plan_bindings.h"
+
+///#define MYPOP_TERM_MANAGER_COMMENTS
 
 namespace MyPOP {
 
@@ -387,11 +388,6 @@ void TermManager::processActionVariables(const VAL::operator_list& operators)
 			const Type* type = type_manager_->getType(parameter->type->getName());
 			Variable* var = new Variable(*type, parameter->getName());
 			addTerm(*parameter, *var);
-
-			if (Logging::verbosity <= Logging::DEBUG)
-			{
-				std::cout << "!!!!!" << *var << std::endl;
-			}
 		}
 	}
 }

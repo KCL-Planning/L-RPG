@@ -6,6 +6,8 @@
 #include "type_manager.h"
 #include "formula.h"
 
+///#define MYPOP_PREDICATE_COMMENTS
+
 namespace MyPOP {
 
 //Predicate::Predicate(const std::string& name)
@@ -151,7 +153,9 @@ void PredicateManager::processPredicates(const VAL::pred_decl_list& predicates)
 			predicate_map_[std::make_pair(predicate_name, *types)] = predicate;
 			addManagableObject(predicate);
 
-//			std::cout << "Predicate: " << *predicate << std::endl;
+#ifdef MYPOP_PREDICATE_COMMENTS
+			std::cout << "Predicate: " << *predicate << std::endl;
+#endif
 
 			// Find the most generalised types.
 			std::vector<const Type*>* general_types = NULL;
@@ -166,7 +170,9 @@ void PredicateManager::processPredicates(const VAL::pred_decl_list& predicates)
 				general_types = (*type_ci).second;
 			}
 
-			//std::cout << "Find super types for: " << predicate_name << std::endl;
+#ifdef MYPOP_PREDICATE_COMMENTS
+			std::cout << "Find super types for: " << predicate_name << std::endl;
+#endif
 
 
 			if (general_types->size() == 0)
@@ -182,43 +188,67 @@ void PredicateManager::processPredicates(const VAL::pred_decl_list& predicates)
 			{
 				for (unsigned int i = 0; i < types->size(); i++)
 				{
-					//std::cout << "Check " << i << "th type" << std::endl;
 					const Type* current_type = (*types)[i];
-					//std::cout << *current_type << std::endl;
-					//std::cout << " v.s. current general type: " << std::endl;
-					//std::cout << *(*general_types)[i] << std::endl;
+#ifdef MYPOP_PREDICATE_COMMENTS
+					std::cout << "Check " << i << "th type" << std::endl;
+					std::cout << *current_type << std::endl;
+					std::cout << " v.s. current general type: " << std::endl;
+					std::cout << *(*general_types)[i] << std::endl;
+#endif
 
 					if ((*general_types)[i]->isSubtypeOf(*current_type))
 					{
-						//std::cout << "- " << *(*general_types)[i] << " is a subtype of " << *current_type << std::endl;
+#ifdef MYPOP_PREDICATE_COMMENTS
+						std::cout << "- " << *(*general_types)[i] << " is a subtype of " << *current_type << std::endl;
+#endif
 						(*general_types)[i] = current_type;
 					}
 					else if ((*general_types)[i] != current_type && !current_type->isSubtypeOf(*(*general_types)[i]))
 					{
 						// If this type is not the same nor the subtype, we must find for the supertype both are members of.
 						const Type* super_type = (*general_types)[i]->getSupertype();
+						
+						///std::cout << "The super type of the general type " << *(*general_types)[i] << " is " << *super_type << std::endl;
+						
 						while (super_type != NULL && !current_type->isSubtypeOf(*super_type) && current_type != super_type)
 						{
-							//std::cout << "- " << "Is: " << *super_type << " a super type of " << *current_type << "?" << std::endl;
+#ifdef MYPOP_PREDICATE_COMMENTS
+							std::cout << "- " << "Is: " << *super_type << " a super type of " << *current_type << "?" << std::endl;
+#endif
 							super_type = super_type->getSupertype();
-							
+#ifdef MYPOP_PREDICATE_COMMENTS
+							if (super_type != NULL)
+							{
+								std::cout << "- New super type: " << *super_type << std::endl;
+							}
+							else
+							{
+								std::cout << "- No supertype found!" << std::endl;
+							}
+#endif
 						}
 						assert (super_type != NULL);
 
-						//std::cout << "- " << "Super type!!!" << *super_type << std::endl;
+#ifdef MYPOP_PREDICATE_COMMENTS
+						std::cout << "- " << "Super type!!!" << *super_type << std::endl;
+#endif
 						(*general_types)[i] = super_type;
 					}
 					else
 					{
-						//std::cout << "- The same." << std::endl;
+#ifdef MYPOP_PREDICATE_COMMENTS
+						std::cout << "- The same." << std::endl;
+#endif
 					}
 				}
 			}
 
-			//if (getGeneralPredicate(predicate_name) != NULL)
-			//{
-			//	std::cout << "Generalised types for predicate: " << *predicate << ": " << *getGeneralPredicate(predicate_name) << std::endl;
-			//}
+#ifdef MYPOP_PREDICATE_COMMENTS
+			if (getGeneralPredicate(predicate_name) != NULL)
+			{
+				std::cout << "Generalised types for predicate: " << *predicate << ": " << *getGeneralPredicate(predicate_name) << std::endl;
+			}
+#endif
 		}
 	}
 

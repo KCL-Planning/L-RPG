@@ -5,7 +5,6 @@
 #include "term_manager.h"
 #include "predicate_manager.h"
 #include "plan.h"
-#include "logging.h"
 #include "formula.h"
 #include "exceptions.h"
 #include "bindings_propagator.h"

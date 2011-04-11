@@ -4,9 +4,10 @@
 #include "predicate_manager.h"
 #include "formula.h"
 #include "parser_utils.h"
-#include "logging.h"
 #include "plan_bindings.h"
 #include "plan.h"
+
+///#define MYPOP_ACTION_MANAGER_COMMENTS
 
 namespace MyPOP {
 
@@ -134,10 +135,9 @@ ActionManager::ActionManager(const TypeManager& type_manager, TermManager& term_
 
 ActionManager::~ActionManager()
 {
-	if (Logging::verbosity <= Logging::INFO)
-	{
-		std::cout << "[Destructor] ActionManager" << std::endl;
-	}
+#ifdef MYPOP_ACTION_MANAGER_COMMENTS
+	std::cout << "[Destructor] ActionManager" << std::endl;
+#endif
 }
 
 void ActionManager::processActions(const VAL::operator_list& operators)
@@ -209,12 +209,11 @@ void ActionManager::processActions(const VAL::operator_list& operators)
 
 void ActionManager::getAchievingActions(std::vector<std::pair<const Action*, const Atom*> >& actions, const Atom& atom) const
 {
-	if (Logging::verbosity <= Logging::DEBUG)
-	{
-		std::cout << "Find all the actions which can achieve ";
-		atom.print(std::cout);
-		std::cout << std::endl;
-	}
+#ifdef MYPOP_ACTION_MANAGER_COMMENTS
+	std::cout << "Find all the actions which can achieve ";
+	atom.print(std::cout);
+	std::cout << std::endl;
+#endif
 
 	// Create a list of all action which have the same predicate.
 	for (unsigned int i = 0; i < highest_id_; i++)

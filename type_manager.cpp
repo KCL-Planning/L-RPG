@@ -5,9 +5,9 @@
 #include "VALfiles/ptree.h"
 
 #include "type_manager.h"
-#include "logging.h"
 #include "term_manager.h"
 
+///#define MYPOP_TYPE_COMMENTS
 
 namespace MyPOP {
 
@@ -141,40 +141,124 @@ void TypeManager::processTypes(const VAL::pddl_type_list& types)
 	}
 
 	// Show the results.
-	if (Logging::verbosity <= Logging::DEBUG)
+#ifdef MYPOP_TYPE_COMMENTS
+	for (unsigned int i = 0; i < highest_id_; i++)
 	{
-		for (unsigned int i = 0; i < highest_id_; i++)
-		{
-			std::cout << *objects_[i] << std::endl;
-	
-			for (unsigned int j = 0; j < highest_id_; j++) {
-				if (objects_[i]->isSubtypeOf(*objects_[j]))
-					std::cout << "SUBTYPE OF: " << *objects_[j] << std::endl;
-				if (objects_[i]->isSupertypeOf(*objects_[j]))
-					std::cout << "SUPERTYPE OF: " << *objects_[j] << std::endl;
-				if (objects_[i]->isCompatible(*objects_[j]))
-					std::cout << "COMPATIBLE WITH: " << *objects_[j] << std::endl;
-			}
+		std::cout << *objects_[i] << std::endl;
+
+		for (unsigned int j = 0; j < highest_id_; j++) {
+			if (objects_[i]->isSubtypeOf(*objects_[j]))
+				std::cout << "SUBTYPE OF: " << *objects_[j] << std::endl;
+			if (objects_[i]->isSupertypeOf(*objects_[j]))
+				std::cout << "SUPERTYPE OF: " << *objects_[j] << std::endl;
+			if (objects_[i]->isCompatible(*objects_[j]))
+				std::cout << "COMPATIBLE WITH: " << *objects_[j] << std::endl;
 		}
 	}
+#endif
+}
+
+bool TypeManager::containsSuperTypes(const VAL::pddl_type& type, VAL::pddl_type_list& other_types, bool* closed_list) const
+{
+#ifdef MYPOP_TYPE_COMMENTS
+	std::cout << "Check if the type : " << type.getName() << " contains the following types: ";
+	for (VAL::pddl_type_list::const_iterator ci = other_types.begin(); ci != other_types.end(); ci++)
+	{
+		const VAL::pddl_type* other_type = *ci;
+		std::cout << other_type->getName();
+///		if (ci != other_types.end() - 1)
+		{
+			std::cout << ", ";
+		}
+	}
+	std::cout << std::endl;
+#endif
+	
+	unsigned int counter = 0;
+	for (VAL::pddl_type_list::const_iterator ci = other_types.begin(); ci != other_types.end(); ci++)
+	{
+		const VAL::pddl_type* other_type = *ci;
+		if (other_type->getName() == type.getName())
+		{
+			closed_list[counter] = true;
+		}
+
+		const VAL::pddl_type* parent_type = type.type;
+		if (parent_type != NULL)
+		{
+			if (containsSuperTypes(*parent_type, other_types, closed_list))
+			{
+				return true;
+			}
+		}
+		else
+		{
+			const VAL::pddl_type_list* parent_list = type.either_types;
+			if (parent_list != NULL)
+			{
+				for (VAL::pddl_type_list::const_iterator ci = parent_list->begin(); ci != parent_list->end(); ci++)
+				{
+					if (containsSuperTypes(**ci, other_types, closed_list))
+					{
+						return true;
+					}
+				}
+			}
+		}
+		++counter;
+	}
+	
+	// Check if all types have been found.
+	bool done = true;
+	for (unsigned int i = 0; i < other_types.size(); i++)
+	{
+		if (!closed_list[i])
+		{
+			done = false;
+			break;
+		}
+	}
+	if (done) return true;
+	else return false;
 }
 
 Type* TypeManager::processType(const VAL::pddl_type& type)
 {
-	if (Logging::verbosity <= Logging::DEBUG)
-	{
-		std::cout << type.getName() << "..." << std::endl;
-	}
+#ifdef MYPOP_TYPE_COMMENTS
+	std::cout << type.getName() << "..." << std::endl;
+	
+	type.write(std::cout);
+#endif
 	const VAL::pddl_type* parent = type.type;
 	Type* parent_type = NULL;
+	
+	// If a type has multiple supertypes, we assert that both have a common supertype.
+	// The parent pointer will be assigned to the most specific of the two.
+	if (parent == NULL)
+	{
+		VAL::pddl_type_list* parent_list = type.either_types;
+		
+		if (parent_list != NULL)
+		{
+			for (std::list<VAL::pddl_type*>::const_iterator ci = parent_list->begin(); ci != parent_list->end(); ci++)
+			{
+				const VAL::pddl_type* current_type = *ci;
+				bool closed_list[parent_list->size()];
+				if (containsSuperTypes(*current_type, *parent_list, &closed_list[0]))
+				{
+					parent = current_type;
+					break;
+				}
+			}
+		}
+	}
 
 	// If the type has a supertype, process this one first.
 	if (parent != NULL)
 	{
-		if (Logging::verbosity <= Logging::DEBUG)
-		{
-			std::cout << type.getName() << " has " << parent->getName() << " as a parent!" << std::endl;
-		}
+#ifdef MYPOP_TYPE_COMMENTS
+		std::cout << type.getName() << " has " << parent->getName() << " as a parent!" << std::endl;
+#endif
 
 		// Check if the parent has already been constructed.
 		std::map<std::string, Type*>::const_iterator parent_ci = types_mapping_.find(parent->getName());
@@ -192,16 +276,16 @@ Type* TypeManager::processType(const VAL::pddl_type& type)
 
 		assert (parent_type != NULL);
 	}
-	else if (Logging::verbosity <= Logging::DEBUG)
+#ifdef MYPOP_TYPE_COMMENTS
+	else
 	{
 		std::cout << type.getName() << " has no parents." << std::endl;
 	}
+#endif
 
-
-	if (Logging::verbosity <= Logging::DEBUG)
-	{
-		std::cout << "Process " << type.getName() << std::endl;
-	}
+#ifdef MYPOP_TYPE_COMMENTS
+	std::cout << "Process " << type.getName() << std::endl;
+#endif
 
 	// Create a new type with the given name if it hasn't already been created.
 	std::map<std::string, Type*>::const_iterator type_ci = types_mapping_.find(type.getName());
@@ -227,10 +311,9 @@ Type* TypeManager::processType(const VAL::pddl_type& type)
 		new_type = (*type_ci).second;
 	}
 
-	if (Logging::verbosity <= Logging::DEBUG)
-	{
-		std::cout << "Done! Return type: " << type.getName() << std::endl;
-	}
+#ifdef MYPOP_TYPE_COMMENTS
+	std::cout << "Done! Return type: " << type.getName() << std::endl;
+#endif
 	return new_type;
 }
 
@@ -252,10 +335,9 @@ void TypeManager::processObjects(TermManager& term_manager, const VAL::const_sym
 		// Add the object as a term.
 		term_manager.addTerm(*pddl_object, *object);
 
-		if (Logging::verbosity <= Logging::DEBUG)
-		{
-			std::cout << *object << std::endl;
-		}
+#ifdef MYPOP_TYPE_COMMENTS
+		std::cout << *object << std::endl;
+#endif
 	}
 }
 

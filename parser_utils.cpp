@@ -5,7 +5,8 @@
 #include "term_manager.h"
 #include "predicate_manager.h"
 #include "formula.h"
-#include "logging.h"
+
+///#define MYPOP_PARSER_UTILS_COMMENTS
 
 namespace MyPOP {
 
@@ -38,10 +39,7 @@ const Formula* Utility::convertGoal(const TermManager& term_manager, const Predi
 		return con;
 	}
 
-	if (Logging::verbosity <= Logging::ERROR)
-	{
-		std::cout << "Unsupported goal detected, quiting!" << std::endl;
-	}
+	std::cout << "Unsupported goal detected, quiting!" << std::endl;
 	assert (false);
 }
 

@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "logging.h"
+///#define MYPOP_MANAGER_COMMENTS
 
 namespace MyPOP {
 
@@ -49,10 +49,9 @@ public:
 	// Destroy all the stored objects.
 	virtual ~Manager()
 	{
-		if (Logging::verbosity <= Logging::INFO)
-		{
-			std::cout << "[Destructor] Manager" << std::endl;
-		}
+#ifdef MYPOP_MANAGER_COMMENTS
+		std::cout << "[Destructor] Manager" << std::endl;
+#endif
 
 		for (unsigned int i = 0; i < objects_.size(); i++)
 			delete objects_[i];

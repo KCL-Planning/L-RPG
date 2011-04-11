@@ -23,6 +23,8 @@
 #include "SAS/transition.h"
 //#include "SAS/reachability.h"
 
+///#define MYPOP_LANDMARKS_COMMENTS
+
 namespace MyPOP {
 
 namespace LANDMARKS {
@@ -53,13 +55,12 @@ bool LandmarkOrderings::addOrdering(const Ordering& ordering)
 		biggest_step_id_ = max_step_id;
 	}
 
-	if (Logging::verbosity <= Logging::DEBUG)
-	{
-		std::cout << "Highest index " << biggest_step_id_ << std::endl;
-		std::cout << "Ordering size" << orderings_.size() << std::endl;
-		std::cout << "before id " << ordering.before_id() << std::endl;
-		std::cout << "after id " << ordering.after_id() << std::endl;
-	}
+#ifdef MYPOP_LANDMARKS_COMMENTS
+	std::cout << "Highest index " << biggest_step_id_ << std::endl;
+	std::cout << "Ordering size" << orderings_.size() << std::endl;
+	std::cout << "before id " << ordering.before_id() << std::endl;
+	std::cout << "after id " << ordering.after_id() << std::endl;
+#endif
 
 	// Having extended the bitset. We continue by imposing the actual ordering constraint.
 	(*orderings_[ordering.after_id()])[ordering.before_id()] = false;

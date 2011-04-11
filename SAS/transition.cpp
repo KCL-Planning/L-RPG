@@ -1318,27 +1318,24 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	/**
 	 * Start making the actual bindings!
 	 */
-	const PropertySpace* invariable_property_space = NULL;
-	const std::vector<const Object*>* invariable_property_space_action_variable = NULL;
+	std::map<const PropertySpace*, const std::vector<const Object*>* > invariable_property_space_to_domain_mapping;
 	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
 	{
 		if ((*ci).second.first->empty() || (*ci).second.second->empty())
 			continue;
 		
-		if (invariable_property_space != NULL)
+		const PropertySpace* property_space = (*ci).first;
+		const std::vector<const Object*>* invariable_domain = property_space_invariables[property_space];
+		
+		std::map<const PropertySpace*, const std::vector<const Object*>* >::const_iterator ci = invariable_property_space_to_domain_mapping.find(property_space);
+		
+		if (ci != invariable_property_space_to_domain_mapping.end())
 		{
-			const std::vector<const Object*>* new_invariable_property_space = property_space_invariables[(*ci).first];
-			if (invariable_property_space_action_variable != new_invariable_property_space)
-			{
-				std::cout << "Previous property space: " << *invariable_property_space <<  " - " << invariable_property_space_action_variable << std::endl;
-				std::cout << "New property space: " << *(*ci).first << " - " << property_space_invariables[(*ci).first] << std::endl;
-				assert (false);
-			}
+			assert ((*ci).second == invariable_domain);
 		}
 		else
 		{
-			invariable_property_space = (*ci).first;
-			invariable_property_space_action_variable = property_space_invariables[invariable_property_space];
+			invariable_property_space_to_domain_mapping[property_space] = invariable_domain;
 		}
 	}
 	
@@ -1347,6 +1344,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	 */
 	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
 	{
+		const PropertySpace* property_space = (*ci).first;
 		const std::vector<const BoundedAtom*>* added_facts = (*ci).second.first;
 		const std::vector<const BoundedAtom*>* removed_facts = (*ci).second.second;
 		
@@ -1380,13 +1378,15 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 					 * TODO: Is this correct?
 					 */
 					if (precondition->getTerms()[invariable_index]->canUnify(action_step_id, *persistent_fact->getAtom().getTerms()[invariable_index], persistent_fact->getId(), bindings) &&
-					    &precondition->getTerms()[dtg_node->getIndex(*persistent_fact)]->getDomain(action_step_id, bindings) != invariable_property_space_action_variable)
+					    &precondition->getTerms()[dtg_node->getIndex(*persistent_fact)]->getDomain(action_step_id, bindings) != invariable_property_space_to_domain_mapping[property_space])
 					{
-//						std::cout << "Unify the optional precondition ";
-//						persistent_fact->print(std::cout, bindings);
-//						std::cout << " with: ";
-//						precondition->print(std::cout, bindings, action_step_id);
-//						std::cout << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+						std::cout << "Unify the optional precondition ";
+						persistent_fact->print(std::cout, bindings);
+						std::cout << " with: ";
+						precondition->print(std::cout, bindings, action_step_id);
+						std::cout << std::endl;
+#endif
 
 						if (!bindings.unify(*precondition, action_step_id, persistent_fact->getAtom(), persistent_fact->getId()))
 						{

@@ -206,6 +206,8 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 //	property_spaces.insert(property_spaces.end(), TIM::TA->abegin(), TIM::TA->aend());
 //	property_spaces.insert(property_spaces.end(), TIM::TA->sbegin(), TIM::TA->send());
 
+	assert (property_spaces.size() > 0);
+
 	// Construct the DTGs by combining all properties which appear together in either the LHS or RHS of a transition rule.
 	for (std::vector<TIM::PropertySpace*>::const_iterator property_space_i = property_spaces.begin(); property_space_i != property_spaces.end(); ++property_space_i)
 	{
@@ -346,23 +348,23 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 		}
 		
 		dtg->addBalancedSet(*dtg_property_space, true);
-
-//		std::cout << " === DTG after adding all predicates (" << dtg->getBindings().getNr() << ") === " << std::endl;
-//		std::cout << *dtg << std::endl;
-//		std::cout << " === END DTG === " << std::endl;
-		
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+		std::cout << " === DTG after adding all predicates (" << dtg->getBindings().getNr() << ") === " << std::endl;
+		std::cout << *dtg << std::endl;
+		std::cout << " === END DTG === " << std::endl;
+#endif
 		dtg->establishTransitions();
-
-//		std::cout << " === DTG after adding all transitions (" << dtg->getBindings().getNr() << ") === " << std::endl;
-//		std::cout << *dtg << std::endl;
-//		std::cout << " === END DTG === " << std::endl;
-
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+		std::cout << " === DTG after adding all transitions (" << dtg->getBindings().getNr() << ") === " << std::endl;
+		std::cout << *dtg << std::endl;
+		std::cout << " === END DTG === " << std::endl;
+#endif
 		dtg->addObjects();
-
-//		std::cout << " === DTG after adding all objects (" << dtg->getBindings().getNr() << ") === " << std::endl;
-//		std::cout << *dtg << std::endl;
-//		std::cout << " === END DTG === " << std::endl;
-
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+		std::cout << " === DTG after adding all objects (" << dtg->getBindings().getNr() << ") === " << std::endl;
+		std::cout << *dtg << std::endl;
+		std::cout << " === END DTG === " << std::endl;
+#endif
 		addManagableObject(dtg);
 	}
 	struct timeval end_time_tim_translation;
@@ -389,14 +391,15 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	gettimeofday(&end_time_tim_translation, NULL);
 	time_spend = end_time_tim_translation.tv_sec - start_time_tim_translation.tv_sec + (end_time_tim_translation.tv_usec - start_time_tim_translation.tv_usec) / 1000000.0;
 	std::cerr << "Merging DTGs took: " << time_spend << " seconds" << std::endl;
-	
-/*	std::cout << "RESULTS AFTER MERGING" << std::endl;
+
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+	std::cout << "RESULTS AFTER MERGING" << std::endl;
 	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
 	{
 		DomainTransitionGraph* dtg = *ci;
 		std::cout << "Resulting DTG after merging: " << *dtg << std::endl;
 	}
-*/
+#endif
 
 	/**
 	 * Split phase:
@@ -409,13 +412,15 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	time_spend = end_time_tim_translation.tv_sec - start_time_tim_translation.tv_sec + (end_time_tim_translation.tv_usec - start_time_tim_translation.tv_usec) / 1000000.0;
 	std::cerr << "Grounding DTGs took: " << time_spend << " seconds" << std::endl;
 	
-//	std::cout << "RESULTS AFTER GROUNDING" << std::endl;
-//	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
-//	{
-//		DomainTransitionGraph* dtg = *ci;
-//		std::cout << "Resulting DTG after grounding: " << *dtg << std::endl;
-//	}
-	
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+	std::cout << "RESULTS AFTER GROUNDING" << std::endl;
+	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
+	{
+		DomainTransitionGraph* dtg = *ci;
+		std::cout << "Resulting DTG after grounding: " << *dtg << std::endl;
+	}
+#endif
+
 	/**
 	 * Some predicates are not seen as DTGs by TIM, these come in two categories:
 	 * - Static predicates - which cannot change, ever.
@@ -435,8 +440,9 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	{
 		const Predicate* predicate = *ci;
 		bool is_supported = false;
-		
-//		std::cout << "Check if the predicate : " << *predicate << " is supported!" << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+		std::cout << "Check if the predicate : " << *predicate << " is supported!" << std::endl;
+#endif
 		
 		// Check if any of the DTG nodes supports the given predicate by making a dummy atom of it.
 		std::vector<const Term*>* new_terms = new std::vector<const Term*>();
@@ -460,12 +466,14 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 			
 			if (found_nodes.size() > 0)
 			{
-//				std::cout << "The predicate " << *predicate << " is supported by " << std::endl;
-//				for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ci++)
-//				{
-//					(*ci)->print(std::cout);
-//					std::cout << std::endl;
-//				}
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+				std::cout << "The predicate " << *predicate << " is supported by " << std::endl;
+				for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ci++)
+				{
+					(*ci)->print(std::cout);
+					std::cout << std::endl;
+				}
+#endif
 				is_supported = true;
 				break;
 			}
@@ -479,7 +487,9 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 		 */
 		if (!is_supported)
 		{
-//			std::cout << "The predicate: " << *predicate << " is not processed yet!" << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+			std::cout << "The predicate: " << *predicate << " is not processed yet!" << std::endl;
+#endif
 			
 			// 1) The predicate is static.
 			///PropertySpace* property_space = new PropertySpace();
@@ -513,8 +523,9 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 				///negative_new_dtg_node->addAtom(new BoundedAtom(negative_atom_id, *negative_atom, NULL), NO_INVARIABLE_INDEX);
 				negative_new_dtg_node->addAtom(new BoundedAtom(negative_atom_id, *negative_atom, property_state->getProperties()[0]), NO_INVARIABLE_INDEX);
 				new_dtg->addNode(*negative_new_dtg_node);
-				
-//				std::cout << "Simple DTG : " << *new_dtg << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+				std::cout << "Simple DTG : " << *new_dtg << std::endl;
+#endif
 				
 				// Find all transitions which can make this predicate true and false and add them as transitions.
 				std::vector<std::pair<const Action*, const Atom*> > achievers;
@@ -552,8 +563,9 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 					}
 				}
 			}
-			
-//			std::cout << "Resulting DTG: " << *new_dtg << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+			std::cout << "Resulting DTG: " << *new_dtg << std::endl;
+#endif
 		}
 	}
 
@@ -567,19 +579,23 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	struct timeval tmp_start;
 	struct timeval tmp_end;
 	
-//	std::cout << " ************** Start splitting the graphs! ******************** " << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+	std::cout << " ************** Start splitting the graphs! ******************** " << std::endl;
+#endif
 	std::set<const DomainTransitionGraph*> dtgs_to_split;
 	dtgs_to_split.insert(objects_.begin(), objects_.end());
 	while (graphs_split)
 	{
 		graphs_split = false;
-		
-//		std::cout << "Before identifying sub graphs: " << std::endl;
-//		for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
-//		{
-//			std::cout << " *** " << **ci << std::endl;
-//		}
-	
+
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+		std::cout << "Before identifying sub graphs: " << std::endl;
+		for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
+		{
+			std::cout << " *** " << **ci << std::endl;
+		}
+#endif
+
 		/**
 		* After creating all the DTGs, we must check if they all form a connected graph, i.e. is every node reachable from all other nodes?
 		*/
@@ -615,12 +631,13 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 			 */
 			if (split_graphs->size() > 1)
 			{
+				std::cout << "The DTG: " << *dtg << " splitted into " << split_graphs->size() << " sub graphs!" << std::endl;
 				for (std::vector<DomainTransitionGraph*>::reverse_iterator ri2 = split_graphs->rbegin(); ri2 != split_graphs->rend(); ri2++)
 				{
 					DomainTransitionGraph* splitted_graph = *ri2;
-///					std::cout << "Splitted DTG (before reading objects): " << *splitted_graph << std::endl;
+//					std::cout << "Splitted DTG (before reading objects): " << *splitted_graph << std::endl;
 					splitted_graph->addObjects();
-///					std::cout << "Splitted DTG: " << *splitted_graph << std::endl;
+					std::cout << "Splitted DTG: " << *splitted_graph << std::endl;
 					
 					if (splitted_graph->getObjects().size() == 0)
 					{
@@ -650,12 +667,14 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 			
 			objects_.insert(objects_.end(), identified_splitted_dtgs->begin(), identified_splitted_dtgs->end());
 		}
-		
-//		std::cout << "After ith iteration of after adding identifying subgraphs: " << std::endl;
-//		for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
-//		{
-//			std::cout << " *** " << **ci << std::endl;
-//		}
+
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+		std::cout << "After ith iteration of after adding identifying subgraphs: " << std::endl;
+		for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
+		{
+			std::cout << " *** " << **ci << std::endl;
+		}
+#endif
 
 		
 		/**
@@ -672,8 +691,9 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 			{
 				continue;
 			}
-			
-//			std::cout << "DTG before splitting and removing nodes: " << *dtg << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+			std::cout << "DTG before splitting and removing nodes: " << *dtg << std::endl;
+#endif
 			
 			gettimeofday(&tmp_start, NULL);
 			if (dtg->splitNodes(splitted_mapping))
@@ -688,15 +708,19 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 			gettimeofday(&tmp_end, NULL);
 			
 			total_time_reestablish += tmp_end.tv_sec - tmp_start.tv_sec + (tmp_end.tv_usec - tmp_start.tv_usec) / 1000000.0;
-			
-//			std::cout << "DTG after splitting and removing nodes: " << *dtg << std::endl;
+		
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+			std::cout << "DTG after splitting and removing nodes: " << *dtg << std::endl;
+#endif
 		}
 		
-//		std::cout << "After ith iteration of splittin before: " << std::endl;
-//		for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
-//		{
-//			std::cout << " *** " << **ci << std::endl;
-//		}
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+		std::cout << "After ith iteration of splittin before: " << std::endl;
+		for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
+		{
+			std::cout << " *** " << **ci << std::endl;
+		}
+#endif
 
 		gettimeofday(&tmp_start, NULL);
 		for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
@@ -721,12 +745,14 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 		}
 		gettimeofday(&tmp_end, NULL);
 		total_time_remove += tmp_end.tv_sec - tmp_start.tv_sec + (tmp_end.tv_usec - tmp_start.tv_usec) / 1000000.0;
-		
-//		std::cout << "After ith iteration of splitting: " << std::endl;
-//		for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
-//		{
-//			std::cout << " *** " << **ci << std::endl;
-//		}
+
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+		std::cout << "After ith iteration of splitting: " << std::endl;
+		for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
+		{
+			std::cout << " *** " << **ci << std::endl;
+		}
+#endif
 	}
 	gettimeofday(&end_time_tim_translation, NULL);
 	time_spend = end_time_tim_translation.tv_sec - start_time_tim_translation.tv_sec + (end_time_tim_translation.tv_usec - start_time_tim_translation.tv_usec) / 1000000.0;
@@ -735,21 +761,23 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	std::cerr << "* Reestablish transitions: " << total_time_reestablish << " seconds" << std::endl;
 	std::cerr << "* Remove unsupported transitions: " << total_time_remove << " seconds" << std::endl;
 
-//	std::cout << "RESULTS AFTER SPLITTING" << std::endl;
-//	std::cout << " === Result === " << std::endl;
-//	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
-//	{
-//		std::cout << **ci << std::endl;
-//	}
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+	std::cout << "RESULTS AFTER SPLITTING" << std::endl;
+	std::cout << " === Result === " << std::endl;
+	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
+	{
+		std::cout << **ci << std::endl;
+	}
+#endif
 
-//	std::cout << " === End === " << std::endl;
-	
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 	std::cout << "FINAL RESULTS" << std::endl;
 	std::cout << " === Result === " << std::endl;
 	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
 	{
 		std::cout << **ci << std::endl;
 	}
+#endif
 }
 
 void DomainTransitionGraphManager::mergeDTGs()

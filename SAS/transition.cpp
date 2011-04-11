@@ -11,7 +11,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+///#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 ///#define ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 
 namespace MyPOP {
@@ -1327,11 +1327,19 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		
 		if (invariable_property_space != NULL)
 		{
-			std::cout << "Previous property space: " << *invariable_property_space << std::endl;
-			std::cout << "New property space: " << *(*ci).first << std::endl;
+			const std::vector<const Object*>* new_invariable_property_space = property_space_invariables[(*ci).first];
+			if (invariable_property_space_action_variable != new_invariable_property_space)
+			{
+				std::cout << "Previous property space: " << *invariable_property_space <<  " - " << invariable_property_space_action_variable << std::endl;
+				std::cout << "New property space: " << *(*ci).first << " - " << property_space_invariables[(*ci).first] << std::endl;
+				assert (false);
+			}
 		}
-		invariable_property_space = (*ci).first;
-		invariable_property_space_action_variable = property_space_invariables[invariable_property_space];
+		else
+		{
+			invariable_property_space = (*ci).first;
+			invariable_property_space_action_variable = property_space_invariables[invariable_property_space];
+		}
 	}
 	
 	/**
@@ -1587,7 +1595,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 	{
 		const Atom* precondition = *ci;
-		unsigned int counter = 0;
 		
 		for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
 		{
@@ -1599,10 +1606,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			{
 				continue;
 			}
-			
-			// Not sure what to do when multiple balanced sets are affected by the same transition.
-			assert (counter == 0);
-			++counter;
 			
 			const std::vector<const Object*>* invariable_domain = property_space_invariables[property_space];
 			

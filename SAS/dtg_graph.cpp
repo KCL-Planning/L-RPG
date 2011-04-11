@@ -20,6 +20,8 @@
 #include "../bindings_propagator.h"
 #include "../plan.h"
 
+///#define MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+
 namespace MyPOP {
 
 namespace SAS_Plus {
@@ -865,7 +867,7 @@ void DomainTransitionGraph::reestablishTransitions()
 
 void DomainTransitionGraph::establishTransitions()
 {
-	std::cout << "Establish transitions for: (" << bindings_->getNr() << ") " << *this << std::endl;
+//	std::cout << "Establish transitions for: (" << bindings_->getNr() << ") " << *this << std::endl;
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 	{
 		(*ci)->removeTransitions(true);
@@ -1211,17 +1213,23 @@ void DomainTransitionGraph::separateObjects(const RecursiveFunctionManager& recu
 	
 	while (closed_list.size() != objects_.size())
 	{
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 		std::cout << "Start new group" << std::endl;
+#endif
 		std::vector<const Object*>* current_objects = new std::vector<const Object*>();
 		boost::dynamic_bitset<>* current_bit_set = NULL;
 		for (std::vector<const Object*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
 		{
 			const Object* object = *ci;
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 			std::cout << "Process object: " << *object << std::endl;
+#endif
 			
 			if (closed_list.count(object) != 0)
 			{
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 				std::cout << "[closed list!]" << std::endl;
+#endif
 				continue;
 			}
 			
@@ -1229,19 +1237,24 @@ void DomainTransitionGraph::separateObjects(const RecursiveFunctionManager& recu
 			
 			if (current_bit_set == NULL)
 			{
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 				std::cout << "Start new bitset: " << bit_set << std::endl;
+#endif
 				current_bit_set = &bit_set;
 				current_objects->push_back(object);
 			}
 			else if (bit_set == *current_bit_set)
 			{
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 				std::cout << "Add to current bitset" << std::endl;
+#endif
 				current_objects->push_back(object);
 			}
 			
 			closed_list.insert(object);
 		}
-		
+
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 		std::cout << "Grouped objects: ";
 		for (std::vector<const Object*>::const_iterator ci = current_objects->begin(); ci != current_objects->end(); ci++)
 		{
@@ -1253,14 +1266,16 @@ void DomainTransitionGraph::separateObjects(const RecursiveFunctionManager& recu
 			}
 		}
 		std::cout << std::endl;
-		
+#endif
 		objects_sets_.push_back(current_objects);
 	}
 }
 
 void DomainTransitionGraph::mergeInvariableDTGs()
 {
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 	std::cout << "[DomainTransitionGraph::mergeInvariableDTGs] " << *this << std::endl;
+#endif
 	std::vector<DomainTransitionGraphNode*> nodes_to_remove;
 	std::vector<DomainTransitionGraphNode*> nodes_to_add;
 		
@@ -1272,11 +1287,13 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 		{
 			const Transition* transition = *ci;
 
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 			std::cout << "* Transition: from " << std::endl;
 			transition->getFromNode().print(std::cout);
 			std::cout << std::endl << " to " << std::endl;
 			transition->getToNode().print(std::cout);
 			std::cout << std::endl << "[" << transition->getStep()->getAction() << "]" << std::endl;
+#endif
 
 			const std::vector<std::pair<const Atom*, InvariableIndex> >& preconditions = transition->getAllPreconditions();
 			
@@ -1286,9 +1303,11 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 				const Atom* precondition = (*ci).first;
 				InvariableIndex invariable = (*ci).second;
 
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 				std::cout << " * * Process the precondition: ";
 				precondition->print(std::cout, *bindings_, transition->getStep()->getStepId());
 				std::cout << "(" << invariable << ")" << std::endl;
+#endif
 
 				/**
 					* If the precondition isn't linked to the invariable of this DTG node there are two scenarios:
@@ -1298,7 +1317,9 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 					*/
 				if (invariable == NO_INVARIABLE_INDEX)
 				{
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 					std::cout << " * * * The precondition isn't linked to the invariable. Check if the term is invariable in another DTG." << std::endl;
+#endif
 					// Check if the precondition is invariable in their respective DTG(s).
 					std::vector<const DomainTransitionGraphNode*> matching_dtg_nodes;
 					dtg_manager_->getDTGNodes(matching_dtg_nodes, transition->getStep()->getStepId(), *precondition, *bindings_);
@@ -1325,10 +1346,12 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 							if (bindings_->canUnify(*precondition, transition->getStep()->getStepId(), bounded_atom->getAtom(), bounded_atom->getId(), &matching_dtg_node->getDTG().getBindings()))
 							{
 								InvariableIndex matching_invariable_index = matching_dtg_node->getIndex(*bounded_atom);
-								
+
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 								std::cout << " * * * * Precondition is invariable in the DTG node: ";
 								matching_dtg_node->print(std::cout);
 								std::cout << "[" << matching_invariable_index << "]" << std::endl;
+#endif
 								
 								// TEST
 								if (matching_invariable_index == NO_INVARIABLE_INDEX) continue;
@@ -1337,8 +1360,9 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 								
 								if (containsPropertySpace(bounded_atom->getProperty()->getPropertyState().getPropertySpace()))
 								{
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 									std::cout << " * * * * Alert! Proposing a DTG to merge with itself!!!" << std::endl;
-
+#endif
 									// TODO: Fix this bit :).
 //									merge_with_self = true;
 //									precondition_properties.clear();
@@ -1348,7 +1372,8 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 								}
 								
 								precondition_properties.push_back(std::make_pair(matching_invariable_index, bounded_atom->getProperty()));
-								
+
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 								std::cout << " * * * * Candidate to bind: ";
 								bounded_atom->print(std::cout, matching_dtg_node->getDTG().getBindings());
 								std::cout << "[" << &bounded_atom->getProperty()->getPropertyState().getPropertySpace() << "]" << std::endl;
@@ -1356,6 +1381,7 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 								std::cout << " * * * * From DTG node: ";
 								matching_dtg_node->print(std::cout);
 								std::cout << " (pointer address=" << &matching_dtg_node->getDTG() << ")" << std::endl;
+#endif
 							}
 						}
 						
@@ -1407,9 +1433,11 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 						
 						if (need_to_merge && !already_exists)
 						{
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 							std::cout << " * * * Need to merge external invariable: ";
 							precondition->print(std::cout, *bindings_, transition->getStep()->getStepId());
 							std::cout << "(" << precondition_invariable << ") property space: " << &precondition_property->getPropertyState().getPropertySpace() << std::endl;
+#endif
 							assert (counter == 0);
 							++counter;
 

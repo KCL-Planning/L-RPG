@@ -17,6 +17,7 @@ class Predicate;
 class Atom;
 class Action;
 class Bindings;
+class Object;
 class Variable;
 	
 namespace SAS_Plus {
@@ -144,6 +145,19 @@ private:
 	
 	static Transition* createSimpleTransition(const std::vector<BoundedAtom>& enablers, const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
 
+	/**
+	 * Utility function to unify atoms from a dtg node with a set of (action) atoms (either effects or preconditions).
+	 * @param facts_to_unify The set of atoms which need to be unified.
+	 * @param dtg_node The DTG node the above set of facts are part of.
+	 * @param action_atoms The set of atoms of the action it needs to be unified with.
+	 * @param action_step_id The id the action's terms are bound to.
+	 * @param action The action.
+	 * @param bindings The set of bindings which contains the bindings of both the action and facts of the given DTG node.
+	 * @param invariable_domain The domain which is considered to be invariable.
+	 * @return True if all facts could be unified, false otherwise.
+	 */
+	static bool unifyDTGAtomsWithAction(const std::vector<const BoundedAtom*>& facts_to_unify, const DomainTransitionGraphNode& dtg_node, const std::vector<const Atom*>& action_atoms, StepID action_step_id, const Action& action, Bindings& bindings, const std::vector<const Object*>& invariable_domain);
+	
 	/**
 	 * Check if the variable domains of the bounded atom and the atom linked to this transition are shared.
 	 */

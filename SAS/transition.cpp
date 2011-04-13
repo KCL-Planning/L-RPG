@@ -509,7 +509,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			// determines if this is really the case or if the action deletes and adds this fact.
 			if (from_node.getIndex(*from_fact) == to_node.getIndex(*to_fact) &&
 			    to_fact->getAtom().isNegative() == from_fact->getAtom().isNegative() &&
-			    bindings.canUnify(from_fact->getAtom(), from_fact->getId(), to_fact->getAtom(), to_fact->getId()))
+			    bindings.areEqual(from_fact->getAtom(), from_fact->getId(), to_fact->getAtom(), to_fact->getId()))
 			{
 				is_removed = false;
 				persistent_facts.push_back(std::make_pair(from_fact, to_fact));
@@ -551,7 +551,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			// Check if the fact in the to node is added or was already present.
 			if (to_node.getIndex(*to_fact) == from_node.getIndex(*from_fact) &&
 			    to_fact->getAtom().isNegative() == from_fact->getAtom().isNegative() &&
-			    bindings.canUnify(to_fact->getAtom(), to_fact->getId(), from_fact->getAtom(), from_fact->getId()))
+			    bindings.areEqual(to_fact->getAtom(), to_fact->getId(), from_fact->getAtom(), from_fact->getId()))
 			{
 				is_added = false;
 				break;
@@ -707,14 +707,17 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		/**
 		 * Go over all the preconditions and effects and determine the invariable.
 		 */
-//		std::cout << "Find invariable for all added facts." << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+		std::cout << "Find invariable for all added facts." << std::endl;
+#endif
 		for (std::vector<const BoundedAtom*>::const_iterator ci = added_facts->begin(); ci != added_facts->end(); ci++)
 		{
 			const BoundedAtom* added_fact = *ci;
-			
-//			std::cout << "- For ";
-//			added_fact->print(std::cout, bindings);
-//			std::cout << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+			std::cout << "- For ";
+			added_fact->print(std::cout, bindings);
+			std::cout << std::endl;
+#endif
 			
 			std::set<const std::vector<const Object*>*> possible_add_invariables;
 			
@@ -724,15 +727,17 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 				
 				if (bindings.canUnify(*effect, action_step_id, added_fact->getAtom(), added_fact->getId()))
 				{
-//					std::cout << "Get the index of ";
-//					added_fact->print(std::cout, bindings);
-//					std::cout << " from ";
-//					to_node.print(std::cout);
-//					std::cout << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+					std::cout << "Get the index of ";
+					added_fact->print(std::cout, bindings);
+					std::cout << " from ";
+					to_node.print(std::cout);
+					std::cout << std::endl;
 					
-//					std::cout << "Possible invariable: ";
-//					effect->print(std::cout, bindings, action_step_id);
-//					std::cout << "(" << to_node.getIndex(*added_fact) << ")" << std::endl;
+					std::cout << "Possible invariable: ";
+					effect->print(std::cout, bindings, action_step_id);
+					std::cout << "(" << to_node.getIndex(*added_fact) << ")" << std::endl;
+#endif
 					
 					possible_add_invariables.insert(&effect->getTerms()[to_node.getIndex(*added_fact)]->getDomain(action_step_id, bindings));
 				}
@@ -746,15 +751,18 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			action_invariables.insert(tmp_set.begin(), tmp_set.end());
 		}
 		
-//		std::cout << "Find invariable for all removed facts." << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+		std::cout << "Find invariable for all removed facts." << std::endl;
+#endif
 		for (std::vector<const BoundedAtom*>::const_iterator ci = removed_facts->begin(); ci != removed_facts->end(); ci++)
 		{
 			const BoundedAtom* removed_fact = *ci;
-//			std::cout << "- For ";
-//			removed_fact->print(std::cout, bindings);
-//			std::cout << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+			std::cout << "- For ";
+			removed_fact->print(std::cout, bindings);
+			std::cout << std::endl;
+#endif
 			
-			///std::set<const Term*> possible_remove_invariables;
 			std::set<const std::vector<const Object*>*> possible_remove_invariables;
 			
 			for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
@@ -763,16 +771,17 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 				
 				if (bindings.canUnify(*precondition, action_step_id, removed_fact->getAtom(), removed_fact->getId()))
 				{
-//					std::cout << "Possible invariable: ";
-//					precondition->print(std::cout, bindings, action_step_id);
-//					std::cout << "(" << from_node.getIndex(*removed_fact) << ")" << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+					std::cout << "Possible invariable: ";
+					precondition->print(std::cout, bindings, action_step_id);
+					std::cout << "(" << from_node.getIndex(*removed_fact) << ")" << std::endl;
+#endif
 					
 					possible_remove_invariables.insert(&precondition->getTerms()[from_node.getIndex(*removed_fact)]->getDomain(action_step_id, bindings));
 				}
 			}
 			
 			// Prune the possible range.
-			///std::set<const Term*> tmp_set;
 			std::set<const std::vector<const Object*>*> tmp_set;
 			std::set_intersection(possible_remove_invariables.begin(), possible_remove_invariables.end(), action_invariables.begin(), action_invariables.end(), std::inserter(tmp_set, tmp_set.begin()));
 			
@@ -1336,6 +1345,19 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		else
 		{
 			invariable_property_space_to_domain_mapping[property_space] = invariable_domain;
+			
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+			std::cout << "The invariable of the property space: " << *property_space << " is ";
+			for (std::vector<const Object*>::const_iterator ci = invariable_domain->begin(); ci != invariable_domain->end(); ci++)
+			{
+				std::cout << **ci;
+				if (ci != invariable_domain->end() - 1)
+				{
+					std::cout << ", ";
+				}
+			}
+			std::cout << std::endl;
+#endif
 		}
 	}
 	
@@ -1353,53 +1375,43 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			continue;
 		}
 		
-		const std::vector<const BoundedAtom*>* persistent_facts = (!added_facts->empty() ? added_facts : removed_facts);
-		const DomainTransitionGraphNode* dtg_node = (!added_facts->empty() ? &to_node : &from_node);
-		
 		/**
-		 * Test if there exists a precondition with the same predicate name and can unify with the invariable. If that's the case then
-		 * we have to unify with that precondition too.
+		 * If no facts are added, than some facts must have been removed and these facts must be present in the set of preconditions.
 		 */
-		for (std::vector<const BoundedAtom*>::const_iterator ci = persistent_facts->begin(); ci != persistent_facts->end(); ci++)
+		if (added_facts->empty())
 		{
-			const BoundedAtom* persistent_fact = *ci;
-			InvariableIndex invariable_index = dtg_node->getIndex(*persistent_fact);
-			assert (invariable_index != INVALID_INDEX_ID);
-			
-			for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+			std::cout << "Unify the optional preconditions..." << std::endl;
+#endif
+			if (!unifyDTGAtomsWithAction(*removed_facts, from_node, preconditions, action_step_id, action, bindings, *invariable_property_space_to_domain_mapping[property_space]))
 			{
-				const Atom* precondition = *ci;
-				
-				if (precondition->getPredicate().getName() == persistent_fact->getAtom().getPredicate().getName() &&
-					precondition->getPredicate().getArity() == persistent_fact->getAtom().getArity())
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+				std::cout << "FAIL!" << std::endl;
+#endif
+				return NULL;
+			}
+		}
+		/**
+		 * If facts have been added, it means that either:
+		 * 1) They are part of the effects, or
+		 * 2) If the effects do not account for them then they must be present as preconditions.
+		 */
+		else
+		{
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+			std::cout << "Unify the optional effects..." << std::endl;
+#endif
+			if (!unifyDTGAtomsWithAction(*added_facts, to_node, effects, action_step_id, action, bindings, *invariable_property_space_to_domain_mapping[property_space]))
+			{
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+							std::cout << "Could not unify the optional effects, try as a precondition..." << std::endl;
+#endif
+				if (!unifyDTGAtomsWithAction(*added_facts, to_node, preconditions, action_step_id, action, bindings, *invariable_property_space_to_domain_mapping[property_space]))
 				{
-					/**
-					 * Only allow optional preconditions to merge if they do not refer to the invariable of the balanced set.
-					 * TODO: Is this correct?
-					 */
-					if (precondition->getTerms()[invariable_index]->canUnify(action_step_id, *persistent_fact->getAtom().getTerms()[invariable_index], persistent_fact->getId(), bindings) &&
-					    &precondition->getTerms()[dtg_node->getIndex(*persistent_fact)]->getDomain(action_step_id, bindings) != invariable_property_space_to_domain_mapping[property_space])
-					{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-						std::cout << "Unify the optional precondition ";
-						persistent_fact->print(std::cout, bindings);
-						std::cout << " with: ";
-						precondition->print(std::cout, bindings, action_step_id);
-						std::cout << std::endl;
+					std::cout << "FAIL!" << std::endl;
 #endif
-
-						if (!bindings.unify(*precondition, action_step_id, persistent_fact->getAtom(), persistent_fact->getId()))
-						{
-#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-							std::cout << "Could not bind the optional precondition: " << std::endl;
-							persistent_fact->print(std::cout, bindings);
-							std::cout << " with: ";
-							precondition->print(std::cout, bindings, action_step_id);
-							std::cout << std::endl;
-#endif
-							return NULL;
-						}
-					}
+					return NULL;
 				}
 			}
 		}
@@ -1411,7 +1423,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		const Atom* added_effect = (*ci).first;
 		const BoundedAtom* to_node_atom = (*ci).second;
 		
-		if (!bindings.unify(*added_effect, action_step_id, to_node_atom->getAtom(), to_node_atom->getId()))
+		if (!bindings.unify(to_node_atom->getAtom(), to_node_atom->getId(), *added_effect, action_step_id))
 		{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 			std::cout << "[Transition::createTransition] Could not perform the actual bindings on effects!" << std::endl;
@@ -1430,7 +1442,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		const Atom* precondition = (*ci).first;
 		const BoundedAtom* from_node_atom = (*ci).second;
 		
-		if (!bindings.unify(*precondition, action_step_id, from_node_atom->getAtom(), from_node_atom->getId()))
+		if (!bindings.unify(from_node_atom->getAtom(), from_node_atom->getId(), *precondition, action_step_id))
 		{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 			std::cout << "[Transition::createTransition] Could not perform the actual bindings on preconditions!" << std::endl;
@@ -1478,34 +1490,15 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			std::cout << " -=- invariable = " << invariable_term << std::endl;
 #endif
 			
-			// Make sure the precondition is linked to the invariable.
 			const Term* invariable_precondition_term = NULL;
-			for (std::map<const PropertySpace*, const std::vector<const Object*>*>::const_iterator ci = property_space_invariables.begin(); ci != property_space_invariables.end(); ci++)
+			
+			if (bindings.canUnify(*precondition, action_step_id, from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId()))
 			{
-//				const PropertySpace* property_space = (*ci).first;
-				const std::vector<const Object*>* domain = (*ci).second;
-				for (std::vector<const Term*>::const_iterator ci = precondition->getTerms().begin(); ci != precondition->getTerms().end(); ci++)
+				const std::vector<const Object*>* invariable_domain = property_space_invariables[&from_node_persistent_fact->getProperty()->getPropertyState().getPropertySpace()];
+				if (&precondition->getTerms()[invariable_index]->getDomain(action_step_id, bindings) == invariable_domain)
 				{
-					const Term* term = *ci;
-					if (&term->getDomain(action_step_id, bindings) == domain)
-					{
-//						std::cout << "Possible state variable to merge with: " << *property_space << std::endl;
-#ifdef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
-						if (invariable_precondition_term != NULL)
-						{
-							assert (term == invariable_precondition_term);
-						}
-#endif
-						invariable_precondition_term = term;
-						
-#ifndef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
-						break;
-#endif
-					}
+					invariable_precondition_term = precondition->getTerms()[invariable_index];
 				}
-#ifndef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
-				if (invariable_precondition_term != NULL) break;
-#endif
 			}
 			
 			if (invariable_precondition_term == NULL)
@@ -1513,17 +1506,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 				std::cout << "Persistent does not contain the invariable, move on!" << std::endl;
 #endif
-///				continue;
+				continue;
 			}
-			
-			if (precondition->getTerms()[invariable_index] != invariable_precondition_term)
-			{
-#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-				std::cout << "Invariables don't match, move on!" << std::endl;
-#endif
-///				continue;
-			}
-			
+
 			if (bindings.canUnify(*precondition, action_step_id, from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId()))
 			{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
@@ -1534,7 +1519,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 				std::cout << std::endl;
 #endif
 				
-				if (!bindings.unify(*precondition, action_step_id, from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId()))
+				if (!bindings.unify(from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId(), *precondition, action_step_id))
 				{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 					std::cout << "Could not unify a persistent fact with the from_node." << std::endl;
@@ -1651,6 +1636,68 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	std::cout << std::endl;
 #endif
 	return new Transition(enablers, action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, persistent_preconditions, *property_space_action_invariables, all_precondition_mappings);
+}
+
+bool Transition::unifyDTGAtomsWithAction(const std::vector<const BoundedAtom*>& facts_to_unify, const DomainTransitionGraphNode& dtg_node, const std::vector<const Atom*>& action_atoms, StepID action_step_id, const Action& action, Bindings& bindings, const std::vector<const Object*>& invariable_domain)
+{
+	for (std::vector<const BoundedAtom*>::const_iterator ci = facts_to_unify.begin(); ci != facts_to_unify.end(); ci++)
+	{
+		const BoundedAtom* persistent_fact = *ci;
+		InvariableIndex invariable_index = dtg_node.getIndex(*persistent_fact);
+		assert (invariable_index != INVALID_INDEX_ID);
+		
+		bool unified = false;
+		
+		for (std::vector<const Atom*>::const_iterator ci = action_atoms.begin(); ci != action_atoms.end(); ci++)
+		{
+			const Atom* dtg_node_atom = *ci;
+			
+			if (dtg_node_atom->getPredicate().getName() == persistent_fact->getAtom().getPredicate().getName() &&
+			    dtg_node_atom->getPredicate().getArity() == persistent_fact->getAtom().getArity() &&
+			    dtg_node_atom->isNegative() == persistent_fact->getAtom().isNegative())
+			{
+				/**
+					* Only allow optional preconditions to merge if they do not refer to the invariable of the balanced set.
+					* TODO: Is this correct?
+					*/
+				if (dtg_node_atom->getTerms()[invariable_index]->canUnify(action_step_id, *persistent_fact->getAtom().getTerms()[invariable_index], persistent_fact->getId(), bindings) &&
+				    &dtg_node_atom->getTerms()[dtg_node.getIndex(*persistent_fact)]->getDomain(action_step_id, bindings) != &invariable_domain)
+				{
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+					std::cout << "Unify the optional atom: ";
+					persistent_fact->print(std::cout, bindings);
+					std::cout << " with: ";
+					dtg_node_atom->print(std::cout, bindings, action_step_id);
+					std::cout << std::endl;
+#endif
+
+					if (!bindings.unify(persistent_fact->getAtom(), persistent_fact->getId(), *dtg_node_atom, action_step_id))
+					{
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+						std::cout << "Could not bind the optional atom: " << std::endl;
+						persistent_fact->print(std::cout, bindings);
+						std::cout << " with: ";
+						dtg_node_atom->print(std::cout, bindings, action_step_id);
+						std::cout << std::endl;
+#endif
+						return false;
+					}
+					else
+					{
+						unified = true;
+						break;
+					}
+				}
+			}
+		}
+		
+		if (!unified)
+		{
+			return false;
+		}
+	}
+	
+	return true;
 }
 
 Transition::Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map<const PropertySpace*, const Variable*>& action_invariables, const std::vector<std::pair<const Atom*, InvariableIndex> >& all_precondition_mappings)

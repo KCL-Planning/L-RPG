@@ -619,6 +619,25 @@ bool Bindings::makeEqual(const Atom& atom1, StepID step1, const Atom& atom2, Ste
 	return true;
 }
 
+bool Bindings::areEqual(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2)
+{
+	if (!canUnify(atom1, step1, atom2, step2))
+	{
+		return false;
+	}
+	
+	for (unsigned int i = 0; i < atom1.getArity(); i++)
+	{
+		if (!atom1.getTerms()[i]->isEquivalentTo(step1, *atom2.getTerms()[i], step2, *this))
+		{
+			return false;
+		}
+	}
+	
+	return true;
+}
+
+
 bool Bindings::affects(const Atom& atom1, StepID step1, const Atom& atom2, const StepID step2) const
 {
 	// First make sure the predicates are the same.

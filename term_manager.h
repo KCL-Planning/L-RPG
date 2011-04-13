@@ -143,6 +143,16 @@ public:
 	bool isTheSameAs(StepID lhs_id, const Term& rhs, StepID rhs_id, const Bindings& bindings) const;
 	
 	/**
+	 * Check if two terms are equivalent, that is the domains contain exactly the same objects.
+	 * @param lhs_id The step id for this term, used to find its variable domain (if applicable) in @param bindings.
+	 * @param rhs The term the compare the domain against.
+	 * @param rhs_id The step id for the rhs term, used to find its variable domain (if applicable) in @param bindings.
+	 * @param bindings The class which contains the bindings for both terms.
+	 * @return True if both term's domains are equivalent, false otherwise.
+	 */
+	bool isEquivalentTo(StepID lhs_id, const Term& rhs, StepID rhs_id, const Bindings& bindings) const;
+	
+	/**
 	 * Check if the given object is a member of this term's domain.
 	 * @param object The object we are looking for.
 	 * @param lhs_id The step id for this term, used to find its variable domain (if applicable) in @param bindings.

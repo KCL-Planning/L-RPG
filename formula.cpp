@@ -102,7 +102,7 @@ void Atom::print(std::ostream& os, const Bindings& bindings, StepID step_id) con
 		const Term* term = *ci;
 		///os << *term;
 		term->print(os, bindings, step_id);
-		///os << "%" << &(term->getDomain(step_id, bindings)) << "%";
+		os << "%" << &(term->getDomain(step_id, bindings)) << "%";
 		if (ci + 1 != terms_->end())
 			os << " ";
 	}

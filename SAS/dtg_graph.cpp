@@ -20,7 +20,7 @@
 #include "../bindings_propagator.h"
 #include "../plan.h"
 
-///#define MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+#define MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 
 namespace MyPOP {
 
@@ -826,7 +826,9 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 
 void DomainTransitionGraph::reestablishTransitions()
 {
-//	std::cout << "=== ReestablishTransitions: === (" << bindings_->getNr() << ") " << std::endl << *this << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+	std::cout << "=== ReestablishTransitions: === (" << bindings_->getNr() << ") " << std::endl << *this << std::endl;
+#endif
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 	{
 		DomainTransitionGraphNode* from_node = *ci;
@@ -839,18 +841,11 @@ void DomainTransitionGraph::reestablishTransitions()
 			// Find all possible transitions between these two.
 			std::vector<const Action*> possible_transitions;
 			from_node->getPossibleActions(possible_transitions, *to_node);
-			
-//			std::cout << "Transitions from ";
-//			from_node->print(std::cout);
-//			std::cout << " to ";
-//			to_node->print(std::cout);
-//			std::cout << " have the following possible actions: " << std::endl;
 
 			// Otherwise try all these transitiosn.
 			for (std::vector<const Action*>::const_iterator ci = possible_transitions.begin(); ci != possible_transitions.end(); ci++)
 			{
 				const Action* action = *ci;
-//				std::cout << "- " << *action << std::endl;
 				std::vector<BoundedAtom>* enabler_dummy = new std::vector<BoundedAtom>();
 
 				Transition* transition = Transition::createTransition(*enabler_dummy, *action, *from_node, *to_node, *initial_facts_);
@@ -861,13 +856,16 @@ void DomainTransitionGraph::reestablishTransitions()
 			}
 		}
 	}
-	
-//	std::cout << "=== Result: === (" << bindings_->getNr() << ") " << std::endl << *this << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+	std::cout << "=== Result: === (" << bindings_->getNr() << ") " << std::endl << *this << std::endl;
+#endif
 }
 
 void DomainTransitionGraph::establishTransitions()
 {
-//	std::cout << "Establish transitions for: (" << bindings_->getNr() << ") " << *this << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+	std::cout << "Establish transitions for: (" << bindings_->getNr() << ") " << *this << std::endl;
+#endif
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 	{
 		(*ci)->removeTransitions(true);
@@ -895,8 +893,9 @@ void DomainTransitionGraph::establishTransitions()
 			}
 		}
 	}
-	
-//	std::cout << "=== Result: === (" << bindings_->getNr() << ") " << std::endl << *this << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+	std::cout << "=== Result: === (" << bindings_->getNr() << ") " << std::endl << *this << std::endl;
+#endif
 }
 
 bool DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* >& split_graphs)
@@ -1152,9 +1151,9 @@ bool DomainTransitionGraph::removeUnsupportedTransitions()
 	bool graph_affected = false;
 	for (std::vector<DomainTransitionGraphNode*>::reverse_iterator ci = nodes_.rbegin(); ci != nodes_.rend(); ci++)
 	{
-//		std::cout << "Remove the unsupported transitions from the DTG node: ";
-//		(*ci)->print(std::cout);
-//		std::cout << std::endl;
+		std::cout << "Remove the unsupported transitions from the DTG node: ";
+		(*ci)->print(std::cout);
+		std::cout << std::endl;
 		if ((*ci)->removeUnsupportedTransitions())
 		{
 			graph_affected = true;
@@ -1163,9 +1162,9 @@ bool DomainTransitionGraph::removeUnsupportedTransitions()
 		// If one of the variable domains is empty, remove the node.
 		if ((*ci)->containsEmptyVariableDomain())
 		{
-//			std::cout << "Remove the node: ";
-//			(*ci)->print(std::cout);
-//			std::cout << std::endl;
+			std::cout << "Remove the node: ";
+			(*ci)->print(std::cout);
+			std::cout << std::endl;
 			removeNode(**ci);
 			graph_affected = true;
 		}

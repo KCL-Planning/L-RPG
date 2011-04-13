@@ -23,15 +23,46 @@ bool Term::isTheSameAs(StepID lhs_id, const Term& rhs, StepID rhs_id, const Bind
 	return &lhs_domain ==  &rhs_domain;
 }
 
+bool Term::isEquivalentTo(StepID lhs_id, const Term& rhs, StepID rhs_id, const Bindings& bindings) const
+{
+	const std::vector<const Object*>& lhs_domain = getDomain(lhs_id, bindings);
+	const std::vector<const Object*>& rhs_domain = rhs.getDomain(rhs_id, bindings);
+	
+	if (lhs_domain.size() != rhs_domain.size())
+	{
+		return false;
+	}
+	
+	for (std::vector<const Object*>::const_iterator ci = lhs_domain.begin(); ci != lhs_domain.end(); ci++)
+	{
+		const Object* lhs_object = *ci;
+		bool found = false;
+		for (std::vector<const Object*>::const_iterator ci = rhs_domain.begin(); ci != rhs_domain.end(); ci++)
+		{
+			const Object* rhs_object = *ci;
+			
+			if (lhs_object == rhs_object)
+			{
+				found = true;
+				break;
+			}
+		}
+		
+		if (!found)
+		{
+			return false;
+		}
+	}
+	
+	return true;
+}
+
 bool Term::canUnify(StepID lhs_id, const Term& rhs, StepID rhs_id, const Bindings& lhs_bindings, const Bindings* rhs_bindings) const
 {
 	if (rhs_bindings == NULL)
 	{
 		rhs_bindings = &lhs_bindings;
 	}
-	
-///	std::cout << *this << "(" << lhs_id << ") unify with *****(" << rhs_id << ")" << std::endl;
-///	std::cout << *this << "(" << lhs_id << ") unify with " << rhs << "(" << rhs_id << ")" << std::endl;
 	
 	const std::vector<const Object*>& lhs_domain = getDomain(lhs_id, lhs_bindings);
 	const std::vector<const Object*>& rhs_domain = rhs.getDomain(rhs_id, *rhs_bindings);
@@ -51,17 +82,6 @@ bool Term::canUnify(StepID lhs_id, const Term& rhs, StepID rhs_id, const Binding
 	}
 	
 	return false;
-/*
-	std::vector<const Object*> lhs_domain = getDomain(lhs_id, lhs_bindings);
-	const std::vector<const Object*>& rhs_domain = rhs.getDomain(rhs_id, *rhs_bindings);
-	lhs_domain.insert(lhs_domain.end(), rhs_domain.begin(), rhs_domain.end());
-	std::sort(lhs_domain.begin(), lhs_domain.end());
-	
-	// By contatination both domains we only need to check if there is at least a single duplicate object
-	// to guarantee that the two terms can unify. This is because we are guaranteed that a domain cannot
-	// contain the same object twice.
-	return std::unique(lhs_domain.begin(), lhs_domain.end()) != lhs_domain.end();
-*/
 }
 
 bool Term::contains(const Object& object, StepID lhs_id, const Bindings& bindings) const

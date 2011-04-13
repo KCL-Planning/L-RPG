@@ -25,7 +25,7 @@
 #include "../plan.h"
 #include "recursive_function.h"
 
-///#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 
 namespace MyPOP {
 

@@ -19,6 +19,7 @@
 #include "../plan.h"
 
 ///#define MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_DEBUG
+///#define MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
 
 namespace MyPOP {
 
@@ -30,7 +31,7 @@ DomainTransitionGraphNode::DomainTransitionGraphNode(DomainTransitionGraph& dtg,
 	unique_ids_.push_back(unique_id);
 }
 
-DomainTransitionGraphNode::DomainTransitionGraphNode(const DomainTransitionGraphNode& dtg_node, bool copy_transitions)
+DomainTransitionGraphNode::DomainTransitionGraphNode(const DomainTransitionGraphNode& dtg_node, bool outbound_transitions, bool inbound_transitions)
 {
 	// We take the same atom and bindings as the template we copy all the information from.
 	// NOTE: This needs to change, the clone might not be linked to the same DTG!
@@ -41,7 +42,7 @@ DomainTransitionGraphNode::DomainTransitionGraphNode(const DomainTransitionGraph
 	copyAtoms(dtg_node);
 
 	// Copy all the transitions, but make sure the source and destination are altered to this node.
-	if (copy_transitions)
+	if (outbound_transitions)
 	{
 //		std::cout << "Copy transitions..." << std::endl;
 		for (std::vector<const Transition*>::const_iterator ci = dtg_node.transitions_.begin(); ci != dtg_node.transitions_.end(); ci++)
@@ -61,7 +62,10 @@ DomainTransitionGraphNode::DomainTransitionGraphNode(const DomainTransitionGraph
 
 			addTransition(transition->getEnablers(), transition->getStep()->getAction(), *to_node);
 		}
+	}
 
+	if (inbound_transitions)
+	{
 		// Search for all nodes which have a transitions to this node.
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_->getNodes().begin(); ci != dtg_->getNodes().end(); ci++)
 		{
@@ -185,12 +189,31 @@ DomainTransitionGraphNode::~DomainTransitionGraphNode()
 	}
 }
 
+bool DomainTransitionGraphNode::contains(StepID id, const Atom& atom, InvariableIndex index) const
+{
+	for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
+	{
+		const BoundedAtom* existing_bounded_atom = *ci;
+		if (getIndex(*existing_bounded_atom) == index)
+		{
+			if (dtg_->getBindings().canUnify(existing_bounded_atom->getAtom(), existing_bounded_atom->getId(), atom, id))
+			{
+				atom.print(std::cout, dtg_->getBindings(), id);
+				std::cout << " intersects with existing atom: ";
+				existing_bounded_atom->print(std::cout, dtg_->getBindings());
+				std::cout << std::endl;
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void DomainTransitionGraphNode::addAtom(BoundedAtom* bounded_atom, InvariableIndex index)
 {
 //	std::cout << "Add the atom: ";
 //	bounded_atom->print(std::cout, dtg_->getBindings());
 //	std::cout << " to : " << *this << std::endl;
-	
 	// Testing...
 	for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
 	{
@@ -204,22 +227,9 @@ void DomainTransitionGraphNode::addAtom(BoundedAtom* bounded_atom, InvariableInd
 		}
 	}
 	
-	for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
+	if (contains(bounded_atom->getId(), bounded_atom->getAtom(), index))
 	{
-		const BoundedAtom* existing_bounded_atom = *ci;
-		if (getIndex(*existing_bounded_atom) == index)
-		{
-			if (dtg_->getBindings().canUnify(existing_bounded_atom->getAtom(), existing_bounded_atom->getId(), bounded_atom->getAtom(), bounded_atom->getId()))
-			{
-				std::cout << "Adding the atom: ";
-				bounded_atom->print(std::cout, dtg_->getBindings());
-				std::cout << " inpossible, because it intersects with existing atom: ";
-				existing_bounded_atom->print(std::cout, dtg_->getBindings());
-				std::cout << std::endl;
-				
-				assert (false);
-			}
-		}
+		assert (false);
 	}
 
 	// Check if the variable domain  of the i'th variable is bounded to the others. Do this only if they form part of the same

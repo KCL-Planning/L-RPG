@@ -248,16 +248,26 @@ public:
 	 * @return true if the domains could be made equal, false otherwise.
 	 */
 	bool makeEqual(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2);
-	
+
 	/**
-	 * Check if the variable domains are equal.
+	 * Check if the variable domains are identical, this means all the terms are the same.
 	 * @param atom1 The first atom to check.
 	 * @param step1 The step ID of the first atom.
 	 * @param atom2 The second atom to check.
 	 * @param step2 The step ID of the second atom.
 	 * @return true if the domains are equal, false otherwise.
 	 */
-	bool areEqual(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2);
+	bool areIdentical(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2) const;
+
+	/**
+	 * Check if the variable domains are equivalent, this means all term's domains contain the same values.
+	 * @param atom1 The first atom to check.
+	 * @param step1 The step ID of the first atom.
+	 * @param atom2 The second atom to check.
+	 * @param step2 The step ID of the second atom.
+	 * @return true if the domains are equal, false otherwise.
+	 */
+	bool areEquivalent(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2) const;
 
 	/**
 	 * Check if two atoms could effect one another based on the current bindings.

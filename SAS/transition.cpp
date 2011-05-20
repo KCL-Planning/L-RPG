@@ -503,13 +503,13 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		{
 			const BoundedAtom* to_fact = *ci;
 			
-			assert (to_node.getIndex(*to_fact) != NO_INVARIABLE_INDEX);
+///			assert (to_node.getIndex(*to_fact) != NO_INVARIABLE_INDEX);
 
 			// If the same fact appears in the to node we assume it is not deleted and thus is persistent. The next block of code
 			// determines if this is really the case or if the action deletes and adds this fact.
 			if (from_node.getIndex(*from_fact) == to_node.getIndex(*to_fact) &&
 			    to_fact->getAtom().isNegative() == from_fact->getAtom().isNegative() &&
-			    bindings.areEqual(from_fact->getAtom(), from_fact->getId(), to_fact->getAtom(), to_fact->getId()))
+			    bindings.areEquivalent(from_fact->getAtom(), from_fact->getId(), to_fact->getAtom(), to_fact->getId()))
 			{
 				is_removed = false;
 				persistent_facts.push_back(std::make_pair(from_fact, to_fact));
@@ -551,7 +551,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			// Check if the fact in the to node is added or was already present.
 			if (to_node.getIndex(*to_fact) == from_node.getIndex(*from_fact) &&
 			    to_fact->getAtom().isNegative() == from_fact->getAtom().isNegative() &&
-			    bindings.areEqual(to_fact->getAtom(), to_fact->getId(), from_fact->getAtom(), from_fact->getId()))
+			    bindings.areEquivalent(to_fact->getAtom(), to_fact->getId(), from_fact->getAtom(), from_fact->getId()))
 			{
 				is_added = false;
 				break;
@@ -1644,7 +1644,13 @@ bool Transition::unifyDTGAtomsWithAction(const std::vector<const BoundedAtom*>& 
 	{
 		const BoundedAtom* persistent_fact = *ci;
 		InvariableIndex invariable_index = dtg_node.getIndex(*persistent_fact);
-		assert (invariable_index != INVALID_INDEX_ID);
+		if (invariable_index == INVALID_INDEX_ID)
+		{
+			std::cout << "The persistent fact: ";
+			persistent_fact->print(std::cout, bindings);
+			std::cout << " has no invariable!" << std::endl;
+			assert (false);
+		}
 		
 		bool unified = false;
 		
@@ -1843,9 +1849,9 @@ bool Utilities::TransitionToNodeEquals::operator()(const Transition* transition,
 
 std::ostream& operator<<(std::ostream& os, const Transition& transition)
 {
-	os << "Transition from: ";
+	os << "Transition from: " << std::endl;
 	transition.getFromNode().print(os);
-	os << " to ";
+	os << std::endl << " to " << std::endl;
 	transition.getToNode().print(os);
 	os << "[" << transition.getStep()->getAction() << "]" << std::endl;
 	

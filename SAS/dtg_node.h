@@ -42,7 +42,7 @@ public:
 	 * but it is in no way linked to the node it is copied from. All the transitions from the given
 	 * node are copied as are all transitions to the other node.
 	 */
-	DomainTransitionGraphNode(const DomainTransitionGraphNode& dtg_node, bool copy_transitions = true);
+	DomainTransitionGraphNode(const DomainTransitionGraphNode& dtg_node, bool outbound_transitions = true, bool inbound_transitions = true);
 	
 	/**
 	 * Make a copy of an existing DTG node. We inherrit the same domain for the variables and atom,
@@ -57,6 +57,11 @@ public:
 	 * Add an atom to this node.
 	 */
 	void addAtom(BoundedAtom* bounded_atom, InvariableIndex index);
+	
+	/**
+	 * Test if the given atom is present in this DTG.
+	 */
+	bool contains(StepID id, const Atom& atom, InvariableIndex index) const;
 
 	/**
 	 * Remove atoms (lazy remove).

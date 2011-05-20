@@ -45,6 +45,8 @@ class PropertyState;
 class BoundedAtom {
 
 public:
+	
+	static BoundedAtom& createBoundedAtom(const Atom& atom, const Property* property, Bindings& bindings);
 
 	BoundedAtom(StepID id, const Atom& atom, const Property* property);
 
@@ -104,8 +106,8 @@ public:
 	 * @param bindings The binding which hold the atom's bindings.
 	 * @param index The index at which the variable should be invariable in the found DTG node.
 	 */
-	void getDTGNodes(std::vector<const DomainTransitionGraphNode*>& found_dtg_nodes, StepID binding_id, const Atom& atom, const Bindings& bindings, unsigned int index = std::numeric_limits<unsigned int>::max()) const;
-	void getDTGNodes(std::vector<const DomainTransitionGraphNode*>& found_dtg_nodes, const std::vector<const Atom*>& initial_facts, const Bindings& bindings) const;
+	void getDTGNodes(std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >& found_dtg_nodes, StepID binding_id, const Atom& atom, const Bindings& bindings, unsigned int index = std::numeric_limits<unsigned int>::max()) const;
+	void getDTGNodes(std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >& found_dtg_nodes, const std::vector<const Atom*>& initial_facts, const Bindings& bindings) const;
 	
 	/**
 	 * Check if the given atom is supported by any of the DTG nodes.
@@ -119,6 +121,8 @@ public:
 
 private:
 	
+	void applyRules();
+	
 	/**
 	 * Process used as part of the generateDomainTransitionGraphsTIM function. This function merges DTGs together which
 	 * are linked through the preconditions of the transitions and share the same invariable.
@@ -126,6 +130,8 @@ private:
 	void mergeDTGs();
 	
 	void splitDTGs();
+	
+	bool isTermStatic(const Atom& atom, StepID step_id, InvariableIndex term_index, const Bindings& bindings) const;
 
 	// The predicate manager.
 	const PredicateManager* predicate_manager_;

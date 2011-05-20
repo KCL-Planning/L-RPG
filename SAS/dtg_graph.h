@@ -119,8 +119,8 @@ public:
 	 * Get all nodes which have the given predicate or NULL if no nodes are found.
 	 * @param predicate The predicate all nodes searched for are based on.
 	 */
-	void getNodes(std::vector<DomainTransitionGraphNode*>& dtg_nodes, const Predicate& predicate, unsigned int index) const;
-	void getNodes(std::vector<const DomainTransitionGraphNode*>& found_dtg_nodes, const std::vector<const Atom*>& initial_facts, const Bindings& bindings) const;
+	void getNodes(std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >& dtg_nodes, const Predicate& predicate, unsigned int index) const;
+	void getNodes(std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >& found_dtg_nodes, const std::vector<const Atom*>& initial_facts, const Bindings& bindings) const;
 
 	/**
 	 * Get this DTG's bindings.
@@ -166,7 +166,7 @@ public:
 	 * @param index The index at which the variable should be invariable in the found DTG node. If this variable
 	 * is equal to std::numeric_limits<unsigned int>::max() this constraint isn't checked.
 	 */
-	void getNodes(std::vector<const DomainTransitionGraphNode*>& dtg_nodes, StepID step_id, const Atom& atom, const Bindings& bindings, unsigned int index = std::numeric_limits<unsigned int>::max()) const;
+	void getNodes(std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >& dtg_nodes, MyPOP::StepID step_id, const MyPOP::Atom& atom, const MyPOP::Bindings& bindings, InvariableIndex index = std::numeric_limits<unsigned int>::max()) const;
 	
 	/**
 	 * Identify subgraphs within a DTG and split those up into seperate graphs.

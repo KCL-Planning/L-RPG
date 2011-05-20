@@ -335,12 +335,12 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 				else
 				{
 					// Check which DTGs could support this precondition.
-					std::vector<const DomainTransitionGraphNode*> supporting_nodes;
+					std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > supporting_nodes;
 					dtg_manager_->getDTGNodes(supporting_nodes, new_transition->getStep()->getStepId(), *precondition, new_from_dtg_node->getDTG().getBindings());
 					
-					for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = supporting_nodes.begin(); ci != supporting_nodes.end(); ci++)
+					for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = supporting_nodes.begin(); ci != supporting_nodes.end(); ci++)
 					{
-						const DomainTransitionGraphNode* supporting_dtg_node = *ci;
+						const DomainTransitionGraphNode* supporting_dtg_node = (*ci).first;
 						
 						// Figure out which bounded atom matched.
 						for (std::vector<BoundedAtom*>::const_iterator ci = supporting_dtg_node->getAtoms().begin(); ci != supporting_dtg_node->getAtoms().end(); ci++)
@@ -592,14 +592,14 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 					std::cout << "* ";
 					bounded_atom->print(std::cout, reachable_dtg_node->getDTG().getBindings());
 					
-					std::vector<const DomainTransitionGraphNode*> supporting_dtgs;
+					std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > supporting_dtgs;
 					dtg_manager_->getDTGNodes(supporting_dtgs, bounded_atom->getId(), bounded_atom->getAtom(), reachable_dtg_node->getDTG().getBindings(), i);
 					
 					// Only consider those who have the sought after property in the property space.
-					for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = supporting_dtgs.begin(); ci != supporting_dtgs.end(); ci++)
+					for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = supporting_dtgs.begin(); ci != supporting_dtgs.end(); ci++)
 					{
 //						std::cout << " [ ";
-						const DomainTransitionGraphNode* dtg_node = *ci;
+						const DomainTransitionGraphNode* dtg_node = (*ci).first;
 //						dtg_node->print(std::cout);
 						std::cout << " { ";
 						bool relevant = false;

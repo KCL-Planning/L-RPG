@@ -140,7 +140,7 @@ bool BoundedAtom::isMutexWith(const Atom& atom, StepID step_id, const Bindings& 
 			continue;
 		}
 		
-		bool bounded_atom_present = false;
+//		bool bounded_atom_present = false;
 		
 		// If the property of another property states matches with the given one we conclude it must be mutex.
 		for (std::vector<Property*>::const_iterator ci = properties.begin(); ci != properties.end(); ci++)
@@ -153,7 +153,7 @@ bool BoundedAtom::isMutexWith(const Atom& atom, StepID step_id, const Bindings& 
 			}
 			if (property->getPredicate().getName() == property_->getPredicate().getName() && property->getIndex() == property_->getIndex())
 			{
-				bounded_atom_present = true;
+//				bounded_atom_present = true;
 				potentially_mutex = false;
 				break;
 			}
@@ -896,29 +896,33 @@ void DomainTransitionGraphManager::applyRules()
 										// Check if precondition_term is unballanced in the precondition predicate.
 										std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
 										
-										if (!static_precondition && !self_ballanced)
+										//if (!static_precondition && !self_ballanced)
 										{
 											getDTGNodes(found_nodes, transition->getStep()->getStepId(), *precondition, dtg->getBindings(), std::distance(precondition->getTerms().begin(), term_precondition_ci));
 										}
 										
+										bool ground_term = false;
+										bool add_predicate = false;
 										if (self_ballanced && static_precondition)
-											add
-										else if ( found_nodes.empty())
-											ground
+											add_predicate = true;
+										else if (found_nodes.empty())
+											ground_term = true;
 										else if (!already_part)
-											add
+											add_predicate = true;
 										
-										if (!static_precondition && !self_ballanced && found_nodes.empty())
+										std::cout << "Process the predicate: ";
+										precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
+										std::cout << "{";
+										precondition->getTerms()[std::distance(precondition->getTerms().begin(), term_precondition_ci)]->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
+										std::cout << "}: static[" << static_precondition << "]; self ballanced[" << self_ballanced << "]; predicate ballanced[" << !found_nodes.empty() << "]" << std::endl;
+										
+										if (ground_term)
 										{
-											std::cout << "Ground the term: ";
-											from_term->print(std::cout, dtg->getBindings(), bounded_atom->getId());
-											std::cout << std::endl;
+											std::cout << "Ground the term: " << std::endl;
 										}
-										else if (!already_part)
+										else if (add_predicate)
 										{
-											std::cout << "Add the predicate: ";
-											precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
-											std::cout << ": static[" << static_precondition << "]; self ballanced[" << self_ballanced << "]; predicate ballanced[" << !found_nodes.empty() << "]" << std::endl;
+											std::cout << "Add the predicate.";
 											
 											// Check if we can figure out the property linked with this precondition.
 											const Property* property = NULL;
@@ -949,6 +953,10 @@ void DomainTransitionGraphManager::applyRules()
 											finished = false;
 											precondition_added = true;
 											break;
+										}
+										else
+										{
+											std::cout << "Ignore the predicate.";
 										}
 									}
 								}

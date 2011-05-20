@@ -200,7 +200,7 @@ void DomainTransitionGraph::addBalancedSet(const PropertySpace& property_space, 
 	/**
 	 * Adding a balanced set, we need to update the type of the invariable to the most specific subtype.
 	 */
-	bool type_changed = false;
+//	bool type_changed = false;
 	for (std::vector<const PropertyState*>::const_iterator ci = property_space.getPropertyStates().begin(); ci != property_space.getPropertyStates().end(); ci++)
 	{
 		const PropertyState* property_state = *ci;
@@ -221,14 +221,14 @@ void DomainTransitionGraph::addBalancedSet(const PropertySpace& property_space, 
 			if (type_ == NULL)
 			{
 				type_ = type;
-				type_changed = true;
+//				type_changed = true;
 			}
 
 			// If the type of this predicate is more specific than the existing one, update it.
 			else if (type->isSubtypeOf(*type_))
 			{
 				type_ = type;
-				type_changed = true;
+//				type_changed = true;
 			}
 		}
 	}

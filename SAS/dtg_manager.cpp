@@ -828,6 +828,7 @@ void DomainTransitionGraphManager::applyRules()
 //				std::cout << std::endl;
 				
 				std::vector<BoundedAtom*> atoms_to_add;
+				std::vector<std::pair<const Term*, StepID> > terms_to_ground;
 				bool finished = false;
 				while (!finished)
 				{
@@ -913,12 +914,13 @@ void DomainTransitionGraphManager::applyRules()
 										std::cout << "Process the predicate: ";
 										precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
 										std::cout << "{";
-										precondition->getTerms()[std::distance(precondition->getTerms().begin(), term_precondition_ci)]->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
+										precondition_term->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
 										std::cout << "}: static[" << static_precondition << "]; self ballanced[" << self_ballanced << "]; predicate ballanced[" << !found_nodes.empty() << "]" << std::endl;
 										
 										if (ground_term)
 										{
 											std::cout << "Ground the term: " << std::endl;
+											terms_to_ground.push_back(std::make_pair(precondition_term, transition->getStep()->getStepId()));
 										}
 										else if (add_predicate)
 										{
@@ -979,7 +981,17 @@ void DomainTransitionGraphManager::applyRules()
 					}
 					atoms_to_add.clear();
 				}
-				std::cout << " -+! Final result !+- " << std::endl;
+				
+				std::vector<DomainTransitionGraphNode*> grounded_nodes;
+				dtg_node_clone->groundTerms(grounded_nodes, terms_to_ground);
+				
+				std::cout << " -+! Final results !+- " << std::endl;
+				for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = grounded_nodes.begin(); ci != grounded_nodes.end(); ci++)
+				{
+					(*ci)->print(std::cout);
+					std::cout << std::endl;
+				}
+				std::cout << "ORG:" << std::endl;
 				dtg_node_clone->print(std::cout);
 				std::cout << " -=- ";
 				transition->getStep()->getAction().print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());

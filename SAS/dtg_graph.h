@@ -203,16 +203,6 @@ public:
 	bool splitNodes(const std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* >& split_graphs);
 	
 	/**
-	 * Ground out a specific term of all Atoms. All possible instantiations are produced and stored in the given vector. The nodes
-	 * remain unchanged, to replace this node it has to be removed from the DTG and all the produced nodes added. Transitions are not
-	 * copied or affected.
-	 * @param affected_node The nodes which are grounded.
-	 * @param ground_nodes This will contain the grounded out copies of this node.
-	 * @param variable_to_ground The variable which needs to be grounded, membership is tested through pointer checking.
-	 */
-	void groundTerm(std::vector<DomainTransitionGraphNode*>& affected_nodes, std::vector<DomainTransitionGraphNode*>& grounded_nodes, const Term& term_to_ground, StepID term_id);
-	
-	/**
 	 * Check if the given @param atom with term bounded with @param id in @param bindings is supported by any node
 	 * in this graph. That is to say, does such a node exists?
 	 * @param id The ID @param atom is bound with.

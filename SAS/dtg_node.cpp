@@ -555,6 +555,8 @@ bool DomainTransitionGraphNode::groundTerms(std::vector<DomainTransitionGraphNod
 	open_list.push_back(this);
 	bool did_ground_a_term = false;
 	
+	std::cout << "Process " << open_list.size() << " DTG nodes." << std::endl;
+	
 	for (std::vector<std::pair<unsigned int, unsigned int> >::const_iterator ci = terms_to_ground_pos.begin(); ci != terms_to_ground_pos.end(); ci++)
 	{
 		unsigned int atom_index = (*ci).first;
@@ -578,9 +580,10 @@ bool DomainTransitionGraphNode::groundTerms(std::vector<DomainTransitionGraphNod
 				did_ground_a_term = true;
 			}
 		}
-		
 		open_list.clear();
 		open_list.insert(open_list.end(), grounded_nodes_tmp.begin(), grounded_nodes_tmp.end());
+		
+		std::cout << "After the Xth iteration: " << open_list.size() << " DTG nodes." << std::endl;
 	}
 	
 	grounded_nodes.insert(grounded_nodes.end(), open_list.begin(), open_list.end());
@@ -684,7 +687,8 @@ bool DomainTransitionGraphNode::removeTransition(const Transition& transition)
 void DomainTransitionGraphNode::removeTransitions(bool reset_cached_actions)
 {
 	// Remove all bindings as well!
-	for (std::vector<const Transition*>::iterator ci = transitions_.begin(); ci != transitions_.end(); ci++)
+	// TODO: Memory leak if not uncommented!
+/*	for (std::vector<const Transition*>::iterator ci = transitions_.begin(); ci != transitions_.end(); ci++)
 	{
 		const Transition* transition = *ci;
 		StepID transition_id = transition->getStep()->getStepId();
@@ -694,7 +698,7 @@ void DomainTransitionGraphNode::removeTransitions(bool reset_cached_actions)
 			const Variable* variable = *ci;
 			dtg_->getBindings().removeBindings(transition_id, *variable);
 		}
-	}
+	}*/
 	transitions_.clear();
 	
 	if (reset_cached_actions)

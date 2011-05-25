@@ -108,6 +108,9 @@ Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& e
 	{
 		const BoundedAtom* from_fact = *ci;
 		
+		if (from_fact->getProperty() == NULL)
+			continue;
+		
 		// Check if the property space this from_fact belongs to has already been created.
 		const PropertySpace& from_fact_property_space = from_fact->getProperty()->getPropertyState().getPropertySpace();
 		std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::iterator property_space_i = property_space_balanced_sets.find(&from_fact_property_space);
@@ -152,6 +155,9 @@ Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& e
 	for (std::vector<BoundedAtom*>::const_iterator ci = to_node.getAtoms().begin(); ci != to_node.getAtoms().end(); ci++)
 	{
 		const BoundedAtom* to_fact = *ci;
+		
+		if (to_fact->getProperty() == NULL)
+			continue;
 	
 		// Check if the property space this to_fact belongs to has already been created.
 		const PropertySpace& to_fact_property_space = to_fact->getProperty()->getPropertyState().getPropertySpace();
@@ -476,6 +482,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	{
 		const BoundedAtom* from_fact = *ci;
 		
+		if (from_fact->getProperty() == NULL)
+			continue;
+		
 		// Check if the property space this from_fact belongs to has already been created.
 		const PropertySpace& from_fact_property_space = from_fact->getProperty()->getPropertyState().getPropertySpace();
 		std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::iterator property_space_i = property_space_balanced_sets.find(&from_fact_property_space);
@@ -492,7 +501,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			add_remove_list = (*property_space_i).second;
 		}
 		
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 		assert (from_node.getIndex(*from_fact) != NO_INVARIABLE_INDEX);
+#endif
 		
 		/**
 		 * Determine if this fact has been removed (i.e. is not part of the to_node). If the fact has not been removed it is marked as
@@ -525,6 +536,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	for (std::vector<BoundedAtom*>::const_iterator ci = to_node.getAtoms().begin(); ci != to_node.getAtoms().end(); ci++)
 	{
 		const BoundedAtom* to_fact = *ci;
+		
+		if (to_fact->getProperty() == NULL)
+			continue;
 	
 		// Check if the property space this to_fact belongs to has already been created.
 		const PropertySpace& to_fact_property_space = to_fact->getProperty()->getPropertyState().getPropertySpace();
@@ -589,6 +603,10 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		from_persistent_atom->print(std::cout, bindings);
 		std::cout << std::endl;
 #endif
+		
+		if (from_persistent_atom->getProperty() == NULL ||
+		    to_persistent_atom->getProperty() == NULL)
+			continue;
 		
 		const PropertySpace& from_fact_property_space = from_persistent_atom->getProperty()->getPropertyState().getPropertySpace();		
 		std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::iterator from_property_space_i = property_space_balanced_sets.find(&from_fact_property_space);
@@ -864,6 +882,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	for (std::vector<std::pair<const BoundedAtom*, const BoundedAtom*> >::reverse_iterator persistent_ci = persistent_facts.rbegin(); persistent_ci != persistent_facts.rend(); persistent_ci++)
 	{
 		const BoundedAtom* to_persistent_atom = (*persistent_ci).second;
+		
+		if (to_persistent_atom->getProperty() == NULL)
+			continue;
 		
 //		std::cout << "Validate persistent fact: ";
 //		from_persistent_atom->print(std::cout, bindings);
@@ -1649,7 +1670,8 @@ bool Transition::unifyDTGAtomsWithAction(const std::vector<const BoundedAtom*>& 
 			std::cout << "The persistent fact: ";
 			persistent_fact->print(std::cout, bindings);
 			std::cout << " has no invariable!" << std::endl;
-			assert (false);
+			continue;
+///			assert (false);
 		}
 		
 		bool unified = false;
@@ -1663,9 +1685,9 @@ bool Transition::unifyDTGAtomsWithAction(const std::vector<const BoundedAtom*>& 
 			    dtg_node_atom->isNegative() == persistent_fact->getAtom().isNegative())
 			{
 				/**
-					* Only allow optional preconditions to merge if they do not refer to the invariable of the balanced set.
-					* TODO: Is this correct?
-					*/
+				 * Only allow optional preconditions to merge if they do not refer to the invariable of the balanced set.
+				 * TODO: Is this correct?
+				 */
 				if (dtg_node_atom->getTerms()[invariable_index]->canUnify(action_step_id, *persistent_fact->getAtom().getTerms()[invariable_index], persistent_fact->getId(), bindings) &&
 				    &dtg_node_atom->getTerms()[dtg_node.getIndex(*persistent_fact)]->getDomain(action_step_id, bindings) != &invariable_domain)
 				{
@@ -1804,9 +1826,9 @@ bool Transition::isPreconditionPersistent(const Atom& atom, InvariableIndex inde
 	{
 		const Atom* persistent_atom = (*ci).first;
 		InvariableIndex persistent_index = (*ci).second;
-//		std::cout << "is (" << &atom << "){" << index << "} persistent with: ";
-//		persistent_atom->print(std::cout, from_node_->getDTG().getBindings(), step_->getStepId());
-//		std::cout << "(" << persistent_atom << "){" << persistent_index << "}?" << std::endl;
+		std::cout << "is (" << &atom << "){" << index << "} persistent with: ";
+		persistent_atom->print(std::cout, from_node_->getDTG().getBindings(), step_->getStepId());
+		std::cout << "(" << persistent_atom << "){" << persistent_index << "}?" << std::endl;
 		
 		if (&atom == persistent_atom && persistent_index == index)
 		{

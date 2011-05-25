@@ -1113,20 +1113,6 @@ bool DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, st
 	return affected;
 }
 
-void DomainTransitionGraph::groundTerm(std::vector<DomainTransitionGraphNode*>& affected_nodes, std::vector<DomainTransitionGraphNode*>& grounded_nodes, const MyPOP::Term& term_to_ground, StepID term_id)
-{
-	assert (false);
-/*	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
-	{
-		DomainTransitionGraphNode* dtg_node = *ci;
-		
-		if (dtg_node->groundTerm(grounded_nodes, term_to_ground, step_id))
-		{
-			affected_nodes.push_back(dtg_node);
-		}
-	}*/
-}
-
 bool DomainTransitionGraph::isSupported(unsigned int id, const MyPOP::Atom& atom, const MyPOP::Bindings& bindings) const
 {
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)

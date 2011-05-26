@@ -104,19 +104,18 @@ void DomainTransitionGraphNode::copyAtoms(const DomainTransitionGraphNode& dtg_n
 {
 	// Construct a new atoms equal to the atoms used by dtg node. We make a copy of the terms as
 	// this makes it easier to clean up afterwards (delete all terms in the destructor).
-	for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node.atoms_.begin(); ci != dtg_node.atoms_.end(); ci++)
+	for (std::vector<BoundedAtom*>::const_iterator dtg_node_ci = dtg_node.atoms_.begin(); dtg_node_ci != dtg_node.atoms_.end(); dtg_node_ci++)
 	{
-		const BoundedAtom* bounded_atom = *ci;
+		const BoundedAtom* bounded_atom = *dtg_node_ci;
 		dtg_node.getIndex(*bounded_atom);
-		StepID org_step_id = (*ci)->getId();
-		const Atom& org_atom = (*ci)->getAtom();
+		StepID org_step_id = (*dtg_node_ci)->getId();
+		const Atom& org_atom = (*dtg_node_ci)->getAtom();
 
 		std::vector<const Term*>* new_terms = new std::vector<const Term*>();
 		for (std::vector<const Term*>::const_iterator ci = org_atom.getTerms().begin(); ci != org_atom.getTerms().end(); ci++)
 		{
 			// We know that all terms are variables, so this is just a sanity check.
 			const Term* term = *ci;
-//			assert(term->asVariable());
 			
 			new_terms->push_back(new Variable(*term->getType(), term->getName()));
 		}
@@ -133,14 +132,40 @@ void DomainTransitionGraphNode::copyAtoms(const DomainTransitionGraphNode& dtg_n
 		{
 			const Term* term = new_atom->getTerms()[i];
 			const Term* old_term = org_atom.getTerms()[i];
-//			assert (term->isVariable());
-//			assert (old_term->isVariable());
 			
 			// Make sure the new domain transition graph is not connected to the same variable domain, but 
 			// have the same objects in their domain.
 			term->makeDomainEqualTo(new_step_id, *old_term, org_step_id, dtg_->getBindings());
-//			VariableDomain& variable_domain = dtg_->getBindings().getNonConstVariableDomain(new_step_id, *term->asVariable());
-//			variable_domain.makeEqualTo(dtg_->getBindings().getVariableDomain(org_step_id, *old_term->asVariable()).getDomain());
+
+			// Check if this term was equal to another term in the original dtg node. If so we must 
+			// preserve this link.
+			for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node.atoms_.begin(); ci != dtg_node_ci; ci++)
+			{
+				const BoundedAtom* org_bounded_atom = *ci;
+				
+				for (unsigned int j = 0; j < org_bounded_atom->getAtom().getArity(); j++)
+				{
+					if (org_bounded_atom == bounded_atom &&
+					    i == j)
+					{
+						continue;
+					}
+					
+					if (old_term->isTheSameAs(bounded_atom->getId(), *org_bounded_atom->getAtom().getTerms()[j], org_bounded_atom->getId(), dtg_->getBindings()))
+					{
+#define MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
+						std::cout << "Unify: ";
+						old_term->print(std::cout, dtg_->getBindings(), bounded_atom->getId());
+						std::cout << " with ";
+						org_bounded_atom->getAtom().getTerms()[j]->print(std::cout, dtg_->getBindings(), org_bounded_atom->getId());
+						std::cout << "." << std::endl;
+#endif
+						
+						const BoundedAtom* atom_with_matching_term = atoms_[std::distance(dtg_node.atoms_.begin(), ci)];
+						term->unify(new_step_id, *atom_with_matching_term->getAtom().getTerms()[j], atom_with_matching_term->getId(), dtg_->getBindings());
+					}
+				}
+			}
 		}	
 	}
 }
@@ -555,18 +580,26 @@ bool DomainTransitionGraphNode::groundTerms(std::vector<DomainTransitionGraphNod
 	open_list.push_back(this);
 	bool did_ground_a_term = false;
 	
+#define MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
 	std::cout << "Process " << open_list.size() << " DTG nodes." << std::endl;
+#endif
 	
 	for (std::vector<std::pair<unsigned int, unsigned int> >::const_iterator ci = terms_to_ground_pos.begin(); ci != terms_to_ground_pos.end(); ci++)
 	{
 		unsigned int atom_index = (*ci).first;
 		unsigned int term_index = (*ci).second;
 		
+#define MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
+		std::cout << "Ground the " << term_index << "th term of the " << atom_index << " atom." << std::endl;
+#endif
+		
 		std::vector<DomainTransitionGraphNode*> grounded_nodes_tmp;
 		
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = open_list.begin(); ci != open_list.end(); ci++)
 		{
 			DomainTransitionGraphNode* node_to_ground = *ci;
+			
+			std::cout << "Process: " << std::endl << *node_to_ground << std::endl;
 			
 			const BoundedAtom* atom_to_ground = node_to_ground->getAtoms()[atom_index];
 			const Term* term_to_ground = atom_to_ground->getAtom().getTerms()[term_index];
@@ -583,7 +616,14 @@ bool DomainTransitionGraphNode::groundTerms(std::vector<DomainTransitionGraphNod
 		open_list.clear();
 		open_list.insert(open_list.end(), grounded_nodes_tmp.begin(), grounded_nodes_tmp.end());
 		
-		std::cout << "After the Xth iteration: " << open_list.size() << " DTG nodes." << std::endl;
+#define MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
+		std::cout << "Temp results: " << std::endl;
+		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = grounded_nodes_tmp.begin(); ci != grounded_nodes_tmp.end(); ci++)
+		{
+			DomainTransitionGraphNode* dtg_node = *ci;
+			std::cout << *dtg_node << std::endl;
+		}
+#endif
 	}
 	
 	grounded_nodes.insert(grounded_nodes.end(), open_list.begin(), open_list.end());
@@ -890,8 +930,9 @@ void DomainTransitionGraphNode::print(std::ostream& os) const
 {
 	for (std::vector<BoundedAtom*>::const_iterator ci = getAtoms().begin(); ci != getAtoms().end(); ci++)
 	{
+		os << "\t";
 		(*ci)->getAtom().print(os, getDTG().getBindings(), (*ci)->getId());
-		os << "(" << getIndex(**ci) << ")";
+		os << "(" << getIndex(**ci) << ")" << std::endl;
 		
 /*		if ((*ci)->getProperty() != NULL)
 		{
@@ -911,8 +952,9 @@ std::ostream& operator<<(std::ostream& os, const DomainTransitionGraphNode& node
 
 	for (std::vector<BoundedAtom*>::const_iterator ci = node.getAtoms().begin(); ci != node.getAtoms().end(); ci++)
 	{
+		os << "\t";
 		(*ci)->getAtom().print(os, node.getDTG().getBindings(), (*ci)->getId());
-		os << "(" << node.getIndex(**ci) << ")";
+		os << "(" << node.getIndex(**ci) << ")" << std::endl;
 		
 /*		if ((*ci)->getProperty() != NULL)
 		{

@@ -830,11 +830,9 @@ void DomainTransitionGraphManager::applyRules()
 				
 				assert (transition != NULL);
 				
-//				std::cout << "Created dtg node: ";
-//				dtg_node_clone->print(std::cout);
-//				std::cout << std::endl;
-				
-				std::vector<BoundedAtom*> atoms_to_add;
+				std::vector<BoundedAtom*> atoms_to_add_to_from_node;
+				std::vector<BoundedAtom*> atoms_to_add_to_to_node;
+				std::vector<unsigned int> precondition_index_to_add_to_to_node;
 				std::vector<std::pair<const Term*, StepID> > from_terms_to_ground;
 				std::vector<std::pair<const Term*, StepID> > to_terms_to_ground;
 				bool finished = false;
@@ -859,9 +857,10 @@ void DomainTransitionGraphManager::applyRules()
 					 */
 					const std::vector<std::pair<const Atom*, InvariableIndex> >& preconditions = transition->getAllPreconditions();
 					
-					for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
+					for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator precondition_ci = preconditions.begin(); precondition_ci != preconditions.end(); precondition_ci++)
 					{
-						const Atom* precondition = (*ci).first;
+						const Atom* precondition = (*precondition_ci).first;
+						InvariableIndex precondition_invariable_index = (*precondition_ci).second;
 						bool static_precondition = precondition->getPredicate().isStatic();
 						
 						// Ignore those which are already part of the DTG node.
@@ -932,6 +931,35 @@ void DomainTransitionGraphManager::applyRules()
 										{
 											std::cout << "Ground the term!" << std::endl;
 											from_terms_to_ground.push_back(std::make_pair(precondition_term, transition->getStep()->getStepId()));
+											
+											/**
+											 * If the term is not removed by the effects of the action and it is balanced, we must add it to the to node.
+											 */
+											bool precondition_is_deleted = false;
+											const std::vector<std::pair<const Atom*, InvariableIndex> > effects = transition->getEffects();
+											for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = effects.begin(); ci != effects.end(); ci++)
+											{
+												const Atom* effect = (*ci).first;
+												InvariableIndex effect_invariable_index = (*ci).second;
+												
+												if (effect->isNegative() &&
+												    effect_invariable_index == precondition_invariable_index &&
+												    dtg->getBindings().areIdentical(*effect, transition->getStep()->getStepId(), *precondition, transition->getStep()->getStepId()))
+												{
+													precondition_is_deleted = true;
+													break;
+												}
+											}
+											
+											if (!precondition_is_deleted)
+											{
+												std::cout << "Add the term to the to node!" << std::endl;
+//												BoundedAtom* atom_to_add = new BoundedAtom(transition->getStep()->getStepId(), *precondition, NULL);
+//												atoms_to_add_to_to_node.push_back(atom_to_add);
+//												to_terms_to_ground.push_back(std::make_pair(precondition_term, transition->getStep()->getStepId()));
+												
+												precondition_index_to_add_to_to_node.push_back(std::distance(preconditions.begin(), precondition_ci));
+											}
 										}
 										else if (add_predicate)
 										{
@@ -962,7 +990,7 @@ void DomainTransitionGraphManager::applyRules()
 												std::cout << "No property found..." << std::endl;
 											}
 											BoundedAtom* atom_to_add = new BoundedAtom(transition->getStep()->getStepId(), *precondition, property);
-											atoms_to_add.push_back(atom_to_add);
+											atoms_to_add_to_from_node.push_back(atom_to_add);
 											finished = false;
 											precondition_added = true;
 											break;
@@ -986,13 +1014,13 @@ void DomainTransitionGraphManager::applyRules()
 							}
 						}
 					}
-					for (std::vector<BoundedAtom*>::const_iterator ci = atoms_to_add.begin(); ci != atoms_to_add.end(); ci++)
+					for (std::vector<BoundedAtom*>::const_iterator ci = atoms_to_add_to_from_node.begin(); ci != atoms_to_add_to_from_node.end(); ci++)
 					{
 						from_dtg_node_clone->addAtom(*ci, NO_INVARIABLE_INDEX);
 					}
-					atoms_to_add.clear();
+					atoms_to_add_to_from_node.clear();
 				}
-				
+
 				/**
 				 * Now that we know which terms to ground we check if any of these terms are present in the to node,
 				 * if that's the case than these need to be grounded too. Failing to do so would mean that transitions
@@ -1031,11 +1059,18 @@ void DomainTransitionGraphManager::applyRules()
 						}
 					}
 				}
-				
+
 				/**
 				 * In addition to grounding the terms which are persistent we should also add atoms to the to node.
 				 */
+				for (std::vector<BoundedAtom*>::const_iterator ci = atoms_to_add_to_to_node.begin(); ci != atoms_to_add_to_to_node.end(); ci++)
+				{
+					to_dtg_node_clone->addAtom(*ci, NO_INVARIABLE_INDEX);
+				}
 
+				/**
+				 * Establish the transitions and print the final result.
+				 */
 				std::cout << " -+! Final results !+- " << std::endl;
 				std::vector<DomainTransitionGraphNode*> from_grounded_nodes;
 				if (from_dtg_node_clone->groundTerms(from_grounded_nodes, from_terms_to_ground))
@@ -1049,15 +1084,42 @@ void DomainTransitionGraphManager::applyRules()
 					for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = from_grounded_nodes.begin(); ci != from_grounded_nodes.end(); ci++)
 					{
 						DomainTransitionGraphNode* from_dtg_node = *ci;
+						
+//						std::cout << "Found grounded node: " << std::endl << *from_dtg_node << std::endl;
 						for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = to_grounded_nodes.begin(); ci != to_grounded_nodes.end(); ci++)
 						{
 							DomainTransitionGraphNode* to_dtg_node = *ci;
 							const Transition* new_transition = Transition::createTransition(*enable_dummy, transition->getStep()->getAction(), *from_dtg_node, *to_dtg_node, *initial_facts_);
 							
-							if (new_transition != NULL)
+							if (new_transition == NULL)
 							{
-								from_dtg_node->addTransition(*new_transition, false);
-								std::cout << "Add new transition!" << std::endl;
+								continue;
+							}
+							
+							from_dtg_node->addTransition(*new_transition, false);
+//							std::cout << "Add new transition!" << std::endl;
+							
+							for (std::vector<unsigned int>::const_iterator ci = precondition_index_to_add_to_to_node.begin(); ci != precondition_index_to_add_to_to_node.end(); ci++)
+							{
+								BoundedAtom* bounded_atom = new BoundedAtom(new_transition->getStep()->getStepId(), *new_transition->getAllPreconditions()[*ci].first, NULL);
+								
+								bool already_part_of_to_node = false;
+								
+								// Make sure it is not already part of the to node.
+								for (std::vector<BoundedAtom*>::const_iterator ci = to_dtg_node->getAtoms().begin(); ci != to_dtg_node->getAtoms().end(); ci++)
+								{
+									const BoundedAtom* to_bounded_atom = *ci;
+									if (from_dtg_node->getDTG().getBindings().areEquivalent(to_bounded_atom->getAtom(), to_bounded_atom->getId(), bounded_atom->getAtom(), bounded_atom->getId()))
+									{
+										already_part_of_to_node = true;
+										break;
+									}
+								}
+								
+								if (!already_part_of_to_node)
+								{
+									to_dtg_node->addAtom(bounded_atom, INVALID_INDEX_ID);
+								}
 							}
 						}
 						std::cout << " NEW: " << *from_dtg_node << std::endl;

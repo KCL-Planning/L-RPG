@@ -11,7 +11,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-///#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 ///#define ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 
 namespace MyPOP {
@@ -1385,6 +1385,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	/**
 	 * Test the optional preconditions.
 	 */
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+	std::cout << "[Transition::createTransition] Unify the optional preconditions!" << std::endl;
+#endif
 	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
 	{
 		const PropertySpace* property_space = (*ci).first;
@@ -1401,9 +1404,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		 */
 		if (added_facts->empty())
 		{
-#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-			std::cout << "Unify the optional preconditions..." << std::endl;
-#endif
+///#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+///			std::cout << "Unify the optional preconditions..." << std::endl;
+///#endif
 			if (!unifyDTGAtomsWithAction(*removed_facts, from_node, preconditions, action_step_id, action, bindings, *invariable_property_space_to_domain_mapping[property_space]))
 			{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
@@ -1438,7 +1441,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		}
 	}
 	
-//	std::cout << "[Transition::createTransition] Unify the effects!" << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+	std::cout << "[Transition::createTransition] Unify the effects!" << std::endl;
+#endif
 	for (std::vector<std::pair<const Atom*, const BoundedAtom*> >::const_iterator ci = add_effects_to_to_node_bindings.begin(); ci != add_effects_to_to_node_bindings.end(); ci++)
 	{
 		const Atom* added_effect = (*ci).first;
@@ -1457,7 +1462,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		}
 	}
 	
-//	std::cout << "[Transition::createTransition] Unify the preconditions!" << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+	std::cout << "[Transition::createTransition] Unify the preconditions!" << std::endl;
+#endif
 	for (std::vector<std::pair<const Atom*, const BoundedAtom*> >::const_iterator ci = precondition_to_from_node_bindings.begin(); ci != precondition_to_from_node_bindings.end(); ci++)
 	{
 		const Atom* precondition = (*ci).first;
@@ -1591,6 +1598,113 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		}
 	}
 	
+	/**
+	 * All the facts in a DTG node are part of a balanced set. All preconditions which contain this invariable and could unify with
+	 * a fact of the from node should do so. If the said precondition contains a term which is part of a balanced set, then this
+	 * term is processed in the same way until all terms which are part of a balanced set are discovered and all preconditions which
+	 * can be unified with a term in the from node are.
+	 */
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+	std::cout << "[Transition::createTransition] Unify all preconditions containing an invariable." << std::endl;
+#endif
+
+
+	std::set<const std::vector<const Object*>* > open_list_balanced_domains;
+
+	for (std::map<const PropertySpace*, const Variable*>::const_iterator ci = property_space_action_invariables->begin(); ci != property_space_action_invariables->end(); ci++)
+	{
+		const Variable* invariable = (*ci).second;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+		std::cout << "\tThe invariable: ";
+		invariable->print(std::cout, bindings, action_step->getStepId());
+		std::cout << "(" << &invariable->getDomain(action_step->getStepId(), bindings) << ")" << std::endl;
+#endif
+		open_list_balanced_domains.insert(&invariable->getDomain(action_step->getStepId(), bindings));
+	}
+	
+	std::set<const std::vector<const Object*>* > closed_list_balanced_domains;
+	
+	while (!open_list_balanced_domains.empty())
+	{
+		const std::vector<const Object*>* balanced_domain = *(open_list_balanced_domains.begin());
+		open_list_balanced_domains.erase(open_list_balanced_domains.begin());
+		
+		closed_list_balanced_domains.insert(balanced_domain);
+		
+		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
+		{
+			const Atom* precondition = *ci;
+			
+	#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+			std::cout << "Process: ";
+			precondition->print(std::cout, bindings, action_step->getStepId());
+			std::cout << std::endl;
+	#endif
+			
+			for (std::vector<const Term*>::const_iterator precondition_terms_ci = precondition->getTerms().begin(); precondition_terms_ci != precondition->getTerms().end(); precondition_terms_ci++)
+			{
+				const Term* term = *precondition_terms_ci;
+				unsigned int precondition_term_index = std::distance(precondition->getTerms().begin(), precondition_terms_ci);
+				
+				const std::vector<const Object*>& precondition_term_domain = term->getDomain(action_step->getStepId(), bindings);
+				if (&precondition_term_domain == balanced_domain)
+				{
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+					std::cout << "\tContains an invariable!" << std::endl;
+#endif
+
+					// Look for a fact in the from dtg node to unify with which contains the same invariable.
+					for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
+					{
+						const BoundedAtom* bounded_atom = *ci;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+						std::cout << "\t\tCompare v.s. ";
+						bounded_atom->print(std::cout, bindings);
+						std::cout << std::endl;
+#endif
+						
+						if (bindings.canUnify(bounded_atom->getAtom(), bounded_atom->getId(), *precondition, action_step->getStepId()) &&
+							term->isTheSameAs(action_step->getStepId(), *bounded_atom->getAtom().getTerms()[precondition_term_index], bounded_atom->getId(), bindings))
+						{
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+							std::cout << "[EXTRA] Unify the precondition: ";
+							precondition->print(std::cout, bindings, action_step->getStepId());
+							std::cout << std::endl;
+#endif
+							
+							assert (bindings.unify(bounded_atom->getAtom(), bounded_atom->getId(), *precondition, action_step->getStepId()));
+						}
+					}
+					
+					// Check which other terms of this precondition are considered to be balanced.
+					for (unsigned int i = 0; i < precondition->getArity(); i++)
+					{
+						if (precondition_term_index == i)
+						{
+							continue;
+						}
+						
+						std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > matching_dtg_nodes;
+						from_node.getDTG().getDTGManager().getDTGNodes(matching_dtg_nodes, action_step->getStepId(), *precondition, bindings, i);
+						
+						if (matching_dtg_nodes.size() != 0)
+						{
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+							std::cout << "The " << i << "th term is invariable too!" << std::endl;
+#endif
+							
+							const std::vector<const Object*>& other_precondition_term_domain = precondition->getTerms()[i]->getDomain(action_step->getStepId(), bindings);
+							if (closed_list_balanced_domains.count(&other_precondition_term_domain) == 0)
+							{
+								open_list_balanced_domains.insert(&other_precondition_term_domain);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	/**
 	 * Store for each precondition which variable is invariable for easy access later (getAllPreconditions()). This part assumes
 	 * a transition can only work on a single balanced set, so a transition cannot affect two different sets of property spaces.

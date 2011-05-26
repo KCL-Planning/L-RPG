@@ -153,7 +153,7 @@ void DomainTransitionGraphNode::copyAtoms(const DomainTransitionGraphNode& dtg_n
 					
 					if (old_term->isTheSameAs(bounded_atom->getId(), *org_bounded_atom->getAtom().getTerms()[j], org_bounded_atom->getId(), dtg_->getBindings()))
 					{
-#define MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
 						std::cout << "Unify: ";
 						old_term->print(std::cout, dtg_->getBindings(), bounded_atom->getId());
 						std::cout << " with ";
@@ -580,7 +580,7 @@ bool DomainTransitionGraphNode::groundTerms(std::vector<DomainTransitionGraphNod
 	open_list.push_back(this);
 	bool did_ground_a_term = false;
 	
-#define MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
 	std::cout << "Process " << open_list.size() << " DTG nodes." << std::endl;
 #endif
 	
@@ -589,7 +589,7 @@ bool DomainTransitionGraphNode::groundTerms(std::vector<DomainTransitionGraphNod
 		unsigned int atom_index = (*ci).first;
 		unsigned int term_index = (*ci).second;
 		
-#define MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
 		std::cout << "Ground the " << term_index << "th term of the " << atom_index << " atom." << std::endl;
 #endif
 		
@@ -616,7 +616,7 @@ bool DomainTransitionGraphNode::groundTerms(std::vector<DomainTransitionGraphNod
 		open_list.clear();
 		open_list.insert(open_list.end(), grounded_nodes_tmp.begin(), grounded_nodes_tmp.end());
 		
-#define MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
 		std::cout << "Temp results: " << std::endl;
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = grounded_nodes_tmp.begin(); ci != grounded_nodes_tmp.end(); ci++)
 		{

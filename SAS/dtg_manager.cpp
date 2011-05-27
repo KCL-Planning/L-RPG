@@ -830,6 +830,8 @@ void DomainTransitionGraphManager::applyRules()
 				
 				assert (transition != NULL);
 				
+				std::cout << "Process the transition: " << *transition << "." << std::endl;
+				
 				std::vector<BoundedAtom*> atoms_to_add_to_from_node;
 				std::vector<BoundedAtom*> atoms_to_add_to_to_node;
 				std::vector<unsigned int> precondition_index_to_add_to_to_node;
@@ -925,7 +927,7 @@ void DomainTransitionGraphManager::applyRules()
 										precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
 										std::cout << "{";
 										precondition_term->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
-										std::cout << "}: static[" << static_precondition << "]; self ballanced[" << self_ballanced << "]; predicate ballanced[" << !found_nodes.empty() << "]" << std::endl;
+										std::cout << " / " << std::distance(precondition->getTerms().begin(), term_precondition_ci) << "}: static[" << static_precondition << "]; self ballanced[" << self_ballanced << "]; predicate ballanced[" << !found_nodes.empty() << "]" << std::endl;
 										
 										if (ground_term)
 										{
@@ -959,6 +961,24 @@ void DomainTransitionGraphManager::applyRules()
 //												to_terms_to_ground.push_back(std::make_pair(precondition_term, transition->getStep()->getStepId()));
 												
 												precondition_index_to_add_to_to_node.push_back(std::distance(preconditions.begin(), precondition_ci));
+											}
+											
+											/**
+											 * Determine if any of the terms refer to any of the to node's terms and is inbalanced.
+											 */
+											for (std::vector<const Term*>::const_iterator term_precondition_ci = precondition->getTerms().begin(); term_precondition_ci != precondition->getTerms().end(); term_precondition_ci++)
+											{
+												const Term* precondition_term = *term_precondition_ci;
+
+												std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
+												getDTGNodes(found_nodes, transition->getStep()->getStepId(), *precondition, dtg->getBindings(), std::distance(precondition->getTerms().begin(), term_precondition_ci));
+
+												if (!found_nodes.empty())
+												{
+													continue;
+												}
+												
+												to_terms_to_ground.push_back(std::make_pair(precondition_term, transition->getStep()->getStepId()));
 											}
 										}
 										else if (add_predicate)
@@ -1127,7 +1147,7 @@ void DomainTransitionGraphManager::applyRules()
 						if (from_dtg_node->getTransitions().size() != 1)
 						{
 							std::cout << "Wrong number of transitions!!!!" << std::endl;
-							assert(false);
+//							assert(false);
 						}
 					}
 				}

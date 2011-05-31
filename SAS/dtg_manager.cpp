@@ -960,31 +960,9 @@ void DomainTransitionGraphManager::applyRules()
 											
 											if (!precondition_is_deleted)
 											{
-												std::cout << "Add the term to the to node!" << std::endl;
-//												BoundedAtom* atom_to_add = new BoundedAtom(transition->getStep()->getStepId(), *precondition, NULL);
-//												atoms_to_add_to_to_node.push_back(atom_to_add);
-//												to_terms_to_ground.push_back(std::make_pair(precondition_term, transition->getStep()->getStepId()));
-												
+												std::cout << "Add the predicate to the to node!" << std::endl;
 												precondition_index_to_add_to_to_node.push_back(std::distance(preconditions.begin(), precondition_ci));
 											}
-											
-											/**
-											 * Determine if any of the terms refer to any of the to node's terms and is inbalanced.
-											 *
-											for (std::vector<const Term*>::const_iterator term_precondition_ci = precondition->getTerms().begin(); term_precondition_ci != precondition->getTerms().end(); term_precondition_ci++)
-											{
-												const Term* precondition_term = *term_precondition_ci;
-
-												std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
-												getDTGNodes(found_nodes, transition->getStep()->getStepId(), *precondition, dtg->getBindings(), std::distance(precondition->getTerms().begin(), term_precondition_ci));
-
-												if (!found_nodes.empty())
-												{
-													continue;
-												}
-												
-												to_terms_to_ground.push_back(std::make_pair(precondition_term, transition->getStep()->getStepId()));
-											}*/
 										}
 										else if (add_predicate)
 										{
@@ -1050,6 +1028,16 @@ void DomainTransitionGraphManager::applyRules()
 												for (std::vector<const Term*>::const_iterator ci = to_bounded_atom->getAtom().getTerms().begin(); ci != to_bounded_atom->getAtom().getTerms().end(); ci++)
 												{
 													const Term* term = *ci;
+													
+													// Only ground the term if it is unballanced in the to node as well.
+													getDTGNodes(found_nodes, to_bounded_atom->getId(), to_bounded_atom->getAtom(), dtg->getBindings(), std::distance(to_bounded_atom->getAtom().getTerms().begin(), ci));
+
+													if (!found_nodes.empty())
+													{
+														found_nodes.clear();
+														continue;
+													}
+													
 													if (precondition_term->isTheSameAs(transition->getStep()->getStepId(), *term, to_bounded_atom->getId(), dtg->getBindings()))
 													{
 														term_is_part_of_to_node = true;
@@ -1070,28 +1058,16 @@ void DomainTransitionGraphManager::applyRules()
 											
 											from_terms_to_ground.push_back(std::make_pair(precondition_term, transition->getStep()->getStepId()));
 											to_terms_to_ground.push_back(std::make_pair(precondition_term, transition->getStep()->getStepId()));
+											
+											std::cout << "(precondition) Ground the term: ";
+											precondition_term->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
+											std::cout << " in the TO node." << std::endl;
 										}
 										
 										if (add_predicate)
 										{
 											break;
 										}
-/*
-										for (std::vector<BoundedAtom*>::const_iterator ci = to_dtg_node_clone->getAtoms().begin(); ci != to_dtg_node_clone->getAtoms().end(); ci++)
-										{
-											const BoundedAtom* to_bounded_atom = *ci;
-
-											std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
-											getDTGNodes(found_nodes, transition->getStep()->getStepId(), *precondition, dtg->getBindings(), std::distance(precondition->getTerms().begin(), term_precondition_ci));
-
-											if (!found_nodes.empty())
-											{
-												continue;
-											}
-											
-											to_terms_to_ground.push_back(std::make_pair(precondition_term, transition->getStep()->getStepId()));
-										}
-*/
 									}
 								}
 								
@@ -1145,6 +1121,9 @@ void DomainTransitionGraphManager::applyRules()
 									if (to_dtg_node_clone->getIndex(*to_bounded_atom) == precondition_invariable &&
 									    dtg->getBindings().canUnify(to_bounded_atom->getAtom(), to_bounded_atom->getId(), *persistent_precondition, transition->getStep()->getStepId()))
 									{
+										std::cout << "Ground the term: ";
+										to_bounded_atom->getAtom().getTerms()[std::distance(persistent_precondition->getTerms().begin(), persistent_precondition_terms_ci)]->print(std::cout, dtg->getBindings(), to_bounded_atom->getId());
+										std::cout << " in the TO node." << std::endl;
 										to_terms_to_ground.push_back(std::make_pair(to_bounded_atom->getAtom().getTerms()[std::distance(persistent_precondition->getTerms().begin(), persistent_precondition_terms_ci)], to_bounded_atom->getId()));
 									}
 								}

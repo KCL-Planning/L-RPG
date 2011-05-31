@@ -11,7 +11,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+///#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 ///#define ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 
 namespace MyPOP {

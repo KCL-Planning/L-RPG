@@ -1469,6 +1469,14 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	{
 		const Atom* precondition = (*ci).first;
 		const BoundedAtom* from_node_atom = (*ci).second;
+
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+		std::cout << "[Transition::createTransition] Unify the precondition: ";
+		precondition->print(std::cout, bindings, action_step_id);
+		std::cout << " with " << std::endl;
+		from_node_atom->print(std::cout, bindings);
+		std::cout << "." << std::endl;
+#endif
 		
 		if (!bindings.unify(from_node_atom->getAtom(), from_node_atom->getId(), *precondition, action_step_id))
 		{
@@ -1663,8 +1671,8 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 						std::cout << std::endl;
 #endif
 						
-						if (bindings.canUnify(bounded_atom->getAtom(), bounded_atom->getId(), *precondition, action_step->getStepId()) &&
-							term->isTheSameAs(action_step->getStepId(), *bounded_atom->getAtom().getTerms()[precondition_term_index], bounded_atom->getId(), bindings))
+						if (bounded_atom->getAtom().getPredicate().canSubstitute(precondition->getPredicate()) &&
+						    term->isTheSameAs(action_step->getStepId(), *bounded_atom->getAtom().getTerms()[precondition_term_index], bounded_atom->getId(), bindings))
 						{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 							std::cout << "[EXTRA] Unify the precondition: ";
@@ -1672,13 +1680,20 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 							std::cout << std::endl;
 #endif
 							
-							assert (bindings.unify(bounded_atom->getAtom(), bounded_atom->getId(), *precondition, action_step->getStepId()));
+							if (!bindings.unify(bounded_atom->getAtom(), bounded_atom->getId(), *precondition, action_step->getStepId()))
+							{
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+								std::cout << "Precondition could not be unified, transition is not possible!";
+#endif
+								return NULL;
+							}
 						}
 					}
 					
 					// Check which other terms of this precondition are considered to be balanced.
 					for (unsigned int i = 0; i < precondition->getArity(); i++)
 					{
+/*
 						if (precondition_term_index == i)
 						{
 							continue;
@@ -1692,13 +1707,14 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 							std::cout << "The " << i << "th term is invariable too!" << std::endl;
 #endif
+*/
 							
 							const std::vector<const Object*>& other_precondition_term_domain = precondition->getTerms()[i]->getDomain(action_step->getStepId(), bindings);
 							if (closed_list_balanced_domains.count(&other_precondition_term_domain) == 0)
 							{
 								open_list_balanced_domains.insert(&other_precondition_term_domain);
 							}
-						}
+//						}
 					}
 				}
 			}
@@ -1781,9 +1797,11 @@ bool Transition::unifyDTGAtomsWithAction(const std::vector<const BoundedAtom*>& 
 		InvariableIndex invariable_index = dtg_node.getIndex(*persistent_fact);
 		if (invariable_index == INVALID_INDEX_ID)
 		{
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 			std::cout << "The persistent fact: ";
 			persistent_fact->print(std::cout, bindings);
 			std::cout << " has no invariable!" << std::endl;
+#endif
 			continue;
 ///			assert (false);
 		}

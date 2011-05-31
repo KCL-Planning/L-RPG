@@ -123,14 +123,6 @@ private:
 	
 	void applyRules();
 	
-	/**
-	 * Process used as part of the generateDomainTransitionGraphsTIM function. This function merges DTGs together which
-	 * are linked through the preconditions of the transitions and share the same invariable.
-	 */
-	void mergeDTGs();
-	
-	void splitDTGs();
-	
 	bool isTermStatic(const Atom& atom, StepID step_id, InvariableIndex term_index, const Bindings& bindings) const;
 
 	// The predicate manager.

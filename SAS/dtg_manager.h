@@ -64,7 +64,7 @@ public:
 	
 	bool isMutexWith (const MyPOP::Atom& atom, MyPOP::StepID step_id, const MyPOP::Bindings& bindings, InvariableIndex invariable_index) const;
 
-	void print(std::ostream& os, const Bindings& bindings) const;
+	void print(std::ostream& os, const Bindings& bindings, bool verbal = true) const;
 
 private:
 	StepID id_;

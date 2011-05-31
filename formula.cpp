@@ -89,7 +89,7 @@ void Atom::print(std::ostream& os) const
 	}
 }
 
-void Atom::print(std::ostream& os, const Bindings& bindings, StepID step_id) const
+void Atom::print(std::ostream& os, const Bindings& bindings, StepID step_id, bool verbal) const
 {
 	os << "\t";
 	if (is_negative_)
@@ -102,12 +102,19 @@ void Atom::print(std::ostream& os, const Bindings& bindings, StepID step_id) con
 		const Term* term = *ci;
 		///os << *term;
 		term->print(os, bindings, step_id);
-		os << "%" << &(term->getDomain(step_id, bindings)) << "%";
+		
+		if (verbal)
+		{
+			os << "%" << &(term->getDomain(step_id, bindings)) << "%";
+		}
+		
 		if (ci + 1 != terms_->end())
+		{
 			os << " ";
+		}
 	}
 	os << ")";
-	if (predicate_->isStatic())
+	if (verbal && predicate_->isStatic())
 	{
 		os << "[s]";
 	}

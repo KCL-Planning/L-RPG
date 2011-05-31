@@ -70,7 +70,7 @@ public:
 	
 	// Print the formula to the ostream but with the variable printed
 	// with the set of objects from their domains.
-	virtual void print(std::ostream& os, const Bindings& bindings, StepID step_id) const;
+	virtual void print(std::ostream& os, const Bindings& bindings, StepID step_id, bool verbal = true) const;
 
 	// Get the predicate.
 	const Predicate& getPredicate() const { return *predicate_; }

@@ -143,6 +143,7 @@ private:
 	 */
 	static Transition* createTransition(const std::vector<BoundedAtom>& enablers, const StepPtr step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
 	
+	// TODO: Remove this function.
 	static Transition* createSimpleTransition(const std::vector<BoundedAtom>& enablers, const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
 
 	/**

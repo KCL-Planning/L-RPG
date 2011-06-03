@@ -598,8 +598,10 @@ bool DomainTransitionGraphNode::groundTerms(std::vector<DomainTransitionGraphNod
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = open_list.begin(); ci != open_list.end(); ci++)
 		{
 			DomainTransitionGraphNode* node_to_ground = *ci;
-			
+
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
 			std::cout << "Process: " << std::endl << *node_to_ground << std::endl;
+#endif
 			
 			const BoundedAtom* atom_to_ground = node_to_ground->getAtoms()[atom_index];
 			const Term* term_to_ground = atom_to_ground->getAtom().getTerms()[term_index];

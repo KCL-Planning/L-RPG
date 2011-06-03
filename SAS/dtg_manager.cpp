@@ -1102,7 +1102,7 @@ void DomainTransitionGraphManager::applyRules()
 	 * Print out the result in DOT format.
 	 */
 	std::ofstream ofs;
-	ofs.open("dtgs.dot", std::ios::out);
+	ofs.open("relaxed_dtgs.dot", std::ios::out);
 	
 	ofs << "digraph {" << std::endl;
 

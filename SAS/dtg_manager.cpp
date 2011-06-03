@@ -582,24 +582,6 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 						negative_new_dtg_node->addTransition(*transition, false);
 					}
 				}
-				
-/*
-				achievers.clear();
-				action_manager_->getAchievingActions(achievers, *negative_atom);
-				
-				for (std::vector<std::pair<const Action*, const Atom*> >::const_iterator ci = achievers.begin(); ci != achievers.end(); ci++)
-				{
-					const Action* achieving_action = (*ci).first;
-					
-					// Create a transition between the two nodes.
-					std::vector<BoundedAtom>* enablers = new std::vector<BoundedAtom>();
-					const Transition* transition = Transition::createTransition(*enablers, *achieving_action, *possitive_new_dtg_node, *negative_new_dtg_node, *initial_facts_);
-					if (transition != NULL)
-					{
-						possitive_new_dtg_node->addTransition(*transition, false);
-					}
-				}
-*/
 			}
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 			std::cout << "Resulting DTG: " << *new_dtg << std::endl;
@@ -624,8 +606,6 @@ void DomainTransitionGraphManager::applyRules()
 	std::cout << " *************** [DomainTransitionGraphManager::applyRules] *******************" << std::endl;
 #endif
 
-	std::vector<const DomainTransitionGraphNode*> resulting_nodes;
-
 	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
 	{
 		DomainTransitionGraph* dtg = *ci;
@@ -633,10 +613,15 @@ void DomainTransitionGraphManager::applyRules()
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 			std::cout << "[DomainTransitionGraphManager::applyRules] Check DTG: " << *dtg << std::endl;
 #endif
+
+		std::vector<DomainTransitionGraphNode*> resulting_nodes;
+		std::vector<DomainTransitionGraphNode*> dtg_nodes_to_remove;
 		
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ci++)
 		{
 			DomainTransitionGraphNode* dtg_node = *ci;
+			bool replace_lifted_dtg_node = false;
+			
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 			std::cout << "[DomainTransitionGraphManager::applyRules] Check DTG Node: ";
 			dtg_node->print(std::cout);
@@ -733,7 +718,6 @@ void DomainTransitionGraphManager::applyRules()
 										
 										// Check if precondition_term is unballanced in the precondition predicate.
 										std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
-										
 										getDTGNodes(found_nodes, transition->getStep()->getStepId(), *precondition, dtg->getBindings(), std::distance(precondition->getTerms().begin(), term_precondition_ci));
 										
 										bool ground_term = false;
@@ -991,6 +975,7 @@ void DomainTransitionGraphManager::applyRules()
 				{
 					from_dtg_node_clone->removeTransitions(true);
 					
+					
 					std::vector<DomainTransitionGraphNode*> to_grounded_nodes;
 					to_dtg_node_clone->groundTerms(to_grounded_nodes, to_terms_to_ground);
 					
@@ -1048,7 +1033,6 @@ void DomainTransitionGraphManager::applyRules()
 							}
 							
 							from_dtg_node->addTransition(*new_transition, false);
-//							std::cout << "Add new transition!" << std::endl;
 							
 							for (std::vector<unsigned int>::const_iterator ci = precondition_index_to_add_to_to_node.begin(); ci != precondition_index_to_add_to_to_node.end(); ci++)
 							{
@@ -1075,15 +1059,9 @@ void DomainTransitionGraphManager::applyRules()
 						}
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 						std::cout << " NEW: " << *from_dtg_node << std::endl;
-						
-						if (from_dtg_node->getTransitions().size() != 1)
-						{
-							std::cout << "Wrong number of transitions!!!!" << std::endl;
-//							assert(false);
-						}
 #endif
-						
 						resulting_nodes.push_back(from_dtg_node);
+						replace_lifted_dtg_node = true;
 					}
 				}
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
@@ -1094,13 +1072,29 @@ void DomainTransitionGraphManager::applyRules()
 				std::cout << std::endl << " -+----------+- " << std::endl;
 #endif
 			}
+			
+			if (replace_lifted_dtg_node)
+			{
+				dtg_nodes_to_remove.push_back(dtg_node);
+			}
+		}
+		
+		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_nodes_to_remove.begin(); ci != dtg_nodes_to_remove.end(); ci++)
+		{
+				dtg->removeNode(**ci);
+		}
+				
+		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = resulting_nodes.begin(); ci != resulting_nodes.end(); ci++)
+		{
+			dtg->addNode(**ci);
 		}
 	}
 	
+/*
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-	/**
+	**
 	 * Print out the result in DOT format.
-	 */
+	 *
 	std::ofstream ofs;
 	ofs.open("relaxed_dtgs.dot", std::ios::out);
 	
@@ -1121,6 +1115,7 @@ void DomainTransitionGraphManager::applyRules()
 	ofs << "}" << std::endl;
 	ofs.close();
 #endif
+*/
 }
 
 bool DomainTransitionGraphManager::isTermStatic(const Atom& atom, StepID step_id, InvariableIndex term_index, const Bindings& bindings) const

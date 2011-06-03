@@ -60,7 +60,6 @@ public:
 class DomainTransitionGraph : public ManageableObject
 {
 public:
-	///DomainTransitionGraph(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, PropertySpace& property_space, const MyPOP::TypeManager& type_manager, const MyPOP::ActionManager& action_manager, const MyPOP::PredicateManager& predicate_manager, const MyPOP::SAS_Plus::DTGBindings& bindings, const std::vector< const MyPOP::Atom* >& initial_facts);
 	DomainTransitionGraph(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, const MyPOP::TypeManager& type_manager, const MyPOP::ActionManager& action_manager, const MyPOP::PredicateManager& predicate_manager, const MyPOP::SAS_Plus::DTGBindings& bindings, const std::vector< const MyPOP::Atom* >& initial_facts);
 	
 	~DomainTransitionGraph();

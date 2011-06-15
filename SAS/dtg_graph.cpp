@@ -95,7 +95,7 @@ DomainTransitionGraph::~DomainTransitionGraph()
 
 bool DomainTransitionGraph::addNode(DomainTransitionGraphNode& dtg_node, std::vector<DomainTransitionGraphNode*>* added_nodes)
 {
-	assert (&dtg_node.getDTG() == this);
+/*	assert (&dtg_node.getDTG() == this);
 	// Make sure we don't add a node twice to a DTG!
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 	{
@@ -134,6 +134,7 @@ bool DomainTransitionGraph::addNode(DomainTransitionGraphNode& dtg_node, std::ve
 	}
 
 	if (!could_unify)
+*/
 	{
 		nodes_.push_back(&dtg_node);
 		if (added_nodes != NULL)

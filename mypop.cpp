@@ -229,23 +229,34 @@ int main(int argc,char * argv[])
 
 	getitimer(ITIMER_PROF, &timer);
 
+	// Based on the DTG structures, do domain analysis!
+	struct timeval start_time_reachability;
+	gettimeofday(&start_time_reachability, NULL);
+
+	SAS_Plus::RelaxedReachabilityAnalyst analyst(dtg_manager);
+	analyst.performReachabilityAnalysis(*initial_effects, plan->getBindings());
+
+	struct timeval end_time_reachability;
+	gettimeofday(&end_time_reachability, NULL);
+
+	double time_spend = end_time_reachability.tv_sec - start_time_reachability.tv_sec + (end_time_reachability.tv_usec - start_time_reachability.tv_usec) / 1000000.0;
+	std::cerr << "Reachability analysis: " << time_spend << " seconds" << std::endl;
+	
+
+	
+	exit (0);
+
 	// Planning time.
 	double t = 1000000.9 - (timer.it_value.tv_sec + timer.it_value.tv_usec * 1e-6);
 	std::cerr << "Time: " << std::max(0, int(1000.0 * t + 0.5)) << std::endl;
 
-	exit (0);
-	// Based on the DTG structures, do domain analysis!
-	SAS_Plus::RelaxedReachabilityAnalyst analyst(dtg_manager);
-	analyst.performReachabilityAnalysis(*initial_effects);
 	
-
-/*	std::cout << " === Creating the Landmarks === " << std::endl;
+	/*	std::cout << " === Creating the Landmarks === " << std::endl;
 	LANDMARKS::LandmarkManager landmark_manager(action_manager, type_manager, term_manager);
 	landmark_manager.findLandmarksFromGoal(*the_domain->ops, *the_domain->types, *plan, dtg_manager, cg);
 	Graphviz::printToDot(landmark_manager.getLandmarkGraph());
 	std::cout << " === DONE! Creating the Landmarks === " << std::endl;
 */
-	exit (0);
 
 	// Start the planning process!
 	SimpleFlawSelectionStrategy* sfss = new SimpleFlawSelectionStrategy();

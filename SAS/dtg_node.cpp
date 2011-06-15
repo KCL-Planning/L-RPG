@@ -291,7 +291,7 @@ void DomainTransitionGraphNode::addAtom(BoundedAtom* bounded_atom, InvariableInd
 	indexes_[bounded_atom] = index;
 }
 
-bool DomainTransitionGraphNode::merge(const DomainTransitionGraphNode& other)
+/*bool DomainTransitionGraphNode::merge(const DomainTransitionGraphNode& other)
 {
 	// Copy all atoms from the given node to this one.
 	bool merged = false;
@@ -338,9 +338,9 @@ bool DomainTransitionGraphNode::merge(const DomainTransitionGraphNode& other)
 		indexes_[bounded_atom] = other_index;
 	}
 	
-	/**
+	**
 	 * If the given node has been merged with this one, we must also merge the possible transitions and unique ids.
-	 */
+	 *
 	if (merged)
 	{
 		for (std::vector<unsigned int>::const_iterator ci = other.unique_ids_.begin(); ci != other.unique_ids_.end(); ci++)
@@ -365,9 +365,9 @@ bool DomainTransitionGraphNode::merge(const DomainTransitionGraphNode& other)
 		possible_actions_.insert(other.possible_actions_.begin(), other.possible_actions_.end());
 	}
 	
-	/**
+	**
 	 * Update the property state to include the new propertise added.
-	 */
+	 *
 	
 #ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_DEBUG
 	// Make sure all the indexes are accounted for.
@@ -380,7 +380,7 @@ bool DomainTransitionGraphNode::merge(const DomainTransitionGraphNode& other)
 	
 	return merged;
 }
-
+*/
 void DomainTransitionGraphNode::removeAtom(const BoundedAtom& bounded_atom)
 {
 	for (std::vector<BoundedAtom*>::iterator i = atoms_.begin(); i != atoms_.end(); i++)

@@ -393,6 +393,10 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	
 	time_spend = end_time_apply_rules.tv_sec - start_time_apply_rules.tv_sec + (end_time_apply_rules.tv_usec - start_time_apply_rules.tv_usec) / 1000000.0;
 	std::cerr << "Applying the rules took: " << time_spend << " seconds" << std::endl;
+	
+	
+	struct timeval start_time_unsupported_predicates;
+	gettimeofday(&start_time_unsupported_predicates, NULL);
 
 	/**
 	 * Some predicates are not seen as DTGs by TIM, these come in two categories:
@@ -588,6 +592,12 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 #endif
 		}
 	}
+	
+	struct timeval end_time_unsupported_predicates;
+	gettimeofday(&end_time_unsupported_predicates, NULL);
+	
+	time_spend = end_time_unsupported_predicates.tv_sec - start_time_unsupported_predicates.tv_sec + (end_time_unsupported_predicates.tv_usec - start_time_unsupported_predicates.tv_usec) / 1000000.0;
+	std::cerr << "Creating DTGs for unsupported predicates: " << time_spend << " seconds" << std::endl;
 
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 	std::cout << "FINAL RESULTS" << std::endl;
@@ -1086,7 +1096,7 @@ void DomainTransitionGraphManager::applyRules()
 				
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = resulting_nodes.begin(); ci != resulting_nodes.end(); ci++)
 		{
-			dtg->addNode(**ci);
+			assert (dtg->addNode(**ci));
 		}
 	}
 	

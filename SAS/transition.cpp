@@ -11,7 +11,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-///#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 ///#define ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 
 namespace MyPOP {
@@ -1491,90 +1491,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		}
 	}
 	
-#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-	std::cout << "[Transition::createTransition] Unify the persistent facts!" << std::endl;
-#endif
-	for (std::vector<std::pair<const BoundedAtom*, const BoundedAtom*> >::const_iterator ci = persistent_facts.begin(); ci != persistent_facts.end(); ci++)
-	{
-		const BoundedAtom* from_node_persistent_fact = (*ci).first;
-
-#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-
-		const PropertySpace& property_space = from_node_persistent_fact->getProperty()->getPropertyState().getPropertySpace();
-		const std::vector<const Object*>* invariable_term = property_space_invariables[&property_space];
-		if (invariable_term == NULL)
-		{
-			std::cout << "Could not find the invariable term of ";
-			from_node_persistent_fact->print(std::cout, bindings);
-			std::cout << "[" << from_node.getIndex(*from_node_persistent_fact) << "]" << std::endl;
-		}
-#endif
-		InvariableIndex invariable_index = from_node.getIndex(*from_node_persistent_fact);
-
-#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-		std::cout << "Process: ";
-		from_node_persistent_fact->print(std::cout, bindings);
-		std::cout << "(" << invariable_index << ")" << std::endl;
-#endif
-		
-		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
-		{
-			const Atom* precondition = *ci;
-#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-			std::cout << " - v.s. ";
-			precondition->print(std::cout, bindings, action_step_id);
-			std::cout << " -=- invariable = " << invariable_term << std::endl;
-#endif
-			
-			const Term* invariable_precondition_term = NULL;
-			
-			if (bindings.canUnify(*precondition, action_step_id, from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId()))
-			{
-				const std::vector<const Object*>* invariable_domain = property_space_invariables[&from_node_persistent_fact->getProperty()->getPropertyState().getPropertySpace()];
-				if (&precondition->getTerms()[invariable_index]->getDomain(action_step_id, bindings) == invariable_domain)
-				{
-					invariable_precondition_term = precondition->getTerms()[invariable_index];
-				}
-			}
-			
-			if (invariable_precondition_term == NULL)
-			{
-#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-				std::cout << "Persistent does not contain the invariable, move on!" << std::endl;
-#endif
-				continue;
-			}
-
-			if (bindings.canUnify(*precondition, action_step_id, from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId()))
-			{
-#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-				std::cout << "Unify persistent fact: ";
-				from_node_persistent_fact->print(std::cout, bindings);
-				std::cout << " with the precondition ";
-				precondition->print(std::cout, bindings, action_step_id);
-				std::cout << std::endl;
-#endif
-				
-				if (!bindings.unify(from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId(), *precondition, action_step_id))
-				{
-#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-					std::cout << "Could not unify a persistent fact with the from_node." << std::endl;
-#endif
-					return NULL;
-				}
-
-				precondition_mapping_to_from_node.push_back(std::make_pair(precondition, from_node.getIndex(*from_node_persistent_fact)));
-				persistent_preconditions.push_back(std::make_pair(precondition, from_node.getIndex(*from_node_persistent_fact)));
-			}
-#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-			else
-			{
-				std::cout << "Cannot add the persistent to the preconditions!" << std::endl;
-			}
-#endif
-		}
-	}
-
 	/**
 	 * Post process by checking if the transitions did not violate any static preconditions.
 	 */
@@ -1615,7 +1531,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 	std::cout << "[Transition::createTransition] Unify all preconditions containing an invariable." << std::endl;
 #endif
-
 
 	std::set<const std::vector<const Object*>* > open_list_balanced_domains;
 
@@ -1718,6 +1633,21 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 					}
 				}
 			}
+		}
+	}
+	
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+	std::cout << "[Transition::createTransition] Unify the persistent facts!" << std::endl;
+#endif
+	for (std::vector<std::pair<const BoundedAtom*, const BoundedAtom*> >::const_iterator ci = persistent_facts.begin(); ci != persistent_facts.end(); ci++)
+	{
+		const BoundedAtom* from_node_persistent_fact = (*ci).first;
+		const BoundedAtom* to_node_persistent_fact = (*ci).second;
+		
+		for (unsigned int i = 0; i < from_node_persistent_fact->getAtom().getArity(); i++)
+		{
+			// Merge the terms together.
+			bindings.unify(from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId(), to_node_persistent_fact->getAtom(), to_node_persistent_fact->getId());
 		}
 	}
 

@@ -55,9 +55,9 @@ public:
 	/**
 	 * Unify the two terms, there are three different possible scenarios.
 	 * - Both terms are variable: in this case we merge both variables, a change to one of the variables will
-	 * affect the other variables. The are the same after unifying.
+	 * affect the other variables. They are the same after unifying.
 	 * - One is an object and the other a variable: in this case the variable's domain will be reduced to the 
-	 * given object. There is no other relationt between both terms.
+	 * given object. There is no other relation between both terms.
 	 * - Both are objects: Nothing will happen, the result will be identical to a call to canUnify.
 	 * @param lhs_id The step id for this term, used to find its variable domain (if applicable) in @param bindings.
 	 * @param rhs The term the compare the domain against.
@@ -238,9 +238,9 @@ public:
 	/**
 	 * Unify the two terms, there are three different possible scenarios.
 	 * - Both terms are variable: in this case we merge both variables, a change to one of the variables will
-	 * affect the other variables. The are the same after unifying.
+	 * affect the other variables. They are the same after unifying.
 	 * - One is an object and the other a variable: in this case the variable's domain will be reduced to the 
-	 * given object. There is no other relationt between both terms.
+	 * given object. There is no other relation between both terms.
 	 * - Both are objects: Nothing will happen, the result will be identical to a call to canUnify.
 	 * @param lhs_id The step id for this term, used to find its variable domain (if applicable) in @param bindings.
 	 * @param rhs The term the compare the domain against.
@@ -388,9 +388,9 @@ public:
 	/**
 	 * Unify the two terms, there are three different possible scenarios.
 	 * - Both terms are variable: in this case we merge both variables, a change to one of the variables will
-	 * affect the other variables. The are the same after unifying.
+	 * affect the other variables. They are the same after unifying.
 	 * - One is an object and the other a variable: in this case the variable's domain will be reduced to the 
-	 * given object. There is no other relationt between both terms.
+	 * given object. There is no other relation between both terms.
 	 * - Both are objects: Nothing will happen, the result will be identical to a call to canUnify.
 	 * @param lhs_id The step id for this term, used to find its variable domain (if applicable) in @param bindings.
 	 * @param rhs The term the compare the domain against.

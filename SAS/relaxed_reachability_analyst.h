@@ -34,7 +34,7 @@ private:
 	 * are stored in @ref(initial_supporting_facts). Each full valid assignment is stored in @ref(supporting_tupples).
 	 * @param supporting_tupples All found sets which can be unified with all the items of @ref(atoms_to_achieve)
 	 * are inserted in this vector.
-	 * @param variable_assignments Maps variable domains to a single object which has been assigned to that domain. As the
+	 * @param variable_assignments Maps variable domains to a set of objects which has been assigned to that domain. As the
 	 * algorithm works through all the facts to be achieved it stores the assignments made so far and if an assignment
 	 * cannot be made - there is a conflict - the algorithm will backtrack and try other assignments until it finds one
 	 * which supports all the facts in @ref(atoms_to_achieve). This assignment is then added to @ref(supporting_tupples).
@@ -47,10 +47,10 @@ private:
 	 * be drawn.
 	 * @param established_facts_bindings The bindings of all the facts achieved so far.
 	 */
-	void getSupportingFacts(std::vector< std::vector< const MyPOP::SAS_Plus::BoundedAtom* >* >& supporting_tupples, const std::map< const std::vector< const MyPOP::Object* >*, const MyPOP::Object* >& variable_assignments, const std::vector< MyPOP::SAS_Plus::BoundedAtom* >& atoms_to_achieve, const MyPOP::Bindings& atoms_to_achieve_bindings, const std::vector< const MyPOP::SAS_Plus::BoundedAtom* >& initial_supporting_facts, const std::vector< const MyPOP::SAS_Plus::BoundedAtom* >& initial_facts, const MyPOP::Bindings& established_facts_bindings);
+	void getSupportingFacts(std::vector< std::vector< const MyPOP::SAS_Plus::BoundedAtom* >* >& supporting_tupples, const std::map< const std::vector< const MyPOP::Object* >*, const std::vector< const MyPOP::Object* >* >& variable_assignments, const std::vector< MyPOP::SAS_Plus::BoundedAtom* >& atoms_to_achieve, const MyPOP::Bindings& atoms_to_achieve_bindings, const std::vector< const MyPOP::SAS_Plus::BoundedAtom* >& initial_supporting_facts, const std::vector< const MyPOP::SAS_Plus::BoundedAtom* >& initial_facts, MyPOP::Bindings& established_facts_bindings);
 	
 	
-	void initialisePossibleAssignmentsToDTGNodes(const std::vector<const Atom*>& initial_facts, const std::vector<const BoundedAtom*>& established_facts, const Bindings& initial_bindings);
+	void initialisePossibleAssignmentsToDTGNodes(const std::vector<const Atom*>& initial_facts, const std::vector<const BoundedAtom*>& established_facts, Bindings& initial_bindings);
 	
 	const DomainTransitionGraphManager* dtg_manager_;
 	

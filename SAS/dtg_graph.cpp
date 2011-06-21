@@ -866,6 +866,8 @@ void DomainTransitionGraph::establishTransitions()
 		(*ci)->removeTransitions(true);
 	}
 	
+	std::vector<DomainTransitionGraphNode*> new_nodes;
+	
 	// Go through the list of all possible transitions and add them when we can.
 	for (std::vector<Action*>::const_iterator ci = action_manager_->getManagableObjects().begin(); ci != action_manager_->getManagableObjects().end(); ci++)
 	{
@@ -878,6 +880,13 @@ void DomainTransitionGraph::establishTransitions()
 			for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 			{
 				DomainTransitionGraphNode* to_node = *ci;
+				
+				if (from_node == to_node)
+				{
+					to_node = new DomainTransitionGraphNode(*to_node, false, false);
+					new_nodes.push_back(to_node);
+				}
+				
 				std::vector<BoundedAtom>* enabler_dummy = new std::vector<BoundedAtom>();
 
 				Transition* transition = Transition::createTransition(*enabler_dummy, *action, *from_node, *to_node, *initial_facts_);
@@ -888,6 +897,12 @@ void DomainTransitionGraph::establishTransitions()
 			}
 		}
 	}
+	
+	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = new_nodes.begin(); ci != new_nodes.end(); ci++)
+	{
+		addNode(**ci);
+	}
+	
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 	std::cout << "=== Result: === (" << bindings_->getNr() << ") " << std::endl << *this << std::endl;
 #endif

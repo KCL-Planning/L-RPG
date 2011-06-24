@@ -637,16 +637,16 @@ bool Bindings::areIdentical(const Atom& atom1, StepID step1, const Atom& atom2, 
 	return true;
 }
 
-bool Bindings::areEquivalent(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2) const
+bool Bindings::areEquivalent(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2, const Bindings* other_bindings) const
 {
-	if (!canUnify(atom1, step1, atom2, step2))
+	if (!canUnify(atom1, step1, atom2, step2, other_bindings))
 	{
 		return false;
 	}
 	
 	for (unsigned int i = 0; i < atom1.getArity(); i++)
 	{
-		if (!atom1.getTerms()[i]->isEquivalentTo(step1, *atom2.getTerms()[i], step2, *this))
+		if (!atom1.getTerms()[i]->isEquivalentTo(step1, *atom2.getTerms()[i], step2, *this, other_bindings))
 		{
 			return false;
 		}

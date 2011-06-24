@@ -123,6 +123,8 @@ private:
 	
 	void applyRules();
 	
+	void mergeIdenticalDTGs(Bindings& bindings);
+	
 	bool isTermStatic(const Atom& atom, StepID step_id, InvariableIndex term_index, const Bindings& bindings) const;
 
 	// The predicate manager.

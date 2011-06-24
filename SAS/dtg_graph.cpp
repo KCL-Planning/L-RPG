@@ -884,7 +884,6 @@ void DomainTransitionGraph::establishTransitions()
 				if (from_node == to_node)
 				{
 					to_node = new DomainTransitionGraphNode(*to_node, false, false);
-					new_nodes.push_back(to_node);
 				}
 				
 				std::vector<BoundedAtom>* enabler_dummy = new std::vector<BoundedAtom>();
@@ -893,6 +892,7 @@ void DomainTransitionGraph::establishTransitions()
 				if (transition != NULL)
 				{
 					from_node->addTransition(*transition, true);
+					new_nodes.push_back(to_node);
 				}
 			}
 		}

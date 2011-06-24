@@ -124,6 +124,8 @@ public:
 	const std::vector<std::pair<const Atom*, InvariableIndex> >& getAllPersistentPreconditions() const { return persistent_preconditions_; }
 	
 	bool isPreconditionPersistent(const Atom&, InvariableIndex index) const;
+	
+	bool isPreconditionRemoved(const Atom& precondition, const Bindings& bindings) const;
 
 	/**
 	 * Check if a bounded atom is linked to this transition. I.e. does it share a variable domain with it?

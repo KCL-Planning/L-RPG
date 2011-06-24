@@ -11,7 +11,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+///#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 ///#define ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 
 namespace MyPOP {
@@ -1840,6 +1840,23 @@ void Transition::addEnabler(BoundedAtom enabler)
 	}
 
 	enablers_.push_back(enabler);
+}
+
+bool Transition::isPreconditionRemoved(const Atom& precondition, const Bindings& bindings) const
+{
+	const std::vector<const Atom*>& effects = getStep()->getAction().getEffects();
+	for (std::vector<const Atom*>::const_iterator ci = effects.begin(); ci != effects.end(); ci++)
+	{
+		const Atom* effect = *ci;
+		
+		if (effect->isNegative() &&
+		    bindings.areIdentical(*effect, getStep()->getStepId(), precondition, getStep()->getStepId()))
+		{
+			return true;
+		}
+	}
+	
+	return false;
 }
 
 bool Transition::achieves(const BoundedAtom& bounded_atom) const

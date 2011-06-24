@@ -147,10 +147,11 @@ public:
 	 * @param lhs_id The step id for this term, used to find its variable domain (if applicable) in @param bindings.
 	 * @param rhs The term the compare the domain against.
 	 * @param rhs_id The step id for the rhs term, used to find its variable domain (if applicable) in @param bindings.
-	 * @param bindings The class which contains the bindings for both terms.
+	 * @param lhs_bindings The class which contains the bindings for the lhs term.
+	 * @param rhs_bindings The class which contains the bindings for the rhs term, if it is equal to NULL it is equal to lhs_bindings.
 	 * @return True if both term's domains are equivalent, false otherwise.
 	 */
-	bool isEquivalentTo(StepID lhs_id, const Term& rhs, StepID rhs_id, const Bindings& bindings) const;
+	bool isEquivalentTo(StepID lhs_id, const Term& rhs, StepID rhs_id, const Bindings& lhs_bindings, const Bindings* rhs_bindings = NULL) const;
 	
 	/**
 	 * Check if the given object is a member of this term's domain.

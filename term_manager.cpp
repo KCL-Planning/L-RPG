@@ -23,10 +23,14 @@ bool Term::isTheSameAs(StepID lhs_id, const Term& rhs, StepID rhs_id, const Bind
 	return &lhs_domain ==  &rhs_domain;
 }
 
-bool Term::isEquivalentTo(StepID lhs_id, const Term& rhs, StepID rhs_id, const Bindings& bindings) const
+bool Term::isEquivalentTo(StepID lhs_id, const Term& rhs, StepID rhs_id, const Bindings& lhs_bindings, const Bindings* rhs_bindings) const
 {
-	const std::vector<const Object*>& lhs_domain = getDomain(lhs_id, bindings);
-	const std::vector<const Object*>& rhs_domain = rhs.getDomain(rhs_id, bindings);
+	if (rhs_bindings == NULL)
+	{
+		rhs_bindings = &lhs_bindings;
+	}
+	const std::vector<const Object*>& lhs_domain = getDomain(lhs_id, lhs_bindings);
+	const std::vector<const Object*>& rhs_domain = rhs.getDomain(rhs_id, *rhs_bindings);
 	
 	if (lhs_domain.size() != rhs_domain.size())
 	{

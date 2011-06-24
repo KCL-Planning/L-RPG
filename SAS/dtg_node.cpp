@@ -135,7 +135,7 @@ void DomainTransitionGraphNode::copyAtoms(const DomainTransitionGraphNode& dtg_n
 			
 			// Make sure the new domain transition graph is not connected to the same variable domain, but 
 			// have the same objects in their domain.
-			term->makeDomainEqualTo(new_step_id, *old_term, org_step_id, dtg_->getBindings());
+			term->makeDomainEqualTo(new_step_id, *old_term, org_step_id, dtg_->getBindings(), &dtg_node.getDTG().getBindings());
 
 			// Check if this term was equal to another term in the original dtg node. If so we must 
 			// preserve this link.
@@ -145,13 +145,12 @@ void DomainTransitionGraphNode::copyAtoms(const DomainTransitionGraphNode& dtg_n
 				
 				for (unsigned int j = 0; j < org_bounded_atom->getAtom().getArity(); j++)
 				{
-					if (org_bounded_atom == bounded_atom &&
-					    i == j)
+					if (org_bounded_atom == bounded_atom && i == j)
 					{
 						continue;
 					}
 					
-					if (old_term->isTheSameAs(bounded_atom->getId(), *org_bounded_atom->getAtom().getTerms()[j], org_bounded_atom->getId(), dtg_->getBindings()))
+					if (old_term->isTheSameAs(bounded_atom->getId(), *org_bounded_atom->getAtom().getTerms()[j], org_bounded_atom->getId(), dtg_node.getDTG().getBindings()))
 					{
 #ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
 						std::cout << "Unify: ";

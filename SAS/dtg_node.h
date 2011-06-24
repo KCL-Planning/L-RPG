@@ -185,14 +185,12 @@ public:
                              std::vector<BoundedAtom*>::const_iterator end,
                              const std::vector<const Atom*>& initial_facts,
                              const std::map<const std::vector<const Object*>*, std::vector<const Object*>* >& term_mappings) const;
-
-private:
-
 	/**
 	 * Utility function of the copy constructor. Copy all the atoms to the new copy of the DTG node.
 	 */
 	void copyAtoms(const DomainTransitionGraphNode& dtg_node);
 
+private:
 	
 	// The DTG this node is part of.
 	DomainTransitionGraph* dtg_;

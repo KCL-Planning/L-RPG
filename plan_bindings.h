@@ -267,7 +267,7 @@ public:
 	 * @param step2 The step ID of the second atom.
 	 * @return true if the domains are equal, false otherwise.
 	 */
-	bool areEquivalent(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2) const;
+	bool areEquivalent(const Atom& atom1, StepID step1, const Atom& atom2, StepID step2, const Bindings* other_bindings = NULL) const;
 
 	/**
 	 * Check if two atoms could effect one another based on the current bindings.

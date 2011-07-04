@@ -171,7 +171,11 @@ public:
 
 private:
 	
-	void applyRules();
+	/**
+	 * As a preprocessing process, split the DTGs up into point to point transitions. For every transition we create a new
+	 * to and from node and connect them with the same transition. This stucture is later processed and put together again.
+	 */
+	void createPointToPointTransitions();
 	
 	void mergeIdenticalDTGs(Bindings& bindings);
 	

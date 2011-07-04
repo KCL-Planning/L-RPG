@@ -576,7 +576,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	struct timeval start_time_apply_rules;
 	gettimeofday(&start_time_apply_rules, NULL);
 	
-	applyRules();
+	createPointToPointTransitions();
 	
 	struct timeval end_time_apply_rules;
 	gettimeofday(&end_time_apply_rules, NULL);
@@ -1049,10 +1049,10 @@ void DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings& bindings)
 	}
 }
 
-void DomainTransitionGraphManager::applyRules()
+void DomainTransitionGraphManager::createPointToPointTransitions()
 {
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-	std::cout << " *************** [DomainTransitionGraphManager::applyRules] *******************" << std::endl;
+	std::cout << " *************** [DomainTransitionGraphManager::createPointToPointTransitions] *******************" << std::endl;
 	
 	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
 	{
@@ -1068,7 +1068,7 @@ void DomainTransitionGraphManager::applyRules()
 		DomainTransitionGraph* dtg = *ci;
 		
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-		std::cout << "[DomainTransitionGraphManager::applyRules] Check DTG: " << *dtg << std::endl;
+		std::cout << "[DomainTransitionGraphManager::createPointToPointTransitions] Check DTG: " << *dtg << std::endl;
 #endif
 
 		// Keep track of which new dtg nodes to add and which ones to remove.
@@ -1081,7 +1081,7 @@ void DomainTransitionGraphManager::applyRules()
 			bool replace_lifted_dtg_node = false;
 			
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-			std::cout << "[DomainTransitionGraphManager::applyRules] Check DTG Node: ";
+			std::cout << "[DomainTransitionGraphManager::createPointToPointTransitions] Check DTG Node: ";
 			dtg_node->print(std::cout);
 			std::cout << std::endl;
 #endif
@@ -1099,7 +1099,7 @@ void DomainTransitionGraphManager::applyRules()
 				assert (transition != NULL);
 
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-				std::cout << "[DomainTransitionGraphManager::applyRules] Process the transition: " << *transition << std::endl;
+				std::cout << "[DomainTransitionGraphManager::createPointToPointTransitions] Process the transition: " << *transition << std::endl;
 #endif
 
 				// Find out the invariable for this transition.
@@ -1643,7 +1643,6 @@ void DomainTransitionGraphManager::applyRules()
 	ofs.close();
 #endif
 */
-	exit(0);
 }
 
 bool DomainTransitionGraphManager::isTermStatic(const Atom& atom, StepID step_id, InvariableIndex term_index, const Bindings& bindings) const

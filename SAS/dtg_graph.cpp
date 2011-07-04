@@ -180,7 +180,7 @@ bool DomainTransitionGraph::areMutex(const DomainTransitionGraphNode& dtg_node1,
 //			InvariableIndex index2 = dtg_node2.getIndex(*bounded_atom2);
 
 			// Check if these are mutal exclusive.
-			if (bounded_atom1->isMutexWith(*bounded_atom2))
+			if (bounded_atom1->isMutexWith(*bounded_atom2, *bindings_))
 			{
 				return true;
 			}
@@ -206,7 +206,7 @@ void DomainTransitionGraph::addBalancedSet(const PropertySpace& property_space, 
 	{
 		const PropertyState* property_state = *ci;
 		
-		for (std::vector<Property*>::const_iterator ci = property_state->getProperties().begin(); ci != property_state->getProperties().end(); ci++)
+		for (std::vector<const Property*>::const_iterator ci = property_state->getProperties().begin(); ci != property_state->getProperties().end(); ci++)
 		{
 			const Property* property = *ci;
 			// If there is no invariable, we do not need to check this, obviously :).
@@ -241,9 +241,9 @@ void DomainTransitionGraph::addBalancedSet(const PropertySpace& property_space, 
 	{
 		const PropertyState* property_state = *ci;
 		
-		for (std::vector<Property*>::const_iterator ci = property_state->getProperties().begin(); ci != property_state->getProperties().end(); ci++)
+		for (std::vector<const Property*>::const_iterator ci = property_state->getProperties().begin(); ci != property_state->getProperties().end(); ci++)
 		{
-			Property* property = *ci;
+			Property* property = const_cast<Property*>(*ci);
 			
 			if (property->getIndex() == NO_INVARIABLE_INDEX)
 			{
@@ -308,7 +308,7 @@ void DomainTransitionGraph::addBalancedSet(const PropertySpace& property_space, 
 			
 			DomainTransitionGraphNode* dtg_node = NULL;
 
-			for (std::vector<Property*>::const_iterator ci = property_state->getProperties().begin(); ci != property_state->getProperties().end(); ++ci)
+			for (std::vector<const Property*>::const_iterator ci = property_state->getProperties().begin(); ci != property_state->getProperties().end(); ++ci)
 			{
 				const Property* property = *ci;
 				const Predicate& predicate = property->getPredicate();
@@ -355,8 +355,10 @@ void DomainTransitionGraph::addBalancedSet(const PropertySpace& property_space, 
 				}
 				else
 				{
-					StepID unique_nr = bindings_->createVariableDomains(*atom);
-					dtg_node->addAtom(new BoundedAtom(unique_nr, *atom, property), index);
+					BoundedAtom& bounded_atom = BoundedAtom::createBoundedAtom(*atom, *property, *bindings_);
+					dtg_node->addAtom(&bounded_atom, index);
+//					StepID unique_nr = bindings_->createVariableDomains(*atom);
+//					dtg_node->addAtom(new BoundedAtom(unique_nr, *atom, property), index);
 				}
 			}
 			addNode(*dtg_node);
@@ -405,11 +407,26 @@ void DomainTransitionGraph::addObjects()
 				continue;
 			}
 			
-			if (containsPropertySpace(bounded_atom->getProperty()->getPropertyState().getPropertySpace()))
+			for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
+			{
+				if (containsPropertySpace((*ci)->getPropertyState().getPropertySpace()))
+				{
+					invariable_bounded_atom = bounded_atom;
+					break;
+				}
+			}
+			
+			if (invariable_bounded_atom != NULL)
+			{
+				break;
+			}
+			
+/*			if (containsPropertySpace(bounded_atom->getProperty()->getPropertyState().getPropertySpace()))
 			{
 				invariable_bounded_atom = bounded_atom;
 				break;
 			}
+*/
 		}
 		
 		if (invariable_bounded_atom == NULL)
@@ -520,12 +537,20 @@ bool DomainTransitionGraph::isValidPredicateIndex(const Predicate& predicate, un
 
 DomainTransitionGraphNode* DomainTransitionGraph::createDTGNode(const Atom& atom, unsigned int index, const Property* property)
 {
-	StepID unique_nr = bindings_->createVariableDomains(atom);
+//	StepID unique_nr = bindings_->createVariableDomains(atom);
 
 	static unsigned int unique_id = 0;
 	
 	DomainTransitionGraphNode* dtg_node = new DomainTransitionGraphNode(*this, unique_id++);
-	dtg_node->addAtom(new BoundedAtom(unique_nr, atom, property), index);
+	
+	BoundedAtom* new_bounded_atom = NULL;
+	
+	if (property == NULL)
+		new_bounded_atom = &BoundedAtom::createBoundedAtom(atom, *bindings_);
+	else
+		new_bounded_atom = &BoundedAtom::createBoundedAtom(atom, *property, *bindings_);
+	
+	dtg_node->addAtom(new_bounded_atom, index);
 	return dtg_node;
 }
 
@@ -568,7 +593,7 @@ void DomainTransitionGraph::getNodes(std::vector<std::pair<const SAS_Plus::Domai
 //			std::cout << std::endl;
 			
 			if (bindings_->canUnify(bounded_atom->getAtom(), bounded_atom->getId(), atom, step_id, &bindings) &&
-				(index == std::numeric_limits<unsigned int>::max() || 
+				(index == ALL_INVARIABLE_INDEXES || 
 				dtg_node->getIndex(*bounded_atom) == index))
 			{
 ///				std::cout << "SUCCES!!!" << std::endl;
@@ -1353,6 +1378,42 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 								
 								assert (&matching_dtg_node->getDTG() != NULL);
 								
+								bool propose_merge_with_self = false;
+								for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
+								{
+									const Property* property = *ci;
+									
+									if (containsPropertySpace(property->getPropertyState().getPropertySpace()))
+									{
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+										std::cout << " * * * * Alert! Proposing a DTG to merge with itself!!!" << std::endl;
+#endif
+										propose_merge_with_self = true;
+										break;
+									}
+								}
+								
+								if (propose_merge_with_self)
+								{
+									continue;
+								}
+								
+								for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
+								{
+									const Property* property = *ci;
+									precondition_properties.push_back(std::make_pair(matching_invariable_index, property));
+
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+									std::cout << " * * * * Candidate to bind: ";
+									bounded_atom->print(std::cout, matching_dtg_node->getDTG().getBindings());
+									std::cout << "[" << &property->getPropertyState().getPropertySpace() << "]" << std::endl;
+									
+									std::cout << " * * * * From DTG node: ";
+									matching_dtg_node->print(std::cout);
+									std::cout << " (pointer address=" << &matching_dtg_node->getDTG() << ")" << std::endl;
+#endif
+								}
+/*
 								if (containsPropertySpace(bounded_atom->getProperty()->getPropertyState().getPropertySpace()))
 								{
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
@@ -1365,7 +1426,7 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 //									break;
 									continue;
 								}
-								
+
 								precondition_properties.push_back(std::make_pair(matching_invariable_index, bounded_atom->getProperty()));
 
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
@@ -1377,6 +1438,7 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 								matching_dtg_node->print(std::cout);
 								std::cout << " (pointer address=" << &matching_dtg_node->getDTG() << ")" << std::endl;
 #endif
+*/
 							}
 						}
 						
@@ -1436,8 +1498,12 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 							assert (counter == 0);
 							++counter;
 
-							StepID external_invariable_id = bindings_->createVariableDomains(*precondition);
-							from_dtg_node->addAtom(new BoundedAtom(external_invariable_id, *precondition, precondition_property), precondition_invariable);
+							//StepID external_invariable_id = bindings_->createVariableDomains(*precondition);
+							
+							BoundedAtom& new_bounded_atom = BoundedAtom::createBoundedAtom(*precondition, *precondition_property, *bindings_);
+							
+							from_dtg_node->addAtom(&new_bounded_atom, precondition_invariable);
+//							from_dtg_node->addAtom(new BoundedAtom(external_invariable_id, *precondition, precondition_property), precondition_invariable);
 						}
 					}
 				}

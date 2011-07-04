@@ -122,7 +122,7 @@ void DomainTransitionGraphNode::copyAtoms(const DomainTransitionGraphNode& dtg_n
 		const Atom* new_atom = new Atom(org_atom.getPredicate(), *new_terms, org_atom.isNegative());
 		StepID new_step_id = dtg_->getBindings().createVariableDomains(*new_atom);
 
-		addAtom(new BoundedAtom(new_step_id, *new_atom, bounded_atom->getProperty()), dtg_node.getIndex(*bounded_atom));
+		addAtom(new BoundedAtom(new_step_id, *new_atom, bounded_atom->getProperties()), dtg_node.getIndex(*bounded_atom));
 
 		// Update the variable domains.
 		// NOTE: Due to the nature of this function we cannot update the equal to variables as we do not copy these
@@ -237,11 +237,12 @@ void DomainTransitionGraphNode::addAtom(BoundedAtom* bounded_atom, InvariableInd
 {
 //	std::cout << "Add the atom: ";
 //	bounded_atom->print(std::cout, dtg_->getBindings());
-//	std::cout << " to : " << *this << std::endl;
+//	std::cout << "(" << index << ") to : " << *this << std::endl;
+	
 	// Testing...
 	for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
 	{
-		if (bounded_atom->isMutexWith(**ci))
+		if (bounded_atom->isMutexWith(**ci, dtg_->getBindings()))
 		{
 			bounded_atom->getAtom().print(std::cout);
 			std::cout << "(" << index << ") and ";
@@ -256,8 +257,45 @@ void DomainTransitionGraphNode::addAtom(BoundedAtom* bounded_atom, InvariableInd
 		assert (false);
 	}
 
-	// Check if the variable domain  of the i'th variable is bounded to the others. Do this only if they form part of the same
-	// property space.
+	if (index != NO_INVARIABLE_INDEX)
+	{
+		// Check if the variable domain  of the i'th variable is bounded to the others. Do this only if they form part of the same
+		// property space.
+		for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
+		{
+			const Property* new_property = *ci;
+			
+			for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
+			{
+				const BoundedAtom* reference_bounded_atom = *ci;
+				
+				for (std::vector<const Property*>::const_iterator ci = reference_bounded_atom->getProperties().begin(); ci != reference_bounded_atom->getProperties().end(); ci++)
+				{
+					const Property* reference_property = *ci;
+					
+					if (&new_property->getPropertyState().getPropertySpace() == &reference_property->getPropertyState().getPropertySpace())
+					{
+						const Term* reference_term = reference_bounded_atom->getAtom().getTerms()[getIndex(*reference_bounded_atom)];
+						const Term* domain_term = bounded_atom->getAtom().getTerms()[index];
+						
+						if (!reference_term->isTheSameAs(reference_bounded_atom->getId(), *domain_term, bounded_atom->getId(), dtg_->getBindings()))
+						{
+				//			std::cout << "Bind: ";
+				//			reference->print(std::cout, dtg_->getBindings());
+				//			std::cout << "(" << getIndex(*reference) << ") with: ";
+				//			bounded_atom->print(std::cout, dtg_->getBindings());
+				//			std::cout << "(" << index << ")" << std::endl;
+
+							assert (reference_term->unify(reference_bounded_atom->getId(), *domain_term, bounded_atom->getId(), dtg_->getBindings()));
+						}
+						assert (reference_term->isTheSameAs(reference_bounded_atom->getId(), *domain_term, bounded_atom->getId(), dtg_->getBindings()));
+					}
+				}
+			}
+		}
+	}
+	
+/*
 	if (bounded_atom->getProperty() != NULL)
 	{
 		for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
@@ -285,7 +323,7 @@ void DomainTransitionGraphNode::addAtom(BoundedAtom* bounded_atom, InvariableInd
 			}
 		}
 	}
-
+*/
 	atoms_.push_back(bounded_atom);
 	indexes_[bounded_atom] = index;
 }
@@ -437,7 +475,7 @@ InvariableIndex DomainTransitionGraphNode::getIndex(StepID id, const Atom& atom)
 	std::cout << std::endl;
 	*/
 	//assert (false);
-	return std::numeric_limits<unsigned int>::max();
+	return NO_INVARIABLE_INDEX;
 }
 
 bool DomainTransitionGraphNode::operator==(const DomainTransitionGraphNode& dtg_node) const
@@ -953,8 +991,9 @@ std::ostream& operator<<(std::ostream& os, const DomainTransitionGraphNode& node
 
 	for (std::vector<BoundedAtom*>::const_iterator ci = node.getAtoms().begin(); ci != node.getAtoms().end(); ci++)
 	{
-		os << "\t";
-		(*ci)->getAtom().print(os, node.getDTG().getBindings(), (*ci)->getId());
+		//os << "\t";
+		(*ci)->print(os, node.getDTG().getBindings());
+//		(*ci)->getAtom().print(os, node.getDTG().getBindings(), (*ci)->getId());
 		os << "(" << node.getIndex(**ci) << ")" << std::endl;
 		
 /*		if ((*ci)->getProperty() != NULL)
@@ -966,15 +1005,14 @@ std::ostream& operator<<(std::ostream& os, const DomainTransitionGraphNode& node
 
 	for (std::vector<const Transition*>::const_iterator ci = node.transitions_.begin(); ci != node.transitions_.end(); ci++)
 	{
-		os << std::endl;
 		const Transition* transition = *ci;
 		os << "\t -> ";
 
-		for (std::vector<BoundedAtom*>::const_iterator ci = transition->getToNode().getAtoms().begin(); ci != transition->getToNode().getAtoms().end(); ci++)
+		for (std::vector<BoundedAtom*>::const_iterator ci2 = transition->getToNode().getAtoms().begin(); ci2 != transition->getToNode().getAtoms().end(); ci2++)
 		{
-			(*ci)->getAtom().print(os, node.getDTG().getBindings(), (*ci)->getId());
-			//(*ci)->getAtom().print(os);
-			os << "(" << transition->getToNode().getIndex(**ci) << ")";
+			(*ci2)->getAtom().print(os, node.getDTG().getBindings(), (*ci2)->getId());
+			//(*ci2)->getAtom().print(os);
+			os << "(" << transition->getToNode().getIndex(**ci2) << ")";
 		}
 
 		os << " [";
@@ -992,6 +1030,11 @@ std::ostream& operator<<(std::ostream& os, const DomainTransitionGraphNode& node
 				os << ", ";
 			}
 		}*/
+
+//		if (ci + 1!= node.transitions_.end())
+		{
+			os << std::endl;
+		}
 	}
 	
 /*	os << " -=> ";

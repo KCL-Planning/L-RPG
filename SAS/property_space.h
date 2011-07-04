@@ -21,19 +21,19 @@ class PropertySpace;
 class PropertyState
 {
 public:
-	PropertyState(const PropertySpace& property_space, Property& property);
+	PropertyState(const PropertySpace& property_space, const Property& property);
 	
 	PropertyState(const PropertySpace& property_space, const std::vector<std::pair<const Predicate*, InvariableIndex> >& properties);
 	
 	bool contains(InvariableIndex index, const Predicate& predicate) const;
 	
-	const std::vector<Property*>& getProperties() const;
+	const std::vector<const Property*>& getProperties() const;
 	
 	const PropertySpace& getPropertySpace() const;
 	
 private:
 	const PropertySpace* property_space_;
-	std::vector<Property*> property_;
+	std::vector<const Property*> property_;
 };
 
 class Property
@@ -47,6 +47,9 @@ public:
 	
 	void setPredicate(const Predicate& predicate);
 	
+	/**
+	 * Return the index which is marked as invariable.
+	 */
 	InvariableIndex getIndex() const;
 	
 	bool isMutexWith(const Property* property) const;

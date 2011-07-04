@@ -163,9 +163,9 @@ public:
 	 * @param atom The bounded atom.
 	 * @param bindings The bindings which are used to bind the atom's bindings.
 	 * @param index The index at which the variable should be invariable in the found DTG node. If this variable
-	 * is equal to std::numeric_limits<unsigned int>::max() this constraint isn't checked.
+	 * is equal to ALL_INVARIABLE_INDEXES this constraint isn't checked.
 	 */
-	void getNodes(std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >& dtg_nodes, MyPOP::StepID step_id, const MyPOP::Atom& atom, const MyPOP::Bindings& bindings, InvariableIndex index = std::numeric_limits<unsigned int>::max()) const;
+	void getNodes(std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >& dtg_nodes, MyPOP::StepID step_id, const MyPOP::Atom& atom, const MyPOP::Bindings& bindings, InvariableIndex index = ALL_INVARIABLE_INDEXES) const;
 	
 	/**
 	 * Identify subgraphs within a DTG and split those up into seperate graphs.

@@ -10,7 +10,7 @@ namespace SAS_Plus {
 /*****************************
  * Property state.
  ****************************/
-PropertyState::PropertyState(const PropertySpace& property_space, Property& property)
+PropertyState::PropertyState(const PropertySpace& property_space, const Property& property)
 	: property_space_(&property_space)
 {
 	property_.push_back(&property);
@@ -27,7 +27,7 @@ PropertyState::PropertyState(const PropertySpace& property_space, const std::vec
 
 bool PropertyState::contains(InvariableIndex index, const Predicate& predicate) const
 {
-	for (std::vector<Property*>::const_iterator ci = property_.begin(); ci != property_.end(); ci++)
+	for (std::vector<const Property*>::const_iterator ci = property_.begin(); ci != property_.end(); ci++)
 	{
 		const Property* property = *ci;
 		if (property->getPredicate().getName() == predicate.getName() && property->getPredicate().getArity() == predicate.getArity() && property->getIndex() == index)
@@ -38,7 +38,7 @@ bool PropertyState::contains(InvariableIndex index, const Predicate& predicate) 
 	return false;
 }
 
-const std::vector<Property*>& PropertyState::getProperties() const
+const std::vector<const Property*>& PropertyState::getProperties() const
 {
 	return property_;
 }
@@ -51,7 +51,7 @@ const PropertySpace& PropertyState::getPropertySpace() const
 std::ostream& operator<<(std::ostream& os, const PropertyState& property_state)
 {
 	os << "property state: ";
-	for (std::vector<Property*>::const_iterator ci = property_state.getProperties().begin(); ci != property_state.getProperties().end(); ci++)
+	for (std::vector<const Property*>::const_iterator ci = property_state.getProperties().begin(); ci != property_state.getProperties().end(); ci++)
 	{
 		os << **ci << ", ";
 	}
@@ -109,7 +109,7 @@ bool Property::isMutexWith(const Property* property) const
 			
 			unsigned int counter = 0;
 			
-			for (std::vector<Property*>::const_iterator ci = property_state->getProperties().begin(); ci != property_state->getProperties().end(); ci++)
+			for (std::vector<const Property*>::const_iterator ci = property_state->getProperties().begin(); ci != property_state->getProperties().end(); ci++)
 			{
 				const Property* other_property = *ci;
 				

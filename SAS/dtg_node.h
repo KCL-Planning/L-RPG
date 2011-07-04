@@ -166,8 +166,6 @@ public:
 	 * @param other The DTG node which will be merged with this one.
 	 * @return true if new atoms were added to this node, false otherwise.
 	 */
-	//bool merge(const DomainTransitionGraphNode& other);
-	
 	void getPossibleActions(std::vector< const MyPOP::Action* >& possible_actions, const MyPOP::SAS_Plus::DomainTransitionGraphNode& dtg_node) const;
 
 	/**

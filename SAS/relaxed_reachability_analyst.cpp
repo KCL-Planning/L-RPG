@@ -140,7 +140,7 @@ void RelaxedReachabilityAnalyst::getSupportingFacts(std::vector<std::vector<cons
 			
 			// Construct the facts which support the preconditions.
 			std::vector<const BoundedAtom*>* initial_supporting_facts_clone = new std::vector<const BoundedAtom*>(initial_supporting_facts);
-			initial_supporting_facts_clone->push_back(new BoundedAtom(initial_fact_id, initial_fact, NULL));
+			initial_supporting_facts_clone->push_back(new BoundedAtom(initial_fact_id, initial_fact));
 			
 			if (initial_supporting_facts_clone->size() == atoms_to_achieve.size())
 			{
@@ -150,7 +150,7 @@ void RelaxedReachabilityAnalyst::getSupportingFacts(std::vector<std::vector<cons
 				for (std::vector<BoundedAtom*>::const_iterator ci = atoms_to_achieve.begin(); ci != atoms_to_achieve.end(); ci++)
 				{
 					const BoundedAtom* atom_to_achieve = *ci;
-					const BoundedAtom& new_bounded_atom = BoundedAtom::createBoundedAtom(atom_to_achieve->getAtom(), NULL, initial_facts_bindings);
+					const BoundedAtom& new_bounded_atom = BoundedAtom::createBoundedAtom(atom_to_achieve->getAtom(), initial_facts_bindings);
 					
 					finalized_supporting_facts->push_back(&new_bounded_atom);
 					
@@ -270,7 +270,7 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 	std::vector<const BoundedAtom*> established_facts;
 	for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
 	{
-		established_facts.push_back(new BoundedAtom(Step::INITIAL_STEP, **ci, NULL));
+		established_facts.push_back(new BoundedAtom(Step::INITIAL_STEP, **ci));
 	}
 	
 	for (std::vector<const BoundedAtom*>::const_iterator ci = established_facts.begin(); ci != established_facts.end(); ci++)
@@ -357,7 +357,7 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 						for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 						{
 							const Atom* precondition = (*ci).first;
-							bounded_preconditions.push_back(new BoundedAtom(transition->getStep()->getStepId(), *precondition, NULL));
+							bounded_preconditions.push_back(new BoundedAtom(transition->getStep()->getStepId(), *precondition));
 						}
 						
 						std::vector<const BoundedAtom*> initial_supporting_facts;
@@ -589,7 +589,7 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 //									std::cout << "|";
 									
 									Atom* achieved_fact = new Atom(to_node_bounded_atom->getAtom().getPredicate(), *new_atom_terms, to_node_bounded_atom->getAtom().isNegative());
-									BoundedAtom& achieved_bounded_atom = BoundedAtom::createBoundedAtom(*achieved_fact, NULL, initial_bindings);
+									BoundedAtom& achieved_bounded_atom = BoundedAtom::createBoundedAtom(*achieved_fact, initial_bindings);
 									
 									assert (achieved_fact->getArity() == achieved_fact->getPredicate().getArity());
 									assert (new_atom_domains.size() == achieved_fact->getPredicate().getArity());

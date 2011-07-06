@@ -827,9 +827,9 @@ void DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings& bindings)
 	std::set<const DomainTransitionGraphNode*> closed_list;
 	
 	std::vector<const DomainTransitionGraphNode*> unmerged_dtg_nodes;
-	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
+	for (std::vector<DomainTransitionGraph*>::const_iterator objects_ci = objects_.begin(); objects_ci != objects_.end(); objects_ci++)
 	{
-		const DomainTransitionGraph* dtg = *ci;
+		const DomainTransitionGraph* dtg = *objects_ci;
 		
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ci++)
 		{
@@ -888,15 +888,59 @@ void DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings& bindings)
 					}
 					
 					// The two nodes are equivalent - merge!
-					std::cout << "Merge: ";
-					dtg_node->print(std::cout);
-					std::cout << " with ";
-					dtg_node2->print(std::cout);
-					std::cout << std::endl;
+					bool properties_differ = false;
+
+					if (dtg_node->getAtoms().size() != dtg_node2->getAtoms().size())
+					{
+						properties_differ = true;
+					}
+
+					if (!properties_differ)
+					{
+						for (std::vector<BoundedAtom*>::const_iterator dtg_node_ci = dtg_node->getAtoms().begin(); dtg_node_ci != dtg_node->getAtoms().end(); dtg_node_ci++)
+						{
+							const BoundedAtom* bounded_atom = *dtg_node_ci;
+							if (bounded_atom->getProperties().size() != dtg_node2->getAtoms()[std::distance(dtg_node->getAtoms().begin(), dtg_node_ci)]->getProperties().size())
+							{
+								properties_differ = true;
+								break;
+							}
+							
+							for (std::vector<const Property*>::const_iterator property_ci = bounded_atom->getProperties().begin(); property_ci != bounded_atom->getProperties().end(); property_ci++)
+							{
+								const Property* property = *property_ci;
+								if (property != dtg_node2->getAtoms()[std::distance(dtg_node->getAtoms().begin(), dtg_node_ci)]->getProperties()[std::distance(bounded_atom->getProperties().begin(), property_ci)])
+								{
+									properties_differ = true;
+									break;
+								}
+							}
+							
+							if (properties_differ)
+							{
+								break;
+							}
+						}
+					}
+					
+					if (properties_differ)
+					{
+						std::cout << "Map: ";
+						dtg_node2->print(std::cout);
+						std::cout << " to ";
+						dtg_node->print(std::cout);
+						std::cout << std::endl;
+					}
 					
 					merged = true;
-					mapping_old_to_new_dtg_node[dtg_node2] = dtg_node;
 					
+					if (mapping_old_to_new_dtg_node.count(dtg_node2) != 0)
+					{
+						assert (mapping_old_to_new_dtg_node[dtg_node2] == dtg_node || mapping_old_to_new_dtg_node[dtg_node2] == dtg_node2);
+						std::cout << "Overwrite: " << *dtg_node2 << " -> " << *mapping_old_to_new_dtg_node[dtg_node2] << " with "" -> " << *dtg_node << "." << std::endl;
+					}
+					
+					mapping_old_to_new_dtg_node[dtg_node2] = dtg_node;
 					accumulated_dtgs->insert(accumulated_dtgs->end(), dtg_node2->getTransitions().begin(), dtg_node2->getTransitions().end());
 					
 					closed_list.insert(dtg_node2);
@@ -911,8 +955,7 @@ void DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings& bindings)
 		}
 	}
 	
-	
-	// TEST
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
 	{
 		const DomainTransitionGraph* dtg = *ci;
@@ -928,6 +971,7 @@ void DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings& bindings)
 			}
 		}
 	}
+#endif
 	
 	// Create a combined DTG.
 	DomainTransitionGraph* combined_dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, *predicate_manager_, bindings, *initial_facts_);
@@ -960,7 +1004,7 @@ void DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings& bindings)
 	 */
 	for (std::map<const DomainTransitionGraphNode*, const DomainTransitionGraphNode*>::const_iterator ci = mapping_old_to_new_dtg_node.begin(); ci != mapping_old_to_new_dtg_node.end(); ci++)
 	{
-		const DomainTransitionGraphNode* identical_dtg_node = (*ci).second;
+		const DomainTransitionGraphNode* identical_dtg_node = (*ci).first;
 		const DomainTransitionGraphNode* hub_dtg_node = (*ci).second;
 		DomainTransitionGraphNode* combined_dtg_node = NULL;
 		
@@ -968,7 +1012,7 @@ void DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings& bindings)
 		if (closed_list.count(hub_dtg_node) == 0)
 		{
 			if (hub_dtg_node->getAtoms().size() > 1)
-				std::cout << "Create a new hub node out of: " << *hub_dtg_node << "." << std::endl;
+				std::cout << "Create a new hub node out of: " << *hub_dtg_node << " *** " << hub_dtg_node << " ***" << std::endl;
 
 			// Copy the DTG node and add it to the combined DTG.
 			combined_dtg_node = new DomainTransitionGraphNode(*combined_dtg, std::numeric_limits< unsigned int >::max());
@@ -980,8 +1024,7 @@ void DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings& bindings)
 		}
 		else
 		{
-			if (identical_dtg_node->getAtoms().size() > 1)
-				std::cout << "Found an identical node: " << *identical_dtg_node << " - combine it with:" << *hub_dtg_node << "." << std::endl;
+			std::cout << "Found an identical node: " << *identical_dtg_node << " - combine it with:" << *hub_dtg_node << "." << std::endl;
 			combined_dtg_node = org_node_to_combined_node[hub_dtg_node];
 		}
 		
@@ -1006,6 +1049,7 @@ void DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings& bindings)
 			}
 		}
 		assert (counter == identical_dtg_node->getAtoms().size());
+		std::cout << "Result of merging / creating: " << *combined_dtg_node << std::endl;
 	}
 	
 	std::cout << "Combined DTG: " << *combined_dtg << "." << std::endl;
@@ -1045,8 +1089,12 @@ void DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings& bindings)
 				std::cout << "Failed to make that transition!" << std::endl;
 				assert (false);
 			}
+			
+			merged_from_dtg_node->addTransition(*new_transition, false);
 		}
 	}
+	
+	std::cout << "FINAL Combined DTG: " << *combined_dtg << "." << std::endl;
 }
 
 void DomainTransitionGraphManager::createPointToPointTransitions()

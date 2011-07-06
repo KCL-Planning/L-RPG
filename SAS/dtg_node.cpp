@@ -970,7 +970,8 @@ void DomainTransitionGraphNode::print(std::ostream& os) const
 	for (std::vector<BoundedAtom*>::const_iterator ci = getAtoms().begin(); ci != getAtoms().end(); ci++)
 	{
 		os << "\t";
-		(*ci)->getAtom().print(os, getDTG().getBindings(), (*ci)->getId());
+		(*ci)->print(os, getDTG().getBindings());
+//		(*ci)->getAtom().print(os, getDTG().getBindings(), (*ci)->getId());
 		os << "(" << getIndex(**ci) << ")" << std::endl;
 		
 /*		if ((*ci)->getProperty() != NULL)

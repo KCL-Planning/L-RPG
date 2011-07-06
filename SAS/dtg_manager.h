@@ -119,7 +119,6 @@ private:
 	StepID id_;
 	const Atom* atom_;
 	std::vector<const Property*> properties_;
-//	const Property* property_;
 };
 
 class DomainTransitionGraphManager : public Manager<DomainTransitionGraph>

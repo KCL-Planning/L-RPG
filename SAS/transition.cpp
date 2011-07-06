@@ -777,7 +777,8 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			{
 				const Atom* effect = *ci;
 				
-				if (bindings.canUnify(*effect, action_step_id, added_fact->getAtom(), added_fact->getId()))
+				if (effect->isNegative() == added_fact->getAtom().isNegative() &&
+				    bindings.canUnify(*effect, action_step_id, added_fact->getAtom(), added_fact->getId()))
 				{
 					// Go over all the properties attached to the to_node and note down all invariables as possibles.
 					for (std::vector<const Property*>::const_iterator ci = added_fact->getProperties().begin(); ci != added_fact->getProperties().end(); ci++)

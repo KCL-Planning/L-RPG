@@ -172,6 +172,24 @@ public:
 	bool containsAtLeastOneOf(const std::vector<const Object*>& objects, StepID lhs_id, const Bindings& bindings) const;
 	
 	/**
+	 * Check if this term is a proper super set of the given set.
+	 * @param lhs_id The id this term is bounded by.
+	 * @param other The term to compare it with.
+	 * @param rhs_id The id the other term is bounded by.
+	 * @return True if this term is a proper super set, false otherwise.
+	 */
+	bool isProperSuperSetOf(StepID lhs_id, const Term& other, StepID rhs_id, const Bindings& bindings) const;
+	
+	/**
+	 * Check if this term is a proper sub set of the given set.
+	 * @param lhs_id The id this term is bounded by.
+	 * @param other The term to compare it with.
+	 * @param rhs_id The id the other term is bounded by.
+	 * @return True if this term is a proper sub set, false otherwise.
+	 */
+	bool isProperSubSetOf(StepID lhs_id, const Term& other, StepID rhs_id, const Bindings& bindings) const;
+	
+	/**
 	 * Method that should be called by @param bindings to bind this term to the given bindings object.
 	 * @param Bindings the bindings object to bind this term to.
 	 * @param new_step_id the id which should be given to the binding.

@@ -112,6 +112,73 @@ bool Term::containsAtLeastOneOf(const std::vector<const Object*>& objects, StepI
 	return false;
 }
 
+bool Term::isProperSuperSetOf(StepID lhs_id, const Term& other, StepID rhs_id, const Bindings& bindings) const
+{
+	const std::vector<const Object*>& other_variable_domain = other.getDomain(rhs_id, bindings);
+	const std::vector<const Object*>& this_variable_domain = getDomain(lhs_id, bindings);
+	
+	// If the domain of the other is equal or larger than this domain it cannot be a proper superset.
+	if (other_variable_domain.size() >= this_variable_domain.size())
+		return false;
+	
+	// Make sure this contains all objects contained by other.
+	for (std::vector<const Object*>::const_iterator ci = other_variable_domain.begin(); ci != other_variable_domain.end(); ci++)
+	{
+		const Object* other_object = *ci;
+		bool contains_object = false;
+		
+		for (std::vector<const Object*>::const_iterator ci = this_variable_domain.begin(); ci != this_variable_domain.end(); ci++)
+		{
+			const Object* this_object = *ci;
+			if (other_object == this_object)
+			{
+				contains_object = true;
+				break;
+			}
+		}
+		
+		if (!contains_object)
+		{
+			return false;
+		}
+	}
+	
+	return true;
+}
+	
+bool Term::isProperSubSetOf(StepID lhs_id, const Term& other, StepID rhs_id, const Bindings& bindings) const
+{
+	const std::vector<const Object*>& other_variable_domain = other.getDomain(rhs_id, bindings);
+	const std::vector<const Object*>& this_variable_domain = getDomain(lhs_id, bindings);
+	
+	// If the domain of the other is equal or smaller than this domain it cannot be a proper subset.
+	if (other_variable_domain.size() <= this_variable_domain.size())
+		return false;
+	
+	// Make sure other contains all objects contained by this.
+	for (std::vector<const Object*>::const_iterator ci = this_variable_domain.begin(); ci != this_variable_domain.end(); ci++)
+	{
+		const Object* other_object = *ci;
+		bool contains_object = false;
+		
+		for (std::vector<const Object*>::const_iterator ci = other_variable_domain.begin(); ci != other_variable_domain.end(); ci++)
+		{
+			const Object* this_object = *ci;
+			if (other_object == this_object)
+			{
+				contains_object = true;
+				break;
+			}
+		}
+		
+		if (!contains_object)
+		{
+			return false;
+		}
+	}
+	
+	return true;
+}
 
 std::ostream& operator<<(std::ostream& os, const Term& term)
 {

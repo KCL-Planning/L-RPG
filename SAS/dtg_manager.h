@@ -113,6 +113,38 @@ public:
 	 */
 	bool isMutexWith (const MyPOP::Atom& atom, MyPOP::StepID step_id, const MyPOP::Bindings& bindings, InvariableIndex invariable_index) const;
 
+	/**
+	 * Get the variable domain of the term_index'th term.
+	 * @param term_index The index of the term to get the variable domain of.
+	 * @param bindings The bindings the term is bounded by.
+	 * @return The variable domain linked to the term at the term_index'th index.
+	 */
+	const std::vector<const Object*>& getVariableDomain(unsigned int term_index, const Bindings& bindings) const;
+	
+	/**
+	 * Check if this bounded atom is equivalent to the other bounded atom.
+	 * @param other The other bounded atom to compare against.
+	 * @param bindings The bindings both bounded atoms are binded by.
+	 * @return True if this bounded atom is equivalent to the other bounded atom.
+	 */
+	bool isEquivalentTo(const BoundedAtom& other, const Bindings& bindings) const;
+	
+	/**
+	 * Check if this bounded atom is a proper subset of the other bounded atom.
+	 * @param other The other bounded atom to compare against.
+	 * @param bindings The bindings both bounded atoms are binded by.
+	 * @return True if this bounded atom is a proper subset of the other bounded atom.
+	 */
+	bool isProperSubSetOf(const BoundedAtom& other, const Bindings& bindings) const;
+	
+	/**
+	 * Check if this bounded atom is a proper superset of the other bounded atom.
+	 * @param other The other bounded atom to compare against.
+	 * @param bindings The bindings both bounded atoms are binded by.
+	 * @return True if this bounded atom is a proper superset of the other bounded atom.
+	 */
+	bool isProperSuperSetOf(const BoundedAtom& other, const Bindings& bindings) const;
+	
 	void print(std::ostream& os, const Bindings& bindings, bool verbal = true) const;
 
 private:
@@ -176,7 +208,7 @@ private:
 	 */
 	void createPointToPointTransitions();
 	
-	void mergeIdenticalDTGs(Bindings& bindings);
+	DomainTransitionGraph& mergeIdenticalDTGs(Bindings& bindings);
 	
 	bool isTermStatic(const Atom& atom, StepID step_id, InvariableIndex term_index, const Bindings& bindings) const;
 

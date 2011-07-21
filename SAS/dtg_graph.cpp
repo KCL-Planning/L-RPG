@@ -1154,6 +1154,262 @@ bool DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, st
 	return affected;
 }
 
+void DomainTransitionGraph::solveSubsets()
+{
+	// Find a pairing of nodes of which one is a subset of the other.
+	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
+	{
+		DomainTransitionGraphNode* dtg_node = *ci;
+		std::vector<DomainTransitionGraphNode*> subset_dtg_nodes;
+		dtg_node->getSubsets(subset_dtg_nodes, nodes_);
+		
+/*		if (subset_dtg_nodes.size() > 0)
+		{
+			std::cout << "The subsets of : " << *dtg_node << " are: " << std::endl;
+			for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = subset_dtg_nodes.begin(); ci != subset_dtg_nodes.end(); ci++)
+			{
+				const DomainTransitionGraphNode* dtg_node = *ci;
+				std::cout << " * " << *dtg_node << std::endl;
+			}
+		}*/
+		
+		/**
+		 * There are 3 types of subset relationships;
+		 * 1) The nodes are identical - in this case we can ignore the subset as it means the node is exactly the same. If this is not the
+		 * case than that is a bug, because those nodes should have been merged when we created the combined DTG.
+		 * 2) The subset contains less facts but is otherwise identical. If this is the case than we copy all the transitions from the subset
+		 * to this node.
+		 * 3) The subset might have the same number of facts, but some of them are grounded. In this case we need to ground the superset and 
+		 * apply the transitions to the subset and remove the superset.
+		 */
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+		std::cout << "The subsets of : " << *dtg_node << " are: " << std::endl;
+#endif
+		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = subset_dtg_nodes.begin(); ci != subset_dtg_nodes.end(); ci++)
+		{
+			DomainTransitionGraphNode* sub_set_dtg_node = *ci;
+			
+			// Case 1: ignore.
+			if (sub_set_dtg_node == dtg_node) {
+				continue;
+			}
+			
+			// Case 2:
+			bool is_equivalent_sub_set = true;
+			
+			// Case 3:
+			bool is_equivalent_grounded_sub_set = false;
+			for (std::vector<BoundedAtom*>::const_iterator ci = sub_set_dtg_node->getAtoms().begin(); ci != sub_set_dtg_node->getAtoms().end(); ci++) {
+				const BoundedAtom* sub_set_fact = *ci;
+				bool equivalent_fact_found = false;
+				bool super_set_fact_found = false;
+				
+				for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++) {
+					const BoundedAtom* fact = *ci;
+					
+					if (fact->isEquivalentTo(*sub_set_fact, *bindings_))
+					{
+						equivalent_fact_found = true;
+						break;
+					}
+					else if (fact->isProperSuperSetOf(*sub_set_fact, *bindings_))
+					{
+						super_set_fact_found = true;
+						break;
+					}
+				}
+				
+				if (!equivalent_fact_found) {
+					is_equivalent_sub_set = false;
+				}
+				
+				if (super_set_fact_found) {
+					is_equivalent_grounded_sub_set = true;
+				}
+				
+				if (!equivalent_fact_found && !super_set_fact_found) {
+					is_equivalent_grounded_sub_set = false;
+					break;
+				}
+			}
+			
+			// Case 2:
+			if (is_equivalent_sub_set)
+			{
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+				std::cout << "Proper subset: " << *sub_set_dtg_node << "." << std::endl;
+#endif
+				for (std::vector<const Transition*>::const_iterator ci = sub_set_dtg_node->getTransitions().begin(); ci != sub_set_dtg_node->getTransitions().end(); ci++)
+				{
+					dtg_node->addTransition(**ci, false);
+				}
+			}
+			
+			// Case 3:
+			// Map the terms of the super set to those of the sub set. Then we iterate through all transitions from the super node
+			// and construct the to nodes, mapping the terms to those of the sub set. The resulting set of facts are a new node to 
+			// construct a transition to from the sub set.
+			if (is_equivalent_grounded_sub_set)
+			{
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+				std::cout << "Proper grounded subset: " << *sub_set_dtg_node << "." << std::endl;
+#endif
+				
+				// Super set term -> Sub set term.
+				std::map<const std::vector<const Object*>*, const std::vector<const Object*>* > super_to_sub_mapping;
+				
+				// Find out which terms to ground.
+				for (std::vector<BoundedAtom*>::const_iterator ci = sub_set_dtg_node->getAtoms().begin(); ci != sub_set_dtg_node->getAtoms().end(); ci++)
+				{
+					const BoundedAtom* sub_set_fact = *ci;
+					
+					const BoundedAtom* found_super_set = NULL;
+					const BoundedAtom* found_equivalent = NULL;
+					
+					for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
+					{
+						const BoundedAtom* fact = *ci;
+						
+						if (fact->isEquivalentTo(*sub_set_fact, *bindings_))
+						{
+							found_equivalent = fact;
+						}
+						
+						else if (fact->isProperSuperSetOf(*sub_set_fact, *bindings_))
+						{
+							found_super_set = fact;
+						}
+					}
+					
+					if (found_equivalent != NULL)
+						continue;
+					
+					// If we have not found an equivalent fact we know that we have found a super set.
+					assert (found_super_set != NULL);
+					
+					// Check which term differs.
+					for (unsigned int i = 0; i < sub_set_fact->getAtom().getArity(); i++)
+					{
+						const Term* sub_set_term = sub_set_fact->getAtom().getTerms()[i];
+						const Term* super_set_term = found_super_set->getAtom().getTerms()[i];
+						
+						if (sub_set_term->isProperSubSetOf(sub_set_fact->getId(), *super_set_term, found_super_set->getId(), *bindings_))
+						{
+							super_to_sub_mapping[&super_set_term->getDomain(found_super_set->getId(), *bindings_)] = &sub_set_term->getDomain(sub_set_fact->getId(), *bindings_);
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+							std::cout << "Bind the fact: ";
+							super_set_term->print(std::cout, *bindings_, found_super_set->getId());
+							std::cout << " to ";
+							sub_set_term->print(std::cout, *bindings_, sub_set_fact->getId());
+							std::cout << "." << std::endl;
+#endif
+						}
+					}
+				}
+				
+				// Check all transitions and construct the to nodes based on the constructed mapping.
+				for (std::vector<const Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
+				{
+					const Transition* transition = *ci;
+					
+					const DomainTransitionGraphNode& to_dtg_node = transition->getToNode();
+					
+					// Construct the new DTG node.
+					DomainTransitionGraphNode* new_to_node = new DomainTransitionGraphNode(*this, 0);
+					
+					for (std::vector<BoundedAtom*>::const_iterator ci = to_dtg_node.getAtoms().begin(); ci != to_dtg_node.getAtoms().end(); ci++)
+					{
+						const BoundedAtom* org_to_atom = *ci;
+						
+						std::vector<const Term*>* new_terms = new std::vector<const Term*>();
+						for (std::vector<const Term*>::const_iterator ci = org_to_atom->getAtom().getTerms().begin(); ci != org_to_atom->getAtom().getTerms().end(); ci++)
+						{
+							const Term* org_term = *ci;
+							Term* new_term = new Variable(*org_term->getType(), org_term->getName());
+							new_terms->push_back(new_term);
+						}
+						
+						const Atom* new_atom = new Atom(org_to_atom->getAtom().getPredicate(), *new_terms, org_to_atom->getAtom().isNegative());
+						StepID new_step_id = bindings_->createVariableDomains(*new_atom);
+						
+						// Prune the domains of the newely created atom to reflect the mapping between the super and sub set.
+						for (unsigned int i = 0; i < new_atom->getArity(); i++)
+						{
+							const Term* new_term = new_atom->getTerms()[i];
+							const Term* org_term = org_to_atom->getAtom().getTerms()[i];
+							
+							std::map<const std::vector<const Object*>*, const std::vector<const Object*>* >::const_iterator found_mapping = super_to_sub_mapping.find(&org_term->getDomain(org_to_atom->getId(), *bindings_));
+							if (found_mapping == super_to_sub_mapping.end())
+								continue;
+							
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+							std::cout << "Modify domain from..." << std::endl;
+							new_term->print(std::cout, *bindings_, new_step_id);
+							std::cout << " to ...";
+							
+							const std::vector<const Object*>* new_objects = (*found_mapping).second;
+							for (std::vector<const Object*>::const_iterator ci = new_objects->begin(); ci != new_objects->end(); ci++)
+							{
+								std::cout << **ci << ", ";
+							}
+							std::cout << std::endl;
+#endif
+							
+							new_term->makeDomainEqualTo(new_step_id, *(*found_mapping).second, *bindings_);
+							
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+							std::cout << "Result: ";
+							new_term->print(std::cout, *bindings_, new_step_id);
+							std::cout << "." << std::endl;
+						}
+#endif
+						
+						BoundedAtom* bounded_atom = new BoundedAtom(new_step_id, *new_atom, org_to_atom->getProperties());
+						new_to_node->addAtom(bounded_atom, to_dtg_node.getIndex(*org_to_atom));
+					}
+					
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+					std::cout << " Newly created grounded to node: " << *new_to_node << "." << std::endl;
+#endif
+
+					// Check if this node actually exists, if this is the case we create a new transition.
+					DomainTransitionGraphNode* existing_to_dtg_node = NULL;
+					for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
+					{
+						DomainTransitionGraphNode* dtg_node = *ci;
+						if (dtg_node->isEquivalentTo(*new_to_node))
+						{
+							existing_to_dtg_node = dtg_node;
+							break;
+						}
+					}
+					
+					if (existing_to_dtg_node == NULL)
+					{
+						std::cout << "Create a new DTG node: " << *new_to_node << std::endl;
+						addNode(*new_to_node);
+						
+						std::cout << "Create a transition from: " << *sub_set_dtg_node << " to " << *new_to_node << std::endl;
+						std::vector<BoundedAtom>* enables = new std::vector<BoundedAtom>();
+						Transition* new_transition = Transition::createTransition(*enables, transition->getStep()->getAction(), *sub_set_dtg_node, *new_to_node, *initial_facts_);
+						assert (new_transition != NULL);
+						sub_set_dtg_node->addTransition(*new_transition, false);
+					}
+					else
+					{
+						std::cout << "Create a transition from: " << *sub_set_dtg_node << " to " << *existing_to_dtg_node << std::endl;
+						
+						std::vector<BoundedAtom>* enables = new std::vector<BoundedAtom>();
+						Transition* new_transition = Transition::createTransition(*enables, transition->getStep()->getAction(), *sub_set_dtg_node, *existing_to_dtg_node, *initial_facts_);
+						assert (new_transition != NULL);
+						sub_set_dtg_node->addTransition(*new_transition, false);
+					}
+				}
+			}
+		}
+	}
+}
+
 bool DomainTransitionGraph::isSupported(unsigned int id, const MyPOP::Atom& atom, const MyPOP::Bindings& bindings) const
 {
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)

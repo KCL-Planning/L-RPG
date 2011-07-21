@@ -132,16 +132,6 @@ public:
 	const DomainTransitionGraphManager& getDTGManager() const { return *dtg_manager_; }
 
 	/**
-	 * Return the predicate manager.
-	 */
-	//const PredicateManager& getPredicateManager() const { return *predicate_manager_; }
-
-	/**
-	 * Return the term manager.
-	 */
-	//const TermManager& getTermManager() const { return *dtg_term_manager_; }
-
-	/**
 	 * Check if the given index of the given predicate is an invariable variable. The predicates will only
 	 * be checked if they have the same name and arity. The types do not need to match exactly, as long
 	 * as the types of the given predicate are more specific or equal to the the types of the DTG's predicate.
@@ -240,6 +230,8 @@ public:
 	void separateObjects(const RecursiveFunctionManager& recursive_function_manager);
 	
 	void mergeInvariableDTGs();
+	
+	void solveSubsets();
 
 	friend std::ostream& operator<<(std::ostream& os, const DomainTransitionGraph& dtg);
 private:

@@ -187,8 +187,24 @@ public:
 	 * Utility function of the copy constructor. Copy all the atoms to the new copy of the DTG node.
 	 */
 	void copyAtoms(const DomainTransitionGraphNode& dtg_node);
+	
+	/**
+	 * Find all the DTG nodes which are a subset of this node.
+	 * @param subsets The vector to add all the DTG nodes which are a subset of this node.
+	 * @param all_dtg_nodes The vector of all the DTG nodes to find the subsets from.
+	 */
+	void getSubsets(std::vector<DomainTransitionGraphNode*>& subsets, const std::vector<DomainTransitionGraphNode*>& all_dtg_nodes) const;
 
+	bool isEquivalentTo(const DomainTransitionGraphNode& other) const;
+	
 private:
+	
+	/**
+	 * Check if this DTG node is a super set of the given node.
+	 * @param dtg_node The DTG node to check.
+	 * @return True if this node is a superset of the given dtg node, false otherwise.
+	 */
+	bool isSupersetOf(const DomainTransitionGraphNode& dtg_node) const;
 	
 	// The DTG this node is part of.
 	DomainTransitionGraph* dtg_;

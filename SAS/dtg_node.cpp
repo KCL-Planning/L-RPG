@@ -965,19 +965,127 @@ bool DomainTransitionGraphNode::validateTermMappings(std::vector<BoundedAtom*>::
 	return false;
 }
 
+void DomainTransitionGraphNode::getSubsets(std::vector<DomainTransitionGraphNode*>& subsets, const std::vector<DomainTransitionGraphNode*>& all_dtg_nodes) const
+{
+	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = all_dtg_nodes.begin(); ci != all_dtg_nodes.end(); ci++)
+	{
+		DomainTransitionGraphNode* dtg_node = *ci;
+		if (isSupersetOf(*dtg_node))
+		{
+			subsets.push_back(dtg_node);
+		}
+	}
+}
+
+bool DomainTransitionGraphNode::isSupersetOf(const DomainTransitionGraphNode& other) const
+{
+	for (std::vector<BoundedAtom*>::const_iterator ci = other.getAtoms().begin(); ci != other.getAtoms().end(); ci++)
+	{
+		const BoundedAtom* other_bounded_atom = *ci;
+		
+		bool contains_super_set = false;
+		for (std::vector<BoundedAtom*>::const_iterator ci = getAtoms().begin(); ci != getAtoms().end(); ci++)
+		{
+			const BoundedAtom* this_bounded_atom = *ci;
+			
+			if (!getDTG().getBindings().canUnify(this_bounded_atom->getAtom(), this_bounded_atom->getId(), other_bounded_atom->getAtom(), other_bounded_atom->getId(), &other.getDTG().getBindings()))
+			{
+				continue;
+			}
+			
+			bool all_variable_domains_are_super_sets = true;
+			for (unsigned int i = 0; i < other_bounded_atom->getAtom().getArity(); i++)
+			{
+/*				if (!this_bounded_atom->getAtom().getTerms()[i]->isProperSuperSetOf(this_bounded_atom->getAtom().getTerms()[i]))
+				{
+					all_variable_domains_are_super_sets = false;
+					break;
+				}
+*/
+				const std::vector<const Object*>& other_variable_domain = other_bounded_atom->getVariableDomain(i, other.getDTG().getBindings());
+				const std::vector<const Object*>& this_variable_domain = this_bounded_atom->getVariableDomain(i, getDTG().getBindings());
+				
+				bool is_super_set = true;
+				for (std::vector<const Object*>::const_iterator ci = other_variable_domain.begin(); ci != other_variable_domain.end(); ci++)
+				{
+					const Object* other_object = *ci;
+					bool contains_object = false;
+					
+					for (std::vector<const Object*>::const_iterator ci = this_variable_domain.begin(); ci != this_variable_domain.end(); ci++)
+					{
+						const Object* this_object = *ci;
+						if (other_object == this_object)
+						{
+							contains_object = true;
+							break;
+						}
+					}
+					
+					if (!contains_object)
+					{
+						is_super_set = false;
+						break;
+					}
+				}
+				
+				if (!is_super_set)
+				{
+					all_variable_domains_are_super_sets = false;
+					break;
+				}
+			}
+			
+			if (!all_variable_domains_are_super_sets)
+			{
+				continue;
+			}
+			
+			// If all tests have been succesfull, we know this is a superset!
+			contains_super_set = true;
+			break;
+		}
+		
+		if (!contains_super_set)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+bool DomainTransitionGraphNode::isEquivalentTo(const DomainTransitionGraphNode& other) const
+{
+	for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
+	{
+		const BoundedAtom* this_fact = *ci;
+		
+		bool found_equivalent = false;
+		
+		for (std::vector<BoundedAtom*>::const_iterator ci = other.getAtoms().begin(); ci != other.getAtoms().end(); ci++)
+		{
+			const BoundedAtom* other_fact = *ci;
+			
+			if (this_fact->isEquivalentTo(*other_fact, dtg_->getBindings()))
+			{
+				found_equivalent = true;
+				break;
+			}
+		}
+		
+		if (!found_equivalent)
+			return false;
+	}
+	
+	return true;
+}
+
 void DomainTransitionGraphNode::print(std::ostream& os) const
 {
 	for (std::vector<BoundedAtom*>::const_iterator ci = getAtoms().begin(); ci != getAtoms().end(); ci++)
 	{
 		os << "\t";
 		(*ci)->print(os, getDTG().getBindings());
-//		(*ci)->getAtom().print(os, getDTG().getBindings(), (*ci)->getId());
-		os << "(" << getIndex(**ci) << ")" << std::endl;
-		
-/*		if ((*ci)->getProperty() != NULL)
-		{
-			os << "[ps=" << &(*ci)->getProperty()->getPropertyState().getPropertySpace() << "]";
-		}*/
+//		os << "(" << getIndex(**ci) << ")" << std::endl;
 	}
 }
 

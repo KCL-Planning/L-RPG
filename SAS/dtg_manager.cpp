@@ -24,6 +24,7 @@
 #include "../bindings_propagator.h"
 #include "../plan.h"
 #include "recursive_function.h"
+#include "dtg_reachability.h"
 
 #define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 ///#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
@@ -810,6 +811,29 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	}
 */
 #endif
+
+	struct timeval start_time_reachability;
+	gettimeofday(&start_time_reachability, NULL);
+	
+	SAS_Plus::DTGReachability analyst(combined_graph);
+	
+	
+	std::vector<const BoundedAtom*> initial_facts;
+	for (std::vector<const Atom*>::const_iterator ci = initial_facts_->begin(); ci != initial_facts_->end(); ci++)
+	{
+		BoundedAtom* bounded_atom = new BoundedAtom(Step::INITIAL_STEP, **ci);
+		initial_facts.push_back(bounded_atom);
+	}
+	
+	analyst.performReachabilityAnalsysis(initial_facts);
+	
+	struct timeval end_time_reachability;
+	gettimeofday(&end_time_reachability, NULL);	
+
+	time_spend = end_time_reachability.tv_sec - start_time_reachability.tv_sec + (end_time_reachability.tv_usec - start_time_reachability.tv_usec) / 1000000.0;
+	std::cerr << "Reachability analysis: " << time_spend << " seconds" << std::endl;
+	
+	exit(0);
 }
 
 DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings& bindings)

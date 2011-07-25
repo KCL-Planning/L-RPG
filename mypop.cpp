@@ -24,7 +24,7 @@
 #include "landmarks.h"
 #include "SAS/dtg_manager.h"
 #include "SAS/causal_graph.h"
-#include "SAS/relaxed_reachability_analyst.h"
+//#include "SAS/relaxed_reachability_analyst.h"
 #include "relaxed_planning_graph.h"
 //#include "action_graph.h"
 
@@ -233,8 +233,8 @@ int main(int argc,char * argv[])
 	struct timeval start_time_reachability;
 	gettimeofday(&start_time_reachability, NULL);
 
-	SAS_Plus::RelaxedReachabilityAnalyst analyst(dtg_manager);
-	analyst.performReachabilityAnalysis(*initial_effects, plan->getBindings());
+//	SAS_Plus::RelaxedReachabilityAnalyst analyst(dtg_manager);
+//	analyst.performReachabilityAnalysis(*initial_effects, plan->getBindings());
 
 	struct timeval end_time_reachability;
 	gettimeofday(&end_time_reachability, NULL);

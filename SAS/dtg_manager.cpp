@@ -797,6 +797,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	// difference. E.g. (at ticket loc -> (have driver ticket) /\ (at driver loc) imply the precondition (at driver log).
 	Bindings* merged_dtg_bindings = new Bindings(bindings);
 	DomainTransitionGraph& combined_graph = mergeIdenticalDTGs(*merged_dtg_bindings);
+//	combined_graph.addObjects();
 	
 	combined_graph.solveSubsets();
 	
@@ -825,7 +826,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 		initial_facts.push_back(bounded_atom);
 	}
 	
-	analyst.performReachabilityAnalsysis(initial_facts);
+	analyst.performReachabilityAnalsysis(initial_facts, *term_manager_);
 	
 	struct timeval end_time_reachability;
 	gettimeofday(&end_time_reachability, NULL);	

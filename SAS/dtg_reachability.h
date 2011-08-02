@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 #include <iosfwd>
+#include <set>
 
 namespace MyPOP {
 	
@@ -12,10 +13,14 @@ class TermManager;
 	
 namespace SAS_Plus {
 
+class PropertySpace;
+
+
 class BoundedAtom;
 class DomainTransitionGraph;
 class DomainTransitionGraphNode;
 class DTGReachability;
+class Transition;
 
 /**
  * Group together equivalent objects.
@@ -52,6 +57,9 @@ private:
 	
 	std::map<const Object*, std::vector<const DomainTransitionGraphNode*> *> initial_mapping_;
 	
+	// All the facts which are reachable by all objects in this domain.
+	std::vector<const BoundedAtom*> reachable_facts_;
+
 	friend std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group);
 };
 
@@ -117,6 +125,8 @@ public:
 	
 private:
 	
+	void iterateThroughFixedPoint(std::vector<const BoundedAtom*>& established_facts, std::set<const Transition*>& achieved_transitions);
+	
 	/**
 	 * After every iteration the reachable nodes are propagated through the graph.
 	 */
@@ -129,6 +139,8 @@ private:
 	 * @param to The DTG node at which the reachable transtion ends.
 	 */
 	void makeReachable(const DomainTransitionGraphNode& from, const DomainTransitionGraphNode& to);
+	
+	bool makeReachable(const DomainTransitionGraphNode& dtg_node, std::vector<const BoundedAtom*>& reachable_facts);
 	
 	/**
 	 * The combined DTG graph we are working on.

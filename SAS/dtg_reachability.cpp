@@ -312,6 +312,37 @@ void DTGReachability::propagateReachableNodes()
 	
 }
 
+bool DTGReachability::makeReachable(const DomainTransitionGraphNode& dtg_node, std::vector<const BoundedAtom*>& new_reachable_facts)
+{
+	std::vector<std::vector<const BoundedAtom*> *>* already_reachable_facts = supported_facts_[&dtg_node];
+	
+	// Make sure the set of new reachable facts is not already part of the supported set.
+	for (std::vector<std::vector<const BoundedAtom*> *>::const_iterator ci = already_reachable_facts->begin(); ci != already_reachable_facts->end(); ci++)
+	{
+		const std::vector<const BoundedAtom*>* reachable_facts = *ci;
+		
+		if (reachable_facts->size() != new_reachable_facts.size()) continue;
+		
+		bool all_facts_are_equal = true;
+		for (unsigned int i = 0; i < reachable_facts->size(); i++)
+		{
+			if (!dtg_graph_->getBindings().areEquivalent((*reachable_facts)[i]->getAtom(), (*reachable_facts)[i]->getId(), new_reachable_facts[i]->getAtom(), new_reachable_facts[i]->getId()))
+			{
+				all_facts_are_equal = false;
+				break;
+			}
+		}
+		
+		if (all_facts_are_equal)
+		{
+			return false;
+		}
+	}
+	
+	already_reachable_facts->push_back(&new_reachable_facts);
+	return true;
+}
+
 void DTGReachability::performReachabilityAnalsysis(const std::vector<const BoundedAtom*>& initial_facts, const TermManager& term_manager)
 {
 	std::cout << "Start performing reachability analysis." << std::endl;
@@ -319,11 +350,295 @@ void DTGReachability::performReachabilityAnalsysis(const std::vector<const Bound
 	// Initialise the individual groups per object.
 	equivalent_object_manager_ = new EquivalentObjectGroupManager(*this, *dtg_graph_, term_manager, initial_facts);
 	
-	std::vector<const Transition*> open_list;
-	std::set<const Transition*> achieved_transitions;
-	
 	// Keep a list of all established facts so far.
 	std::vector<const BoundedAtom*> established_facts(initial_facts);
+	
+	// List of already achieved transitions.
+	std::set<const Transition*> achieved_transitions;
+	
+	unsigned int pre_size = 0;
+
+	// Keep on iterator as long as we can establish new facts.
+	do 
+	{
+		pre_size = established_facts.size();
+		iterateThroughFixedPoint(established_facts, achieved_transitions);
+		std::cout << pre_size << " v.s. " << established_facts.size() << std::endl;
+		
+		// After no other transitions can be reached we establish the object equivalence relations.
+		equivalent_object_manager_->updateEquivalences(reachable_nodes_);
+		
+		// Check for DTG nodes which have a transition in which a grounded node links two facts which are part of different
+		// balanced sets.
+		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph_->getNodes().begin(); ci != dtg_graph_->getNodes().end(); ci++)
+		{
+			const DomainTransitionGraphNode* dtg_node = *ci;
+			
+			std::map<const Transition*, std::vector<const std::vector<const Object*>* >* > transitions;
+			dtg_node->getExternalDependendTransitions(transitions);
+			
+			/**
+			 * For each transition which contains terms with an external dependency we evaluate all the values these
+			 * external dependend terms can have and see if any other nodes are reachable from the from node of the
+			 * transition.
+			 *
+			 * Examples where this situation can occur is in driverlog in the unload transitions between { (in package truck)
+			 * AND (at truck loc) } -> (at package loc). The final location of the package is dependend on the location of the
+			 * truck. However, the location of the truck is not handled by the object package and the driver action is not
+			 * part of the package's property space.
+			 *
+			 * Therefore we check which trucks can have a package on board and what locations these trucks can occupy. This will
+			 * determine where packages can be unloaded.
+			 */
+			for (std::map<const Transition*, std::vector<const std::vector<const Object*>* >* >::const_iterator ci = transitions.begin(); ci != transitions.end(); ci++)
+			{
+				const Transition* transition = (*ci).first;
+				const std::vector<const std::vector<const Object*>* >* dependend_term_domains = (*ci).second;
+				
+				std::cout << "The transition: " << *transition << " has external dependencies!" << std::endl;
+				
+				// Check if atom which is part of the external dependency can take on different values for the grounded term.
+				const DomainTransitionGraphNode& from_node = transition->getFromNode();
+				std::vector<std::vector<const BoundedAtom*>* >* supporing_facts_from_node = supported_facts_[&from_node];
+
+				// Prepate a mask so we can identify which terms have external dependencies and which do not.
+				unsigned int largest_arity = 0;
+				for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
+				{
+					if ((*ci)->getAtom().getArity() > largest_arity)
+					{
+						largest_arity = (*ci)->getAtom().getArity();
+					}
+				}
+				bool dependend_term_mapping[from_node.getAtoms().size()][largest_arity];
+				memset(&dependend_term_mapping[0][0], false, sizeof(bool) * largest_arity * dependend_term_domains->size());
+
+				std::vector<const BoundedAtom*> equivalent_nodes_to_find;
+				bool facts_with_external_dependencies[from_node.getAtoms().size()];
+				memset(&facts_with_external_dependencies[0], false, sizeof(bool) * from_node.getAtoms().size());
+				
+				/**
+				 * Determine which facts and terms contain external dependencies. We create a list of bounded atoms which
+				 * is used to search for DTG nodes which contain the same facts as the from node of the transition except 
+				 * for those terms which is external dependend. So in the example above of driverlog the location is the
+				 * external dependend term and may vary in the DTG nodes we are looking for - the rest needs to the exactly
+				 * the same!
+				 */
+				for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
+				{
+					const BoundedAtom* from_node_bounded_atom = *ci;
+					BoundedAtom& new_bounded_atom = BoundedAtom::createBoundedAtom(from_node_bounded_atom->getAtom(), from_node_bounded_atom->getProperties(), dtg_graph_->getBindings());
+					
+					// Make the term's domain equal to the original - except if has an external dependency.
+					for (unsigned int i = 0; i < new_bounded_atom.getAtom().getArity(); i++)
+					{
+						const std::vector<const Object*>& org_domain = from_node_bounded_atom->getAtom().getTerms()[i]->getDomain(from_node_bounded_atom->getId(), dtg_graph_->getBindings());
+						const Term* new_term = new_bounded_atom.getAtom().getTerms()[i];
+						
+						// It is not a dependend term - copy.
+						if (std::find(dependend_term_domains->begin(), dependend_term_domains->end(), &org_domain) == dependend_term_domains->end())
+						{
+							new_term->makeDomainEqualTo(new_bounded_atom.getId(), org_domain, dtg_graph_->getBindings());
+							dependend_term_mapping[std::distance(from_node.getAtoms().begin(), ci)][i] = false;
+						}
+						// Else it is a dependend term - leave it.
+						else
+						{
+							facts_with_external_dependencies[std::distance(from_node.getAtoms().begin(), ci)] = true;
+							dependend_term_mapping[std::distance(from_node.getAtoms().begin(), ci)][i] = true;
+						}
+					}
+					equivalent_nodes_to_find.push_back(&new_bounded_atom);
+				}
+				
+				// Now find all the DTG nodes which match this criterium.
+				std::vector<const DomainTransitionGraphNode*> matching_dtgs;
+				dtg_graph_->getNodes(matching_dtgs, equivalent_nodes_to_find);
+
+				std::cout << "Found matching DTG nodes: " << std::endl;
+				for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = matching_dtgs.begin(); ci != matching_dtgs.end(); ci++)
+				{
+					const DomainTransitionGraphNode* dtg_node = *ci;
+					std::cout << *dtg_node << std::endl;
+				}
+				
+				/**
+				 * For every DTG node which conforms to the above requirements, we check if the external dependencies
+				 * can be satisfied to make these nodes reachable from the from node.
+				 */
+				for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = matching_dtgs.begin(); ci != matching_dtgs.end() - 1; ci++)
+				{
+					const DomainTransitionGraphNode* equivalent_dtg_node = *ci;
+
+					if (equivalent_dtg_node == &from_node) continue;
+					assert (equivalent_dtg_node->getAtoms().size() == from_node.getAtoms().size());
+					
+					/**
+					 * We construct the bounded atoms corresponding to the facts which need to be reached to satisfy the
+					 * externally dependend facts.
+					 */
+					for (std::vector<std::vector<const BoundedAtom*>* >::const_iterator ci = supporing_facts_from_node->begin(); ci != supporing_facts_from_node->end(); ci++)
+					{
+						std::vector<const BoundedAtom*>* supporting_facts = *ci;
+					
+						/**
+						* Check all the facts of the potential to nodes and check if we can reach them - we only need to
+						* check the facts which contain an external dependency.
+						*/
+						bool all_externally_dependend_facts_can_be_reached = true;
+						std::vector<const BoundedAtom*>* reachable_facts = new std::vector<const BoundedAtom*>();
+						for (unsigned int i = 0; i < from_node.getAtoms().size(); i++)
+						{
+							if (!facts_with_external_dependencies[i])
+							{
+								reachable_facts->push_back((*supporting_facts)[i]);
+								continue;
+							}
+							
+							const BoundedAtom* from_supporting_fact = (*supporting_facts)[i];
+							const BoundedAtom* equivalent_fact_to_reach = equivalent_dtg_node->getAtoms()[i];
+							
+							// Check if the fact from from_node can reach the fact in the equivalent dtg node.
+							std::cout << "Can we reach: ";
+							equivalent_fact_to_reach->print(std::cout, dtg_graph_->getBindings());
+							std::cout << " from {";
+							
+							for (std::vector<std::vector<const BoundedAtom*>* >::const_iterator ci = supporing_facts_from_node->begin(); ci != supporing_facts_from_node->end(); ci++)
+							{
+								std::vector<const BoundedAtom*>* supporting_facts = *ci;
+								if (supporting_facts->size() != from_node.getAtoms().size())
+								{
+									std::cout << "The supporting facts for the DTG node:" << std::endl;
+									std::cout << from_node << ": " << std::endl;
+									for (std::vector<const BoundedAtom*>::const_iterator ci = supporting_facts->begin(); ci != supporting_facts->end(); ci++)
+									{
+										(*ci)->print(std::cout, dtg_graph_->getBindings());
+										std::cout << std::endl;
+									}
+									assert (false);
+								}
+								(**ci)[i]->print(std::cout, dtg_graph_->getBindings());
+							}
+							std::cout << "}?" << std::endl;
+						
+							const BoundedAtom& atom_to_reach = BoundedAtom::createBoundedAtom(equivalent_fact_to_reach->getAtom(), equivalent_fact_to_reach->getProperties(), dtg_graph_->getBindings());
+							for (unsigned int j = 0; j < atom_to_reach.getAtom().getArity(); j++)
+							{
+								const Term* atom_to_reach_term = atom_to_reach.getAtom().getTerms()[j];
+								const Term* to_node_term = equivalent_fact_to_reach->getAtom().getTerms()[j];
+								const Term* from_node_term = from_supporting_fact->getAtom().getTerms()[j];
+								
+								assert (i < from_node.getAtoms().size());
+								assert (j < largest_arity);
+								
+								// Check if this term is externally dependend, if it is we make it equal to the to node.
+								if (dependend_term_mapping[i][j])
+								{
+//									std::cout << "The " << j << "th term has an external dependency. Make it equal to the to node." << std::endl;
+//									atom_to_reach_term->print(std::cout, dtg_graph_->getBindings(), atom_to_reach.getId());
+//									std::cout << " -> ";
+//									to_node_term->print(std::cout, dtg_graph_->getBindings(), equivalent_fact_to_reach->getId());
+//									std::cout << "." << std::endl;
+									atom_to_reach_term->makeDomainEqualTo(atom_to_reach.getId(), to_node_term->getDomain(equivalent_fact_to_reach->getId(), dtg_graph_->getBindings()), dtg_graph_->getBindings());
+								}
+								// Else we make it equal to the from node.
+								else
+								{
+//									std::cout << "The " << j << "th term has NO external dependencies. Make it equal to the from node." << std::endl;
+//									atom_to_reach_term->print(std::cout, dtg_graph_->getBindings(), atom_to_reach.getId());
+//									std::cout << " -> ";
+//									from_node_term->print(std::cout, dtg_graph_->getBindings(), from_supporting_fact->getId());
+//									std::cout << "." << std::endl;
+									atom_to_reach_term->makeDomainEqualTo(atom_to_reach.getId(), from_node_term->getDomain(from_supporting_fact->getId(), dtg_graph_->getBindings()), dtg_graph_->getBindings());
+								}
+							}
+							reachable_facts->push_back(&atom_to_reach);
+							
+							std::cout << "Atom to search for: ";
+							atom_to_reach.print(std::cout, dtg_graph_->getBindings());
+							std::cout << std::endl;
+							
+							// TODO: Very inefficient, in the future we will use object equivalence groups to handle this.
+							bool has_been_achieved = false;
+							for (std::vector<const BoundedAtom*>::const_iterator ci = established_facts.begin(); ci != established_facts.end(); ci++)
+							{
+								const BoundedAtom* reached_atom = *ci;
+								if (dtg_graph_->getBindings().canUnifyBoundedAtoms(*reached_atom, atom_to_reach))
+								{
+									has_been_achieved = true;
+									break;
+								}
+							}
+							
+							if (!has_been_achieved)
+							{
+								all_externally_dependend_facts_can_be_reached = false;
+								break;
+							}
+						}
+						
+						if (all_externally_dependend_facts_can_be_reached)
+						{
+							std::cout << *equivalent_dtg_node << " can be reached from: " << std::endl;
+							
+							for (std::vector<const BoundedAtom*>::const_iterator ci = supporting_facts->begin(); ci != supporting_facts->end(); ci++)
+							{
+								const BoundedAtom* bounded_atom = *ci;
+								std::cout << " * ";
+								bounded_atom->print(std::cout, dtg_graph_->getBindings());
+								std::cout << "." << std::endl;
+							}
+							
+							// Add the new facts to the list! :)
+							std::cout << "New bounded atoms to add:" << std::endl;
+							for (std::vector<const BoundedAtom*>::const_iterator ci = reachable_facts->begin(); ci != reachable_facts->end(); ci++)
+							{
+								std::cout << "* ";
+								(*ci)->print(std::cout, dtg_graph_->getBindings());
+								std::cout << std::endl;
+							}
+							
+							//supported_facts_[equivalent_dtg_node]->push_back(reachable_facts);
+							makeReachable(*equivalent_dtg_node, *reachable_facts);
+						}
+					}
+				}
+			}
+		}
+		
+	} while (pre_size != established_facts.size());
+	
+	std::cout << " -= All supported facts! :D =- " << std::endl;
+	for (std::map<const DomainTransitionGraphNode*, std::vector<std::vector<const BoundedAtom*>* >* >::const_iterator ci = supported_facts_.begin(); ci != supported_facts_.end(); ci++)
+	{
+		const DomainTransitionGraphNode* dtg_node = (*ci).first;
+		std::vector<std::vector<const BoundedAtom*>* >* supported_tupples = (*ci).second;
+		
+		std::cout << "The DTG node: ";
+		dtg_node->print(std::cout);
+		std::cout << " is supported by the following tupples:" << std::endl;
+		
+		for (std::vector<std::vector<const BoundedAtom*>* >::const_iterator ci = supported_tupples->begin(); ci != supported_tupples->end(); ci++)
+		{
+			std::vector<const BoundedAtom*>* tupple = *ci;
+			std::cout << "{" << std::endl;
+			for (std::vector<const BoundedAtom*>::const_iterator ci = tupple->begin(); ci != tupple->end(); ci++)
+			{
+				std::cout << "* ";
+				(*ci)->print(std::cout, dtg_graph_->getBindings());
+				std::cout << "." << std::endl;
+			}
+			std::cout << "}" << std::endl;
+		}
+	}
+}
+
+
+void DTGReachability::iterateThroughFixedPoint(std::vector<const BoundedAtom*>& established_facts, std::set<const Transition*>& achieved_transitions)
+{
+	std::cout << "Start new iteration." << std::endl;
+	
+	std::vector<const Transition*> open_list;
 	
 	std::vector<const DomainTransitionGraphNode*> initial_satisfied_nodes;
 	
@@ -371,7 +686,7 @@ void DTGReachability::performReachabilityAnalsysis(const std::vector<const Bound
 			if (achieved_transitions.count(transition) != 0)
 				continue;
 			
-			std::cout << " * Work on the transition: " << *transition << "." << std::endl;
+//			std::cout << " * Work on the transition: " << *transition << "." << std::endl;
 			const DomainTransitionGraphNode& from_dtg_node = transition->getFromNode();
 			
 			// Instantiate the DTG node by assigning the terms to domains we have already determined to be reachable.
@@ -381,17 +696,17 @@ void DTGReachability::performReachabilityAnalsysis(const std::vector<const Bound
 			{
 				std::vector<const BoundedAtom*>* possible_assignment = *ci;
 				
-				std::cout << "Possible assignments: ";
-				for (std::vector<const BoundedAtom*>::const_iterator ci = possible_assignment->begin(); ci != possible_assignment->end(); ci++)
-				{
-					const BoundedAtom* assignment = *ci;
-					assignment->print(std::cout, dtg_graph_->getBindings());
-					if (ci != possible_assignment->end() - 1)
-					{
-						std::cout << ", ";
-					}
-				}
-				std::cout << "." << std::endl;
+//				std::cout << "Possible assignments: ";
+//				for (std::vector<const BoundedAtom*>::const_iterator ci = possible_assignment->begin(); ci != possible_assignment->end(); ci++)
+//				{
+//					const BoundedAtom* assignment = *ci;
+//					assignment->print(std::cout, dtg_graph_->getBindings());
+//					if (ci != possible_assignment->end() - 1)
+//					{
+//						std::cout << ", ";
+//					}
+//				}
+//				std::cout << "." << std::endl;
 				
 				
 				// Map the action variable's domain to a set of objects which supports the transition. The variable domains of the
@@ -445,11 +760,11 @@ void DTGReachability::performReachabilityAnalsysis(const std::vector<const Bound
 					
 					assert (&transition->getToNode().getDTG() == dtg_graph_);
 					
-					std::cout << "Add the node: " << transition->getToNode() << std::endl;
+//					std::cout << "Add the node: " << transition->getToNode() << std::endl;
 					
 					new_transition_achieved = true;
 
-					std::cout << " ** Found supporting tupple(s)!" << std::endl;
+//					std::cout << " ** Found supporting tupple(s)!" << std::endl;
 					// For each tupple of supporting facts determine the domains of each of the action parameters and use these to determine the achieved facts.
 					//for (std::vector<std::vector<const BoundedAtom*>* >::const_iterator ci = supporting_tupples->begin(); ci != supporting_tupples->end(); ci++)
 					{
@@ -603,14 +918,15 @@ void DTGReachability::performReachabilityAnalsysis(const std::vector<const Bound
 								
 								if (!is_bounded)
 								{
-//											std::cout << "The " << std::distance(to_node_bounded_atom->getAtom().getTerms().begin(), ci) << "th term is not bounded! :(((" << std::endl;
+//									std::cout << "The " << std::distance(to_node_bounded_atom->getAtom().getTerms().begin(), ci) << "th term is not bounded! :(((" << std::endl;
 									valid_assignments = false;
 									break;
 								}
 							}
 							if (!valid_assignments)
 							{
-								continue;
+								//continue;
+								break;
 							}
 //									std::cout << "|";
 							
@@ -662,9 +978,9 @@ void DTGReachability::performReachabilityAnalsysis(const std::vector<const Bound
 									
 									present = true;
 									
-									std::cout << "ALREADY ACHIEVED -=(";
-									achieved_bounded_atom.print(std::cout, dtg_graph_->getBindings());
-									std::cout << ")=-" << std::endl;
+//									std::cout << "ALREADY ACHIEVED -=(";
+//									achieved_bounded_atom.print(std::cout, dtg_graph_->getBindings());
+//									std::cout << ")=-" << std::endl;
 									break;
 								}
 							}
@@ -672,14 +988,29 @@ void DTGReachability::performReachabilityAnalsysis(const std::vector<const Bound
 							if (!present)
 							{
 								established_facts.push_back(&achieved_bounded_atom);
-								std::cout << "-=(";
-								achieved_bounded_atom.print(std::cout, dtg_graph_->getBindings());
-								std::cout << ")=-" << std::endl;
+//								std::cout << "-=(";
+//								achieved_bounded_atom.print(std::cout, dtg_graph_->getBindings());
+//								std::cout << ")=-" << std::endl;
 							}
 							to_node_achievers->push_back(&achieved_bounded_atom);
 						}
 						
-						supported_facts_[&to_node]->push_back(to_node_achievers);
+						if (to_node.getAtoms().size() != to_node_achievers->size())
+						{
+							continue;
+/*							std::cout << "Found the following achievers for: " << to_node << ":" << std::endl;
+							
+							for (std::vector<const BoundedAtom*>::const_iterator ci = to_node_achievers->begin(); ci != to_node_achievers->end(); ci++)
+							{
+								std::cout << " * ";
+								(*ci)->print(std::cout, dtg_graph_->getBindings());
+								std::cout << "." << std::endl;
+							}
+							assert (false);*/
+						}
+						
+						//supported_facts_[&to_node]->push_back(to_node_achievers);
+						makeReachable(to_node, *to_node_achievers);
 //						std::cout << "." << std::endl;
 					}
 				}
@@ -722,8 +1053,6 @@ void DTGReachability::performReachabilityAnalsysis(const std::vector<const Bound
 		(*ci)->print(std::cout, dtg_graph_->getBindings());
 		std::cout << std::endl;
 	}
-	
-	equivalent_object_manager_->updateEquivalences(reachable_nodes_);
 }
 
 

@@ -75,6 +75,11 @@ bool DTGBindings::canUnifyDTGNodes(const MyPOP::SAS_Plus::DomainTransitionGraphN
 	return true;
 }
 
+bool DTGBindings::canUnifyBoundedAtoms(const BoundedAtom& bounded_atom1, const BoundedAtom& bounded_atom2) const
+{
+	return canUnify(bounded_atom1.getAtom(), bounded_atom1.getId(), bounded_atom2.getAtom(), bounded_atom2.getId());
+}
+
 DomainTransitionGraph::DomainTransitionGraph(const DomainTransitionGraphManager& dtg_manager, const TypeManager& type_manager, const ActionManager& action_manager, const PredicateManager& predicate_manager, const DTGBindings& bindings, const std::vector<const Atom*>& initial_facts)
 	: dtg_manager_(&dtg_manager), dtg_term_manager_(new TermManager(type_manager)), action_manager_(&action_manager), predicate_manager_(&predicate_manager), bindings_(new DTGBindings(bindings)), initial_facts_(&initial_facts), type_(NULL)
 {
@@ -633,6 +638,19 @@ void DomainTransitionGraph::getNodes(std::vector<std::pair<const DomainTransitio
 			{
 				found_dtg_nodes.push_back(std::make_pair(dtg_node, bounded_atom));
 			}
+		}
+	}
+}
+
+void DomainTransitionGraph::getNodes(std::vector<const DomainTransitionGraphNode*>& results, const std::vector<const BoundedAtom*>& to_find) const
+{
+	// Find all DTG nodes which contains all the bounded atoms provided.
+	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
+	{
+		const DomainTransitionGraphNode* dtg_node = *ci;
+		if (dtg_node->canMap(to_find))
+		{
+			results.push_back(dtg_node);
 		}
 	}
 }

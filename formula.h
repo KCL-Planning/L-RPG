@@ -13,6 +13,7 @@ class Predicate;
 class Variable;
 class Term;
 class Plan;
+class Object;
 
 /**
  * The base class used to describe preconditions of actions.
@@ -80,6 +81,14 @@ public:
 
 	// Get the terms.
 	const std::vector<const Term*>& getTerms() const { return *terms_; }
+	
+	/**
+	 * Check if the atom contains the given term, that is a term which shares
+	 * the same variable domain.
+	 * @param term The term to search for.
+	 * @return True if a equivalent term exists, false otherwise.
+	 */
+	bool constainsVariableDomain(StepID step_id, const std::vector<const Object*>& domain, const Bindings& bindings) const;
 
 protected:
 	// The predicate of this atom.

@@ -11,12 +11,12 @@
 namespace MyPOP {
 
 class Bindings;
-
-
 class Type;
 class TypeManager;
 class Object;
 class Variable;
+
+typedef std::vector<const Object*> TermDomain;
 
 /**
  * A term is an abstract class which can either be an object or a variable, all

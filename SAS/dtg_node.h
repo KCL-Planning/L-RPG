@@ -84,6 +84,30 @@ public:
 	 * @return The index of the variable which is invariable.
 	 */
 	InvariableIndex getIndex(StepID id, const Atom& atom) const;
+	
+	/**
+	 * Check if a one-to-one mapping can be made between the facts in this DTG node and the provided
+	 * mapping.
+	 * @param mapping The set of facts which we need to map to the facts of the DTG node.
+	 * @return True if such a mapping can be found, false otherwise.
+	 */
+	bool canMap(const std::vector<const BoundedAtom*>& mapping) const;
+	
+	/**
+	 * Get all transitions in which a grounded term in the from node is contained in the to node
+	 * and is part of a different balanced set. These transitions signify that an external dependency
+	 * which controls the grounded term might be in play and needs to be looked at.
+	 *
+	 * An example is the transition 
+	 * from: (in package truck) AND (at truck loc)
+	 * to: (at package loc) AND (at truck loc)
+	 *
+	 * The position of the truck influences the final location of the package, but the balanced set
+	 * of package has no control over the location of truck. To get a package in a truck to a specific
+	 * location we need to check what locations that truck can be at.
+	 * @param transitions The list all transitions which have external dependencies will be added to.
+	 */
+	void getExternalDependendTransitions(std::map<const Transition*, std::vector<const std::vector<const Object*>* >* >& external_dependend_transitions) const;
 
 	/**
 	 * Add a transition from this node to to_node, without checking for static preconditions.
@@ -197,6 +221,8 @@ public:
 
 	bool isEquivalentTo(const DomainTransitionGraphNode& other) const;
 	
+	bool isTermGrounded(const Term& term) const;
+	
 private:
 	
 	/**
@@ -205,6 +231,19 @@ private:
 	 * @return True if this node is a superset of the given dtg node, false otherwise.
 	 */
 	bool isSupersetOf(const DomainTransitionGraphNode& dtg_node) const;
+	
+	/**
+	 * Find a one-to-one mapping between the given list of facts - starting at the given index. Facts
+	 * of this DG node which have been masked cannot be used for the mapping. After such a mapping is found
+	 * the index is increased, the mapping is updated so the same fact cannot be selected twice to make the
+	 * mapping, and the function is called again until a mapping is found for the last fact or until all options
+	 * have been explored.
+	 * @param mapping The set of facts to find a mapping for.
+	 * @param index The index of the maping to find a mapping for.
+	 * @param mask Determines which facts of the DTG node can be used in the mapping. True means it cannot be used.
+	 * @return True if a mapping is found, false otherwise.
+	 */
+	bool findMapping(const std::vector<const BoundedAtom*>& mapping, unsigned int index, bool mask[]) const;
 	
 	// The DTG this node is part of.
 	DomainTransitionGraph* dtg_;
@@ -226,6 +265,9 @@ private:
 	
 	std::vector<unsigned int> unique_ids_;
 	std::multimap<unsigned int, const Action*> possible_actions_;
+	
+	// The set of terms which are grounded.
+	std::set<const Term*> grounded_terms_;
 };
 
 std::ostream& operator<<(std::ostream&, const DomainTransitionGraphNode& node);

@@ -68,46 +68,7 @@ BoundedAtom::BoundedAtom(StepID id, const Atom& atom, const std::vector<const Pr
 	: id_(id), atom_(&atom)
 {
 	properties_.insert(properties_.end(), properties.begin(), properties.end());
-/*
-	for (std::vector<const Property*>::const_iterator ci = properties_.begin(); ci != properties_.end(); ci++)
-		assert (*ci != NULL);
-	
-	if (!properties.empty())
-	{
-		std::cout << "Created a bounded atom with properties! ";
-		for (std::vector<const Property*>::const_iterator ci = properties_.begin(); ci != properties_.end(); ci++)
-		{
-			std::cout << **ci;
-			if (ci + 1 != properties_.end())
-				std::cout << ", ";
-		}
-		std::cout << ". or did I? " << std::endl;
-		
-		for (std::vector<const Property*>::const_iterator ci = properties.begin(); ci != properties.end(); ci++)
-		{
-			std::cout << **ci;
-			if (ci + 1 != properties.end())
-				std::cout << ", ";
-		}
-		std::cout << "." << std::endl;
-	}
-*/
 }
-
-/*
-BoundedAtom& BoundedAtom::createBoundedAtom(const Atom& atom, const Property* property, Bindings& bindings)
-{
-	StepID new_step_id = bindings.createVariableDomains(atom);
-	BoundedAtom* bounded_atom = new BoundedAtom(new_step_id, atom, property);
-	return *bounded_atom;
-}
-
-BoundedAtom::BoundedAtom(StepID id, const Atom& atom, const Property* property)
-	: id_(id), atom_(&atom), property_(property)
-{
-
-}
-*/
 
 BoundedAtom::~BoundedAtom()
 {
@@ -348,6 +309,14 @@ bool BoundedAtom::isProperSuperSetOf(const BoundedAtom& other, const Bindings& b
 void BoundedAtom::print(std::ostream& os, const Bindings& bindings, bool verbal) const
 {
 	atom_->print(os, bindings, id_, verbal);
+	os << " $$$ ";
+	for (std::vector<const Property*>::const_iterator ci = properties_.begin(); ci != properties_.end(); ci++)
+	{
+		os << **ci;
+		if (ci  + 1 != properties_.end())
+			os << ", ";
+	}
+	os << " $$$ ";
 }
 	
 /****************************************
@@ -1331,7 +1300,6 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 #endif
 								BoundedAtom* bounded_precondition = new BoundedAtom(transition->getStep()->getStepId(), *precondition, identical_bounded_atom->getProperties());
 								preconditions_to_add_to_to_node.push_back(std::make_pair(bounded_precondition, precondition_invariable_index));
-								//preconditions_to_add_to_to_node.push_back(std::make_pair(precondition, precondition_invariable_index));
 							}
 							continue;
 						}
@@ -1407,15 +1375,20 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 											for (std::vector<const Property*>::const_iterator ci = existing_property_set.begin(); ci != existing_property_set.end(); ci++)
 											{
 												const Property* property = *ci;
+												property_set.insert(property);
+												// TODO: Figure out when a property should be linked to the precondition.
+/*
+												std::cout << "Found property: " << *property << std::endl;
+												
 												if (property->getIndex() == NO_INVARIABLE_INDEX)
 												{
 													continue;
 												}
 												
-												if (precondition->getTerms()[property->getIndex()]->isTheSameAs(transition->getStep()->getStepId(), *invariable_term, transition->getStep()->getStepId(), dtg->getBindings()))
+												if (precondition->getTerms()[property->getIndex()]->isEquivalentTo(transition->getStep()->getStepId(), *invariable_term, transition->getStep()->getStepId(), dtg->getBindings()))
 												{
 													property_set.insert(property);
-												}
+												}*/
 											}
 										}
 										
@@ -1452,7 +1425,6 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 #endif
 												BoundedAtom* bounded_precondition = new BoundedAtom(transition->getStep()->getStepId(), *precondition, *property_list);
 												preconditions_to_add_to_to_node.push_back(std::make_pair(bounded_precondition, precondition_invariable_index));
-												//preconditions_to_add_to_to_node.push_back(std::make_pair(precondition, precondition_invariable_index));
 											}
 										}
 										else if (add_predicate)
@@ -1461,6 +1433,14 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 											std::cout << "Add the predicate.";
 #endif
 											BoundedAtom* atom_to_add = new BoundedAtom(transition->getStep()->getStepId(), *precondition, *property_list);
+											
+											if (property_list->size() == 0)
+											{
+												std::cout << "The atom to add: ";
+												atom_to_add->print(std::cout, dtg->getBindings());
+												std::cout << "." << std::endl;
+												assert (false);
+											}
 
 											atoms_to_add_to_from_node.push_back(std::make_pair(atom_to_add, precondition_invariable_index));
 
@@ -1677,34 +1657,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 								continue;
 							}
 							from_dtg_node->addTransition(*new_transition, false);
-							
-/*							// Add all the nodes which need to be added to the to node, but only if it does not already exists.
-							for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = preconditions_to_add_to_to_node.begin(); ci != preconditions_to_add_to_to_node.end(); ci++)
-							{
-								BoundedAtom* bounded_atom = new BoundedAtom(new_transition->getStep()->getStepId(), *(*ci).first);
-								InvariableIndex invariable_index = (*ci).second;
-								//BoundedAtom* bounded_atom = new BoundedAtom(new_transition->getStep()->getStepId(), *new_transition->getAllPreconditions()[*ci].first);
 								
-								bool already_part_of_to_node = false;
-								
-								// Make sure it is not already part of the to node.
-								for (std::vector<BoundedAtom*>::const_iterator ci = to_dtg_node->getAtoms().begin(); ci != to_dtg_node->getAtoms().end(); ci++)
-								{
-									const BoundedAtom* to_bounded_atom = *ci;
-									if (from_dtg_node->getDTG().getBindings().areEquivalent(to_bounded_atom->getAtom(), to_bounded_atom->getId(), bounded_atom->getAtom(), bounded_atom->getId()))
-									{
-										already_part_of_to_node = true;
-										break;
-									}
-								}
-								
-								if (!already_part_of_to_node)
-								{
-									to_dtg_node->addAtom(bounded_atom, invariable_index);
-								}
-							}*/
-								
-							// TODO: Add the to node of the transition!
 							dtg_nodes_to_add.push_back(to_dtg_node);
 						}
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT

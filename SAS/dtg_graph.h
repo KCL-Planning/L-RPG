@@ -46,6 +46,8 @@ public:
 	 * Check if two DTG nodes can be unified.
 	 */
 	bool canUnifyDTGNodes(const DomainTransitionGraphNode& node1, const DomainTransitionGraphNode& node2) const;
+	
+	bool canUnifyBoundedAtoms(const BoundedAtom& bounded_atom1, const BoundedAtom& bounded_atom2) const;
 };
 
 /**
@@ -120,6 +122,9 @@ public:
 	 */
 	void getNodes(std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >& dtg_nodes, const Predicate& predicate, unsigned int index) const;
 	void getNodes(std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >& found_dtg_nodes, const std::vector<const Atom*>& initial_facts, const Bindings& bindings) const;
+	
+	void getNodes(std::vector<const DomainTransitionGraphNode*>& results, const std::vector<const BoundedAtom*>& to_find) const;
+	
 
 	/**
 	 * Get this DTG's bindings.

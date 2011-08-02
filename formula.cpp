@@ -120,6 +120,15 @@ void Atom::print(std::ostream& os, const Bindings& bindings, StepID step_id, boo
 	}
 }
 
+bool Atom::constainsVariableDomain(StepID step_id, const std::vector<const Object*>& domain, const Bindings& bindings) const
+{
+	for (std::vector<const Term*>::const_iterator ci = terms_->begin(); ci != terms_->end(); ci++)
+	{
+		if (&(*ci)->getDomain(step_id, bindings) == &domain) return true;
+	}
+	return false;
+}
+
 /*************************
  * The Conjunction class
  *************************/

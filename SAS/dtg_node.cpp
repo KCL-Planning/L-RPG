@@ -107,9 +107,9 @@ void DomainTransitionGraphNode::copyAtoms(const DomainTransitionGraphNode& dtg_n
 	for (std::vector<BoundedAtom*>::const_iterator dtg_node_ci = dtg_node.atoms_.begin(); dtg_node_ci != dtg_node.atoms_.end(); dtg_node_ci++)
 	{
 		const BoundedAtom* bounded_atom = *dtg_node_ci;
-		dtg_node.getIndex(*bounded_atom);
-		StepID org_step_id = (*dtg_node_ci)->getId();
-		const Atom& org_atom = (*dtg_node_ci)->getAtom();
+//		dtg_node.getIndex(*bounded_atom);
+		StepID org_step_id = bounded_atom->getId();
+		const Atom& org_atom = bounded_atom->getAtom();
 
 		std::vector<const Term*>* new_terms = new std::vector<const Term*>();
 		for (std::vector<const Term*>::const_iterator ci = org_atom.getTerms().begin(); ci != org_atom.getTerms().end(); ci++)
@@ -132,6 +132,11 @@ void DomainTransitionGraphNode::copyAtoms(const DomainTransitionGraphNode& dtg_n
 		{
 			const Term* term = new_atom->getTerms()[i];
 			const Term* old_term = org_atom.getTerms()[i];
+			
+			if (dtg_node.grounded_terms_.find(old_term) != dtg_node.grounded_terms_.end())
+			{
+				grounded_terms_.insert(term);
+			}
 			
 			// Make sure the new domain transition graph is not connected to the same variable domain, but 
 			// have the same objects in their domain.
@@ -478,6 +483,148 @@ InvariableIndex DomainTransitionGraphNode::getIndex(StepID id, const Atom& atom)
 	return NO_INVARIABLE_INDEX;
 }
 
+bool DomainTransitionGraphNode::canMap(const std::vector<const BoundedAtom*>& mapping) const
+{
+	bool mask[atoms_.size()];
+	memset(&mask[0], false, sizeof(bool) * atoms_.size());
+	
+	return findMapping(mapping, 0, mask);
+}
+
+bool DomainTransitionGraphNode::findMapping(const std::vector<const BoundedAtom*>& mapping, unsigned int index, bool mask[]) const
+{
+	const BoundedAtom* atom_to_search_for = mapping[index];
+	
+	for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
+	{
+		unsigned int atom_index = std::distance(atoms_.begin(), ci);
+		if (mask[atom_index]) continue;
+		
+		const BoundedAtom* dtg_node_fact = *ci;
+		if (dtg_->getBindings().canUnifyBoundedAtoms(*atom_to_search_for, *dtg_node_fact))
+		{
+			// If we have found a mapping for the last node we are done!
+			if (index + 1 == mapping.size()) return true;
+			
+			// Otherwise bind the found mapping and try to find a mapping for the other nodes.
+			bool new_mask[atoms_.size()];
+			memcpy(new_mask, mask, sizeof(bool) * atoms_.size());
+			new_mask[atom_index] = true;
+			return findMapping(mapping, index + 1, new_mask);
+		}
+	}
+	
+	return false;
+}
+
+void DomainTransitionGraphNode::getExternalDependendTransitions(std::map<const Transition*, std::vector<const std::vector<const Object*>* >* >& external_dependend_transitions) const
+{
+//	std::cout << "[DomainTransitionGraphNode::getExternalDependendTransitions] Start!" << std::endl;
+	for (std::vector<const Transition*>::const_iterator ci = transitions_.begin(); ci != transitions_.end(); ci++)
+	{
+		const Transition* transition = *ci;
+//		std::cout << "Process the transition: " << *transition << std::endl;
+		
+		const DomainTransitionGraphNode& from_node = transition->getFromNode();
+		const DomainTransitionGraphNode& to_node = transition->getToNode();
+		
+		// Look for grounded facts.
+		for (std::vector<BoundedAtom*>::const_iterator ci = to_node.getAtoms().begin(); ci != to_node.getAtoms().end(); ci++)
+		{
+			const BoundedAtom* to_fact = *ci;
+			for (std::vector<const Term*>::const_iterator ci = to_fact->getAtom().getTerms().begin(); ci != to_fact->getAtom().getTerms().end(); ci++)
+			{
+				const Term* to_term = *ci;
+				if (to_node.isTermGrounded(*to_term))
+				{
+					const std::vector<const Object*>& to_term_domain = to_term->getDomain(to_fact->getId(), dtg_->getBindings());
+					
+					// Make sure the grounded term is contained in the from node.
+					bool is_part_of_from_node = false;
+					bool found_shared_grounded_term = false;
+					for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
+					{
+						const BoundedAtom* from_fact = *ci;
+						for (std::vector<const Term*>::const_iterator ci = from_fact->getAtom().getTerms().begin(); ci != from_fact->getAtom().getTerms().end(); ci++)
+						{
+							const Term* from_term = *ci;
+							const std::vector<const Object*>& from_term_domain = from_term->getDomain(from_fact->getId(), dtg_->getBindings());
+
+							if (&from_term_domain == &to_term_domain)
+							{
+								found_shared_grounded_term = true;
+//								std::cout << "Found a grounded term";
+//								to_fact->print(std::cout, dtg_->getBindings());
+//								std::cout << " (";
+//								to_term->print(std::cout, dtg_->getBindings(), to_fact->getId());
+//								std::cout << ") - compare with ";
+//								from_fact->print(std::cout, dtg_->getBindings());
+//								std::cout << " (";
+//								from_term->print(std::cout, dtg_->getBindings(), from_fact->getId());
+//								std::cout << ").";
+								
+								// Check if the facts belong to different property spaces.
+								const std::vector<const Property*>& from_properties = from_fact->getProperties();
+								const std::vector<const Property*>& to_properties = to_fact->getProperties();
+
+								bool shares_property_space = false;
+								for (std::vector<const Property*>::const_iterator ci = to_properties.begin(); ci != to_properties.end(); ci++)
+								{
+									const Property* to_property = *ci;
+									
+									for (std::vector<const Property*>::const_iterator ci = from_properties.begin(); ci != from_properties.end(); ci++)
+									{
+										const Property* from_property = *ci;
+										
+//										std::cout << "Compare the properties: " << *to_property << " and " << *from_property << "." << std::endl;
+//										std::cout << "Compare the property states: " << to_property->getPropertyState() << " and " << from_property->getPropertyState() << "." << std::endl;
+//										std::cout << "Compare the property spaces: " << to_property->getPropertyState().getPropertySpace() << " and " << from_property->getPropertyState().getPropertySpace() << "." << std::endl;
+										
+										if (&to_property->getPropertyState().getPropertySpace() == &from_property->getPropertyState().getPropertySpace())
+										{
+//											std::cout << "Property spaces are the same!" << std::endl;
+											shares_property_space = true;
+											break;
+										}
+									}
+									
+									if (shares_property_space)
+									{
+										is_part_of_from_node = true;
+										break;
+									}
+								}
+							}
+							
+							if (is_part_of_from_node) break;
+						}
+						
+						if (is_part_of_from_node) break;
+					}
+					
+					if (found_shared_grounded_term && !is_part_of_from_node)
+					{
+						// Found a winner! :)
+						std::map<const Transition*, std::vector<const std::vector<const Object*>* >* >::iterator i = external_dependend_transitions.find(transition);
+						
+						std::vector<const std::vector<const Object*>* >*  grounded_terms;
+						if (i != external_dependend_transitions.end())
+						{
+							grounded_terms = (*i).second;
+						}
+						else
+						{
+							grounded_terms = new std::vector<const std::vector<const Object*>* >();
+							external_dependend_transitions[transition] = grounded_terms;
+						}
+						grounded_terms->push_back(&to_term->getDomain(to_fact->getId(), dtg_->getBindings()));
+					}
+				}
+			}
+		}
+	}
+}
+
 bool DomainTransitionGraphNode::operator==(const DomainTransitionGraphNode& dtg_node) const
 {
 	if (dtg_node.getAtoms().size() != getAtoms().size())
@@ -569,7 +716,9 @@ bool DomainTransitionGraphNode::groundTerm(std::vector<DomainTransitionGraphNode
 //					term->print(std::cout, dtg_->getBindings(), bounded_atom->getId());
 //					std::cout << std::endl;
 					const BoundedAtom* bounded_atom_to_ground = new_node->getAtoms()[i];
-					bounded_atom_to_ground->getAtom().getTerms()[j]->unify(bounded_atom_to_ground->getId(), *object_to_ground_to, term_id, dtg_->getBindings());
+					const Term* term_to_ground = bounded_atom_to_ground->getAtom().getTerms()[j];
+					new_node->grounded_terms_.insert(term_to_ground);
+					term_to_ground->unify(bounded_atom_to_ground->getId(), *object_to_ground_to, term_id, dtg_->getBindings());
 				}
 			}
 		}
@@ -1077,6 +1226,11 @@ bool DomainTransitionGraphNode::isEquivalentTo(const DomainTransitionGraphNode& 
 	}
 	
 	return true;
+}
+
+bool DomainTransitionGraphNode::isTermGrounded(const Term& term) const
+{
+	return grounded_terms_.count(&term) != 0;
 }
 
 void DomainTransitionGraphNode::print(std::ostream& os) const

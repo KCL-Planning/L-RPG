@@ -28,9 +28,9 @@ class Transition;
 class EquivalentObjectGroup
 {
 public:
-	EquivalentObjectGroup(const Object& object);
+	EquivalentObjectGroup(const Object& object, const DomainTransitionGraph& dtg_graph);
 	
-	EquivalentObjectGroup(const Object& object, std::vector<const DomainTransitionGraphNode*>& initial_dtgs);
+	EquivalentObjectGroup(const Object& object, const DomainTransitionGraph& dtg_graph, std::vector<const DomainTransitionGraphNode*>& initial_dtgs);
 	
 	/**
 	 * Add an object and initial DTG node to this object group.
@@ -45,7 +45,7 @@ public:
 	 * @param reachable_nodes Reachability mapping from all DTG nodes.
 	 * @return True if the groups could be merged, false otherwise.
 	 */
-	bool tryToMergeWith(const EquivalentObjectGroup& objectGroup, const std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* >& reachable_nodes);
+	bool tryToMergeWith(const EquivalentObjectGroup& object_group, const std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* >& reachable_nodes);
 	
 private:
 	
@@ -59,6 +59,17 @@ private:
 	
 	// All the facts which are reachable by all objects in this domain.
 	std::vector<const BoundedAtom*> reachable_facts_;
+	
+	const DomainTransitionGraph* dtg_graph_;
+	
+	/**
+	 * Every equivalent object group has a finger print which correlates to the terms of the facts in the DTG nodes
+	 * the object can be a part of. At the mommnt we do not consider sub / super sets yet.
+	 */
+	void initialiseFingerPrint(const Object& object, const DomainTransitionGraph& dtg_graph);
+	
+	bool* finger_print_;
+	unsigned int finger_print_size_;
 
 	friend std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group);
 };

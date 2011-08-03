@@ -16,14 +16,54 @@ namespace MyPOP {
 	
 namespace SAS_Plus {
 
-EquivalentObjectGroup::EquivalentObjectGroup(const Object& object)
+EquivalentObjectGroup::EquivalentObjectGroup(const Object& object, const DomainTransitionGraph& dtg_graph)
+	: dtg_graph_(&dtg_graph)
 {
 	initial_mapping_[&object] = new std::vector<const DomainTransitionGraphNode*>();
 }
 	
-EquivalentObjectGroup::EquivalentObjectGroup(const Object& object, std::vector<const DomainTransitionGraphNode*>& initial_dtgs)
+EquivalentObjectGroup::EquivalentObjectGroup(const Object& object, const DomainTransitionGraph& dtg_graph, std::vector<const DomainTransitionGraphNode*>& initial_dtgs)
+	: dtg_graph_(&dtg_graph)
 {
 	initial_mapping_[&object] = &initial_dtgs;
+}
+
+void EquivalentObjectGroup::initialiseFingerPrint(const Object& object, const DomainTransitionGraph& dtg_graph)
+{
+	// Check the DTG graph and check which DTG nodes an object can be part of based on its type.
+	unsigned int number_of_facts = 0;
+	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph.getNodes().begin(); ci != dtg_graph.getNodes().end(); ci++)
+	{
+		const DomainTransitionGraphNode* dtg_node = *ci;
+		for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
+		{
+			number_of_facts += (*ci)->getAtom().getArity();
+		}
+	}
+	
+	finger_print_size_ = number_of_facts;
+	finger_print_ = new bool[number_of_facts];
+	memset(&finger_print_[0], false, sizeof(bool) * number_of_facts);
+	
+	number_of_facts = 0;
+	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph.getNodes().begin(); ci != dtg_graph.getNodes().end(); ci++)
+	{
+		const DomainTransitionGraphNode* dtg_node = *ci;
+		for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
+		{
+			const BoundedAtom* bounded_atom = *ci;
+			for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
+			{
+				const Term* term = *ci;
+				
+				if (object.getType()->isSubtypeOf(*term->getType()) || object.getType()->isEqual(*term->getType()))
+				{
+					finger_print_[number_of_facts] = true;
+				}
+				++number_of_facts;
+			}
+		}
+	}
 }
 
 bool EquivalentObjectGroup::addInitialDTGNodeMapping(const Object& object, const DomainTransitionGraphNode& dtg_node)
@@ -48,12 +88,18 @@ bool EquivalentObjectGroup::addInitialDTGNodeMapping(const Object& object, const
 
 bool EquivalentObjectGroup::tryToMergeWith(const EquivalentObjectGroup& other_group, const std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* >& reachable_nodes)
 {
-	std::cout << "Try to merge: " << *this << " with " << other_group << "." << std::endl;
+	// Only allow to merge two equivalent object groups if the fingerprints are equal!
+	assert (finger_print_size_ == other_group.finger_print_size_);
+	if (memcmp(finger_print_, other_group.finger_print_, finger_print_size_) != 0)
+	{
+		return false;
+	}
+	
+//	std::cout << "Try to merge: " << *this << " with " << other_group << "." << std::endl;
 
 	// Check if this is reachable from other and visa versa.
 	for (std::map<const Object*, std::vector<const DomainTransitionGraphNode*> *>::const_iterator ci = initial_mapping_.begin(); ci != initial_mapping_.end(); ci++)
 	{
-		const Object* this_object = (*ci).first;
 		const std::vector<const DomainTransitionGraphNode*>* this_initial_dtgs = (*ci).second;
 		
 		if (this_initial_dtgs->size() == 0)
@@ -63,15 +109,6 @@ bool EquivalentObjectGroup::tryToMergeWith(const EquivalentObjectGroup& other_gr
 		
 		for (std::map<const Object*, std::vector<const DomainTransitionGraphNode*> *>::const_iterator ci = other_group.initial_mapping_.begin(); ci != other_group.initial_mapping_.end(); ci++)
 		{
-			const Object* other_object = (*ci).first;
-			
-			// If objects are not of the same type they cannot be part of the same equivalent object group.
-			// TODO: Refine types based on membership of DTG nodes.
-			if (!this_object->getType()->isEqual(*other_object->getType()))
-			{
-				continue;
-			}
-			
 			const std::vector<const DomainTransitionGraphNode*>* other_initial_dtgs = (*ci).second;
 			
 			if (other_initial_dtgs->size() == 0)
@@ -79,36 +116,54 @@ bool EquivalentObjectGroup::tryToMergeWith(const EquivalentObjectGroup& other_gr
 				continue;
 			}
 			
+			bool all_initial_dtgs_are_reachable = true;
 			for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = this_initial_dtgs->begin(); ci != this_initial_dtgs->end(); ci++)
 			{
 				const DomainTransitionGraphNode* this_initial_dtg = *ci;
 				std::vector<const DomainTransitionGraphNode*>* reachable_nodes_from_this = (*reachable_nodes.find(this_initial_dtg)).second;
+				
+				bool is_reachable = false;
 
 				for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = other_initial_dtgs->begin(); ci != other_initial_dtgs->end(); ci++)
 				{
 					const DomainTransitionGraphNode* other_initial_dtg = *ci;
 					std::vector<const DomainTransitionGraphNode*>* reachable_nodes_from_other = (*reachable_nodes.find(other_initial_dtg)).second;
 					
-					std::cout << "Check if " << *this_initial_dtg << " is reachable in the set: " << std::endl;
-					for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = reachable_nodes_from_this->begin(); ci != reachable_nodes_from_this->end(); ci++)
-					{
-						std::cout << **ci << std::endl;
-					}
+//					std::cout << "Check if " << *this_initial_dtg << " is reachable in the set: " << std::endl;
+//					for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = reachable_nodes_from_this->begin(); ci != reachable_nodes_from_this->end(); ci++)
+//					{
+//						std::cout << **ci << std::endl;
+//					}
 					
-					std::cout << "Check if " << *other_initial_dtg << " is reachable in the set: " << std::endl;
-					for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = reachable_nodes_from_other->begin(); ci != reachable_nodes_from_other->end(); ci++)
-					{
-						std::cout << **ci << std::endl;
-					}
+//					std::cout << "Check if " << *other_initial_dtg << " is reachable in the set: " << std::endl;
+//					for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = reachable_nodes_from_other->begin(); ci != reachable_nodes_from_other->end(); ci++)
+//					{
+//						std::cout << **ci << std::endl;
+//					}
 
 					if (std::find(reachable_nodes_from_this->begin(), reachable_nodes_from_this->end(), other_initial_dtg) != reachable_nodes_from_this->end() &&
 					    std::find(reachable_nodes_from_other->begin(), reachable_nodes_from_other->end(), this_initial_dtg) != reachable_nodes_from_other->end())
 					{
-						std::cout << *this << " is reachable from " << other_group << "." << std::endl;
-						initial_mapping_.insert(other_group.initial_mapping_.begin(), other_group.initial_mapping_.end());
-						return true;
+//						std::cout << *this << " is reachable from " << other_group << "." << std::endl;
+//						initial_mapping_.insert(other_group.initial_mapping_.begin(), other_group.initial_mapping_.end());
+//						return true;
+						is_reachable = true;
+						break;
 					}
 				}
+				
+				if (!is_reachable)
+				{
+					all_initial_dtgs_are_reachable = false;
+					break;
+				}
+			}
+			
+			if (all_initial_dtgs_are_reachable)
+			{
+//				std::cout << *this << " is reachable from " << other_group << "." << std::endl;
+				initial_mapping_.insert(other_group.initial_mapping_.begin(), other_group.initial_mapping_.end());
+				return true;
 			}
 		}
 	}
@@ -143,7 +198,7 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const DTGReachability
 	for (std::vector<const Object*>::const_iterator ci = term_manager.getAllObjects().begin(); ci != term_manager.getAllObjects().end(); ci++)
 	{
 		const Object* object = *ci;
-		EquivalentObjectGroup* equivalent_group = new EquivalentObjectGroup(*object);
+		EquivalentObjectGroup* equivalent_group = new EquivalentObjectGroup(*object, dtg_graph);
 		equivalent_groups_.push_back(equivalent_group);
 		object_to_equivalent_group_mapping_[object] = equivalent_group;
 	}
@@ -193,6 +248,40 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const DTGReachability
 			}
 		}
 	}
+	
+	std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* > reachable_nodes;
+	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph.getNodes().begin(); ci != dtg_graph.getNodes().end(); ci++)
+	{
+		const DomainTransitionGraphNode* dtg_node = *ci;
+		std::vector<const DomainTransitionGraphNode*>* self_reachable_node_list = new std::vector<const DomainTransitionGraphNode*>();
+		self_reachable_node_list->push_back(dtg_node);
+		reachable_nodes[dtg_node] = self_reachable_node_list;
+	}
+	
+	// Compare the equivalent objects and check if they share the same initial state. If this is the case, combine them.
+	std::cout << "Merge together equivalent groups if their initial states match." << std::endl;
+	for (std::map<const Object*, EquivalentObjectGroup*>::const_iterator ci = object_to_equivalent_group_mapping_.begin(); ci != object_to_equivalent_group_mapping_.end(); ci++)
+	{
+		if (++ci == object_to_equivalent_group_mapping_.end()) break;
+		--ci;
+		
+//		const Object* object = (*ci).first;
+		EquivalentObjectGroup* equivalent_object_group = (*ci).second;
+
+		for (std::map<const Object*, EquivalentObjectGroup*>::const_iterator ci2 = ci; ci2 != object_to_equivalent_group_mapping_.end(); ci2++)
+		{
+			if (ci == ci2) continue;
+			
+//			const Object* other_object = (*ci2).first;
+			EquivalentObjectGroup* other_equivalent_object_group = (*ci2).second;
+			
+			if (equivalent_object_group->tryToMergeWith(*other_equivalent_object_group, reachable_nodes))
+			{
+				std::cout << "Merged: " << *equivalent_object_group << " and " << other_equivalent_object_group << "." << std::endl;
+			}
+		}
+	}
+	std::cout << "Merge together equivalent groups if their initial states match - Done!" << std::endl;
 }
 
 void EquivalentObjectGroupManager::updateEquivalences(const std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* >& reachable_nodes_)

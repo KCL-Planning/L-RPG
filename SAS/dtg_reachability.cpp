@@ -278,6 +278,7 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const DTGReachability
 			if (equivalent_object_group->tryToMergeWith(*other_equivalent_object_group, reachable_nodes))
 			{
 				std::cout << "Merged: " << *equivalent_object_group << " and " << other_equivalent_object_group << "." << std::endl;
+				object_to_equivalent_group_mapping_[(*ci2).first] = equivalent_object_group;
 			}
 		}
 	}

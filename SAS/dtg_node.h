@@ -219,18 +219,25 @@ public:
 	 */
 	void getSubsets(std::vector<DomainTransitionGraphNode*>& subsets, const std::vector<DomainTransitionGraphNode*>& all_dtg_nodes) const;
 
+	/**
+	 * Check if this DTG node is a super set of the given node.
+	 * @param dtg_node The DTG node to check.
+	 * @return True if this node is a super set of the given dtg node, false otherwise.
+	 */
+	bool isSuperSetOf(const DomainTransitionGraphNode& dtg_node) const;
+	
+	/**
+	 * Check if this DTG node is a sub set of the given node.
+	 * @param dtg_node The DTG node to check.
+	 * @return True if this node is a sub set of the given dtg node, false otherwise.
+	 */
+	bool isSubSetOf(const DomainTransitionGraphNode& dtg_node) const;
+	
 	bool isEquivalentTo(const DomainTransitionGraphNode& other) const;
 	
 	bool isTermGrounded(const Term& term) const;
 	
 private:
-	
-	/**
-	 * Check if this DTG node is a super set of the given node.
-	 * @param dtg_node The DTG node to check.
-	 * @return True if this node is a superset of the given dtg node, false otherwise.
-	 */
-	bool isSupersetOf(const DomainTransitionGraphNode& dtg_node) const;
 	
 	/**
 	 * Find a one-to-one mapping between the given list of facts - starting at the given index. Facts
@@ -268,6 +275,10 @@ private:
 	
 	// The set of terms which are grounded.
 	std::set<const Term*> grounded_terms_;
+	
+	// All proper sub sets of this DTG nodes. A sub set should contain no other facts than those in this node
+	// and they should be identical.
+	std::vector<const DomainTransitionGraphNode*> sub_sets_;
 };
 
 std::ostream& operator<<(std::ostream&, const DomainTransitionGraphNode& node);

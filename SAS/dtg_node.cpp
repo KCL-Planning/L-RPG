@@ -1119,15 +1119,21 @@ void DomainTransitionGraphNode::getSubsets(std::vector<DomainTransitionGraphNode
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = all_dtg_nodes.begin(); ci != all_dtg_nodes.end(); ci++)
 	{
 		DomainTransitionGraphNode* dtg_node = *ci;
-		if (isSupersetOf(*dtg_node))
+		if (isSuperSetOf(*dtg_node))
 		{
 			subsets.push_back(dtg_node);
 		}
 	}
 }
 
-bool DomainTransitionGraphNode::isSupersetOf(const DomainTransitionGraphNode& other) const
+bool DomainTransitionGraphNode::isSuperSetOf(const DomainTransitionGraphNode& other) const
 {
+//	std::cout << "Check if ";
+//	print(std::cout);
+//	std::cout << " is a super set of ";
+//	other.print(std::cout);
+//	std::cout << std::endl;
+	
 	for (std::vector<BoundedAtom*>::const_iterator ci = other.getAtoms().begin(); ci != other.getAtoms().end(); ci++)
 	{
 		const BoundedAtom* other_bounded_atom = *ci;
@@ -1145,12 +1151,6 @@ bool DomainTransitionGraphNode::isSupersetOf(const DomainTransitionGraphNode& ot
 			bool all_variable_domains_are_super_sets = true;
 			for (unsigned int i = 0; i < other_bounded_atom->getAtom().getArity(); i++)
 			{
-/*				if (!this_bounded_atom->getAtom().getTerms()[i]->isProperSuperSetOf(this_bounded_atom->getAtom().getTerms()[i]))
-				{
-					all_variable_domains_are_super_sets = false;
-					break;
-				}
-*/
 				const std::vector<const Object*>& other_variable_domain = other_bounded_atom->getVariableDomain(i, other.getDTG().getBindings());
 				const std::vector<const Object*>& this_variable_domain = this_bounded_atom->getVariableDomain(i, getDTG().getBindings());
 				
@@ -1196,10 +1196,18 @@ bool DomainTransitionGraphNode::isSupersetOf(const DomainTransitionGraphNode& ot
 		
 		if (!contains_super_set)
 		{
+//			std::cout << "It is not a superset, because the fact: ";
+//			other_bounded_atom->print(std::cout, other.getDTG().getBindings());
+//			std::cout << " could not be mapped." << std::endl;
 			return false;
 		}
 	}
 	return true;
+}
+
+bool DomainTransitionGraphNode::isSubSetOf(const DomainTransitionGraphNode& dtg_node) const
+{
+	return dtg_node.isSuperSetOf(*this);
 }
 
 bool DomainTransitionGraphNode::isEquivalentTo(const DomainTransitionGraphNode& other) const
@@ -1239,7 +1247,7 @@ void DomainTransitionGraphNode::print(std::ostream& os) const
 	{
 		os << "\t";
 		(*ci)->print(os, getDTG().getBindings());
-//		os << "(" << getIndex(**ci) << ")" << std::endl;
+		os << std::endl;
 	}
 }
 

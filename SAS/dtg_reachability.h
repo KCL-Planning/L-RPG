@@ -89,6 +89,8 @@ public:
 	
 	void updateEquivalences(const std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* >& reachable_nodes_);
 	
+	void print(std::ostream& os) const;
+	
 private:
 	
 	/**
@@ -100,6 +102,8 @@ private:
 	std::vector<EquivalentObjectGroup*> equivalent_groups_;
 	
 	const DTGReachability* dtg_reachability_;
+	
+	const DomainTransitionGraph* dtg_graph_;
 };
 	
 /**

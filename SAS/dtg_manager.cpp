@@ -766,7 +766,11 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	// difference. E.g. (at ticket loc -> (have driver ticket) /\ (at driver loc) imply the precondition (at driver log).
 	Bindings* merged_dtg_bindings = new Bindings(bindings);
 	DomainTransitionGraph& combined_graph = mergeIdenticalDTGs(*merged_dtg_bindings);
-//	combined_graph.addObjects();
+	
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+	std::cout << "Combined graph after merging identical DTGs." << std::endl;
+	std::cout << combined_graph << std::endl;
+#endif
 	
 	combined_graph.solveSubsets();
 	

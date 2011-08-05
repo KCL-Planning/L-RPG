@@ -20,12 +20,14 @@ EquivalentObjectGroup::EquivalentObjectGroup(const Object& object, const DomainT
 	: dtg_graph_(&dtg_graph)
 {
 	initial_mapping_[&object] = new std::vector<const DomainTransitionGraphNode*>();
+	initialiseFingerPrint(object, dtg_graph);
 }
 	
 EquivalentObjectGroup::EquivalentObjectGroup(const Object& object, const DomainTransitionGraph& dtg_graph, std::vector<const DomainTransitionGraphNode*>& initial_dtgs)
 	: dtg_graph_(&dtg_graph)
 {
 	initial_mapping_[&object] = &initial_dtgs;
+	initialiseFingerPrint(object, dtg_graph);
 }
 
 void EquivalentObjectGroup::initialiseFingerPrint(const Object& object, const DomainTransitionGraph& dtg_graph)
@@ -116,63 +118,142 @@ bool EquivalentObjectGroup::tryToMergeWith(const EquivalentObjectGroup& other_gr
 				continue;
 			}
 			
-			bool all_initial_dtgs_are_reachable = true;
+			// Keep a boolean array to record which facts can be reached from each other's states.
+			bool this_initial_reachable[this_initial_dtgs->size()];
+			memset(&this_initial_reachable[0], false, sizeof(bool) * this_initial_dtgs->size());
+			
+			bool other_initial_reachable[other_initial_dtgs->size()];
+			memset(&other_initial_reachable[0], false, sizeof(bool) * other_initial_dtgs->size());
+			
 			for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = this_initial_dtgs->begin(); ci != this_initial_dtgs->end(); ci++)
 			{
 				const DomainTransitionGraphNode* this_initial_dtg = *ci;
+				unsigned int this_initial_dtg_index = std::distance(this_initial_dtgs->begin(), ci);
 				std::vector<const DomainTransitionGraphNode*>* reachable_nodes_from_this = (*reachable_nodes.find(this_initial_dtg)).second;
-				
-				bool is_reachable = false;
 
 				for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = other_initial_dtgs->begin(); ci != other_initial_dtgs->end(); ci++)
 				{
 					const DomainTransitionGraphNode* other_initial_dtg = *ci;
+					unsigned int other_initial_dtg_index = std::distance(other_initial_dtgs->begin(), ci);
 					std::vector<const DomainTransitionGraphNode*>* reachable_nodes_from_other = (*reachable_nodes.find(other_initial_dtg)).second;
 					
-					std::cout << "Check if ";
+					std::cout << "New set of initial DTG nodes to test! " << std::endl;
 					this_initial_dtg->print(std::cout);
-					std::cout << std::endl << " is reachable in the set: " << std::endl;
-					for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = reachable_nodes_from_this->begin(); ci != reachable_nodes_from_this->end(); ci++)
-					{
-						std::cout << "- ";
-						(*ci)->print(std::cout);
-						std::cout << std::endl;
-					}
-			
-					std::cout << "Check if ";
+					std::cout << std::endl << "is reachable from" << std::endl;
 					other_initial_dtg->print(std::cout);
-					std::cout << std::endl << " is reachable in the set: " << std::endl;
-					for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = reachable_nodes_from_other->begin(); ci != reachable_nodes_from_other->end(); ci++)
-					{
-						std::cout << "- ";
-						(*ci)->print(std::cout);
-						std::cout << std::endl;
-					}
+					std::cout << std::endl << " and visa versa!" << std::endl;
 
-					if (std::find(reachable_nodes_from_this->begin(), reachable_nodes_from_this->end(), other_initial_dtg) != reachable_nodes_from_this->end() &&
-					    std::find(reachable_nodes_from_other->begin(), reachable_nodes_from_other->end(), this_initial_dtg) != reachable_nodes_from_other->end())
+					if (!other_initial_reachable[other_initial_dtg_index])
 					{
-						std::cout << " !!! IT IS!" << std::endl;
-						is_reachable = true;
-						break;
+						std::cout << "Check if" << std::endl;
+						other_initial_dtg->print(std::cout);
+						std::cout << std::endl << "is reachable from" << std::endl;
+						this_initial_dtg->print(std::cout);
+						std::cout << std::endl;
+
+						for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = reachable_nodes_from_this->begin(); ci != reachable_nodes_from_this->end(); ci++)
+						{
+							const DomainTransitionGraphNode* reachable_dtg_node = *ci;
+							if (reachable_dtg_node == other_initial_dtg || other_initial_dtg->isSubSetOf(*reachable_dtg_node))
+							{
+								if (reachable_dtg_node == other_initial_dtg)
+									std::cout << "They are the same!" << std::endl;
+								else
+									std::cout << "One is a subset of the other!" << std::endl;
+//								other_initial_dtg->print(std::cout);
+//								std::cout << " is reachable from: ";
+//								this_initial_dtg->print(std::cout);
+//								std::cout << std::endl;
+								other_initial_reachable[other_initial_dtg_index] = true;
+								break;
+							}
+						}
+					}
+					
+					if (!this_initial_reachable[this_initial_dtg_index])
+					{
+						std::cout << "Check if" << std::endl;
+						this_initial_dtg->print(std::cout);
+						std::cout << std::endl << "is reachable from" << std::endl;
+						other_initial_dtg->print(std::cout);
+						std::cout << std::endl;
+
+						for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = reachable_nodes_from_other->begin(); ci != reachable_nodes_from_other->end(); ci++)
+						{
+							const DomainTransitionGraphNode* reachable_dtg_node = *ci;
+							if (reachable_dtg_node == this_initial_dtg || this_initial_dtg->isSubSetOf(*reachable_dtg_node))
+							{
+								if (reachable_dtg_node == this_initial_dtg)
+									std::cout << "They are the same!" << std::endl;
+								else
+									std::cout << "One is a subset of the other!" << std::endl;
+//								this_initial_dtg->print(std::cout);
+//								std::cout << " is reachable from: ";
+//								other_initial_dtg->print(std::cout);
+//								std::cout << std::endl;
+								this_initial_reachable[this_initial_dtg_index] = true;
+								break;
+							}
+						}
 					}
 				}
-				
-				if (!is_reachable)
+			}
+			
+			bool is_reachable = true;
+			
+			for (unsigned int i = 0; i < this_initial_dtgs->size(); i++)
+			{
+				if (!this_initial_reachable[this_initial_dtgs->size()])
 				{
-					all_initial_dtgs_are_reachable = false;
+					is_reachable = false;
 					break;
 				}
 			}
 			
-			if (all_initial_dtgs_are_reachable)
+			if (is_reachable)
 			{
-//				std::cout << *this << " is reachable from " << other_group << "." << std::endl;
+				for (unsigned int i = 0; i < other_initial_dtgs->size(); i++)
+				{
+					if (!other_initial_reachable[other_initial_dtgs->size()])
+					{
+						is_reachable = false;
+						break;
+					}
+				}
+			}
+			
+			if (is_reachable)
+			{
+				std::cout << *this << " is reachable from " << other_group << "." << std::endl;
 				initial_mapping_.insert(other_group.initial_mapping_.begin(), other_group.initial_mapping_.end());
 				return true;
 			}
+			else
+			{
+				for (unsigned int i = 0; i < this_initial_dtgs->size(); i++)
+				{
+					if (!this_initial_reachable[this_initial_dtgs->size()])
+					{
+						std::cout << "- ";
+						(*this_initial_dtgs)[i]->print(std::cout);
+						std::cout << " is NOT reachable!" << std::endl;
+					}
+				}
+				
+				for (unsigned int i = 0; i < other_initial_dtgs->size(); i++)
+				{
+					if (!other_initial_reachable[other_initial_dtgs->size()])
+					{
+						std::cout << "- ";
+						(*other_initial_dtgs)[i]->print(std::cout);
+						std::cout << " is NOT reachable!" << std::endl;
+					}
+				}
+			}
 		}
 	}
+	
+	std::cout << *this << " is NOT reachable from " << other_group << "." << std::endl;
 	return false;
 }
 
@@ -333,6 +414,15 @@ void EquivalentObjectGroupManager::updateEquivalences(const std::map<const Domai
 		}
 	}
 }
+
+void EquivalentObjectGroupManager::print(std::ostream& os) const
+{
+	std::cout << "All equivalence groups:" << std::endl;
+	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
+	{
+		std::cout << **ci << std::endl;
+	}
+}
 	
 	
 DTGReachability::DTGReachability(const DomainTransitionGraph& dtg_graph)
@@ -469,10 +559,10 @@ void DTGReachability::performReachabilityAnalsysis(const std::vector<const Bound
 	{
 		pre_size = established_facts.size();
 		iterateThroughFixedPoint(established_facts, achieved_transitions);
-		std::cout << pre_size << " v.s. " << established_facts.size() << std::endl;
 		
 		// After no other transitions can be reached we establish the object equivalence relations.
 		equivalent_object_manager_->updateEquivalences(reachable_nodes_);
+		equivalent_object_manager_->print(std::cout);
 		
 		// Check for DTG nodes which have a transition in which a grounded node links two facts which are part of different
 		// balanced sets.
@@ -983,7 +1073,6 @@ void DTGReachability::iterateThroughFixedPoint(std::vector<const BoundedAtom*>& 
 								std::vector<const std::vector<const Object*>* > new_atom_domains;
 
 								// Bind the terms of the to node to the action variables to get the achieved facts.
-								//bool valid_assignments = true;
 								for (std::vector<const Term*>::const_iterator ci = to_node_bounded_atom->getAtom().getTerms().begin(); ci != to_node_bounded_atom->getAtom().getTerms().end(); ci++)
 								{
 									const Term* to_node_term = *ci;
@@ -1013,6 +1102,10 @@ void DTGReachability::iterateThroughFixedPoint(std::vector<const BoundedAtom*>& 
 										}
 									}
 									
+									/**
+									 * If a term in the to node is not bounded it must have been grounded, so we simply copy the
+									 * original variable domain.
+									 */
 									if (!is_bounded)
 									{
 										std::cout << "Could not find the assignment for the term: ";
@@ -1022,15 +1115,8 @@ void DTGReachability::iterateThroughFixedPoint(std::vector<const BoundedAtom*>& 
 										std::cout << "." << std::endl;
 										
 										new_atom_domains.push_back(&to_node_term->getDomain(to_node_bounded_atom->getId(), dtg_graph_->getBindings()));
-										
-										//valid_assignments = false;
-										//break;
 									}
 								}
-								//if (!valid_assignments)
-								//{
-								//	break;
-								//}
 								
 								Atom* achieved_fact = new Atom(to_node_bounded_atom->getAtom().getPredicate(), *new_atom_terms, to_node_bounded_atom->getAtom().isNegative());
 								BoundedAtom& achieved_bounded_atom = BoundedAtom::createBoundedAtom(*achieved_fact, dtg_graph_->getBindings());
@@ -1125,9 +1211,9 @@ void DTGReachability::iterateThroughFixedPoint(std::vector<const BoundedAtom*>& 
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph_->getNodes().begin(); ci != dtg_graph_->getNodes().end(); ci++)
 	{
 		const DomainTransitionGraphNode* dtg_node = *ci;
-		std::cout << "Reachable nodes from: ";
+		std::cout << "Reachable nodes from: " << std::endl;
 		dtg_node->print(std::cout);
-		std::cout << ":" << std::endl;
+		std::cout << std::endl << ":" << std::endl;
 		
 		std::vector<const DomainTransitionGraphNode*>* reachable_dtg_node = reachable_nodes_[dtg_node];
 		for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = reachable_dtg_node->begin(); ci != reachable_dtg_node->end(); ci++)

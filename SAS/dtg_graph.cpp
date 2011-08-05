@@ -1181,16 +1181,6 @@ void DomainTransitionGraph::solveSubsets()
 		std::vector<DomainTransitionGraphNode*> subset_dtg_nodes;
 		dtg_node->getSubsets(subset_dtg_nodes, nodes_);
 		
-/*		if (subset_dtg_nodes.size() > 0)
-		{
-			std::cout << "The subsets of : " << *dtg_node << " are: " << std::endl;
-			for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = subset_dtg_nodes.begin(); ci != subset_dtg_nodes.end(); ci++)
-			{
-				const DomainTransitionGraphNode* dtg_node = *ci;
-				std::cout << " * " << *dtg_node << std::endl;
-			}
-		}*/
-		
 		/**
 		 * There are 3 types of subset relationships;
 		 * 1) The nodes are identical - in this case we can ignore the subset as it means the node is exactly the same. If this is not the

@@ -23,7 +23,20 @@ class DTGReachability;
 class Transition;
 
 /**
- * Group together equivalent objects.
+ * Equivalent objects are object for which the following property holds:
+ * If two equivalent objects A and B both can reach the same DTG node then all transitions which can be
+ * applied to A can also be applied to B. This does not mean that all objects which belong to the same
+ * equivalent object group can reach the same DTG nodes, this is only the case if the initial location
+ * of A is reachable by B and vice versa.
+ *
+ * If an object A reaches the initial location of B we merge the equivalent object group of B with that
+ * of A. If A can reach its initial DTG nodes than A and B are equivalent, but until that is proven B is
+ * a sub set of A.
+ *
+ * Note: This is not implemented like this at the moment. Only when two objects are truly equivalent will
+ * they become part of the the same EOG. Otherwise we will not be able to differentiate between two objects
+ * which are part of the same EOG as the facts they can reach are dependable on its the initial state. Something
+ * to do later :).
  */
 class EquivalentObjectGroup
 {

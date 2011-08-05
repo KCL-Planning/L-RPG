@@ -533,11 +533,13 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 						is_removed = false;
 						persistent_facts.push_back(std::make_pair(from_fact, to_fact));
 						
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 						std::cout << "Potential persistent fact set: ";
 						from_fact->print(std::cout, bindings);
 						std::cout << " - ";
 						to_fact->print(std::cout ,bindings);
 						std::cout << "." << std::endl;
+#endif
 					}
 				}
 			}

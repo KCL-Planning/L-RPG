@@ -20,7 +20,7 @@
 #include "../bindings_propagator.h"
 #include "../plan.h"
 
-#define MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+///#define MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 
 namespace MyPOP {
 
@@ -1369,8 +1369,8 @@ void DomainTransitionGraph::solveSubsets()
 							std::cout << "Result: ";
 							new_term->print(std::cout, *bindings_, new_step_id);
 							std::cout << "." << std::endl;
-						}
 #endif
+						}
 						
 						BoundedAtom* bounded_atom = new BoundedAtom(new_step_id, *new_atom, org_to_atom->getProperties());
 						new_to_node->addAtom(bounded_atom, to_dtg_node.getIndex(*org_to_atom));
@@ -1394,10 +1394,14 @@ void DomainTransitionGraph::solveSubsets()
 					
 					if (existing_to_dtg_node == NULL)
 					{
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 						std::cout << "Create a new DTG node: " << *new_to_node << std::endl;
+#endif
 						addNode(*new_to_node);
 						
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 						std::cout << "Create a transition from: " << *sub_set_dtg_node << " to " << *new_to_node << std::endl;
+#endif
 						std::vector<BoundedAtom>* enables = new std::vector<BoundedAtom>();
 						Transition* new_transition = Transition::createTransition(*enables, transition->getStep()->getAction(), *sub_set_dtg_node, *new_to_node, *initial_facts_);
 						assert (new_transition != NULL);
@@ -1405,8 +1409,9 @@ void DomainTransitionGraph::solveSubsets()
 					}
 					else
 					{
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 						std::cout << "Create a transition from: " << *sub_set_dtg_node << " to " << *existing_to_dtg_node << std::endl;
-						
+#endif
 						std::vector<BoundedAtom>* enables = new std::vector<BoundedAtom>();
 						Transition* new_transition = Transition::createTransition(*enables, transition->getStep()->getAction(), *sub_set_dtg_node, *existing_to_dtg_node, *initial_facts_);
 						assert (new_transition != NULL);

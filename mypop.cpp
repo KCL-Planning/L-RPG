@@ -202,7 +202,9 @@ int main(int argc,char * argv[])
 //	std::cout << rpg << std::endl;
 
 	// Do the domain analysis.
+#ifdef MYPOP_COMMENTS
 	std::cout << " === Creating the DTGs === " << std::endl;
+#endif
 	SAS_Plus::DomainTransitionGraphManager dtg_manager(predicate_manager, type_manager, action_manager, term_manager, *initial_effects);
 	
 	// Old style, working with the lifted SAS structures.

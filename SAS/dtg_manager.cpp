@@ -26,7 +26,7 @@
 #include "recursive_function.h"
 #include "dtg_reachability.h"
 
-#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+///#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 ///#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 
 
@@ -672,7 +672,9 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 					std::vector<BoundedAtom>* enablers = new std::vector<BoundedAtom>();
 					const Transition* transition = Transition::createTransition(*enablers, *achieving_action, *negative_new_dtg_node, *possitive_new_dtg_node, *initial_facts_);
 					
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 					std::cout << "Process the transition: " << *transition << std::endl;
+#endif
 					
 					if (transition != NULL)
 					{
@@ -917,6 +919,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 						}
 					}
 					
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 					if (properties_differ)
 					{
 						std::cout << "Map: ";
@@ -925,14 +928,17 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 						dtg_node->print(std::cout);
 						std::cout << std::endl;
 					}
+#endif
 					
 					merged = true;
 					
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 					if (mapping_old_to_new_dtg_node.count(dtg_node2) != 0)
 					{
 						assert (mapping_old_to_new_dtg_node[dtg_node2] == dtg_node || mapping_old_to_new_dtg_node[dtg_node2] == dtg_node2);
 						std::cout << "Overwrite: " << *dtg_node2 << " -> " << *mapping_old_to_new_dtg_node[dtg_node2] << " with "" -> " << *dtg_node << "." << std::endl;
 					}
+#endif
 					
 					mapping_old_to_new_dtg_node[dtg_node2] = dtg_node;
 					accumulated_dtgs->insert(accumulated_dtgs->end(), dtg_node2->getTransitions().begin(), dtg_node2->getTransitions().end());
@@ -1006,8 +1012,10 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 		// If the node which will serve as the hub for all the identical nodes has not been added yet to the new DTG, do so now.
 		if (closed_list.count(hub_dtg_node) == 0)
 		{
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 			if (hub_dtg_node->getAtoms().size() > 1)
 				std::cout << "Create a new hub node out of: " << *hub_dtg_node << " *** " << hub_dtg_node << " ***" << std::endl;
+#endif
 
 			// Copy the DTG node and add it to the combined DTG.
 			combined_dtg_node = new DomainTransitionGraphNode(*combined_dtg, std::numeric_limits< unsigned int >::max());
@@ -1019,7 +1027,9 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 		}
 		else
 		{
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 			std::cout << "Found an identical node: " << *identical_dtg_node << " - combine it with:" << *hub_dtg_node << "." << std::endl;
+#endif
 			combined_dtg_node = org_node_to_combined_node[hub_dtg_node];
 		}
 		
@@ -1044,10 +1054,14 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 			}
 		}
 		assert (counter == identical_dtg_node->getAtoms().size());
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 		std::cout << "Result of merging / creating: " << *combined_dtg_node << std::endl;
+#endif
 	}
 	
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 	std::cout << "Combined DTG: " << *combined_dtg << "." << std::endl;
+#endif
 	
 	// Reconnect all the DTG nodes by copying the transitions.
 	for (std::map<const DomainTransitionGraphNode*, std::vector<const Transition*>* >::const_iterator ci = mapping_merged_transitions.begin(); ci != mapping_merged_transitions.end(); ci++)
@@ -1061,7 +1075,9 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 		for (std::vector<const Transition*>::const_iterator ci = org_transition->begin(); ci != org_transition->end(); ci++)
 		{
 			const Transition* org_transition = *ci;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 			std::cout << "Process the transition: " << *org_transition << std::endl;
+#endif
 			const DomainTransitionGraphNode& org_to_dtg_node = org_transition->getToNode();
 			
 			assert (mapping_old_to_new_dtg_node.count(&org_to_dtg_node) != 0);
@@ -1088,7 +1104,9 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 			
 			if (transitionAlreadyExists) continue;
 			
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 			std::cout << "Create a transition from: " << *merged_from_dtg_node << " to " << *merged_to_dtg_node << "." << std::endl;
+#endif
 			
 /*			std::cout << "Create a transition from: ";
 			merged_from_dtg_node->print(std::cout);
@@ -1107,7 +1125,9 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 		}
 	}
 	
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 	std::cout << "FINAL Combined DTG: " << *combined_dtg << "." << std::endl;
+#endif
 	
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 	/**

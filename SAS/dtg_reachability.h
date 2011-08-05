@@ -49,12 +49,6 @@ public:
 	
 private:
 	
-	/**
-	 * Merge the given object group with this group.
-	 * @param objectGroup The group that has to merge with this group.
-	 */
-	void mergeWith(const EquivalentObjectGroup& objectGroup);
-	
 	std::map<const Object*, std::vector<const DomainTransitionGraphNode*> *> initial_mapping_;
 	
 	// All the facts which are reachable by all objects in this domain.

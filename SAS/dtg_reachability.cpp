@@ -97,6 +97,11 @@ bool EquivalentObjectGroup::tryToMergeWith(const EquivalentObjectGroup& other_gr
 		return false;
 	}
 	
+	if (this == &other_group)
+	{
+		return true;
+	}
+	
 	std::cout << "Try to merge: " << *this << " with " << other_group << "." << std::endl;
 
 	// Check if this is reachable from other and visa versa.
@@ -395,6 +400,8 @@ void EquivalentObjectGroupManager::updateEquivalences(const std::map<const Domai
 				continue;
 			}
 			
+			
+			
 			// Check if any of the initial DTG nodes of both groups can be reached from one another.
 			if (equivalent_group1->tryToMergeWith(*equivalent_group2, reachable_nodes_))
 			{
@@ -406,7 +413,7 @@ void EquivalentObjectGroupManager::updateEquivalences(const std::map<const Domai
 	}
 	
 	// Remove the nodes which have been merged.
-	for (unsigned int i = 0; i < equivalent_groups_.size(); i++)
+	for (int i = equivalent_groups_.size() - 1; i > -1; i--)
 	{
 		if (to_remove[i])
 		{

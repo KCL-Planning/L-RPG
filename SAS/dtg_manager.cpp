@@ -1191,7 +1191,6 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ci++)
 		{
 			DomainTransitionGraphNode* dtg_node = *ci;
-			bool replace_lifted_dtg_node = false;
 			
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 			std::cout << "[DomainTransitionGraphManager::createPointToPointTransitions] Check DTG Node: ";
@@ -1210,8 +1209,6 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 				Transition* transition = Transition::createTransition(*enablers, org_transition->getStep()->getAction(), *from_dtg_node_clone, *to_dtg_node_clone, *initial_facts_);
 				
 				assert (transition != NULL);
-				
-				//from_dtg_node_clone->addTransition(*transition, false);
 
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 				std::cout << "[DomainTransitionGraphManager::createPointToPointTransitions] Process the transition: " << *transition << std::endl;
@@ -1668,7 +1665,6 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 						std::cout << " NEW: " << *from_dtg_node << std::endl;
 #endif
 						dtg_nodes_to_add.push_back(from_dtg_node);
-						replace_lifted_dtg_node = true;
 					}
 				}
 				else
@@ -1685,10 +1681,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 #endif
 			}
 			
-			if (replace_lifted_dtg_node)
-			{
-				dtg_nodes_to_remove.push_back(dtg_node);
-			}
+			dtg_nodes_to_remove.push_back(dtg_node);
 		}
 		
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_nodes_to_remove.begin(); ci != dtg_nodes_to_remove.end(); ci++)

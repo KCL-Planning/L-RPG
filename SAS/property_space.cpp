@@ -136,6 +136,11 @@ bool Property::isMutexWith(const Property* property) const
 	return false;
 }
 
+bool Property::operator==(const MyPOP::SAS_Plus::Property& property) const
+{
+	return predicate_ == property.predicate_ && index_ == property.index_;
+}
+
 std::ostream& operator<<(std::ostream& os, const Property& property)
 {
 	os << property.getPredicate() << "(" << property.getIndex() << ")";

@@ -11,7 +11,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-///#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 ///#define ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 
 namespace MyPOP {
@@ -510,23 +510,23 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			}
 			
 			/**
-			* Determine if this fact has been removed (i.e. is not part of the to_node). If the fact has not been removed it is marked as
-			* persistent. This can later be undone if we find that the fact is removed and later added by the given action.
-			*/
+			 * Determine if this fact has been removed (i.e. is not part of the to_node). If the fact has not been removed it is marked as
+			 * persistent. This can later be undone if we find that the fact is removed and later added by the given action.
+			 */
 			bool is_removed = true;
 			for (std::vector<BoundedAtom*>::const_iterator ci = to_node.getAtoms().begin(); ci != to_node.getAtoms().end(); ci++)
 			{
 				const BoundedAtom* to_fact = *ci;
 				
 				// Check if there is a property in the to_fact which overlaps with that of the from fact.
-				for (std::vector<const Property*>::const_iterator ci = from_fact->getProperties().begin(); ci != from_fact->getProperties().end(); ci++)
+				for (std::vector<const Property*>::const_iterator ci = to_fact->getProperties().begin(); ci != to_fact->getProperties().end(); ci++)
 				{
 					// Check if the property space this from_fact belongs to has already been created.
 					const Property* to_fact_property = *ci;
 
 					// If the same fact appears in the to node we assume it is not deleted and thus is persistent. The next block of code
 					// determines if this is really the case or if the action deletes and adds this fact.
-					if (from_fact_property == to_fact_property &&
+					if (*from_fact_property == *to_fact_property &&
 						to_fact->getAtom().isNegative() == from_fact->getAtom().isNegative() &&
 						bindings.areEquivalent(from_fact->getAtom(), from_fact->getId(), to_fact->getAtom(), to_fact->getId()))
 					{
@@ -554,15 +554,12 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	for (std::vector<BoundedAtom*>::const_iterator ci = to_node.getAtoms().begin(); ci != to_node.getAtoms().end(); ci++)
 	{
 		const BoundedAtom* to_fact = *ci;
-#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-		std::cout << "Properties in to fact: " << to_fact->getProperties().size() << std::endl;
-#endif
 		
 		for (std::vector<const Property*>::const_iterator ci = to_fact->getProperties().begin(); ci != to_fact->getProperties().end(); ci++)
 		{
 			// Check if the property space this to_fact belongs to has already been created.
-			const Property* to_fact_proprety = *ci;
-			const PropertySpace& to_fact_property_space = to_fact_proprety->getPropertyState().getPropertySpace();
+			const Property* to_fact_property = *ci;
+			const PropertySpace& to_fact_property_space = to_fact_property->getPropertyState().getPropertySpace();
 			std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::iterator property_space_i = property_space_balanced_sets.find(&to_fact_property_space);
 			std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > add_remove_list;
 			if (property_space_i == property_space_balanced_sets.end())
@@ -587,8 +584,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 				{
 					const Property* from_fact_property = *ci;
 					// Check if the fact in the to node is added or was already present.
-					//if (to_node.getIndex(*to_fact) == from_node.getIndex(*from_fact) &&
-					if (to_fact_proprety == from_fact_property &&
+					if (*to_fact_property == *from_fact_property &&
 						to_fact->getAtom().isNegative() == from_fact->getAtom().isNegative() &&
 						bindings.areEquivalent(to_fact->getAtom(), to_fact->getId(), from_fact->getAtom(), from_fact->getId()))
 					{
@@ -597,7 +593,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 					}
 				}
 				
-				if (is_added) break;
+				if (!is_added) break;
 			}
 			
 			if (is_added)
@@ -672,7 +668,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 
 				if (is_added && is_deleted)
 				{
-		//			std::cout << "Invallid persistent fact!" << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+					std::cout << "Invallid persistent fact!" << std::endl;
+#endif
 					remove_list->push_back(from_persistent_atom);
 					add_list->push_back(to_persistent_atom);
 					persistent_facts.erase(persistent_ci.base() - 1);

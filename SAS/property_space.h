@@ -54,6 +54,8 @@ public:
 	
 	bool isMutexWith(const Property* property) const;
 	
+	bool operator==(const Property& property) const;
+	
 private:
 	const PropertyState* property_state_;
 	const Predicate* predicate_;

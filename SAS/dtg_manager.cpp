@@ -26,7 +26,7 @@
 #include "recursive_function.h"
 #include "dtg_reachability.h"
 
-///#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 ///#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 
 
@@ -115,7 +115,7 @@ bool BoundedAtom::addProperty(const Property& property)
 	for (std::vector<const Property*>::const_iterator ci = properties_.begin(); ci != properties_.end(); ci++)
 	{
 		const Property* existing_property = *ci;
-		if (&property == existing_property)
+		if (property == *existing_property)
 			return false;
 	}
 	
@@ -154,7 +154,8 @@ bool BoundedAtom::isMutexWith(const BoundedAtom& other, const Bindings& bindings
 					return true;
 				}
 				
-				if (invariable_term->canUnify(id_, *other_invariable_term, other.id_, bindings))
+				//if (invariable_term->canUnify(id_, *other_invariable_term, other.id_, bindings))
+				if (invariable_term->isTheSameAs(id_, *other_invariable_term, other.id_, bindings))
 				{
 					return true;
 				}
@@ -163,14 +164,6 @@ bool BoundedAtom::isMutexWith(const BoundedAtom& other, const Bindings& bindings
 	}
 	
 	return false;
-	
-/*	if (property_ != NULL)
-	{
-		return property_->isMutexWith(other.getProperty());
-	}
-	
-	return false;
-*/
 }
 
 bool BoundedAtom::isMutexWith(const Atom& atom, StepID step_id, const Bindings& bindings, InvariableIndex invariable_index) const
@@ -454,8 +447,6 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 					
 					if (processed_expressions.count(predicates_rhs) == 0)
 					{
-						//dtg->addPredicate(predicates_rhs, true);
-						//predicates_to_add.insert(predicates_to_add.end(), predicates_rhs.begin(), predicates_rhs.end());
 						///property_states.push_back(new PropertyState(*dtg_property_space, predicates_rhs));
 						PropertyState* new_property_state = new PropertyState(*dtg_property_space, predicates_rhs);
 						dtg_property_space->addPropertyState(*new_property_state);
@@ -470,7 +461,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 				}
 			}
 		}
-		
+
 		// After having augmented the rules for which the LHS formed a proper subset we finish constructing the DTGs for those rules
 		// which do not have this property. The reason why this step has to be done last is because of the way we construct DTGs, if
 		// we do the augmented rules before this, we might add a DTG node for a rule which is a strict subset. Then, when adding the
@@ -486,9 +477,6 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 			
 			if (processed_expressions.count(predicates) == 0)
 			{
-				//dtg->addPredicate(predicates, true);
-				//predicates_to_add.insert(predicates_to_add.end(), predicates.begin(), predicates.end());
-///				property_states.push_back(new PropertyState(*dtg_property_space, predicates));
 				PropertyState* new_property_state = new PropertyState(*dtg_property_space, predicates);
 				dtg_property_space->addPropertyState(*new_property_state);
 				processed_expressions.insert(predicates);
@@ -499,9 +487,6 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 			
 			if (processed_expressions.count(predicates) == 0)
 			{
-				//dtg->addPredicate(predicates, true);
-				//predicates_to_add.insert(predicates_to_add.end(), predicates.begin(), predicates.end());
-				///property_states.push_back(new PropertyState(*dtg_property_space, predicates));
 				PropertyState* new_property_state = new PropertyState(*dtg_property_space, predicates);
 				dtg_property_space->addPropertyState(*new_property_state);
 				processed_expressions.insert(predicates);
@@ -1034,10 +1019,52 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 		}
 		
 		// Merge the properties of all the facts.
-		unsigned int counter = 0;
+		
+		std::cout << "Merge the properties of all facts: " << *identical_dtg_node << " - combine it with:" << *hub_dtg_node << "." << std::endl;
+		
 		for (std::vector<BoundedAtom*>::const_iterator ci = identical_dtg_node->getAtoms().begin(); ci != identical_dtg_node->getAtoms().end(); ci++)
 		{
 			const BoundedAtom* bounded_atom = *ci;
+			bool found_equivalent = false;
+			
+			// If a node in the combined dtg node hast he same properties, we don't need to add the properties.
+			for (std::vector<BoundedAtom*>::const_iterator ci = combined_dtg_node->getAtoms().begin(); ci != combined_dtg_node->getAtoms().end(); ci++)
+			{
+				const BoundedAtom* combined_atom = *ci;
+				
+				if (combined_dtg_node->getDTG().getBindings().areEquivalent(combined_atom->getAtom(), combined_atom->getId(), bounded_atom->getAtom(), bounded_atom->getId(), &identical_dtg_node->getDTG().getBindings()))
+				{
+					bool all_properties_present = true;
+					for (std::vector<const Property*>::const_iterator ci = combined_atom->getProperties().begin(); ci != combined_atom->getProperties().end(); ci++)
+					{
+						const Property* combined_atom_property = *ci;
+						bool property_present = false;
+						for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
+						{
+							const Property* identical_atom_property = *ci;
+							if (*combined_atom_property == *identical_atom_property)
+							{
+								property_present = true;
+								break;
+							}
+						}
+						
+						if (!property_present)
+						{
+							all_properties_present = false;
+							break;
+						}
+					}
+					
+					if (all_properties_present)
+					{
+						found_equivalent = true;
+						break;
+					}
+				}
+			}
+			
+			if (found_equivalent) continue;
 			
 			for (std::vector<BoundedAtom*>::const_iterator ci = combined_dtg_node->getAtoms().begin(); ci != combined_dtg_node->getAtoms().end(); ci++)
 			{
@@ -1045,15 +1072,23 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 				
 				if (combined_dtg_node->getDTG().getBindings().areEquivalent(combined_atom->getAtom(), combined_atom->getId(), bounded_atom->getAtom(), bounded_atom->getId(), &identical_dtg_node->getDTG().getBindings()))
 				{
-					++counter;
+					found_equivalent = true;
 					for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
 					{
 						combined_atom->addProperty(**ci);
 					}
 				}
 			}
+			
+			if (!found_equivalent)
+			{
+				std::cout << "Could not find an equivalent node for: ";
+				bounded_atom->print(std::cout, combined_dtg_node->getDTG().getBindings());
+				std::cout << std::endl;
+				assert (false);
+			}
+			
 		}
-		assert (counter == identical_dtg_node->getAtoms().size());
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 		std::cout << "Result of merging / creating: " << *combined_dtg_node << std::endl;
 #endif
@@ -1321,6 +1356,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 #endif
 								BoundedAtom* bounded_precondition = new BoundedAtom(transition->getStep()->getStepId(), *precondition, identical_bounded_atom->getProperties());
 								preconditions_to_add_to_to_node.push_back(std::make_pair(bounded_precondition, precondition_invariable_index));
+								//preconditions_to_add_to_to_node.push_back(std::make_pair(bounded_precondition, from_dtg_node_clone->getIndex(*identical_bounded_atom)));
 							}
 							continue;
 						}
@@ -1387,7 +1423,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 #endif
 
 										// Check if we can figure out the property(ies) linked with this precondition.
-										std::set<const Property*> property_set;
+										std::vector<const Property*> property_set;
 										for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ci++)
 										{
 											const std::vector<const Property*>& existing_property_set = (*ci).second->getProperties();
@@ -1396,31 +1432,33 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 											for (std::vector<const Property*>::const_iterator ci = existing_property_set.begin(); ci != existing_property_set.end(); ci++)
 											{
 												const Property* property = *ci;
-												property_set.insert(property);
-												// TODO: Figure out when a property should be linked to the precondition.
-/*
-												std::cout << "Found property: " << *property << std::endl;
 												
-												if (property->getIndex() == NO_INVARIABLE_INDEX)
+												bool is_present = false;
+												for (std::vector<const Property*>::const_iterator ci = property_set.begin(); ci != property_set.end(); ci++)
 												{
-													continue;
+													const Property* existing_property = *ci;
+													if (*property == *existing_property)
+													{
+														is_present = true;
+														break;
+													}
 												}
 												
-												if (precondition->getTerms()[property->getIndex()]->isEquivalentTo(transition->getStep()->getStepId(), *invariable_term, transition->getStep()->getStepId(), dtg->getBindings()))
+												if (!is_present)
 												{
-													property_set.insert(property);
-												}*/
+													property_set.push_back(property);
+												}
 											}
 										}
 										
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 										std::cout << "Found properties: ";
-										for (std::set<const Property*>::const_iterator ci = property_set.begin(); ci != property_set.end(); ci++)
+										for (std::vector<const Property*>::const_iterator ci = property_set.begin(); ci != property_set.end(); ci++)
 										{
 											const Property* shared_property = *ci;
 											std::cout << *shared_property;
 											
-//												if (ci != property_set.end() - 1)
+											if (ci + 1 != property_set.end())
 												std::cout << ", ";
 										}
 										std::cout << "." << std::endl;
@@ -1446,6 +1484,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 #endif
 												BoundedAtom* bounded_precondition = new BoundedAtom(transition->getStep()->getStepId(), *precondition, *property_list);
 												preconditions_to_add_to_to_node.push_back(std::make_pair(bounded_precondition, precondition_invariable_index));
+												//preconditions_to_add_to_to_node.push_back(std::make_pair(bounded_precondition, std::distance(precondition->getTerms().begin(), term_precondition_ci)));
 											}
 										}
 										else if (add_predicate)
@@ -1464,6 +1503,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 											}
 
 											atoms_to_add_to_from_node.push_back(std::make_pair(atom_to_add, precondition_invariable_index));
+//											atoms_to_add_to_from_node.push_back(std::make_pair(atom_to_add, std::distance(precondition->getTerms().begin(), term_precondition_ci)));
 
 											finished = false;
 											precondition_added = true;

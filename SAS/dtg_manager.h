@@ -60,7 +60,6 @@ public:
 	static BoundedAtom& createBoundedAtom(const Atom& atom, const Property& property, Bindings& bindings);
 	static BoundedAtom& createBoundedAtom(const Atom& atom, const std::vector<const Property*>& properties, Bindings& bindings);
 
-	//BoundedAtom(StepID id, const Atom& atom, const Property* property);
 	BoundedAtom(StepID id, const Atom& atom);
 	BoundedAtom(StepID id, const Atom& atom, const std::vector<const Property*>& properties);
 

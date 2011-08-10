@@ -249,10 +249,14 @@ void DomainTransitionGraphNode::addAtom(BoundedAtom* bounded_atom, InvariableInd
 	{
 		if (bounded_atom->isMutexWith(**ci, dtg_->getBindings()))
 		{
-			bounded_atom->getAtom().print(std::cout);
-			std::cout << "(" << index << ") and ";
-			(*ci)->getAtom().print(std::cout);
-			std::cout << "(" << getIndex(**ci) << ") are mutex!" << std::endl;
+			bounded_atom->print(std::cout, dtg_->getBindings());
+			std::cout << " and ";
+			(*ci)->print(std::cout, dtg_->getBindings());
+			std::cout << " are mutex!" << std::endl;
+//			bounded_atom->getAtom().print(std::cout);
+//			std::cout << "(" << index << ") and ";
+//			(*ci)->getAtom().print(std::cout);
+//			std::cout << "(" << getIndex(**ci) << ") are mutex!" << std::endl;
 			assert (false);
 		}
 	}

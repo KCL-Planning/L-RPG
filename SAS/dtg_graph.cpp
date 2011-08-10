@@ -20,7 +20,7 @@
 #include "../bindings_propagator.h"
 #include "../plan.h"
 
-///#define MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+#define MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 
 namespace MyPOP {
 

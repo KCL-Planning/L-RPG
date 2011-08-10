@@ -1095,7 +1095,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	
 	for (std::vector<BoundedAtom*>::const_iterator ci = to_node.getAtoms().begin(); ci != to_node.getAtoms().end(); ci++)
 	{
-
 		const BoundedAtom* bounded_atom = *ci;
 		
 		for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
@@ -1611,6 +1610,21 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		}
 	}
 	
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+	std::cout << "[Transition::createTransition] Unify the persistent facts!" << std::endl;
+#endif
+	for (std::vector<std::pair<const BoundedAtom*, const BoundedAtom*> >::const_iterator ci = persistent_facts.begin(); ci != persistent_facts.end(); ci++)
+	{
+		const BoundedAtom* from_node_persistent_fact = (*ci).first;
+		const BoundedAtom* to_node_persistent_fact = (*ci).second;
+		
+		for (unsigned int i = 0; i < from_node_persistent_fact->getAtom().getArity(); i++)
+		{
+			// Merge the terms together.
+			bindings.unify(from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId(), to_node_persistent_fact->getAtom(), to_node_persistent_fact->getId());
+		}
+	}
+
 	/**
 	 * All the facts in a DTG node are part of a balanced set. All preconditions which contain this invariable and could unify with
 	 * a fact of the from node should do so. If the said precondition contains a term which is part of a balanced set, then this
@@ -1673,9 +1687,20 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 						std::cout << "\t\tCompare v.s. ";
 						bounded_atom->print(std::cout, bindings);
 						std::cout << std::endl;
+						
+						std::cout << "Is: ";
+						term->print(std::cout, bindings, action_step->getStepId());
+						std::cout << " the same as the " << precondition_term_index << "th term of the bounded atom?" << std::endl;
+						
+						std::cout << "Can the predicate be substituted: " << bounded_atom->getAtom().getPredicate().canSubstitute(precondition->getPredicate()) << "?" << std::endl;
+						if (bounded_atom->getAtom().getPredicate().canSubstitute(precondition->getPredicate()))
+						{
+							std::cout << "Are the terms the same: " << term->isTheSameAs(action_step->getStepId(), *bounded_atom->getAtom().getTerms()[precondition_term_index], bounded_atom->getId(), bindings) << "?" << std::endl;
+						}
+						
 #endif
 						
-						if (bounded_atom->getAtom().getPredicate().canSubstitute(precondition->getPredicate()) &&
+						if (precondition->getPredicate().canSubstitute(bounded_atom->getAtom().getPredicate()) &&
 						    term->isTheSameAs(action_step->getStepId(), *bounded_atom->getAtom().getTerms()[precondition_term_index], bounded_atom->getId(), bindings))
 						{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
@@ -1697,22 +1722,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 					// Check which other terms of this precondition are considered to be balanced.
 					for (unsigned int i = 0; i < precondition->getArity(); i++)
 					{
-/*
-						if (precondition_term_index == i)
-						{
-							continue;
-						}
-						
-						std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > matching_dtg_nodes;
-						from_node.getDTG().getDTGManager().getDTGNodes(matching_dtg_nodes, action_step->getStepId(), *precondition, bindings, i);
-						
-						if (matching_dtg_nodes.size() != 0)
-						{
-#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-							std::cout << "The " << i << "th term is invariable too!" << std::endl;
-#endif
-*/
-							
 							const std::vector<const Object*>& other_precondition_term_domain = precondition->getTerms()[i]->getDomain(action_step->getStepId(), bindings);
 							if (closed_list_balanced_domains.count(&other_precondition_term_domain) == 0)
 							{
@@ -1722,21 +1731,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 					}
 				}
 			}
-		}
-	}
-	
-#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-	std::cout << "[Transition::createTransition] Unify the persistent facts!" << std::endl;
-#endif
-	for (std::vector<std::pair<const BoundedAtom*, const BoundedAtom*> >::const_iterator ci = persistent_facts.begin(); ci != persistent_facts.end(); ci++)
-	{
-		const BoundedAtom* from_node_persistent_fact = (*ci).first;
-		const BoundedAtom* to_node_persistent_fact = (*ci).second;
-		
-		for (unsigned int i = 0; i < from_node_persistent_fact->getAtom().getArity(); i++)
-		{
-			// Merge the terms together.
-			bindings.unify(from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId(), to_node_persistent_fact->getAtom(), to_node_persistent_fact->getId());
 		}
 	}
 

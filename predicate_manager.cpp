@@ -33,6 +33,8 @@ void Predicate::makeStatic(bool make_static)
 
 bool Predicate::canSubstitute(const Predicate& predicate) const
 {
+	std::cout << "Can " << *this << " substitute " << predicate << "?" << std::endl;
+	
 	if (predicate.getName() != name_)
 		return false;
 	
@@ -46,7 +48,10 @@ bool Predicate::canSubstitute(const Predicate& predicate) const
 		const Type* other_type = (*predicate.types_)[i];
 		
 		if (this_type != other_type && !this_type->isSupertypeOf(*other_type))
+		{
+			std::cout << "The " << i << "th types are not the same nor is " << *this_type << " a super type of " << *other_type << "!" << std::endl;
 			return false;
+		}
 	}
 	return true;
 }

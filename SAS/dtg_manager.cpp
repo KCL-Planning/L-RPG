@@ -1021,50 +1021,11 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 		// Merge the properties of all the facts.
 		
 		std::cout << "Merge the properties of all facts: " << *identical_dtg_node << " - combine it with:" << *hub_dtg_node << "." << std::endl;
-		
+
 		for (std::vector<BoundedAtom*>::const_iterator ci = identical_dtg_node->getAtoms().begin(); ci != identical_dtg_node->getAtoms().end(); ci++)
 		{
 			const BoundedAtom* bounded_atom = *ci;
 			bool found_equivalent = false;
-			
-			// If a node in the combined dtg node hast he same properties, we don't need to add the properties.
-			for (std::vector<BoundedAtom*>::const_iterator ci = combined_dtg_node->getAtoms().begin(); ci != combined_dtg_node->getAtoms().end(); ci++)
-			{
-				const BoundedAtom* combined_atom = *ci;
-				
-				if (combined_dtg_node->getDTG().getBindings().areEquivalent(combined_atom->getAtom(), combined_atom->getId(), bounded_atom->getAtom(), bounded_atom->getId(), &identical_dtg_node->getDTG().getBindings()))
-				{
-					bool all_properties_present = true;
-					for (std::vector<const Property*>::const_iterator ci = combined_atom->getProperties().begin(); ci != combined_atom->getProperties().end(); ci++)
-					{
-						const Property* combined_atom_property = *ci;
-						bool property_present = false;
-						for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
-						{
-							const Property* identical_atom_property = *ci;
-							if (*combined_atom_property == *identical_atom_property)
-							{
-								property_present = true;
-								break;
-							}
-						}
-						
-						if (!property_present)
-						{
-							all_properties_present = false;
-							break;
-						}
-					}
-					
-					if (all_properties_present)
-					{
-						found_equivalent = true;
-						break;
-					}
-				}
-			}
-			
-			if (found_equivalent) continue;
 			
 			for (std::vector<BoundedAtom*>::const_iterator ci = combined_dtg_node->getAtoms().begin(); ci != combined_dtg_node->getAtoms().end(); ci++)
 			{
@@ -1266,6 +1227,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 				assert (transition != NULL);
 
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+				std::cout << "[DomainTransitionGraphManager::createPointToPointTransitions] Original transition: " << *org_transition << std::endl;
 				std::cout << "[DomainTransitionGraphManager::createPointToPointTransitions] Process the transition: " << *transition << std::endl;
 #endif
 

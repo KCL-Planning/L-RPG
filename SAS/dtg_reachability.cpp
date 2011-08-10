@@ -1,5 +1,6 @@
 #include <cstring>
 #include <iterator>
+#include <sys/time.h>
 
 #include "dtg_reachability.h"
 #include "dtg_manager.h"
@@ -18,14 +19,14 @@ namespace MyPOP {
 namespace SAS_Plus {
 
 EquivalentObjectGroup::EquivalentObjectGroup(const Object& object, const DomainTransitionGraph& dtg_graph)
-	: dtg_graph_(&dtg_graph)
+	: dtg_graph_(&dtg_graph), link_(NULL)
 {
 	initial_mapping_[&object] = new std::vector<const DomainTransitionGraphNode*>();
 	initialiseFingerPrint(object, dtg_graph);
 }
 	
 EquivalentObjectGroup::EquivalentObjectGroup(const Object& object, const DomainTransitionGraph& dtg_graph, std::vector<const DomainTransitionGraphNode*>& initial_dtgs)
-	: dtg_graph_(&dtg_graph)
+	: dtg_graph_(&dtg_graph), link_(NULL)
 {
 	initial_mapping_[&object] = &initial_dtgs;
 	initialiseFingerPrint(object, dtg_graph);
@@ -71,36 +72,79 @@ void EquivalentObjectGroup::initialiseFingerPrint(const Object& object, const Do
 
 bool EquivalentObjectGroup::addInitialDTGNodeMapping(const Object& object, const DomainTransitionGraphNode& dtg_node)
 {
+	if (link_ != NULL)
+	{
+		return link_->addInitialDTGNodeMapping(object, dtg_node);
+	}
 	std::map<const Object*, std::vector<const DomainTransitionGraphNode*> *>::iterator i = initial_mapping_.find(&object);
 	std::vector<const DomainTransitionGraphNode*>* mapping;
 	if (i == initial_mapping_.end())
 	{
 		mapping = new std::vector<const DomainTransitionGraphNode*>();
-		mapping->push_back(&dtg_node);
+	}
+	else
+	{
+		mapping = (*i).second;
+	}
+	mapping->push_back(&dtg_node);
+	
+	updateReachableFacts(object, dtg_node);
+	
+	return true;
+}
+
+void EquivalentObjectGroup::updateReachableFacts(const Object& object, const DomainTransitionGraphNode& dtg_node)
+{
+	for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node.getAtoms().begin(); ci != dtg_node.getAtoms().end(); ci++)
+	{
+		const BoundedAtom* bounded_atom = *ci;
+		
+		bool is_part = false;
+		for (unsigned int i = 0; i < bounded_atom->getAtom().getArity(); i++)
+		{
+			const std::vector<const Object*>& domain = bounded_atom->getVariableDomain(i, dtg_node.getDTG().getBindings());
+			if (std::find(domain.begin(), domain.end(), &object) != domain.end())
+			{
+				is_part = true;
+				break;
+			}
+		}
+		
+		if (is_part)
+		{
+//			std::vector<const EquivalentObjectGroup*>* terms = new std::vector<const EquivalentObjectGroup*>();
+			
+//			EOGFact* eog_fact = new EOGFact(bounded_atom->getAtom().getPredicate(), const std::vector<const EquivalentObjectGroup*>& terms);
+			
+		}
+	}
+}
+
+bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group, const std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* >& reachable_nodes)
+{
+	// If two object groups are part of the same root node they are already merged!
+	EquivalentObjectGroup& this_root_node = getRootNode();
+	EquivalentObjectGroup& other_root_node = other_group.getRootNode();
+	if (&this_root_node == &other_root_node)
+	{
 		return true;
 	}
 	
-	mapping = (*i).second;
-	if (std::find(mapping->begin(), mapping->end(), &dtg_node) == mapping->end())
+	// Make sure to only call this method with the root nodes.
+	if (link_ != NULL)
 	{
-		mapping->push_back(&dtg_node);
-		return true;
+		return this_root_node.tryToMergeWith(other_root_node, reachable_nodes);
 	}
-	return false;
-}
+	else if (other_group.link_ != NULL)
+	{
+		return tryToMergeWith(other_root_node, reachable_nodes);
+	}
 
-bool EquivalentObjectGroup::tryToMergeWith(const EquivalentObjectGroup& other_group, const std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* >& reachable_nodes)
-{
 	// Only allow to merge two equivalent object groups if the fingerprints are equal!
 	assert (finger_print_size_ == other_group.finger_print_size_);
 	if (memcmp(finger_print_, other_group.finger_print_, finger_print_size_) != 0)
 	{
 		return false;
-	}
-	
-	if (this == &other_group)
-	{
-		return true;
 	}
 	
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
@@ -236,7 +280,7 @@ bool EquivalentObjectGroup::tryToMergeWith(const EquivalentObjectGroup& other_gr
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 				std::cout << *this << " is reachable from " << other_group << "." << std::endl;
 #endif
-				initial_mapping_.insert(other_group.initial_mapping_.begin(), other_group.initial_mapping_.end());
+				merge(other_group);
 				return true;
 			}
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
@@ -272,8 +316,27 @@ bool EquivalentObjectGroup::tryToMergeWith(const EquivalentObjectGroup& other_gr
 	return false;
 }
 
+void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group)
+{
+	assert (other_group.link_ == NULL);
+	initial_mapping_.insert(other_group.initial_mapping_.begin(), other_group.initial_mapping_.end());
+	other_group.link_ = this;
+}
+
+EquivalentObjectGroup& EquivalentObjectGroup::getRootNode()
+{
+	if (link_ == NULL)
+		return *this;
+	return link_->getRootNode();
+}
+
 std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group)
 {
+	if (group.link_ != NULL)
+	{
+		os << *group.link_;
+		return os;
+	}
 	os << " -= EquivalentObjectGroup =- " << std::endl;
 	
 	for (std::map<const Object*, std::vector<const DomainTransitionGraphNode*> *>::const_iterator ci = group.initial_mapping_.begin(); ci != group.initial_mapping_.end(); ci++)
@@ -558,6 +621,11 @@ bool DTGReachability::makeReachable(const DomainTransitionGraphNode& dtg_node, s
 
 void DTGReachability::performReachabilityAnalsysis(const std::vector<const BoundedAtom*>& initial_facts, const TermManager& term_manager)
 {
+//	double time_propagating = 0;
+//	double time_iterating = 0;
+//	double time_establishing_equivalances = 0;
+//	unsigned int amount_of_iterating = 0;
+	
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "Start performing reachability analysis." << std::endl;
 #endif
@@ -572,6 +640,9 @@ void DTGReachability::performReachabilityAnalsysis(const std::vector<const Bound
 	std::set<const Transition*> achieved_transitions;
 	
 	unsigned int pre_size = 0;
+	
+	struct timeval start_time_init;
+	gettimeofday(&start_time_init, NULL);
 	
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "Find initial supported DTG nodes." << std::endl;
@@ -592,261 +663,42 @@ void DTGReachability::performReachabilityAnalsysis(const std::vector<const Bound
 			makeReachable(*dtg_node, **ci);
 		}
 	}
+	struct timeval end_time_init;
+	gettimeofday(&end_time_init, NULL);
+	
+	double time_spend = end_time_init.tv_sec - start_time_init.tv_sec + (end_time_init.tv_usec - start_time_init.tv_usec) / 1000000.0;
+	std::cerr << "Time spend initiating initial structure: " << time_spend << std::endl;
 
 	// Keep on iterator as long as we can establish new facts.
 	do 
 	{
 		pre_size = established_facts.size();
+		
+		struct timeval start_time;
+		gettimeofday(&start_time, NULL);
 		iterateThroughFixedPoint(established_facts, achieved_transitions);
+		struct timeval end_time;
+		gettimeofday(&end_time, NULL);
+		
+		time_spend = end_time.tv_sec - start_time.tv_sec + (end_time.tv_usec - start_time.tv_usec) / 1000000.0;
+		std::cerr << "Time spend iterating: " << time_spend << std::endl;
 		
 		// After no other transitions can be reached we establish the object equivalence relations.
+		gettimeofday(&start_time, NULL);
 		equivalent_object_manager_->updateEquivalences(reachable_nodes_);
+		gettimeofday(&end_time, NULL);
+		time_spend = end_time.tv_sec - start_time.tv_sec + (end_time.tv_usec - start_time.tv_usec) / 1000000.0;
+		std::cerr << "Time spend establishing equivalent relationships: " << time_spend << std::endl;
 		
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 		equivalent_object_manager_->print(std::cout);
 #endif
 
-		// Check for DTG nodes which have a transition in which a grounded node links two facts which are part of different
-		// balanced sets.
-		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph_->getNodes().begin(); ci != dtg_graph_->getNodes().end(); ci++)
-		{
-			const DomainTransitionGraphNode* dtg_node = *ci;
-			
-			std::map<const Transition*, std::vector<const std::vector<const Object*>* >* > transitions;
-			dtg_node->getExternalDependendTransitions(transitions);
-			
-			/**
-			 * For each transition which contains terms with an external dependency we evaluate all the values these
-			 * external dependend terms can have and see if any other nodes are reachable from the from node of the
-			 * transition.
-			 *
-			 * Examples where this situation can occur is in driverlog in the unload transitions between { (in package truck)
-			 * AND (at truck loc) } -> (at package loc). The final location of the package is dependend on the location of the
-			 * truck. However, the location of the truck is not handled by the object package and the driver action is not
-			 * part of the package's property space.
-			 *
-			 * Therefore we check which trucks can have a package on board and what locations these trucks can occupy. This will
-			 * determine where packages can be unloaded.
-			 */
-			for (std::map<const Transition*, std::vector<const std::vector<const Object*>* >* >::const_iterator ci = transitions.begin(); ci != transitions.end(); ci++)
-			{
-				const Transition* transition = (*ci).first;
-				const std::vector<const std::vector<const Object*>* >* dependend_term_domains = (*ci).second;
-				
-				// Check if atom which is part of the external dependency can take on different values for the grounded term.
-				const DomainTransitionGraphNode& from_node = transition->getFromNode();
-				const std::vector<std::vector<const BoundedAtom*>* >* supporing_facts_from_node = supported_facts_[&from_node];
-
-				if (supporing_facts_from_node->size() == 0)
-				{
-					continue;
-				}
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-				std::cout << "The transition: " << *transition << " has external dependencies!" << std::endl;
-#endif
-				// Prepate a mask so we can identify which terms have external dependencies and which do not.
-				unsigned int largest_arity = 0;
-				for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
-				{
-					if ((*ci)->getAtom().getArity() > largest_arity)
-					{
-						largest_arity = (*ci)->getAtom().getArity();
-					}
-				}
-				bool dependend_term_mapping[from_node.getAtoms().size()][largest_arity];
-				memset(&dependend_term_mapping[0][0], false, sizeof(bool) * largest_arity * dependend_term_domains->size());
-
-				std::vector<const BoundedAtom*> equivalent_nodes_to_find;
-				bool facts_with_external_dependencies[from_node.getAtoms().size()];
-				memset(&facts_with_external_dependencies[0], false, sizeof(bool) * from_node.getAtoms().size());
-				
-				/**
-				 * Determine which facts and terms contain external dependencies. We create a list of bounded atoms which
-				 * is used to search for DTG nodes which contain the same facts as the from node of the transition except 
-				 * for those terms which is external dependend. So in the example above of driverlog the location is the
-				 * external dependend term and may vary in the DTG nodes we are looking for - the rest needs to the exactly
-				 * the same!
-				 */
-				for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
-				{
-					const BoundedAtom* from_node_bounded_atom = *ci;
-					BoundedAtom& new_bounded_atom = BoundedAtom::createBoundedAtom(from_node_bounded_atom->getAtom(), from_node_bounded_atom->getProperties(), dtg_graph_->getBindings());
-					
-					// Make the term's domain equal to the original - except if has an external dependency.
-					for (unsigned int i = 0; i < new_bounded_atom.getAtom().getArity(); i++)
-					{
-						const std::vector<const Object*>& org_domain = from_node_bounded_atom->getAtom().getTerms()[i]->getDomain(from_node_bounded_atom->getId(), dtg_graph_->getBindings());
-						const Term* new_term = new_bounded_atom.getAtom().getTerms()[i];
-						
-						// It is not a dependend term - copy.
-						if (std::find(dependend_term_domains->begin(), dependend_term_domains->end(), &org_domain) == dependend_term_domains->end())
-						{
-							new_term->makeDomainEqualTo(new_bounded_atom.getId(), org_domain, dtg_graph_->getBindings());
-							dependend_term_mapping[std::distance(from_node.getAtoms().begin(), ci)][i] = false;
-						}
-						// Else it is a dependend term - leave it.
-						else
-						{
-							facts_with_external_dependencies[std::distance(from_node.getAtoms().begin(), ci)] = true;
-							dependend_term_mapping[std::distance(from_node.getAtoms().begin(), ci)][i] = true;
-						}
-					}
-					equivalent_nodes_to_find.push_back(&new_bounded_atom);
-				}
-				
-				// Now find all the DTG nodes which match this criterium.
-				std::vector<const DomainTransitionGraphNode*> matching_dtgs;
-				dtg_graph_->getNodes(matching_dtgs, equivalent_nodes_to_find);
-
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-				std::cout << "Found matching DTG nodes: " << std::endl;
-				for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = matching_dtgs.begin(); ci != matching_dtgs.end(); ci++)
-				{
-					const DomainTransitionGraphNode* dtg_node = *ci;
-					std::cout << *dtg_node << std::endl;
-				}
-#endif
-
-				/**
-				 * For every DTG node which conforms to the above requirements, we check if the external dependencies
-				 * can be satisfied to make these nodes reachable from the from node.
-				 */
-				for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = matching_dtgs.begin(); ci != matching_dtgs.end() - 1; ci++)
-				{
-					const DomainTransitionGraphNode* equivalent_dtg_node = *ci;
-
-					if (equivalent_dtg_node == &from_node) continue;
-					assert (equivalent_dtg_node->getAtoms().size() == from_node.getAtoms().size());
-					
-					/**
-					 * We construct the bounded atoms corresponding to the facts which need to be reached to satisfy the
-					 * externally dependend facts.
-					 */
-					for (std::vector<std::vector<const BoundedAtom*>* >::const_iterator ci = supporing_facts_from_node->begin(); ci != supporing_facts_from_node->end(); ci++)
-					{
-						const std::vector<const BoundedAtom*>* supporting_facts = *ci;
-					
-						/**
-						* Check all the facts of the potential to nodes and check if we can reach them - we only need to
-						* check the facts which contain an external dependency.
-						*/
-						bool all_externally_dependend_facts_can_be_reached = true;
-						std::vector<const BoundedAtom*>* reachable_facts = new std::vector<const BoundedAtom*>();
-						for (unsigned int i = 0; i < from_node.getAtoms().size(); i++)
-						{
-							if (!facts_with_external_dependencies[i])
-							{
-								reachable_facts->push_back((*supporting_facts)[i]);
-								continue;
-							}
-							
-							const BoundedAtom* from_supporting_fact = (*supporting_facts)[i];
-							const BoundedAtom* equivalent_fact_to_reach = equivalent_dtg_node->getAtoms()[i];
-							
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-							// Check if the fact from from_node can reach the fact in the equivalent dtg node.
-							std::cout << "Can we reach: ";
-							equivalent_fact_to_reach->print(std::cout, dtg_graph_->getBindings());
-							std::cout << " from {";
-							
-							for (std::vector<std::vector<const BoundedAtom*>* >::const_iterator ci = supporing_facts_from_node->begin(); ci != supporing_facts_from_node->end(); ci++)
-							{
-								std::vector<const BoundedAtom*>* supporting_facts = *ci;
-								if (supporting_facts->size() != from_node.getAtoms().size())
-								{
-									std::cout << "The supporting facts for the DTG node:" << std::endl;
-									std::cout << from_node << ": " << std::endl;
-									for (std::vector<const BoundedAtom*>::const_iterator ci = supporting_facts->begin(); ci != supporting_facts->end(); ci++)
-									{
-										(*ci)->print(std::cout, dtg_graph_->getBindings());
-										std::cout << std::endl;
-									}
-									assert (false);
-								}
-								(**ci)[i]->print(std::cout, dtg_graph_->getBindings());
-							}
-							std::cout << "}?" << std::endl;
-#endif
-						
-							const BoundedAtom& atom_to_reach = BoundedAtom::createBoundedAtom(equivalent_fact_to_reach->getAtom(), equivalent_fact_to_reach->getProperties(), dtg_graph_->getBindings());
-							for (unsigned int j = 0; j < atom_to_reach.getAtom().getArity(); j++)
-							{
-								const Term* atom_to_reach_term = atom_to_reach.getAtom().getTerms()[j];
-								const Term* to_node_term = equivalent_fact_to_reach->getAtom().getTerms()[j];
-								const Term* from_node_term = from_supporting_fact->getAtom().getTerms()[j];
-								
-								assert (i < from_node.getAtoms().size());
-								assert (j < largest_arity);
-								
-								// Check if this term is externally dependend, if it is we make it equal to the to node.
-								if (dependend_term_mapping[i][j])
-								{
-									atom_to_reach_term->makeDomainEqualTo(atom_to_reach.getId(), to_node_term->getDomain(equivalent_fact_to_reach->getId(), dtg_graph_->getBindings()), dtg_graph_->getBindings());
-								}
-								// Else we make it equal to the from node.
-								else
-								{
-									atom_to_reach_term->makeDomainEqualTo(atom_to_reach.getId(), from_node_term->getDomain(from_supporting_fact->getId(), dtg_graph_->getBindings()), dtg_graph_->getBindings());
-								}
-							}
-							reachable_facts->push_back(&atom_to_reach);
-							
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-							std::cout << "Atom to search for: ";
-							atom_to_reach.print(std::cout, dtg_graph_->getBindings());
-							std::cout << std::endl;
-#endif
-							
-							// TODO: Very inefficient, in the future we will use object equivalence groups to handle this.
-							bool has_been_achieved = false;
-							for (std::vector<const BoundedAtom*>::const_iterator ci = established_facts.begin(); ci != established_facts.end(); ci++)
-							{
-								const BoundedAtom* reached_atom = *ci;
-								if (dtg_graph_->getBindings().canUnifyBoundedAtoms(*reached_atom, atom_to_reach))
-								{
-									has_been_achieved = true;
-									break;
-								}
-							}
-							
-							if (!has_been_achieved)
-							{
-								all_externally_dependend_facts_can_be_reached = false;
-								break;
-							}
-						}
-						
-						if (all_externally_dependend_facts_can_be_reached)
-						{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-							std::cout << *equivalent_dtg_node << " can be reached from: " << std::endl;
-							
-							for (std::vector<const BoundedAtom*>::const_iterator ci = supporting_facts->begin(); ci != supporting_facts->end(); ci++)
-							{
-								const BoundedAtom* bounded_atom = *ci;
-								std::cout << " * ";
-								bounded_atom->print(std::cout, dtg_graph_->getBindings());
-								std::cout << "." << std::endl;
-							}
-							
-							// Add the new facts to the list! :)
-							std::cout << "New bounded atoms to add:" << std::endl;
-							for (std::vector<const BoundedAtom*>::const_iterator ci = reachable_facts->begin(); ci != reachable_facts->end(); ci++)
-							{
-								std::cout << "* ";
-								(*ci)->print(std::cout, dtg_graph_->getBindings());
-								std::cout << std::endl;
-							}
-#endif
-							assert (equivalent_dtg_node != NULL);
-
-							reachable_nodes_[&from_node]->push_back(equivalent_dtg_node);
-							makeReachable(*equivalent_dtg_node, *reachable_facts);
-						}
-					}
-				}
-			}
-		}
+		gettimeofday(&start_time, NULL);
+		handleExternalDependencies(established_facts);
+		gettimeofday(&end_time, NULL);
+		time_spend = end_time.tv_sec - start_time.tv_sec + (end_time.tv_usec - start_time.tv_usec) / 1000000.0;
+		std::cerr << "Time spend resolving external dependencies: " << time_spend << std::endl;
 		
 	} while (pre_size != established_facts.size());
 	
@@ -884,6 +736,251 @@ void DTGReachability::performReachabilityAnalsysis(const std::vector<const Bound
 	}
 }
 
+void DTGReachability::handleExternalDependencies(std::vector<const BoundedAtom*>& established_facts)
+{
+	// Check for DTG nodes which have a transition in which a grounded node links two facts which are part of different
+	// balanced sets.
+	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph_->getNodes().begin(); ci != dtg_graph_->getNodes().end(); ci++)
+	{
+		const DomainTransitionGraphNode* dtg_node = *ci;
+		
+		std::map<const Transition*, std::vector<const std::vector<const Object*>* >* > transitions;
+		dtg_node->getExternalDependendTransitions(transitions);
+		
+		/**
+		 * For each transition which contains terms with an external dependency we evaluate all the values these
+		 * external dependend terms can have and see if any other nodes are reachable from the from node of the
+		 * transition.
+		 *
+		 * Examples where this situation can occur is in driverlog in the unload transitions between { (in package truck)
+		 * AND (at truck loc) } -> (at package loc). The final location of the package is dependend on the location of the
+		 * truck. However, the location of the truck is not handled by the object package and the driver action is not
+		 * part of the package's property space.
+		 *
+		 * Therefore we check which trucks can have a package on board and what locations these trucks can occupy. This will
+		 * determine where packages can be unloaded.
+		 */
+		for (std::map<const Transition*, std::vector<const std::vector<const Object*>* >* >::const_iterator ci = transitions.begin(); ci != transitions.end(); ci++)
+		{
+			const Transition* transition = (*ci).first;
+			const std::vector<const std::vector<const Object*>* >* dependend_term_domains = (*ci).second;
+			
+			// Check if atom which is part of the external dependency can take on different values for the grounded term.
+			const DomainTransitionGraphNode& from_node = transition->getFromNode();
+			const std::vector<std::vector<const BoundedAtom*>* >* supporing_facts_from_node = supported_facts_[&from_node];
+
+			if (supporing_facts_from_node->size() == 0)
+			{
+				continue;
+			}
+
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+			std::cout << "The transition: " << *transition << " has external dependencies!" << std::endl;
+#endif
+			// Prepate a mask so we can identify which terms have external dependencies and which do not.
+			unsigned int largest_arity = 0;
+			for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
+			{
+				if ((*ci)->getAtom().getArity() > largest_arity)
+				{
+					largest_arity = (*ci)->getAtom().getArity();
+				}
+			}
+			bool dependend_term_mapping[from_node.getAtoms().size()][largest_arity];
+			memset(&dependend_term_mapping[0][0], false, sizeof(bool) * largest_arity * dependend_term_domains->size());
+
+			std::vector<const BoundedAtom*> equivalent_nodes_to_find;
+			bool facts_with_external_dependencies[from_node.getAtoms().size()];
+			memset(&facts_with_external_dependencies[0], false, sizeof(bool) * from_node.getAtoms().size());
+			
+			/**
+			 * Determine which facts and terms contain external dependencies. We create a list of bounded atoms which
+			 * is used to search for DTG nodes which contain the same facts as the from node of the transition except 
+			 * for those terms which is external dependend. So in the example above of driverlog the location is the
+			 * external dependend term and may vary in the DTG nodes we are looking for - the rest needs to the exactly
+			 * the same!
+			 */
+			for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
+			{
+				const BoundedAtom* from_node_bounded_atom = *ci;
+				BoundedAtom& new_bounded_atom = BoundedAtom::createBoundedAtom(from_node_bounded_atom->getAtom(), from_node_bounded_atom->getProperties(), dtg_graph_->getBindings());
+				
+				// Make the term's domain equal to the original - except if has an external dependency.
+				for (unsigned int i = 0; i < new_bounded_atom.getAtom().getArity(); i++)
+				{
+					const std::vector<const Object*>& org_domain = from_node_bounded_atom->getAtom().getTerms()[i]->getDomain(from_node_bounded_atom->getId(), dtg_graph_->getBindings());
+					const Term* new_term = new_bounded_atom.getAtom().getTerms()[i];
+					
+					// It is not a dependend term - copy.
+					if (std::find(dependend_term_domains->begin(), dependend_term_domains->end(), &org_domain) == dependend_term_domains->end())
+					{
+						new_term->makeDomainEqualTo(new_bounded_atom.getId(), org_domain, dtg_graph_->getBindings());
+						dependend_term_mapping[std::distance(from_node.getAtoms().begin(), ci)][i] = false;
+					}
+					// Else it is a dependend term - leave it.
+					else
+					{
+						facts_with_external_dependencies[std::distance(from_node.getAtoms().begin(), ci)] = true;
+						dependend_term_mapping[std::distance(from_node.getAtoms().begin(), ci)][i] = true;
+					}
+				}
+				equivalent_nodes_to_find.push_back(&new_bounded_atom);
+			}
+			
+			// Now find all the DTG nodes which match this criterium.
+			std::vector<const DomainTransitionGraphNode*> matching_dtgs;
+			dtg_graph_->getNodes(matching_dtgs, equivalent_nodes_to_find);
+
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+			std::cout << "Found matching DTG nodes: " << std::endl;
+			for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = matching_dtgs.begin(); ci != matching_dtgs.end(); ci++)
+			{
+				const DomainTransitionGraphNode* dtg_node = *ci;
+				std::cout << *dtg_node << std::endl;
+			}
+#endif
+
+			/**
+			 * For every DTG node which conforms to the above requirements, we check if the external dependencies
+			 * can be satisfied to make these nodes reachable from the from node.
+			 */
+			for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = matching_dtgs.begin(); ci != matching_dtgs.end() - 1; ci++)
+			{
+				const DomainTransitionGraphNode* equivalent_dtg_node = *ci;
+
+				if (equivalent_dtg_node == &from_node) continue;
+				assert (equivalent_dtg_node->getAtoms().size() == from_node.getAtoms().size());
+				
+				/**
+				 * We construct the bounded atoms corresponding to the facts which need to be reached to satisfy the
+				 * externally dependend facts.
+				 */
+				for (std::vector<std::vector<const BoundedAtom*>* >::const_iterator ci = supporing_facts_from_node->begin(); ci != supporing_facts_from_node->end(); ci++)
+				{
+					const std::vector<const BoundedAtom*>* supporting_facts = *ci;
+				
+					/**
+					 * Check all the facts of the potential to nodes and check if we can reach them - we only need to
+					 * check the facts which contain an external dependency.
+					 */
+					bool all_externally_dependend_facts_can_be_reached = true;
+					std::vector<const BoundedAtom*>* reachable_facts = new std::vector<const BoundedAtom*>();
+					for (unsigned int i = 0; i < from_node.getAtoms().size(); i++)
+					{
+						if (!facts_with_external_dependencies[i])
+						{
+							reachable_facts->push_back((*supporting_facts)[i]);
+							continue;
+						}
+						
+						const BoundedAtom* from_supporting_fact = (*supporting_facts)[i];
+						const BoundedAtom* equivalent_fact_to_reach = equivalent_dtg_node->getAtoms()[i];
+						
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+						// Check if the fact from from_node can reach the fact in the equivalent dtg node.
+						std::cout << "Can we reach: ";
+						equivalent_fact_to_reach->print(std::cout, dtg_graph_->getBindings());
+						std::cout << " from {";
+						
+						for (std::vector<std::vector<const BoundedAtom*>* >::const_iterator ci = supporing_facts_from_node->begin(); ci != supporing_facts_from_node->end(); ci++)
+						{
+							std::vector<const BoundedAtom*>* supporting_facts = *ci;
+							if (supporting_facts->size() != from_node.getAtoms().size())
+							{
+								std::cout << "The supporting facts for the DTG node:" << std::endl;
+								std::cout << from_node << ": " << std::endl;
+								for (std::vector<const BoundedAtom*>::const_iterator ci = supporting_facts->begin(); ci != supporting_facts->end(); ci++)
+								{
+									(*ci)->print(std::cout, dtg_graph_->getBindings());
+									std::cout << std::endl;
+								}
+								assert (false);
+							}
+							(**ci)[i]->print(std::cout, dtg_graph_->getBindings());
+						}
+						std::cout << "}?" << std::endl;
+#endif
+					
+						const BoundedAtom& atom_to_reach = BoundedAtom::createBoundedAtom(equivalent_fact_to_reach->getAtom(), equivalent_fact_to_reach->getProperties(), dtg_graph_->getBindings());
+						for (unsigned int j = 0; j < atom_to_reach.getAtom().getArity(); j++)
+						{
+							const Term* atom_to_reach_term = atom_to_reach.getAtom().getTerms()[j];
+							const Term* to_node_term = equivalent_fact_to_reach->getAtom().getTerms()[j];
+							const Term* from_node_term = from_supporting_fact->getAtom().getTerms()[j];
+							
+							assert (i < from_node.getAtoms().size());
+							assert (j < largest_arity);
+							
+							// Check if this term is externally dependend, if it is we make it equal to the to node.
+							if (dependend_term_mapping[i][j])
+							{
+								atom_to_reach_term->makeDomainEqualTo(atom_to_reach.getId(), to_node_term->getDomain(equivalent_fact_to_reach->getId(), dtg_graph_->getBindings()), dtg_graph_->getBindings());
+							}
+							// Else we make it equal to the from node.
+							else
+							{
+								atom_to_reach_term->makeDomainEqualTo(atom_to_reach.getId(), from_node_term->getDomain(from_supporting_fact->getId(), dtg_graph_->getBindings()), dtg_graph_->getBindings());
+							}
+						}
+						reachable_facts->push_back(&atom_to_reach);
+						
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+						std::cout << "Atom to search for: ";
+						atom_to_reach.print(std::cout, dtg_graph_->getBindings());
+						std::cout << std::endl;
+#endif
+						
+						// TODO: Very inefficient, in the future we will use object equivalence groups to handle this.
+						bool has_been_achieved = false;
+						for (std::vector<const BoundedAtom*>::const_iterator ci = established_facts.begin(); ci != established_facts.end(); ci++)
+						{
+							const BoundedAtom* reached_atom = *ci;
+							if (dtg_graph_->getBindings().canUnifyBoundedAtoms(*reached_atom, atom_to_reach))
+							{
+								has_been_achieved = true;
+								break;
+							}
+						}
+						
+						if (!has_been_achieved)
+						{
+							all_externally_dependend_facts_can_be_reached = false;
+							break;
+						}
+					}
+					
+					if (all_externally_dependend_facts_can_be_reached)
+					{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+						std::cout << *equivalent_dtg_node << " can be reached from: " << std::endl;
+						
+						for (std::vector<const BoundedAtom*>::const_iterator ci = supporting_facts->begin(); ci != supporting_facts->end(); ci++)
+						{
+							const BoundedAtom* bounded_atom = *ci;
+							std::cout << " * ";
+							bounded_atom->print(std::cout, dtg_graph_->getBindings());
+							std::cout << "." << std::endl;
+						}
+						
+						// Add the new facts to the list! :)
+						std::cout << "New bounded atoms to add:" << std::endl;
+						for (std::vector<const BoundedAtom*>::const_iterator ci = reachable_facts->begin(); ci != reachable_facts->end(); ci++)
+						{
+							std::cout << "* ";
+							(*ci)->print(std::cout, dtg_graph_->getBindings());
+							std::cout << std::endl;
+						}
+#endif
+						assert (equivalent_dtg_node != NULL);
+
+						reachable_nodes_[&from_node]->push_back(equivalent_dtg_node);
+						makeReachable(*equivalent_dtg_node, *reachable_facts);
+					}
+				}
+			}
+		}
+	}
+}
 
 void DTGReachability::iterateThroughFixedPoint(std::vector<const BoundedAtom*>& established_facts, std::set<const Transition*>& achieved_transitions)
 {

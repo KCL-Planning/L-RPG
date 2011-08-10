@@ -9,12 +9,13 @@
 namespace MyPOP {
 	
 class Object;
+class Predicate;
 class TermManager;
 	
 namespace SAS_Plus {
 
 class PropertySpace;
-
+class EOGFact;
 
 class BoundedAtom;
 class DomainTransitionGraph;
@@ -50,6 +51,8 @@ public:
 	 */
 	bool addInitialDTGNodeMapping(const Object& object, const DomainTransitionGraphNode& dtg_node);
 	
+	void updateReachableFacts(const Object& object, const DomainTransitionGraphNode& dtg_node);
+	
 	/**
 	 * Try to merge the given objectGroup with this group. If the merge can take place, the other object place is merged with
 	 * this one. We can merge two groups if the initial DTG node of this group is reachable from the initial DTG node of the other
@@ -58,22 +61,39 @@ public:
 	 * @param reachable_nodes Reachability mapping from all DTG nodes.
 	 * @return True if the groups could be merged, false otherwise.
 	 */
-	bool tryToMergeWith(const EquivalentObjectGroup& object_group, const std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* >& reachable_nodes);
+	bool tryToMergeWith(EquivalentObjectGroup& object_group, const std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* >& reachable_nodes);
 	
 private:
+	
+	/**
+	 * As equivalent object groups are merged the merged node will become a child node of the node it got merged into. Internally
+	 * we store this relationship which means that EOGs do not need to be deleted and any calls to the methods will automatically
+	 * be redirected to the root node.
+	 * @return The root node of this EOG.
+	 */
+	EquivalentObjectGroup& getRootNode();
 	
 	std::map<const Object*, std::vector<const DomainTransitionGraphNode*> *> initial_mapping_;
 	
 	// All the facts which are reachable by all objects in this domain.
-	std::vector<const BoundedAtom*> reachable_facts_;
+	std::vector<const EOGFact*> reachable_lifted_facts_;
 	
 	const DomainTransitionGraph* dtg_graph_;
+
+	// If the EOG is in use link_ is equal to NULL. Once it is made obsolete due to being merged with
+	// another Equivalent Object Group link will link to that object instead.
+	EquivalentObjectGroup* link_;
 	
 	/**
 	 * Every equivalent object group has a finger print which correlates to the terms of the facts in the DTG nodes
 	 * the object can be a part of. At the mommnt we do not consider sub / super sets yet.
 	 */
 	void initialiseFingerPrint(const Object& object, const DomainTransitionGraph& dtg_graph);
+	
+	/**
+	 * Merge the given group with this group.
+	 */
+	void merge(EquivalentObjectGroup& other_group);
 	
 	bool* finger_print_;
 	unsigned int finger_print_size_;
@@ -111,6 +131,24 @@ private:
 	const DTGReachability* dtg_reachability_;
 	
 	const DomainTransitionGraph* dtg_graph_;
+};
+
+/**
+ * Basic fact used in reachability. This represents a lifted fact where the objects involved are handled by
+ * the EquivalentObjectGroup attached. This means that we deal with sets of equivalent objects rather than 
+ * with individual objects.
+ */
+class EOGFact
+{
+public:
+	EOGFact(const Predicate& predicate, const std::vector<const EquivalentObjectGroup*>& terms);
+	
+	bool canUnify(const BoundedAtom& bounded_atom) const;
+	
+private:
+	const Predicate* predicate_;
+	
+	const std::vector<const EquivalentObjectGroupManager*> terms_;
 };
 	
 /**
@@ -157,12 +195,12 @@ private:
 	/**
 	 * This method is called every time a DTG node is reachable from another node. It effectively makes
 	 * the from node a subset of the to node.
-	 * @param from The DTG node from which the reachable transition starts.
-	 * @param to The DTG node at which the reachable transtion ends.
+	 * @param dtg_node The DTG node for which we want to add a new set of supporting facts.
+	 * @param reachable_facts The reachable facts.
 	 */
-	void makeReachable(const DomainTransitionGraphNode& from, const DomainTransitionGraphNode& to);
-	
 	bool makeReachable(const DomainTransitionGraphNode& dtg_node, std::vector<const BoundedAtom*>& reachable_facts);
+	
+	void handleExternalDependencies(std::vector<const BoundedAtom*>& established_facts);
 	
 	/**
 	 * The combined DTG graph we are working on.

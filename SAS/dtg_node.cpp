@@ -238,7 +238,7 @@ bool DomainTransitionGraphNode::contains(StepID id, const Atom& atom, Invariable
 	return false;
 }
 
-void DomainTransitionGraphNode::addAtom(BoundedAtom* bounded_atom, InvariableIndex index)
+bool DomainTransitionGraphNode::addAtom(BoundedAtom* bounded_atom, InvariableIndex index)
 {
 //	std::cout << "Add the atom: ";
 //	bounded_atom->print(std::cout, dtg_->getBindings());
@@ -263,7 +263,8 @@ void DomainTransitionGraphNode::addAtom(BoundedAtom* bounded_atom, InvariableInd
 	
 	if (contains(bounded_atom->getId(), bounded_atom->getAtom(), index))
 	{
-		assert (false);
+		return false;
+		//assert (false);
 	}
 
 	if (index != NO_INVARIABLE_INDEX)
@@ -303,130 +304,12 @@ void DomainTransitionGraphNode::addAtom(BoundedAtom* bounded_atom, InvariableInd
 			}
 		}
 	}
-	
-/*
-	if (bounded_atom->getProperty() != NULL)
-	{
-		for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
-		{
-			const BoundedAtom* reference_bounded_atom = *ci;
-			if (reference_bounded_atom->getProperty() != NULL)
-			{
-				if (&reference_bounded_atom->getProperty()->getPropertyState().getPropertySpace() == &bounded_atom->getProperty()->getPropertyState().getPropertySpace())
-				{
-					const Term* reference_term = reference_bounded_atom->getAtom().getTerms()[getIndex(*reference_bounded_atom)];
-					const Term* domain_term = bounded_atom->getAtom().getTerms()[index];
-					
-					if (!reference_term->isTheSameAs(reference_bounded_atom->getId(), *domain_term, bounded_atom->getId(), dtg_->getBindings()))
-					{
-			//			std::cout << "Bind: ";
-			//			reference->print(std::cout, dtg_->getBindings());
-			//			std::cout << "(" << getIndex(*reference) << ") with: ";
-			//			bounded_atom->print(std::cout, dtg_->getBindings());
-			//			std::cout << "(" << index << ")" << std::endl;
 
-						assert (reference_term->unify(reference_bounded_atom->getId(), *domain_term, bounded_atom->getId(), dtg_->getBindings()));
-					}
-					assert (reference_term->isTheSameAs(reference_bounded_atom->getId(), *domain_term, bounded_atom->getId(), dtg_->getBindings()));
-				}
-			}
-		}
-	}
-*/
 	atoms_.push_back(bounded_atom);
 	indexes_[bounded_atom] = index;
+	return true;
 }
 
-/*bool DomainTransitionGraphNode::merge(const DomainTransitionGraphNode& other)
-{
-	// Copy all atoms from the given node to this one.
-	bool merged = false;
-	for (std::vector<BoundedAtom*>::const_iterator ci = other.getAtoms().begin(); ci != other.getAtoms().end(); ci++)
-	{
-		BoundedAtom* other_bounded_atom = *ci;
-		InvariableIndex other_index = other.getIndex(*other_bounded_atom);
-
-		// Make sure we don't add an entry twice.
-		bool already_present = false;
-		for (std::vector<BoundedAtom*>::const_iterator ci = getAtoms().begin(); ci != getAtoms().end(); ci++)
-		{
-			BoundedAtom* bounded_atom = *ci;
-			InvariableIndex index = getIndex(*bounded_atom);
-			
-			if (index == other_index && dtg_->getBindings().canUnify(bounded_atom->getAtom(), bounded_atom->getId(), other_bounded_atom->getAtom(), other_bounded_atom->getId(), &other.getDTG().getBindings()))
-			{
-				std::cout << "The bounded atom to add: ";
-				other_bounded_atom->print(std::cout, other.getDTG().getBindings());
-				std::cout << " already exists: ";
-				bounded_atom->print(std::cout, getDTG().getBindings());
-				std::cout << std::endl;
-				already_present = true;
-				break;
-			}
-		}
-		
-		if (already_present) continue;
-		
-		// We assert that no bindings have been made at this stage.
-		StepID new_atom_id = dtg_->getBindings().createVariableDomains(other_bounded_atom->getAtom());
-		BoundedAtom* bounded_atom = new BoundedAtom(new_atom_id, other_bounded_atom->getAtom(), other_bounded_atom->getProperty());
-		
-		// Make sure the new atom has the same values as the original.
-		for (unsigned int i = 0; i < bounded_atom->getAtom().getArity(); i++)
-		{
-			const Term* bounded_term = bounded_atom->getAtom().getTerms()[i];
-			const Term* other_bounded_term = other_bounded_atom->getAtom().getTerms()[i];
-			bounded_term->makeDomainEqualTo(bounded_atom->getId(), *other_bounded_term, other_bounded_atom->getId(), dtg_->getBindings(), &other.getDTG().getBindings());
-		}
-		
-		merged = true;
-		atoms_.push_back(bounded_atom);
-		indexes_[bounded_atom] = other_index;
-	}
-	
-	**
-	 * If the given node has been merged with this one, we must also merge the possible transitions and unique ids.
-	 *
-	if (merged)
-	{
-		for (std::vector<unsigned int>::const_iterator ci = other.unique_ids_.begin(); ci != other.unique_ids_.end(); ci++)
-		{
-			bool is_new = true;
-			unsigned int other_id = *ci;
-			for (std::vector<unsigned int>::const_iterator ci = unique_ids_.begin(); ci != unique_ids_.end(); ci++)
-			{
-				if (other_id == *ci)
-				{
-					is_new = false;
-					break;
-				}
-			}
-			
-			if (is_new)
-			{
-				unique_ids_.push_back(other_id);
-			}
-		}
-		
-		possible_actions_.insert(other.possible_actions_.begin(), other.possible_actions_.end());
-	}
-	
-	**
-	 * Update the property state to include the new propertise added.
-	 *
-	
-#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_DEBUG
-	// Make sure all the indexes are accounted for.
-	for (std::vector<BoundedAtom*>::const_iterator ci = getAtoms().begin(); ci != getAtoms().end(); ci++)
-	{
-		BoundedAtom* bounded_atom = *ci;
-		getIndex(*bounded_atom);
-	}
-#endif
-	
-	return merged;
-}
-*/
 void DomainTransitionGraphNode::removeAtom(const BoundedAtom& bounded_atom)
 {
 	for (std::vector<BoundedAtom*>::iterator i = atoms_.begin(); i != atoms_.end(); i++)

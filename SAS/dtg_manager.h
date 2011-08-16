@@ -55,7 +55,6 @@ class BoundedAtom {
 
 public:
 	
-	//static BoundedAtom& createBoundedAtom(const Atom& atom, const Property* property, Bindings& bindings);
 	static BoundedAtom& createBoundedAtom(const Atom& atom, Bindings& bindings);
 	static BoundedAtom& createBoundedAtom(const Atom& atom, const Property& property, Bindings& bindings);
 	static BoundedAtom& createBoundedAtom(const Atom& atom, const std::vector<const Property*>& properties, Bindings& bindings);

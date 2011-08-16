@@ -657,12 +657,14 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 					std::vector<BoundedAtom>* enablers = new std::vector<BoundedAtom>();
 					const Transition* transition = Transition::createTransition(*enablers, *achieving_action, *negative_new_dtg_node, *possitive_new_dtg_node, *initial_facts_);
 					
-#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-					std::cout << "Process the transition: " << *transition << std::endl;
-#endif
+					assert (transition != NULL);
 					
 					if (transition != NULL)
 					{
+						
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+						std::cout << "Process the transition: " << *transition << std::endl;
+#endif
 						// Inspect the transition and add all preconditions which shares a term with the positive achieved fact.
 						bool precondition_added = true;
 						std::set<const Atom*> closed_list;
@@ -849,7 +851,8 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 						for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node2->getAtoms().begin(); ci != dtg_node2->getAtoms().end(); ci++)
 						{
 							const BoundedAtom* bounded_atom2 = *ci;
-							if (dtg->getBindings().areEquivalent(bounded_atom->getAtom(), bounded_atom->getId(), bounded_atom2->getAtom(), bounded_atom2->getId(), &dtg2->getBindings()))
+							if (bounded_atom->getAtom().isNegative() == bounded_atom2->getAtom().isNegative() &&
+							    dtg->getBindings().areEquivalent(bounded_atom->getAtom(), bounded_atom->getId(), bounded_atom2->getAtom(), bounded_atom2->getId(), &dtg2->getBindings()))
 							{
 								found_equivalent = true;
 								break;
@@ -1019,9 +1022,89 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 		}
 		
 		// Merge the properties of all the facts.
+		std::cout << "Merge the properties of all facts: " << *identical_dtg_node << " - combine it with:" << *combined_dtg_node << "." << std::endl;
 		
-		std::cout << "Merge the properties of all facts: " << *identical_dtg_node << " - combine it with:" << *hub_dtg_node << "." << std::endl;
-
+		// Make sure the invariable references by the properties match up.
+		std::set<const std::vector<const Object*>* > possible_matching_invariables;
+		
+		// Initialise it so all term domains are condidates.
+		for (std::vector<BoundedAtom*>::const_iterator ci = combined_dtg_node->getAtoms().begin(); ci != combined_dtg_node->getAtoms().end(); ci++)
+		{
+			BoundedAtom* combined_atom = *ci;
+			for (std::vector<const Term*>::const_iterator ci = combined_atom->getAtom().getTerms().begin(); ci != combined_atom->getAtom().getTerms().end(); ci++)
+			{
+				const Term* term = *ci;
+				const std::vector<const Object*>& domain = term->getDomain(combined_atom->getId(), combined_dtg->getBindings());
+				possible_matching_invariables.insert(&domain);
+			}
+		}
+		
+		for (std::vector<BoundedAtom*>::const_iterator ci = identical_dtg_node->getAtoms().begin(); ci != identical_dtg_node->getAtoms().end(); ci++)
+		{
+			const BoundedAtom* bounded_atom = *ci;
+			bool found_equivalent = false;
+			
+			if (bounded_atom->getProperties().empty()) continue;
+			
+			std::vector<const std::vector<const Object*>* > possible_domains;
+			
+			for (std::vector<BoundedAtom*>::const_iterator ci = combined_dtg_node->getAtoms().begin(); ci != combined_dtg_node->getAtoms().end(); ci++)
+			{
+				BoundedAtom* combined_atom = *ci;
+				
+				if (combined_dtg_node->getDTG().getBindings().areEquivalent(combined_atom->getAtom(), combined_atom->getId(), bounded_atom->getAtom(), bounded_atom->getId(), &identical_dtg_node->getDTG().getBindings()))
+				{
+					found_equivalent = true;
+					for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
+					{
+						const Property* property = *ci;
+						if (property->getIndex() == NO_INVARIABLE_INDEX) continue;
+						
+						possible_domains.push_back(&combined_atom->getAtom().getTerms()[property->getIndex()]->getDomain(combined_atom->getId(), combined_dtg->getBindings()));
+					}
+				}
+			}
+			
+			// Remove all terms which cannot be the invariable.
+			std::vector<const std::vector<const Object*>*> to_remove;
+			for (std::set<const std::vector<const Object*>* >::reverse_iterator ri = possible_matching_invariables.rbegin(); ri != possible_matching_invariables.rend(); ri++)
+			{
+				const std::vector<const Object*>* invariable = *ri;
+				bool present = false;
+				for (std::vector<const std::vector<const Object*>* >::const_iterator ci = possible_domains.begin(); ci != possible_domains.end(); ci++)
+				{
+					const std::vector<const Object*>* domain = *ci;
+					if (domain == invariable)
+					{
+						present = true;
+						break;
+					}
+				}
+				
+				if (!present)
+				{
+					to_remove.push_back(invariable);
+				}
+			}
+			
+			for (std::vector<const std::vector<const Object*>*>::const_iterator ci = to_remove.begin(); ci != to_remove.end(); ci++)
+			{
+				possible_matching_invariables.erase(*ci);
+			}
+		}
+		
+		// If no domains are left these nodes cannot be combined!
+		if (possible_matching_invariables.empty())
+		{
+			std::cout << "Could not find a possible matching invariant - aborting!" << std::endl;
+			continue;
+		}
+		
+		for (std::set<const std::vector<const Object*>* >::const_iterator ci = possible_matching_invariables.begin(); ci != possible_matching_invariables.end(); ci++)
+		{
+			std::cout << "- IV: " << *ci << std::endl;
+		}
+		
 		for (std::vector<BoundedAtom*>::const_iterator ci = identical_dtg_node->getAtoms().begin(); ci != identical_dtg_node->getAtoms().end(); ci++)
 		{
 			const BoundedAtom* bounded_atom = *ci;
@@ -1036,7 +1119,24 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 					found_equivalent = true;
 					for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
 					{
-						combined_atom->addProperty(**ci);
+						const Property* property = *ci;
+						
+						if (property->getIndex() != NO_INVARIABLE_INDEX)
+						{
+							const std::vector<const Object*>& domain = combined_atom->getAtom().getTerms()[property->getIndex()]->getDomain(combined_atom->getId(), combined_dtg->getBindings());
+							if (possible_matching_invariables.count(&domain) != 0)
+							{
+								combined_atom->addProperty(**ci);
+							}
+							else
+							{
+								std::cout << "Although the atoms were equivalent, the (invariable) terms could not be combined!" << std::endl;
+							}
+						}
+						else
+						{
+							combined_atom->addProperty(**ci);
+						}
 					}
 				}
 			}
@@ -1318,7 +1418,6 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 #endif
 								BoundedAtom* bounded_precondition = new BoundedAtom(transition->getStep()->getStepId(), *precondition, identical_bounded_atom->getProperties());
 								preconditions_to_add_to_to_node.push_back(std::make_pair(bounded_precondition, precondition_invariable_index));
-								//preconditions_to_add_to_to_node.push_back(std::make_pair(bounded_precondition, from_dtg_node_clone->getIndex(*identical_bounded_atom)));
 							}
 							continue;
 						}
@@ -1386,29 +1485,37 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 
 										// Check if we can figure out the property(ies) linked with this precondition.
 										std::vector<const Property*> property_set;
-										for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ci++)
+										
+										// Only do this if the term of the precondition actually matches the invariable.
+										if (invariable_term->isTheSameAs(transition->getStep()->getStepId(), *precondition_term, transition->getStep()->getStepId(), dtg->getBindings()))
 										{
-											const std::vector<const Property*>& existing_property_set = (*ci).second->getProperties();
-											
-											// If any of the properties point to the invariable term, we can add it.
-											for (std::vector<const Property*>::const_iterator ci = existing_property_set.begin(); ci != existing_property_set.end(); ci++)
+											for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ci++)
 											{
-												const Property* property = *ci;
+												const std::vector<const Property*>& existing_property_set = (*ci).second->getProperties();
+												std::cout << "Check the DTG Node: " << *(*ci).first << "." << std::endl;
 												
-												bool is_present = false;
-												for (std::vector<const Property*>::const_iterator ci = property_set.begin(); ci != property_set.end(); ci++)
+												// If any of the properties point to the invariable term, we can add it.
+												for (std::vector<const Property*>::const_iterator ci = existing_property_set.begin(); ci != existing_property_set.end(); ci++)
 												{
-													const Property* existing_property = *ci;
-													if (*property == *existing_property)
+													const Property* property = *ci;
+													
+													std::cout << "Check the property: " << *property << "." << std::endl;
+													
+													bool is_present = false;
+													for (std::vector<const Property*>::const_iterator ci = property_set.begin(); ci != property_set.end(); ci++)
 													{
-														is_present = true;
-														break;
+														const Property* existing_property = *ci;
+														if (*property == *existing_property)
+														{
+															is_present = true;
+															break;
+														}
 													}
-												}
-												
-												if (!is_present)
-												{
-													property_set.push_back(property);
+													
+													if (!is_present)
+													{
+														property_set.push_back(property);
+													}
 												}
 											}
 										}
@@ -1461,11 +1568,10 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 												std::cout << "The atom to add: ";
 												atom_to_add->print(std::cout, dtg->getBindings());
 												std::cout << "." << std::endl;
-												assert (false);
+//												assert (false);
 											}
 
 											atoms_to_add_to_from_node.push_back(std::make_pair(atom_to_add, precondition_invariable_index));
-//											atoms_to_add_to_from_node.push_back(std::make_pair(atom_to_add, std::distance(precondition->getTerms().begin(), term_precondition_ci)));
 
 											finished = false;
 											precondition_added = true;

@@ -18,6 +18,74 @@ namespace MyPOP {
 
 namespace SAS_Plus {
 
+bool CompareBalancedPropertySet::operator()(const BalancedPropertySet& lhs, const BalancedPropertySet& rhs) const
+{
+	if (lhs.property_space_ < rhs.property_space_)
+		return true;
+	
+	if (lhs.property_space_ == rhs.property_space_ && lhs.invariable_domain_ < rhs.invariable_domain_)
+		return true;
+	
+	return false;
+}
+	
+BalancedPropertySet::BalancedPropertySet(const PropertySpace& property_space, const std::vector<const Object*>* invariable_domain)
+	: property_space_(&property_space), invariable_domain_(invariable_domain)
+{
+	
+}
+
+void BalancedPropertySet::removeProperty(const BoundedAtom& fact)
+{
+	if (std::find(properties_deleted_.begin(), properties_deleted_.end(), &fact) == properties_deleted_.end())
+	{
+		properties_deleted_.push_back(&fact);
+	}
+}
+
+void BalancedPropertySet::addProperty(const BoundedAtom& fact)
+{
+	if (std::find(properties_added_.begin(), properties_added_.end(), &fact) == properties_added_.end())
+	{
+		properties_added_.push_back(&fact);
+	}
+}
+
+const std::vector<const BoundedAtom*>& BalancedPropertySet::getAddedProperties() const
+{
+	return properties_added_;
+}
+	
+const std::vector<const BoundedAtom*>& BalancedPropertySet::getRemovedProperties() const
+{
+	return properties_deleted_;
+}
+
+void BalancedPropertySet::removeAddedProperty(const BoundedAtom& fact)
+{
+	for (std::vector<const BoundedAtom*>::reverse_iterator ri = properties_added_.rbegin(); ri != properties_added_.rend(); ri++)
+	{
+		if (&fact == *ri)
+		{
+			properties_added_.erase(ri.base() - 1);
+		}
+	}
+	//std::remove(properties_added_.begin(), properties_added_.end(), &fact);
+}
+	
+void BalancedPropertySet::removeRemovedProperty(const BoundedAtom& fact)
+{
+	for (std::vector<const BoundedAtom*>::reverse_iterator ri = properties_deleted_.rbegin(); ri != properties_deleted_.rend(); ri++)
+	{
+		if (&fact == *ri)
+		{
+			properties_deleted_.erase(ri.base() - 1);
+		}
+	}
+	//std::remove(properties_deleted_.begin(), properties_deleted_.end(), &fact);
+}
+
+
 Transition* Transition::createTransition(const std::vector<BoundedAtom>& enablers, const Action& action, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts)
 {
 	if (&to_node.getDTG() != &from_node.getDTG())
@@ -68,7 +136,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 
 Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& enablers, const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts)
 {
-/*	std::cout << std::endl << std::endl;
+	std::cout << std::endl << std::endl;
 	std::cout << "[Transition::createSimpleTransition] NEW TRANSITION!!!!" << std::endl;
 	std::cout << "From: " << std::endl;
 	std::cout << from_node << std::endl;
@@ -77,7 +145,7 @@ Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& e
 	std::cout << "Action: ";
 	action_step->getAction().print(std::cout, from_node.getDTG().getBindings(), action_step->getStepId());
 	std::cout << std::endl;
-*/
+
 	if (&to_node.getDTG() != &from_node.getDTG())
 	{
 		std::cout << "[Transition::createSimpleTransition] FATAL ERROR! The nodes are not part of the same DTG!" << std::endl;
@@ -109,10 +177,6 @@ Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& e
 		
 		for (std::vector<const Property*>::const_iterator ci = from_fact->getProperties().begin(); ci != from_fact->getProperties().end(); ci++)
 		{
-			
-//		if (from_fact->getProperty() == NULL)
-//			continue;
-		
 			// Check if the property space this from_fact belongs to has already been created.
 			//const PropertySpace& from_fact_property_space = from_fact->getProperty()->getPropertyState().getPropertySpace();
 			const PropertySpace& from_fact_property_space = (*ci)->getPropertyState().getPropertySpace();
@@ -204,33 +268,6 @@ Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& e
 			}
 		}
 	}
-	
-/*	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
-	{
-		std::cout << "Add / Remove sets: " << (*ci).first << std::endl;
-		
-		const std::vector<const BoundedAtom*>* add_set = (*ci).second.first;
-		const std::vector<const BoundedAtom*>* remove_set = (*ci).second.second;
-		
-		for (std::vector<const BoundedAtom*>::const_iterator ci = add_set->begin(); ci != add_set->end(); ci++)
-		{
-			const BoundedAtom* add_atom = *ci;
-			
-			std::cout << "+ ";
-			add_atom->print(std::cout, bindings);
-			std::cout << std::endl;
-		}
-		
-		for (std::vector<const BoundedAtom*>::const_iterator ci = remove_set->begin(); ci != remove_set->end(); ci++)
-		{
-			const BoundedAtom* add_atom = *ci;
-			
-			std::cout << "- ";
-			add_atom->print(std::cout, bindings);
-			std::cout << std::endl;
-		}
-	}
-*/
 
 	/**
 	 * Make sure all the added and deleted facts are accounted for.
@@ -477,8 +514,9 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 
 	/**
 	 * Store per property state a pair of: removed properties and added properties.
+	 * TODO: For recursive structures (Blocksworld / Depots) - store a per instance balanced set.
 	 */
-	std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > > property_space_balanced_sets;
+	std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*> property_space_balanced_sets;
 	
 	/**
 	 * Persistent facts appear in both the start and end node and are not affected by the transition. They are stored 
@@ -495,20 +533,28 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			// Check if the property space this from_fact belongs to has already been created.
 			const Property* from_fact_property = *ci;
 			const PropertySpace& from_fact_property_space = from_fact_property->getPropertyState().getPropertySpace();
-			std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::iterator property_space_i = property_space_balanced_sets.find(&from_fact_property_space);
-			std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > add_remove_list;
+
+			BalancedPropertySet* balanced_property_set = NULL;
+			
+			std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::iterator property_space_i = property_space_balanced_sets.find(std::make_pair(&from_fact_property_space, static_cast<const std::vector<const Object*>*>(NULL)));
+			
 			if (property_space_i == property_space_balanced_sets.end())
 			{
-				std::vector<const BoundedAtom*>* add_list = new std::vector<const BoundedAtom*>();
-				std::vector<const BoundedAtom*>* removal_list = new std::vector<const BoundedAtom*>();
-				add_remove_list = std::make_pair(add_list, removal_list);
-				property_space_balanced_sets[&from_fact_property_space] = add_remove_list;
+				const std::vector<const Object*>* invariable_objects = NULL;
+//				if (from_fact_property->getIndex() != NO_INVARIABLE_INDEX)
+//				{
+//					invariable_objects = from_fact->getAtom().getTerms()[from_fact_property->getIndex()].getDomain(from_fact->getId(), bindings);
+//				}
+				
+				balanced_property_set = new BalancedPropertySet(from_fact_property_space, invariable_objects);
+
+				property_space_balanced_sets[std::make_pair(&from_fact_property_space, static_cast<const std::vector<const Object*>*>(NULL))] = balanced_property_set;
 			}
 			else
 			{
-				add_remove_list = (*property_space_i).second;
+				balanced_property_set = (*property_space_i).second;
 			}
-			
+
 			/**
 			 * Determine if this fact has been removed (i.e. is not part of the to_node). If the fact has not been removed it is marked as
 			 * persistent. This can later be undone if we find that the fact is removed and later added by the given action.
@@ -546,7 +592,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 
 			if (is_removed)
 			{
-				add_remove_list.second->push_back(from_fact);
+				balanced_property_set->removeProperty(*from_fact);
 			}
 		}
 	}
@@ -560,20 +606,26 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			// Check if the property space this to_fact belongs to has already been created.
 			const Property* to_fact_property = *ci;
 			const PropertySpace& to_fact_property_space = to_fact_property->getPropertyState().getPropertySpace();
-			std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::iterator property_space_i = property_space_balanced_sets.find(&to_fact_property_space);
-			std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > add_remove_list;
+			
+			BalancedPropertySet* balanced_property_set = NULL;
+			std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::iterator property_space_i = property_space_balanced_sets.find(std::make_pair(&to_fact_property_space, static_cast<const std::vector<const Object*>*>(NULL)));
+			
 			if (property_space_i == property_space_balanced_sets.end())
 			{
-				std::vector<const BoundedAtom*>* add_list = new std::vector<const BoundedAtom*>();
-				std::vector<const BoundedAtom*>* removal_list = new std::vector<const BoundedAtom*>();
-				add_remove_list = std::make_pair(add_list, removal_list);
-				property_space_balanced_sets[&to_fact_property_space] = add_remove_list;
+				const std::vector<const Object*>* invariable_objects = NULL;
+//				if (from_fact_property->getIndex() != NO_INVARIABLE_INDEX)
+//				{
+//					invariable_objects = from_fact->getAtom().getTerms()[from_fact_property->getIndex()].getDomain(from_fact->getId(), bindings);
+//				}
+				
+				balanced_property_set = new BalancedPropertySet(to_fact_property_space, invariable_objects);
+				property_space_balanced_sets[std::make_pair(&to_fact_property_space, static_cast<const std::vector<const Object*>*>(NULL))] = balanced_property_set;
 			}
 			else
 			{
-				add_remove_list = (*property_space_i).second;
+				balanced_property_set = (*property_space_i).second;
 			}
-			
+
 			bool is_added = true;
 			
 			for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
@@ -598,7 +650,8 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			
 			if (is_added)
 			{
-				add_remove_list.first->push_back(to_fact);
+				balanced_property_set->addProperty(*to_fact);
+//				add_remove_list.first->push_back(to_fact);
 			}
 		}
 	}
@@ -629,71 +682,98 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		std::cout << std::endl;
 #endif
 		
-		for (std::vector<const Property*>::const_iterator ci = from_persistent_atom->getProperties().begin(); ci != from_persistent_atom->getProperties().end(); ci++)
+		// Check if the transitions removes this fact.
+		for (std::vector<const Atom*>::const_iterator ci = effects.begin(); ci != effects.end(); ci++)
 		{
-			const PropertySpace& from_fact_property_space = (*ci)->getPropertyState().getPropertySpace();		
-			std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::iterator from_property_space_i = property_space_balanced_sets.find(&from_fact_property_space);
-			assert (from_property_space_i != property_space_balanced_sets.end());
-			std::vector<const BoundedAtom*>* remove_list = (*from_property_space_i).second.second;
+			const Atom* effect = *ci;
+
+//			std::cout << " v.s. effect: ";
+//			effect->print(std::cout, bindings, action_step_id);
+//			std::cout << std::endl;
+
+			if (effect->isNegative() == to_persistent_atom->getAtom().isNegative() && 
+				bindings.canUnify(*effect, action_step_id, to_persistent_atom->getAtom(), to_persistent_atom->getId()))
+			{
+//				std::cout << "Is added!" << std::endl;
+				is_added = true;
+			}
+
+			if (bindings.affects(*effect, action_step_id, to_persistent_atom->getAtom(), to_persistent_atom->getId()))
+			{
+//				std::cout << "Is deleted!" << std::endl;
+				is_deleted = true;
+			}
+		}
+
+		if (is_added && is_deleted)
+		{
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+			std::cout << "Invallid persistent fact!" << std::endl;
+#endif
+
+			for (std::vector<const Property*>::const_iterator ci = to_persistent_atom->getProperties().begin(); ci != to_persistent_atom->getProperties().end(); ci++)
+			{
+				const PropertySpace& property_space = (*ci)->getPropertyState().getPropertySpace();
+				std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::iterator i = property_space_balanced_sets.find(std::make_pair(&property_space, static_cast<const std::vector<const Object*>*>(NULL)));
+				
+				assert (i != property_space_balanced_sets.end());
+				
+				(*i).second->addProperty(*to_persistent_atom);
+				(*i).second->removeProperty(*from_persistent_atom);
+			}
 			
 			for (std::vector<const Property*>::const_iterator ci = from_persistent_atom->getProperties().begin(); ci != from_persistent_atom->getProperties().end(); ci++)
 			{
-				const PropertySpace& to_fact_property_space = (*ci)->getPropertyState().getPropertySpace();		
-				std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::iterator to_property_space_i = property_space_balanced_sets.find(&to_fact_property_space);
-				assert (to_property_space_i != property_space_balanced_sets.end());
-				std::vector<const BoundedAtom*>* add_list = (*to_property_space_i).second.first;
+				const PropertySpace& property_space = (*ci)->getPropertyState().getPropertySpace();
+				std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::iterator i = property_space_balanced_sets.find(std::make_pair(&property_space, static_cast<const std::vector<const Object*>*>(NULL)));
 				
-				// Check if the transitions removes this fact.
-				for (std::vector<const Atom*>::const_iterator ci = effects.begin(); ci != effects.end(); ci++)
-				{
-					const Atom* effect = *ci;
-
-		//			std::cout << " v.s. effect: ";
-		//			effect->print(std::cout, bindings, action_step_id);
-		//			std::cout << std::endl;
-
-					if (effect->isNegative() == to_persistent_atom->getAtom().isNegative() && 
-						bindings.canUnify(*effect, action_step_id, to_persistent_atom->getAtom(), to_persistent_atom->getId()))
-					{
-		//				std::cout << "Is added!" << std::endl;
-						is_added = true;
-					}
-
-					if (bindings.affects(*effect, action_step_id, to_persistent_atom->getAtom(), to_persistent_atom->getId()))
-					{
-		//				std::cout << "Is deleted!" << std::endl;
-						is_deleted = true;
-					}
-				}
-
-				if (is_added && is_deleted)
-				{
-#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-					std::cout << "Invallid persistent fact!" << std::endl;
-#endif
-					remove_list->push_back(from_persistent_atom);
-					add_list->push_back(to_persistent_atom);
-					persistent_facts.erase(persistent_ci.base() - 1);
-					break;
-				}
+				assert (i != property_space_balanced_sets.end());
+				
+				(*i).second->addProperty(*to_persistent_atom);
+				(*i).second->removeProperty(*from_persistent_atom);
 			}
-			
-			if (is_added && is_deleted)
-			{
-				break;
-			}
+
+			persistent_facts.erase(persistent_ci.base() - 1);
+			break;
 		}
 	}
 	
-#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
+	/**
+	 * Remove all facts from the add / remove sets if they are reported to be persistent!
+	 * TODO: Not a nice way of doing things, but works for now :).
+	 */
+	std::vector<std::pair<const PropertySpace*, const std::vector<const Object*>* > > to_remove;
+	for (std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
 	{
-		std::cout << "Add / Remove sets: " << (*ci).first << std::endl;
+		BalancedPropertySet* balanced_property_set = (*ci).second;
+		std::pair<const PropertySpace*, const std::vector<const Object*>* > key = (*ci).first;
 		
-		const std::vector<const BoundedAtom*>* add_set = (*ci).second.first;
-		const std::vector<const BoundedAtom*>* remove_set = (*ci).second.second;
+		for (std::vector<std::pair<const BoundedAtom*, const BoundedAtom*> >::const_iterator ci = persistent_facts.begin(); ci != persistent_facts.end(); ci++)
+		{
+			balanced_property_set->removeAddedProperty(*(*ci).second);
+			balanced_property_set->removeRemovedProperty(*(*ci).first);
+		}
 		
-		for (std::vector<const BoundedAtom*>::const_iterator ci = add_set->begin(); ci != add_set->end(); ci++)
+		if (balanced_property_set->getAddedProperties().empty() && balanced_property_set->getRemovedProperties().empty())
+		{
+			to_remove.push_back(key);
+		}
+	}
+	
+	for (std::vector<std::pair<const PropertySpace*, const std::vector<const Object*>* > >::const_iterator ci = to_remove.begin(); ci != to_remove.end(); ci++)
+	{
+		property_space_balanced_sets.erase(*ci);
+	}
+	
+	
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+	for (std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
+	{
+		
+		std::cout << "Add / Remove sets: " << (*ci).first.first << std::endl;
+		BalancedPropertySet* balanced_property_set = (*ci).second;
+		
+		for (std::vector<const BoundedAtom*>::const_iterator ci = balanced_property_set->getAddedProperties().begin(); ci != balanced_property_set->getAddedProperties().end(); ci++)
 		{
 			const BoundedAtom* add_atom = *ci;
 			
@@ -702,7 +782,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 			std::cout << std::endl;
 		}
 		
-		for (std::vector<const BoundedAtom*>::const_iterator ci = remove_set->begin(); ci != remove_set->end(); ci++)
+		for (std::vector<const BoundedAtom*>::const_iterator ci = balanced_property_set->getRemovedProperties().begin(); ci != balanced_property_set->getRemovedProperties().end(); ci++)
 		{
 			const BoundedAtom* add_atom = *ci;
 			
@@ -733,14 +813,17 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	std::map<const PropertySpace*, const std::vector<const Object*>*> property_space_invariables;
 	std::map<const PropertySpace*, const Variable*>* property_space_action_invariables = new std::map<const PropertySpace*, const Variable*>();
 	
-	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
+	for (std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
 	{
 		// Only consider property spaces which get removed and added, if a fact is only added or removed it's an optional precondition.
-		const PropertySpace* property_space = (*ci).first;
-		std::vector<const BoundedAtom*>* added_facts = (*ci).second.first;
-		std::vector<const BoundedAtom*>* removed_facts = (*ci).second.second;
+		const PropertySpace* property_space = (*ci).first.first;
 		
-		if (added_facts->empty() || removed_facts->empty())
+		BalancedPropertySet* balanced_property_set = (*ci).second;
+		
+		const std::vector<const BoundedAtom*>& added_facts = balanced_property_set->getAddedProperties();
+		const std::vector<const BoundedAtom*>& removed_facts = balanced_property_set->getRemovedProperties();
+		
+		if (added_facts.empty() || removed_facts.empty())
 		{
 			continue;
 		}
@@ -762,7 +845,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 		std::cout << "Find invariable for all added facts." << std::endl;
 #endif
-		for (std::vector<const BoundedAtom*>::const_iterator ci = added_facts->begin(); ci != added_facts->end(); ci++)
+		for (std::vector<const BoundedAtom*>::const_iterator ci = added_facts.begin(); ci != added_facts.end(); ci++)
 		{
 			const BoundedAtom* added_fact = *ci;
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
@@ -807,7 +890,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 		std::cout << "Find invariable for all removed facts." << std::endl;
 #endif
-		for (std::vector<const BoundedAtom*>::const_iterator ci = removed_facts->begin(); ci != removed_facts->end(); ci++)
+		for (std::vector<const BoundedAtom*>::const_iterator ci = removed_facts.begin(); ci != removed_facts.end(); ci++)
 		{
 			const BoundedAtom* removed_fact = *ci;
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
@@ -1050,7 +1133,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 					for (std::vector<const Property*>::const_iterator ci = property_state->getProperties().begin(); ci != property_state->getProperties().end(); ci++)
 					{
 						const Property* property = *ci;
-	//					std::cout << "Compare against: " << property->getPredicate() << std::endl;
 						
 						if (precondition->getPredicate().getName() == property->getPredicate().getName() &&
 							precondition->getPredicate().getArity() == property->getPredicate().getArity())
@@ -1176,7 +1258,6 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 					for (std::vector<const Property*>::const_iterator ci = property_state->getProperties().begin(); ci != property_state->getProperties().end(); ci++)
 					{
 						const Property* property = *ci;
-	//					std::cout << "Compare against: " << property->getPredicate() << std::endl;
 						
 						if (effect->getPredicate().getName() == property->getPredicate().getName() &&
 							effect->getPredicate().getArity() == property->getPredicate().getArity())
@@ -1231,13 +1312,15 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	std::vector<std::pair<const Atom*, const BoundedAtom*> > add_effects_to_to_node_bindings;
 	std::vector<std::pair<const Atom*, const BoundedAtom*> > precondition_to_from_node_bindings;
 
-	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
+	for (std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
 	{
-		const PropertySpace* property_space = (*ci).first;
-		const std::vector<const BoundedAtom*>* added_facts = (*ci).second.first;
-		const std::vector<const BoundedAtom*>* removed_facts = (*ci).second.second;
+		const PropertySpace* property_space = (*ci).first.first;
+		const BalancedPropertySet* balanced_property_set = (*ci).second;
 		
-		if (added_facts->empty() || removed_facts->empty())
+		const std::vector<const BoundedAtom*>& added_facts = balanced_property_set->getAddedProperties();
+		const std::vector<const BoundedAtom*>& removed_facts = balanced_property_set->getRemovedProperties();
+		
+		if (added_facts.empty() || removed_facts.empty())
 		{
 			continue;
 		}
@@ -1247,13 +1330,13 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 		std::cout << " ****************************** " << std::endl;
 		std::cout << "Check all added and removed facts are accounted for: " << std::endl;
-		for (std::vector<const BoundedAtom*>::const_iterator ci = added_facts->begin(); ci != added_facts->end(); ci++)
+		for (std::vector<const BoundedAtom*>::const_iterator ci = added_facts.begin(); ci != added_facts.end(); ci++)
 		{
 			std::cout << "+ ";
 			(*ci)->print(std::cout, bindings);
 			std::cout << std::endl;
 		}
-		for (std::vector<const BoundedAtom*>::const_iterator ci = removed_facts->begin(); ci != removed_facts->end(); ci++)
+		for (std::vector<const BoundedAtom*>::const_iterator ci = removed_facts.begin(); ci != removed_facts.end(); ci++)
 		{
 			std::cout << "- ";
 			(*ci)->print(std::cout, bindings);
@@ -1261,7 +1344,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		}
 #endif
 
-		for (std::vector<const BoundedAtom*>::const_iterator ci = added_facts->begin(); ci != added_facts->end(); ci++)
+		for (std::vector<const BoundedAtom*>::const_iterator ci = added_facts.begin(); ci != added_facts.end(); ci++)
 		{
 			const BoundedAtom* added_fact = *ci;
 			bool is_added = false;
@@ -1333,7 +1416,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 		std::cout << "Make sure all delete facts are accounted for!" << std::endl;
 #endif
-		for (std::vector<const BoundedAtom*>::const_iterator ci = removed_facts->begin(); ci != removed_facts->end(); ci++)
+		for (std::vector<const BoundedAtom*>::const_iterator ci = removed_facts.begin(); ci != removed_facts.end(); ci++)
 		{
 			const BoundedAtom* removed_fact = *ci;
 			bool is_a_precondition = false;
@@ -1437,12 +1520,21 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	 * Start making the actual bindings!
 	 */
 	std::map<const PropertySpace*, const std::vector<const Object*>* > invariable_property_space_to_domain_mapping;
-	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
+	
+	for (std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
 	{
-		if ((*ci).second.first->empty() || (*ci).second.second->empty())
-			continue;
+		const PropertySpace* property_space = (*ci).first.first;
+//		const std::vector<const Object*>* invariable_term = (*ci).first.second;
+		const BalancedPropertySet* balanced_property_set = (*ci).second;
 		
-		const PropertySpace* property_space = (*ci).first;
+		const std::vector<const BoundedAtom*>& added_facts = balanced_property_set->getAddedProperties();
+		const std::vector<const BoundedAtom*>& removed_facts = balanced_property_set->getRemovedProperties();
+		
+		if (added_facts.empty() || removed_facts.empty())
+		{
+			continue;
+		}
+		
 		const std::vector<const Object*>* invariable_domain = property_space_invariables[property_space];
 		
 		std::map<const PropertySpace*, const std::vector<const Object*>* >::const_iterator ci = invariable_property_space_to_domain_mapping.find(property_space);
@@ -1476,26 +1568,30 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 	std::cout << "[Transition::createTransition] Unify the optional preconditions!" << std::endl;
 #endif
-	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
+
+for (std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
 	{
-		const PropertySpace* property_space = (*ci).first;
-		const std::vector<const BoundedAtom*>* added_facts = (*ci).second.first;
-		const std::vector<const BoundedAtom*>* removed_facts = (*ci).second.second;
+		const PropertySpace* property_space = (*ci).first.first;
+//		const std::vector<const Object*>* invariable_term = (*ci).first.second;
+		const BalancedPropertySet* balanced_property_set = (*ci).second;
 		
-		if (!added_facts->empty() && !removed_facts->empty())
+		const std::vector<const BoundedAtom*>& added_facts = balanced_property_set->getAddedProperties();
+		const std::vector<const BoundedAtom*>& removed_facts = balanced_property_set->getRemovedProperties();
+		
+		if (!added_facts.empty() && !removed_facts.empty())
 		{
 			continue;
 		}
-		
+
 		/**
 		 * If no facts are added, than some facts must have been removed and these facts must be present in the set of preconditions.
 		 */
-		if (added_facts->empty())
+		if (added_facts.empty())
 		{
 ///#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 ///			std::cout << "Unify the optional preconditions..." << std::endl;
 ///#endif
-			if (!unifyDTGAtomsWithAction(*removed_facts, from_node, preconditions, action_step_id, action, bindings, *invariable_property_space_to_domain_mapping[property_space]))
+			if (!unifyDTGAtomsWithAction(removed_facts, from_node, preconditions, action_step_id, action, bindings, *invariable_property_space_to_domain_mapping[property_space]))
 			{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 				std::cout << "FAIL!" << std::endl;
@@ -1513,12 +1609,12 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 			std::cout << "Unify the optional effects..." << std::endl;
 #endif
-			if (!unifyDTGAtomsWithAction(*added_facts, to_node, effects, action_step_id, action, bindings, *invariable_property_space_to_domain_mapping[property_space]))
+			if (!unifyDTGAtomsWithAction(added_facts, to_node, effects, action_step_id, action, bindings, *invariable_property_space_to_domain_mapping[property_space]))
 			{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 							std::cout << "Could not unify the optional effects, try as a precondition..." << std::endl;
 #endif
-				if (!unifyDTGAtomsWithAction(*added_facts, to_node, preconditions, action_step_id, action, bindings, *invariable_property_space_to_domain_mapping[property_space]))
+				if (!unifyDTGAtomsWithAction(added_facts, to_node, preconditions, action_step_id, action, bindings, *invariable_property_space_to_domain_mapping[property_space]))
 				{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 					std::cout << "FAIL!" << std::endl;
@@ -1722,12 +1818,11 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 					// Check which other terms of this precondition are considered to be balanced.
 					for (unsigned int i = 0; i < precondition->getArity(); i++)
 					{
-							const std::vector<const Object*>& other_precondition_term_domain = precondition->getTerms()[i]->getDomain(action_step->getStepId(), bindings);
-							if (closed_list_balanced_domains.count(&other_precondition_term_domain) == 0)
-							{
-								open_list_balanced_domains.insert(&other_precondition_term_domain);
-							}
-//						}
+						const std::vector<const Object*>& other_precondition_term_domain = precondition->getTerms()[i]->getDomain(action_step->getStepId(), bindings);
+						if (closed_list_balanced_domains.count(&other_precondition_term_domain) == 0)
+						{
+							open_list_balanced_domains.insert(&other_precondition_term_domain);
+						}
 					}
 				}
 			}
@@ -1744,14 +1839,15 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 	{
 		const Atom* precondition = *ci;
-		
-		for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
+
+		for (std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
 		{
-			const PropertySpace* property_space = (*ci).first;
-			const std::vector<const BoundedAtom*>* added_facts = (*ci).second.first;
-			const std::vector<const BoundedAtom*>* removed_facts = (*ci).second.second;
+			const PropertySpace* property_space = (*ci).first.first;
+			BalancedPropertySet* balanced_property_set = (*ci).second;
+			const std::vector<const BoundedAtom*>& added_facts = balanced_property_set->getAddedProperties();
+			const std::vector<const BoundedAtom*>& removed_facts = balanced_property_set->getRemovedProperties();
 			
-			if (added_facts->empty() || removed_facts->empty())
+			if (added_facts.empty() || removed_facts.empty())
 			{
 				continue;
 			}

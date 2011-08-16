@@ -51,6 +51,39 @@ namespace Utilities {
 	};*/
 };
 
+class BalancedPropertySet;
+
+struct CompareBalancedPropertySet {
+	bool operator()(const BalancedPropertySet& lhs, const BalancedPropertySet& rhs) const;
+};
+
+class BalancedPropertySet {
+	
+public:
+	
+	BalancedPropertySet(const PropertySpace& property_space, const std::vector<const Object*>* invariable_domain);
+	
+	void removeProperty(const BoundedAtom& fact);
+	
+	void addProperty(const BoundedAtom& fact);
+	
+	const std::vector<const BoundedAtom*>& getAddedProperties() const;
+	
+	const std::vector<const BoundedAtom*>& getRemovedProperties() const;
+	
+	void removeAddedProperty(const BoundedAtom& fact);
+	
+	void removeRemovedProperty(const BoundedAtom& fact);
+	
+private:
+	const PropertySpace* property_space_;
+	std::vector<const BoundedAtom*> properties_added_;
+	std::vector<const BoundedAtom*> properties_deleted_;
+	const std::vector<const Object*>* invariable_domain_;
+	
+	friend bool CompareBalancedPropertySet::operator()(const BalancedPropertySet& lhs, const BalancedPropertySet& rhs) const;
+};
+
 /**
  * The transition class marks a transition between two nodes in a DTG.
  */

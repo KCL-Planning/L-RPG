@@ -1222,8 +1222,38 @@ void DomainTransitionGraph::solveSubsets()
 					}
 					else if (fact->isProperSuperSetOf(*sub_set_fact, *bindings_))
 					{
-						super_set_fact_found = true;
-						break;
+						// Check if the properties align.
+						if (sub_set_fact->getProperties().size() != fact->getProperties().size())
+						{
+							continue;
+						}
+						
+						bool all_properties_found = true;
+						for (std::vector<const Property*>::const_iterator ci = sub_set_fact->getProperties().begin(); ci != sub_set_fact->getProperties().end(); ci++)
+						{
+							bool found = false;
+							const Property* property = *ci;
+							for (std::vector<const Property*>::const_iterator ci = fact->getProperties().begin(); ci != fact->getProperties().end(); ci++)
+							{
+								if (*property == **ci)
+								{
+									found = true;
+									break;
+								}
+							}
+							
+							if (!found)
+							{
+								all_properties_found = false;
+								break;
+							}
+						}
+						
+						if (all_properties_found)
+						{
+							super_set_fact_found = true;
+							break;
+						}
 					}
 				}
 				
@@ -1257,7 +1287,8 @@ void DomainTransitionGraph::solveSubsets()
 			// Map the terms of the super set to those of the sub set. Then we iterate through all transitions from the super node
 			// and construct the to nodes, mapping the terms to those of the sub set. The resulting set of facts are a new node to 
 			// construct a transition to from the sub set.
-			if (is_equivalent_grounded_sub_set)
+			if (is_equivalent_grounded_sub_set && 
+			    dtg_node->getAtoms().size() == sub_set_dtg_node->getAtoms().size()) // TEST Temporary contraint for depots.
 			{
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 				std::cout << "Proper grounded subset: " << *sub_set_dtg_node << "." << std::endl;
@@ -1277,6 +1308,32 @@ void DomainTransitionGraph::solveSubsets()
 					for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
 					{
 						const BoundedAtom* fact = *ci;
+						
+						bool properties_align = true;
+						for (std::vector<const Property*>::const_iterator ci = sub_set_fact->getProperties().begin(); ci != sub_set_fact->getProperties().end(); ci++)
+						{
+							bool property_aligns = false;
+							const Property* property = *ci;
+							for (std::vector<const Property*>::const_iterator ci = sub_set_fact->getProperties().begin(); ci != sub_set_fact->getProperties().end(); ci++)
+							{
+								if (*property == **ci)
+								{
+									property_aligns = true;
+									break;
+								}
+							}
+							
+							if (!property_aligns)
+							{
+								properties_align = false;
+								break;
+							}
+						}
+						
+						if (!properties_align)
+						{
+							continue;
+						}
 						
 						if (fact->isEquivalentTo(*sub_set_fact, *bindings_))
 						{

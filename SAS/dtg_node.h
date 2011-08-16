@@ -23,6 +23,7 @@ namespace SAS_Plus {
 class DomainTransitionGraph;
 class Transition;
 class BoundedAtom;
+class DomainTransitionGraphNode;
 
 /**
  * All possible values a state variable can take are stored in DTG nodes. We use a lifted
@@ -55,8 +56,11 @@ public:
 
 	/**
 	 * Add an atom to this node.
+	 * @param bounded_atom The atom to add.
+	 * @param index The index which is considered to be invariable (depricated!).
+	 * @return True if the atom was added, false if the atom was already part of this node.
 	 */
-	void addAtom(BoundedAtom* bounded_atom, InvariableIndex index);
+	bool addAtom(BoundedAtom* bounded_atom, InvariableIndex index);
 	
 	/**
 	 * Test if the given atom is present in this DTG.

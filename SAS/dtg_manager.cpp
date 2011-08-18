@@ -548,6 +548,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	 * end up with wrong DTGs.
 	 */
 	std::set<const DomainTransitionGraph*> unsupported_predicates_dtg;
+	std::vector<std::pair<const Predicate*, const Atom*> > unsupported_predicates;
 	for (std::vector<Predicate*>::const_iterator ci = predicate_manager_->getManagableObjects().begin(); ci != predicate_manager_->getManagableObjects().end(); ci++)
 	{
 		const Predicate* predicate = *ci;
@@ -591,13 +592,23 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 			}
 		}
 		
+		if (!is_supported)
+		{
+			unsupported_predicates.push_back(std::make_pair(predicate, possitive_atom));
+		}
+	}
+	
+	for (std::vector<std::pair<const Predicate*, const Atom*> >::const_iterator ci = unsupported_predicates.begin(); ci != unsupported_predicates.end(); ci++)
+	{
+		const Predicate* predicate = (*ci).first;
+		const Atom* possitive_atom = (*ci).second;
 		/**
 		 * Unsupported predicates come in two varieties:
 		 * 1) The predicate is static, so only a single node needs to be constructed with these values.
 		 * 2) The predicate is not static, but can only be made true or false. This is encoded using two
 		 * nodes and all relevant transitions between the two. The other node must contain the atom negated.
 		 */
-		if (!is_supported)
+//		if (!is_supported)
 		{
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 			std::cout << "The predicate: " << *predicate << " is not processed yet!" << std::endl;
@@ -627,7 +638,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 			{
 				// Add all preconditions which share a term with the unsupported predicate.
 				DomainTransitionGraphNode* negative_new_dtg_node = new DomainTransitionGraphNode(*new_dtg, NO_INVARIABLE_INDEX);
-				Atom* negative_atom = new Atom(*predicate, *new_terms, true);
+				Atom* negative_atom = new Atom(*predicate, possitive_atom->getTerms(), true);
 				StepID negative_atom_id = new_dtg->getBindings().createVariableDomains(*possitive_atom);
 				
 				negative_new_dtg_node->addAtom(new BoundedAtom(negative_atom_id, *negative_atom, property_state->getProperties()), NO_INVARIABLE_INDEX);
@@ -766,14 +777,17 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 	std::cout << "FINAL RESULTS" << std::endl;
 	std::cout << combined_graph << std::endl;
-/*
-	std::cout << " === Result === " << std::endl;
-	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
-	{
-		std::cout << **ci << std::endl;
-	}
-*/
 #endif
+
+	std::ofstream ofs;
+	ofs.open("combined_dtg.dot", std::ios::out);
+	
+	ofs << "digraph {" << std::endl;
+
+	Graphviz::printToDot(ofs, combined_graph);
+	
+	ofs << "}" << std::endl;
+	ofs.close();
 
 	struct timeval start_time_reachability;
 	gettimeofday(&start_time_reachability, NULL);

@@ -109,6 +109,11 @@ const std::vector<const Property*>& BoundedAtom::getProperties() const
 {
 	return properties_;
 }
+
+bool BoundedAtom::constainsVariableDomain(const std::vector<const Object*>& variable_domain, const Bindings& bindings) const
+{
+	return atom_->constainsVariableDomain(id_, variable_domain, bindings);
+}
 	
 bool BoundedAtom::addProperty(const Property& property)
 {
@@ -1567,7 +1572,6 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 #endif
 												BoundedAtom* bounded_precondition = new BoundedAtom(transition->getStep()->getStepId(), *precondition, *property_list);
 												preconditions_to_add_to_to_node.push_back(std::make_pair(bounded_precondition, precondition_invariable_index));
-												//preconditions_to_add_to_to_node.push_back(std::make_pair(bounded_precondition, std::distance(precondition->getTerms().begin(), term_precondition_ci)));
 											}
 										}
 										else if (add_predicate)
@@ -1686,9 +1690,62 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 					}
 					atoms_to_add_to_from_node.clear();
 					
-					for (std::vector<std::pair<BoundedAtom*, InvariableIndex> >::const_iterator ci = preconditions_to_add_to_to_node.begin(); ci != preconditions_to_add_to_to_node.end(); ci++)
+					bool precondition_added = true;
+					while (precondition_added && !preconditions_to_add_to_to_node.empty())
 					{
-						to_dtg_node_clone->addAtom((*ci).first, (*ci).second);
+						precondition_added = false;
+						for (std::vector<std::pair<BoundedAtom*, InvariableIndex> >::reverse_iterator ri = preconditions_to_add_to_to_node.rbegin(); ri != preconditions_to_add_to_to_node.rend(); ri++)
+						{
+							BoundedAtom* atom_to_add = (*ri).first;
+							InvariableIndex invariable_index = (*ri).second;
+							
+							bool added = false;
+							
+							// TODO: This code is now used as a substitute to figure out which predicates can be mapped to
+							// which bounded atoms which is very expensive and a shit way of doing this.
+							std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
+							getDTGNodes(found_nodes, atom_to_add->getId(), atom_to_add->getAtom(), dtg->getBindings());
+							
+							for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ci++)
+							{
+								const BoundedAtom* matching_bounded_atom = (*ci).second;
+								bool found_property = false;
+								
+								// Make sure the invariable actually is part of the to node.
+								for (std::vector<const Property*>::const_iterator ci = matching_bounded_atom->getProperties().begin(); ci != matching_bounded_atom->getProperties().end(); ci++)
+								{
+									const Property* property = *ci;
+									if (property->getIndex() == NO_INVARIABLE_INDEX) continue;
+									
+									const Term* invariable_term = atom_to_add->getAtom().getTerms()[property->getIndex()];
+									const std::vector<const Object*>& invariable_domain = invariable_term->getDomain(atom_to_add->getId(), dtg->getBindings());
+									
+									for (std::vector<BoundedAtom*>::const_iterator ci = to_dtg_node_clone->getAtoms().begin(); ci != to_dtg_node_clone->getAtoms().end(); ci++)
+									{
+										if ((*ci)->constainsVariableDomain(invariable_domain, dtg->getBindings()))
+										{
+											to_dtg_node_clone->addAtom(atom_to_add, invariable_index);
+											found_property = true;
+											precondition_added = true;
+											preconditions_to_add_to_to_node.erase(ri.base() - 1);
+											added = true;
+											break;
+										}
+									}
+									
+									if (found_property) break;
+								}
+								
+								if (found_property) break;
+							}
+
+							if (!added)
+							{
+								std::cout << "The fact: ";
+								atom_to_add->print(std::cout, dtg->getBindings());
+								std::cout << " could not been added!" << std::endl;
+							}
+						}
 					}
 					preconditions_to_add_to_to_node.clear();
 				}

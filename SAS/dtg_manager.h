@@ -81,6 +81,14 @@ public:
 	const std::vector<const Property*>& getProperties() const;
 	
 	/**
+	 * Check if the bounded atom contains the given term, that is a term which shares
+	 * the same variable domain.
+	 * @param term The term domain to search for.
+	 * @return True if the same term exists, false otherwise.
+	 */
+	bool constainsVariableDomain(const std::vector<const Object*>& variable_domain, const Bindings& bindings) const;
+	
+	/**
 	 * Add a property this bounded atom is part of.
 	 * @param property The property to add.
 	 * @return True if the property was added, false otherwise; The latter indicates that property was already part of this bounded atom.

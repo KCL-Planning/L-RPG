@@ -66,6 +66,11 @@ public:
 	 * Test if the given atom is present in this DTG.
 	 */
 	bool contains(StepID id, const Atom& atom, InvariableIndex index) const;
+	
+	/**
+	 * Test if the given bounded atom is part of this DTG node. The domains must match exactly!
+	 */
+	bool containsExactCopyOf(const BoundedAtom& bounded_atom) const;
 
 	/**
 	 * Remove atoms (lazy remove).
@@ -240,6 +245,8 @@ public:
 	bool isEquivalentTo(const DomainTransitionGraphNode& other) const;
 	
 	bool isTermGrounded(const Term& term) const;
+	
+	bool canUnifyWith(const DomainTransitionGraphNode& other) const;
 	
 private:
 	

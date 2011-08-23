@@ -23,6 +23,47 @@ class DomainTransitionGraphNode;
 class DTGReachability;
 class Transition;
 
+class EquivalentObjectGroup;
+
+class ReachableFact
+{
+public:
+	ReachableFact(const BoundedAtom& bounded_atom, const DomainTransitionGraphNode& dtg_node, const EquivalentObjectGroup* term_domain_mapping);
+	
+private:
+	
+	const EquivalentObjectGroup* term_domain_mapping_;
+	
+	const BoundedAtom* bounded_atom_;
+	const DomainTransitionGraphNode* dtg_node_;
+};
+
+
+/**
+ * The equivalent object class keeps track of a single object and its initial state. The initial state records both
+ * the DTG the object is part of and all relations to other objects based on the predicates it is part of.
+ */
+class EquivalentObject
+{
+public:
+	EquivalentObject(const Object& object, EquivalentObjectGroup& equivalent_group, const DomainTransitionGraph& dtg_graph);
+	
+	EquivalentObject(const Object& object, EquivalentObjectGroup& equivalent_group, const DomainTransitionGraph& dtg_graph, std::vector<const DomainTransitionGraphNode*>& initial_dtgs);
+	
+	bool addInitialDTGNodeMapping(const Object& object, const DomainTransitionGraphNode& dtg_node);
+	
+	void updateReachableFacts(const Object& object, const DomainTransitionGraphNode& dtg_node);
+
+private:
+	EquivalentObjectGroup* equivalent_group_;
+	
+	const Object* object_;
+	
+	const DomainTransitionGraph* dtg_graph_;
+	
+	std::vector<const ReachableFact*> initial_facts_;
+};
+
 /**
  * Equivalent objects are object for which the following property holds:
  * If two equivalent objects A and B both can reach the same DTG node then all transitions which can be
@@ -148,7 +189,7 @@ public:
 private:
 	const Predicate* predicate_;
 	
-	const std::vector<const EquivalentObjectGroupManager*> terms_;
+	const std::vector<const EquivalentObjectGroup*> terms_;
 };
 	
 /**

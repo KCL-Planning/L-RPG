@@ -26,7 +26,7 @@ namespace MyPOP {
 
 namespace SAS_Plus {
 
-DTGBindings::DTGBindings(const TermManager& term_manager, const BindingsPropagator& propagator)
+/*DTGBindings::DTGBindings(const TermManager& term_manager, const BindingsPropagator& propagator)
 	: Bindings(term_manager, propagator)
 {
 
@@ -78,10 +78,10 @@ bool DTGBindings::canUnifyDTGNodes(const MyPOP::SAS_Plus::DomainTransitionGraphN
 bool DTGBindings::canUnifyBoundedAtoms(const BoundedAtom& bounded_atom1, const BoundedAtom& bounded_atom2) const
 {
 	return canUnify(bounded_atom1.getAtom(), bounded_atom1.getId(), bounded_atom2.getAtom(), bounded_atom2.getId());
-}
+}*/
 
-DomainTransitionGraph::DomainTransitionGraph(const DomainTransitionGraphManager& dtg_manager, const TypeManager& type_manager, const ActionManager& action_manager, const PredicateManager& predicate_manager, const DTGBindings& bindings, const std::vector<const Atom*>& initial_facts)
-	: dtg_manager_(&dtg_manager), dtg_term_manager_(new TermManager(type_manager)), action_manager_(&action_manager), predicate_manager_(&predicate_manager), bindings_(new DTGBindings(bindings)), initial_facts_(&initial_facts), type_(NULL)
+DomainTransitionGraph::DomainTransitionGraph(const DomainTransitionGraphManager& dtg_manager, const TypeManager& type_manager, const ActionManager& action_manager, const PredicateManager& predicate_manager, Bindings& bindings, const std::vector<const Atom*>& initial_facts)
+	: dtg_manager_(&dtg_manager), dtg_term_manager_(new TermManager(type_manager)), action_manager_(&action_manager), predicate_manager_(&predicate_manager), bindings_(&bindings), initial_facts_(&initial_facts), type_(NULL)
 {
 
 }

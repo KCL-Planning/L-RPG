@@ -238,6 +238,20 @@ bool DomainTransitionGraphNode::contains(StepID id, const Atom& atom, Invariable
 	return false;
 }
 
+bool DomainTransitionGraphNode::containsExactCopyOf(const BoundedAtom& bounded_atom) const
+{
+	for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
+	{
+		const BoundedAtom* existing_bounded_atom = *ci;
+		if (dtg_->getBindings().areIdentical(existing_bounded_atom->getAtom(), existing_bounded_atom->getId(), bounded_atom.getAtom(), bounded_atom.getId()))
+		{
+			bounded_atom.getAtom().print(std::cout, dtg_->getBindings(), bounded_atom.getId());
+			return true;
+		}
+	}
+	return false;
+}
+
 bool DomainTransitionGraphNode::addAtom(BoundedAtom* bounded_atom, InvariableIndex index)
 {
 //	std::cout << "Add the atom: ";
@@ -388,7 +402,8 @@ bool DomainTransitionGraphNode::findMapping(const std::vector<const BoundedAtom*
 		if (mask[atom_index]) continue;
 		
 		const BoundedAtom* dtg_node_fact = *ci;
-		if (dtg_->getBindings().canUnifyBoundedAtoms(*atom_to_search_for, *dtg_node_fact))
+//		if (dtg_->getBindings().canUnifyBoundedAtoms(*atom_to_search_for, *dtg_node_fact))
+		if (atom_to_search_for->canUnifyWith(*dtg_node_fact, dtg_->getBindings()))
 		{
 			// If we have found a mapping for the last node we are done!
 			if (index + 1 == mapping.size()) return true;
@@ -402,6 +417,42 @@ bool DomainTransitionGraphNode::findMapping(const std::vector<const BoundedAtom*
 	}
 	
 	return false;
+}
+
+bool DomainTransitionGraphNode::canUnifyWith(const DomainTransitionGraphNode& other) const
+{
+//	std::cout << "Can unify: " << *this << " and " << node2 << "?" << std::endl;
+	for (std::vector<BoundedAtom*>::const_iterator ci = getAtoms().begin(); ci != getAtoms().end(); ci++)
+	{
+		BoundedAtom* bounded_atom1 = *ci;
+		
+		bool canUnify = false;
+		for (std::vector<BoundedAtom*>::const_iterator ci = other.getAtoms().begin(); ci != other.getAtoms().end(); ci++)
+		{
+			BoundedAtom* bounded_atom2 = *ci;
+			if (getDTG().getBindings().canUnify(bounded_atom1->getAtom(), bounded_atom1->getId(), bounded_atom2->getAtom(), bounded_atom2->getId(), &other.getDTG().getBindings()) &&
+			    getIndex(*bounded_atom1) == other.getIndex(*bounded_atom2) &&
+			    bounded_atom1->getAtom().isNegative() == bounded_atom2->getAtom().isNegative())
+			{
+				canUnify = true;
+				break;
+			}
+		}
+
+		// If one of the atoms cannot be unified, return false;
+		if (!canUnify)
+		{
+			return false;
+		}
+	}
+
+	// Make sure none of the atoms are mutually exclusive.
+	if (getDTG().areMutex(*this, other))
+	{
+		return false;
+	}
+
+	return true;
 }
 
 void DomainTransitionGraphNode::getExternalDependendTransitions(std::map<const Transition*, std::vector<const std::vector<const Object*>* >* >& external_dependend_transitions) const

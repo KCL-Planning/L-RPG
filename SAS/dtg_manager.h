@@ -30,10 +30,10 @@ class VariableDomain;
 class Object;
 class Predicate;
 class BindingsPropagator;
+class Bindings;
 
 namespace SAS_Plus {
 
-class DTGBindings;
 class DomainTransitionGraphManager;
 class DomainTransitionGraphNode;
 class Transition;
@@ -151,6 +151,8 @@ public:
 	 */
 	bool isProperSuperSetOf(const BoundedAtom& other, const Bindings& bindings) const;
 	
+	bool canUnifyWith(const BoundedAtom& other, const Bindings& bindings) const;
+	
 	void print(std::ostream& os, const Bindings& bindings, bool verbal = true) const;
 
 private:
@@ -173,7 +175,7 @@ public:
 	 * @param types All types as found by VAL.
 	 * @param bindings The bindings used to bind the initial facts.
 	 */
-	void generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, const Bindings& bindings);
+	void generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, Bindings& bindings);
 
 	/**
 	 * Get the DTGs which contains a node which actually unifies with the given atom and binding.
@@ -237,6 +239,9 @@ private:
 	const std::vector<const Atom*>* initial_facts_;
 	
 	void getProperties(std::vector<std::pair<const Predicate*, unsigned int> >& predicates, const TIM::PropertyState& property_state) const;
+	
+	void addFactsToNode(const std::vector<std::pair<BoundedAtom*, InvariableIndex> >& facts_to_add, DomainTransitionGraphNode& dtg_node);
+
 
 	bool removeDTG(const DomainTransitionGraph& dtg);
     void precondition_index_to_add_to_to_node();

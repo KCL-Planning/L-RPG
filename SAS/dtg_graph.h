@@ -34,7 +34,7 @@ class PropertyState;
 
 /**
  * Bindings class extended to deal with DTG nodes.
- */
+ *
 class DTGBindings : public MyPOP::Bindings
 {
 public:
@@ -42,14 +42,15 @@ public:
 	DTGBindings(const TermManager& term_manager, const BindingsPropagator& propagator);
 	DTGBindings(const Bindings& other);
 
-	/**
+	**
 	 * Check if two DTG nodes can be unified.
-	 */
+	 *
 	bool canUnifyDTGNodes(const DomainTransitionGraphNode& node1, const DomainTransitionGraphNode& node2) const;
 	
 	bool canUnifyBoundedAtoms(const BoundedAtom& bounded_atom1, const BoundedAtom& bounded_atom2) const;
 };
-
+*/
+	
 /**
  * A domain transition graph(DTG) captures the transitions objects of a certain type can make
  * within the planning problem. A DTG is constructed by analysing the domain to see if a combination
@@ -62,7 +63,7 @@ public:
 class DomainTransitionGraph : public ManageableObject
 {
 public:
-	DomainTransitionGraph(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, const MyPOP::TypeManager& type_manager, const MyPOP::ActionManager& action_manager, const MyPOP::PredicateManager& predicate_manager, const MyPOP::SAS_Plus::DTGBindings& bindings, const std::vector< const MyPOP::Atom* >& initial_facts);
+	DomainTransitionGraph(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, const MyPOP::TypeManager& type_manager, const MyPOP::ActionManager& action_manager, const MyPOP::PredicateManager& predicate_manager, Bindings& bindings, const std::vector< const MyPOP::Atom* >& initial_facts);
 	
 	~DomainTransitionGraph();
 
@@ -129,7 +130,7 @@ public:
 	/**
 	 * Get this DTG's bindings.
 	 */
-	DTGBindings& getBindings() const { return *bindings_; }
+	Bindings& getBindings() const { return *bindings_; }
 	
 	/**
 	 * Return the DTG manager.
@@ -266,7 +267,8 @@ private:
 
 	// To propagate changes made to the DTGs we keep track of all bindings between them and propagate changes
 	// as necessary.
-	DTGBindings* bindings_;
+	//DTGBindings* bindings_;
+	Bindings* bindings_;
 	
 	const std::vector<const Atom*>* initial_facts_;
 

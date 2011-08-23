@@ -152,7 +152,7 @@ Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& e
 		assert(false);
 	}
 
-	DTGBindings& bindings = from_node.getDTG().getBindings();
+	Bindings& bindings = from_node.getDTG().getBindings();
 
 	/**
 	 * First of all we check which facts are removed and which facts are added between the DTGs.
@@ -498,7 +498,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 		assert(false);
 	}
 
-	DTGBindings& bindings = from_node.getDTG().getBindings();
+	Bindings& bindings = from_node.getDTG().getBindings();
 
 	/**
 	 * First of all we check which facts are removed and which facts are added between the DTGs.

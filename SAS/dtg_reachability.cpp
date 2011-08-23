@@ -12,7 +12,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-///#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 
 namespace MyPOP {
 	
@@ -935,7 +935,8 @@ void DTGReachability::handleExternalDependencies(std::vector<const BoundedAtom*>
 						for (std::vector<const BoundedAtom*>::const_iterator ci = established_facts.begin(); ci != established_facts.end(); ci++)
 						{
 							const BoundedAtom* reached_atom = *ci;
-							if (dtg_graph_->getBindings().canUnifyBoundedAtoms(*reached_atom, atom_to_reach))
+//							if (dtg_graph_->getBindings().canUnifyBoundedAtoms(*reached_atom, atom_to_reach))
+							if (reached_atom->canUnifyWith(atom_to_reach, dtg_graph_->getBindings()))
 							{
 								has_been_achieved = true;
 								break;

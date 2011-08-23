@@ -18,25 +18,144 @@ namespace MyPOP {
 	
 namespace SAS_Plus {
 
-EquivalentObjectGroup::EquivalentObjectGroup(const Object& object, const DomainTransitionGraph& dtg_graph)
-	: dtg_graph_(&dtg_graph), link_(NULL)
+ReachableFact::ReachableFact(unsigned int index, const BoundedAtom& bounded_atom, const DomainTransitionGraphNode& dtg_node, const EquivalentObjectGroupManager& eog_manager)
+	: index_(index), bounded_atom_(&bounded_atom), dtg_node_(&dtg_node)
 {
-	initial_mapping_[&object] = new std::vector<const DomainTransitionGraphNode*>();
-	initialiseFingerPrint(object, dtg_graph);
+	term_domain_mapping_ = new EquivalentObjectGroup*[bounded_atom.getAtom().getArity()];
+	
+	for (std::vector<const Term*>::const_iterator ci = bounded_atom.getAtom().getTerms().begin(); ci != bounded_atom.getAtom().getTerms().end(); ci++)
+	{
+		const Term* term = *ci;
+		const std::vector<const Object*>& domain = term->getDomain(bounded_atom.getId(), dtg_node.getDTG().getBindings());
+		
+		assert (domain.size() == 1);
+		
+		EquivalentObjectGroup& corresponding_eog = eog_manager.getEquivalentObject(*domain[0]).getEquivalentObjectGroup();
+		term_domain_mapping_[std::distance(bounded_atom.getAtom().getTerms().begin(), ci)] = &corresponding_eog;
+	}
 }
 	
-EquivalentObjectGroup::EquivalentObjectGroup(const Object& object, const DomainTransitionGraph& dtg_graph, std::vector<const DomainTransitionGraphNode*>& initial_dtgs)
-	: dtg_graph_(&dtg_graph), link_(NULL)
+	
+EquivalentObject::EquivalentObject(const Object& object, EquivalentObjectGroup& equivalent_object_group)
+	: object_(&object), equivalent_group_(&equivalent_object_group)
 {
-	initial_mapping_[&object] = &initial_dtgs;
-	initialiseFingerPrint(object, dtg_graph);
+	
+}
+	
+void EquivalentObject::addInitialFact(const ReachableFact& reachable_fact)
+{
+	initial_facts_.push_back(&reachable_fact);
 }
 
-void EquivalentObjectGroup::initialiseFingerPrint(const Object& object, const DomainTransitionGraph& dtg_graph)
+bool EquivalentObject::areEquivalent(const EquivalentObject& other) const
+{
+	std::cout << "Are " << other << " and " << *this << " equivalent?" << std::endl;
+	if (initial_facts_.size() == 0) return false;
+	
+	for (std::vector<const ReachableFact*>::const_iterator ci = initial_facts_.begin(); ci != initial_facts_.end(); ci++)
+	{
+		const ReachableFact* this_reachable_fact = *ci;
+		
+		bool are_reachable_facts_equivalent = false;
+		for (std::vector<const ReachableFact*>::const_iterator ci = other.initial_facts_.begin(); ci != other.initial_facts_.end(); ci++)
+		{
+			const ReachableFact* other_reachable_fact = *ci;
+			
+//			std::cout << "Compare the dtgs: " << *this_reachable_fact->dtg_node_ << " and " << *other_reachable_fact->dtg_node_ << "." << std::endl;
+//			std::cout << "Compare the bounded atoms: " << this_reachable_fact->index_ << " and " << other_reachable_fact->index_ << "." << std::endl;
+			
+			if (this_reachable_fact->dtg_node_ != other_reachable_fact->dtg_node_         ||
+			    this_reachable_fact->index_ != other_reachable_fact->index_)
+			{
+				continue;
+			}
+			
+			std::cout << "Compare: ";
+			this_reachable_fact->bounded_atom_->print(std::cout, this_reachable_fact->dtg_node_->getDTG().getBindings());
+			std::cout << " with ";
+			other_reachable_fact->bounded_atom_->print(std::cout, other_reachable_fact->dtg_node_->getDTG().getBindings());
+			std::cout << "." << std::endl;
+			
+			
+			bool are_equivalent = true;
+			for (unsigned int i = 0; i < this_reachable_fact->bounded_atom_->getAtom().getArity(); i++)
+			{
+				EquivalentObjectGroup* this_eog = this_reachable_fact->term_domain_mapping_[i];
+				EquivalentObjectGroup* other_eog = other_reachable_fact->term_domain_mapping_[i];
+				
+				// If they refer to the objects in question than they are allowed to differ, but only if
+				// at least one property marks that term as a balanced term.
+				if (*this_eog == *equivalent_group_ && *other_eog == *other.equivalent_group_)
+				{
+					bool is_balanced = false;
+					for (std::vector<const Property*>::const_iterator ci = this_reachable_fact->bounded_atom_->getProperties().begin(); ci != this_reachable_fact->bounded_atom_->getProperties().end(); ci++)
+					{
+						const Property* property = *ci;
+						if (property->getIndex() == i)
+						{
+							is_balanced = true;
+							break;
+						}
+					}
+					
+					
+					std::cout << "The " << i << "th term is linked to the same equivalent group. Is balanced?" << is_balanced << "." << std::endl;
+					
+					if (is_balanced)
+					{
+						continue;
+					}
+					else
+					{
+						std::cout << "The " << i << "th term is linked to the same equivalent group. But not balanced :((." << std::endl;
+						are_equivalent = false;
+						break;
+					}
+				}
+				else if (*this_eog != *other_eog)
+				{
+					std::cout << "The " << i << "th term is not linked to the same equivalent group :(." << std::endl;
+					are_equivalent = false;
+					break;
+				}
+			}
+			
+			if (are_equivalent)
+			{
+				std::cout << "Are equivalent!" << std::endl;
+				are_reachable_facts_equivalent = true;
+				break;
+			}
+		}
+		
+		if (!are_reachable_facts_equivalent)
+		{
+			std::cout << "Are NOT equivalent!" << std::endl;
+			return false;
+		}
+	}
+	
+	std::cout << "Are equivalent!" << std::endl;
+	return true;
+}
+
+std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_object)
+{
+	os << *equivalent_object.object_;
+	return os;
+}
+
+EquivalentObjectGroup::EquivalentObjectGroup(const DomainTransitionGraph& dtg_graph, const Object& object)
+	: dtg_graph_(&dtg_graph), link_(NULL)
+{
+	initialiseFingerPrint(object);
+}
+	
+void EquivalentObjectGroup::initialiseFingerPrint(const Object& object)
 {
 	// Check the DTG graph and check which DTG nodes an object can be part of based on its type.
 	unsigned int number_of_facts = 0;
-	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph.getNodes().begin(); ci != dtg_graph.getNodes().end(); ci++)
+	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph_->getNodes().begin(); ci != dtg_graph_->getNodes().end(); ci++)
 	{
 		const DomainTransitionGraphNode* dtg_node = *ci;
 		for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
@@ -50,7 +169,7 @@ void EquivalentObjectGroup::initialiseFingerPrint(const Object& object, const Do
 	memset(&finger_print_[0], false, sizeof(bool) * number_of_facts);
 	
 	number_of_facts = 0;
-	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph.getNodes().begin(); ci != dtg_graph.getNodes().end(); ci++)
+	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph_->getNodes().begin(); ci != dtg_graph_->getNodes().end(); ci++)
 	{
 		const DomainTransitionGraphNode* dtg_node = *ci;
 		for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
@@ -70,28 +189,6 @@ void EquivalentObjectGroup::initialiseFingerPrint(const Object& object, const Do
 	}
 }
 
-bool EquivalentObjectGroup::addInitialDTGNodeMapping(const Object& object, const DomainTransitionGraphNode& dtg_node)
-{
-	if (link_ != NULL)
-	{
-		return link_->addInitialDTGNodeMapping(object, dtg_node);
-	}
-	std::map<const Object*, std::vector<const DomainTransitionGraphNode*> *>::iterator i = initial_mapping_.find(&object);
-	std::vector<const DomainTransitionGraphNode*>* mapping;
-	if (i == initial_mapping_.end())
-	{
-		mapping = new std::vector<const DomainTransitionGraphNode*>();
-	}
-	else
-	{
-		mapping = (*i).second;
-	}
-	mapping->push_back(&dtg_node);
-	
-	updateReachableFacts(object, dtg_node);
-	
-	return true;
-}
 
 void EquivalentObjectGroup::updateReachableFacts(const Object& object, const DomainTransitionGraphNode& dtg_node)
 {
@@ -120,6 +217,16 @@ void EquivalentObjectGroup::updateReachableFacts(const Object& object, const Dom
 	}
 }
 
+void EquivalentObjectGroup::makeReachable(const DomainTransitionGraphNode& dtg_node, const BoundedAtom& bounded_atom, ReachableFact& reachable_fact)
+{
+	reachable_facts_[std::make_pair(&dtg_node, &bounded_atom)] = &reachable_fact;
+}
+
+void EquivalentObjectGroup::addEquivalentObject(const EquivalentObject& eo)
+{
+	equivalent_objects_.push_back(&eo);
+}
+                                                                            
 bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group, const std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* >& reachable_nodes)
 {
 	// If two object groups are part of the same root node they are already merged!
@@ -151,162 +258,18 @@ bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group, c
 	std::cout << "Try to merge: " << *this << " with " << other_group << "." << std::endl;
 #endif
 
-	// Check if this is reachable from other and visa versa.
-	for (std::map<const Object*, std::vector<const DomainTransitionGraphNode*> *>::const_iterator ci = initial_mapping_.begin(); ci != initial_mapping_.end(); ci++)
+	for (std::vector<const EquivalentObject*>::const_iterator ci = equivalent_objects_.begin(); ci != equivalent_objects_.end(); ci++)
 	{
-		const std::vector<const DomainTransitionGraphNode*>* this_initial_dtgs = (*ci).second;
-		
-		if (this_initial_dtgs->size() == 0)
+		const EquivalentObject* this_equivalent_object = *ci;
+		for (std::vector<const EquivalentObject*>::const_iterator ci = other_group.equivalent_objects_.begin(); ci != other_group.equivalent_objects_.end(); ci++)
 		{
-			continue;
-		}
-		
-		for (std::map<const Object*, std::vector<const DomainTransitionGraphNode*> *>::const_iterator ci = other_group.initial_mapping_.begin(); ci != other_group.initial_mapping_.end(); ci++)
-		{
-			const std::vector<const DomainTransitionGraphNode*>* other_initial_dtgs = (*ci).second;
+			const EquivalentObject* other_equivalent_object = *ci;
 			
-			if (other_initial_dtgs->size() == 0)
+			if (this_equivalent_object->areEquivalent(*other_equivalent_object))
 			{
-				continue;
-			}
-			
-			// Keep a boolean array to record which facts can be reached from each other's states.
-			bool this_initial_reachable[this_initial_dtgs->size()];
-			memset(&this_initial_reachable[0], false, sizeof(bool) * this_initial_dtgs->size());
-			
-			bool other_initial_reachable[other_initial_dtgs->size()];
-			memset(&other_initial_reachable[0], false, sizeof(bool) * other_initial_dtgs->size());
-			
-			for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = this_initial_dtgs->begin(); ci != this_initial_dtgs->end(); ci++)
-			{
-				const DomainTransitionGraphNode* this_initial_dtg = *ci;
-				unsigned int this_initial_dtg_index = std::distance(this_initial_dtgs->begin(), ci);
-				std::vector<const DomainTransitionGraphNode*>* reachable_nodes_from_this = (*reachable_nodes.find(this_initial_dtg)).second;
-
-				for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = other_initial_dtgs->begin(); ci != other_initial_dtgs->end(); ci++)
-				{
-					const DomainTransitionGraphNode* other_initial_dtg = *ci;
-					unsigned int other_initial_dtg_index = std::distance(other_initial_dtgs->begin(), ci);
-					std::vector<const DomainTransitionGraphNode*>* reachable_nodes_from_other = (*reachable_nodes.find(other_initial_dtg)).second;
-					
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-					std::cout << "New set of initial DTG nodes to test! " << std::endl;
-					this_initial_dtg->print(std::cout);
-					std::cout << std::endl << "is reachable from" << std::endl;
-					other_initial_dtg->print(std::cout);
-					std::cout << std::endl << " and visa versa!" << std::endl;
-#endif
-
-					if (!other_initial_reachable[other_initial_dtg_index])
-					{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-						std::cout << "Check if" << std::endl;
-						other_initial_dtg->print(std::cout);
-						std::cout << std::endl << "is reachable from" << std::endl;
-						this_initial_dtg->print(std::cout);
-						std::cout << std::endl;
-#endif
-
-						for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = reachable_nodes_from_this->begin(); ci != reachable_nodes_from_this->end(); ci++)
-						{
-							const DomainTransitionGraphNode* reachable_dtg_node = *ci;
-							if (reachable_dtg_node == other_initial_dtg || other_initial_dtg->isSubSetOf(*reachable_dtg_node))
-							{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-								if (reachable_dtg_node == other_initial_dtg)
-									std::cout << "They are the same!" << std::endl;
-								else
-									std::cout << "One is a subset of the other!" << std::endl;
-#endif
-								other_initial_reachable[other_initial_dtg_index] = true;
-								break;
-							}
-						}
-					}
-					
-					if (!this_initial_reachable[this_initial_dtg_index])
-					{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-						std::cout << "Check if" << std::endl;
-						this_initial_dtg->print(std::cout);
-						std::cout << std::endl << "is reachable from" << std::endl;
-						other_initial_dtg->print(std::cout);
-						std::cout << std::endl;
-#endif
-						for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = reachable_nodes_from_other->begin(); ci != reachable_nodes_from_other->end(); ci++)
-						{
-							const DomainTransitionGraphNode* reachable_dtg_node = *ci;
-							if (reachable_dtg_node == this_initial_dtg || this_initial_dtg->isSubSetOf(*reachable_dtg_node))
-							{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-								if (reachable_dtg_node == this_initial_dtg)
-									std::cout << "They are the same!" << std::endl;
-								else
-									std::cout << "One is a subset of the other!" << std::endl;
-#endif
-								this_initial_reachable[this_initial_dtg_index] = true;
-								break;
-							}
-						}
-					}
-				}
-			}
-			
-			bool is_reachable = true;
-			
-			for (unsigned int i = 0; i < this_initial_dtgs->size(); i++)
-			{
-				if (!this_initial_reachable[this_initial_dtgs->size()])
-				{
-					is_reachable = false;
-					break;
-				}
-			}
-			
-			if (is_reachable)
-			{
-				for (unsigned int i = 0; i < other_initial_dtgs->size(); i++)
-				{
-					if (!other_initial_reachable[other_initial_dtgs->size()])
-					{
-						is_reachable = false;
-						break;
-					}
-				}
-			}
-			
-			if (is_reachable)
-			{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-				std::cout << *this << " is reachable from " << other_group << "." << std::endl;
-#endif
 				merge(other_group);
 				return true;
 			}
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-			else
-			{
-				for (unsigned int i = 0; i < this_initial_dtgs->size(); i++)
-				{
-					if (!this_initial_reachable[this_initial_dtgs->size()])
-					{
-						std::cout << "- ";
-						(*this_initial_dtgs)[i]->print(std::cout);
-						std::cout << " is NOT reachable!" << std::endl;
-					}
-				}
-				
-				for (unsigned int i = 0; i < other_initial_dtgs->size(); i++)
-				{
-					if (!other_initial_reachable[other_initial_dtgs->size()])
-					{
-						std::cout << "- ";
-						(*other_initial_dtgs)[i]->print(std::cout);
-						std::cout << " is NOT reachable!" << std::endl;
-					}
-				}
-			}
-#endif
 		}
 	}
 	
@@ -316,10 +279,30 @@ bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group, c
 	return false;
 }
 
+bool EquivalentObjectGroup::operator==(const EquivalentObjectGroup& other) const
+{
+	// Determine the root nodes.
+	const EquivalentObjectGroup* this_root = this;
+	const EquivalentObjectGroup* other_root = &other;
+	while (other_root->link_ != NULL) other_root = other_root->link_;
+	while (this_root->link_ != NULL) this_root = this_root->link_;
+	
+	return this_root == other_root;
+}
+
+bool EquivalentObjectGroup::operator!=(const EquivalentObjectGroup& other) const
+{
+	return !(*this == other);
+}
+
 void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group)
 {
 	assert (other_group.link_ == NULL);
-	initial_mapping_.insert(other_group.initial_mapping_.begin(), other_group.initial_mapping_.end());
+	
+	std::cout << "Merging " << *this << " with " << other_group << "." << std::endl;
+	
+	equivalent_objects_.insert(equivalent_objects_.begin(), other_group.equivalent_objects_.begin(), other_group.equivalent_objects_.end());
+	reachable_facts_.insert(other_group.reachable_facts_.begin(), other_group.reachable_facts_.end());
 	other_group.link_ = this;
 }
 
@@ -339,7 +322,13 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group)
 	}
 	os << " -= EquivalentObjectGroup =- " << std::endl;
 	
-	for (std::map<const Object*, std::vector<const DomainTransitionGraphNode*> *>::const_iterator ci = group.initial_mapping_.begin(); ci != group.initial_mapping_.end(); ci++)
+	for (std::vector<const EquivalentObject*>::const_iterator ci = group.equivalent_objects_.begin(); ci != group.equivalent_objects_.end(); ci++)
+	{
+		const EquivalentObject* eo = *ci;
+		os << "- " << *eo << std::endl;
+	}
+	
+/*	for (std::map<const Object*, std::vector<const DomainTransitionGraphNode*> *>::const_iterator ci = group.initial_mapping_.begin(); ci != group.initial_mapping_.end(); ci++)
 	{
 		os << *(*ci).first << " -> " << std::endl;
 		
@@ -352,7 +341,7 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group)
 			os << std::endl;
 		}
 	}
-	
+*/
 	return os;
 }
 
@@ -363,9 +352,12 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const DTGReachability
 	for (std::vector<const Object*>::const_iterator ci = term_manager.getAllObjects().begin(); ci != term_manager.getAllObjects().end(); ci++)
 	{
 		const Object* object = *ci;
-		EquivalentObjectGroup* equivalent_group = new EquivalentObjectGroup(*object, dtg_graph);
-		equivalent_groups_.push_back(equivalent_group);
-		object_to_equivalent_group_mapping_[object] = equivalent_group;
+		EquivalentObjectGroup* equivalent_object_group = new EquivalentObjectGroup(dtg_graph, *object);
+		EquivalentObject* equivalent_object = new EquivalentObject(*object, *equivalent_object_group);
+		equivalent_object_group->addEquivalentObject(*equivalent_object);
+		
+		equivalent_groups_.push_back(equivalent_object_group);
+		object_to_equivalent_object_mapping_[object] = equivalent_object;
 	}
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "Done initialising data strucutres." << std::endl;
@@ -392,6 +384,11 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const DTGReachability
 			{
 				const BoundedAtom* bounded_atom = *ci;
 				
+				unsigned int index = std::distance(supporting_tupple->begin(), ci);
+				
+				//ReachableFact* reachable_fact = new ReachableFact(*dtg_node->getAtoms()[index], *dtg_node, *this);
+				ReachableFact* reachable_fact = new ReachableFact(index, *bounded_atom, *dtg_node, *this);
+				
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 				std::cout << " * ";
 				bounded_atom->print(std::cout, dtg_graph.getBindings());
@@ -413,9 +410,13 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const DTGReachability
 					const std::vector<const Object*>& domain = bounded_atom->getVariableDomain(property->getIndex(), dtg_graph.getBindings());
 					for (std::vector<const Object*>::const_iterator ci = domain.begin(); ci != domain.end(); ci++)
 					{
-						assert (object_to_equivalent_group_mapping_.find(*ci) != object_to_equivalent_group_mapping_.end());
-						EquivalentObjectGroup* matching_equivalent_group = object_to_equivalent_group_mapping_[*ci];
-						matching_equivalent_group->addInitialDTGNodeMapping(**ci, *dtg_node);
+//						assert (object_to_equivalent_group_mapping_.find(*ci) != object_to_equivalent_group_mapping_.end());
+						
+						EquivalentObject* equivalent_object = object_to_equivalent_object_mapping_[*ci];
+						assert (equivalent_object != NULL);
+						
+						equivalent_object->addInitialFact(*reachable_fact);
+						equivalent_object->getEquivalentObjectGroup().makeReachable(*dtg_node, *dtg_node->getAtoms()[index], *reachable_fact);
 					}
 				}
 			}
@@ -431,37 +432,53 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const DTGReachability
 		reachable_nodes[dtg_node] = self_reachable_node_list;
 	}
 	
-	// Compare the equivalent objects and check if they share the same initial state. If this is the case, combine them.
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-	std::cout << "Merge together equivalent groups if their initial states match." << std::endl;
-#endif
-	for (std::map<const Object*, EquivalentObjectGroup*>::const_iterator ci = object_to_equivalent_group_mapping_.begin(); ci != object_to_equivalent_group_mapping_.end(); ci++)
+	bool merge_mask[equivalent_groups_.size()];
+	memset(&merge_mask[0], false, sizeof(bool) * equivalent_groups_.size());
+	unsigned int index1 = 0;
+	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end() - 1; ci++)
 	{
-		if (++ci == object_to_equivalent_group_mapping_.end()) break;
-		--ci;
-		
-//		const Object* object = (*ci).first;
-		EquivalentObjectGroup* equivalent_object_group = (*ci).second;
-
-		for (std::map<const Object*, EquivalentObjectGroup*>::const_iterator ci2 = ci; ci2 != object_to_equivalent_group_mapping_.end(); ci2++)
+		if (merge_mask[index1])
 		{
-			if (ci == ci2) continue;
+			++index1;
+			continue;
+		}
+		EquivalentObjectGroup* eog1 = *ci;
+		
+		unsigned int index2 = index1 + 1;
+		for (std::vector<EquivalentObjectGroup*>::const_iterator ci2 = ci + 1; ci2 != equivalent_groups_.end(); ci2++)
+		{
+			EquivalentObjectGroup* eog2 = *ci2;
 			
-//			const Object* other_object = (*ci2).first;
-			EquivalentObjectGroup* other_equivalent_object_group = (*ci2).second;
-			
-			if (equivalent_object_group->tryToMergeWith(*other_equivalent_object_group, reachable_nodes))
+			if (merge_mask[index2])
 			{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-				std::cout << "Merged: " << *equivalent_object_group << " and " << other_equivalent_object_group << "." << std::endl;
-#endif
-				object_to_equivalent_group_mapping_[(*ci2).first] = equivalent_object_group;
+				++index2;
+				continue;
 			}
+			if (eog1->tryToMergeWith(*eog2, reachable_nodes))
+			{
+				merge_mask[index2] = true;
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+				std::cout << "Merged: " << *eog1 << " and " << *eog2 << "." << std::endl;
+#endif
+			}
+			++index2;
+		}
+		++index1;
+	}
+	
+	for (std::vector<EquivalentObjectGroup*>::reverse_iterator ri = equivalent_groups_.rbegin(); ri != equivalent_groups_.rend(); ri++)
+	{
+		unsigned int index = std::distance(equivalent_groups_.begin(), ri.base() - 1);
+		if (merge_mask[index])
+		{
+			equivalent_groups_.erase(ri.base() - 1);
 		}
 	}
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "Merge together equivalent groups if their initial states match - Done!" << std::endl;
 #endif
+
+	exit(0);
 }
 
 void EquivalentObjectGroupManager::updateEquivalences(const std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* >& reachable_nodes_)
@@ -511,6 +528,15 @@ void EquivalentObjectGroupManager::updateEquivalences(const std::map<const Domai
 			equivalent_groups_.erase(equivalent_groups_.begin() + i);
 		}
 	}
+}
+
+
+EquivalentObject& EquivalentObjectGroupManager::getEquivalentObject(const Object& object) const
+{
+	std::map<const Object*, EquivalentObject*>::const_iterator ci = object_to_equivalent_object_mapping_.find(&object);
+	assert (ci != object_to_equivalent_object_mapping_.end());
+	
+	return *(*ci).second;
 }
 
 void EquivalentObjectGroupManager::print(std::ostream& os) const

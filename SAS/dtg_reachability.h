@@ -15,7 +15,6 @@ class TermManager;
 namespace SAS_Plus {
 
 class PropertySpace;
-class EOGFact;
 
 class BoundedAtom;
 class DomainTransitionGraph;
@@ -24,16 +23,14 @@ class DTGReachability;
 class Transition;
 
 class EquivalentObjectGroup;
+class EquivalentObjectGroupManager;
 
-class ReachableFact
+struct ReachableFact
 {
-public:
-	ReachableFact(const BoundedAtom& bounded_atom, const DomainTransitionGraphNode& dtg_node, const EquivalentObjectGroup* term_domain_mapping);
+	ReachableFact(unsigned int index, const BoundedAtom& bounded_atom, const DomainTransitionGraphNode& dtg_node, const EquivalentObjectGroupManager& eog_manager);
 	
-private:
-	
-	const EquivalentObjectGroup* term_domain_mapping_;
-	
+	unsigned int index_;
+	EquivalentObjectGroup** term_domain_mapping_;
 	const BoundedAtom* bounded_atom_;
 	const DomainTransitionGraphNode* dtg_node_;
 };
@@ -46,23 +43,26 @@ private:
 class EquivalentObject
 {
 public:
-	EquivalentObject(const Object& object, EquivalentObjectGroup& equivalent_group, const DomainTransitionGraph& dtg_graph);
+	EquivalentObject(const Object& object, EquivalentObjectGroup& equivalent_object_group);
 	
-	EquivalentObject(const Object& object, EquivalentObjectGroup& equivalent_group, const DomainTransitionGraph& dtg_graph, std::vector<const DomainTransitionGraphNode*>& initial_dtgs);
+	EquivalentObjectGroup& getEquivalentObjectGroup() const { return *equivalent_group_; }
 	
-	bool addInitialDTGNodeMapping(const Object& object, const DomainTransitionGraphNode& dtg_node);
+	void addInitialFact(const ReachableFact& reachable_fact);
 	
-	void updateReachableFacts(const Object& object, const DomainTransitionGraphNode& dtg_node);
+	bool areEquivalent(const EquivalentObject& other) const;
 
 private:
-	EquivalentObjectGroup* equivalent_group_;
 	
 	const Object* object_;
 	
-	const DomainTransitionGraph* dtg_graph_;
+	EquivalentObjectGroup* equivalent_group_;
 	
 	std::vector<const ReachableFact*> initial_facts_;
+	
+	friend std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_object);
 };
+
+std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_object);
 
 /**
  * Equivalent objects are object for which the following property holds:
@@ -83,16 +83,13 @@ private:
 class EquivalentObjectGroup
 {
 public:
-	EquivalentObjectGroup(const Object& object, const DomainTransitionGraph& dtg_graph);
-	
-	EquivalentObjectGroup(const Object& object, const DomainTransitionGraph& dtg_graph, std::vector<const DomainTransitionGraphNode*>& initial_dtgs);
-	
-	/**
-	 * Add an object and initial DTG node to this object group.
-	 */
-	bool addInitialDTGNodeMapping(const Object& object, const DomainTransitionGraphNode& dtg_node);
+	EquivalentObjectGroup(const DomainTransitionGraph& dtg_graph, const Object& object);
 	
 	void updateReachableFacts(const Object& object, const DomainTransitionGraphNode& dtg_node);
+	
+	void makeReachable(const DomainTransitionGraphNode& dtg_node, const BoundedAtom& bounded_atom, ReachableFact& reachable_fact);
+	
+	void addEquivalentObject(const EquivalentObject& eo);
 	
 	/**
 	 * Try to merge the given objectGroup with this group. If the merge can take place, the other object place is merged with
@@ -104,6 +101,10 @@ public:
 	 */
 	bool tryToMergeWith(EquivalentObjectGroup& object_group, const std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* >& reachable_nodes);
 	
+	
+	bool operator==(const EquivalentObjectGroup& other) const;
+	bool operator!=(const EquivalentObjectGroup& other) const;
+	
 private:
 	
 	/**
@@ -114,10 +115,12 @@ private:
 	 */
 	EquivalentObjectGroup& getRootNode();
 	
-	std::map<const Object*, std::vector<const DomainTransitionGraphNode*> *> initial_mapping_;
+	
+	std::vector<const EquivalentObject*> equivalent_objects_;
 	
 	// All the facts which are reachable by all objects in this domain.
-	std::vector<const EOGFact*> reachable_lifted_facts_;
+	std::map<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*>, ReachableFact*> reachable_facts_;
+	//std::vector<const EOGFact*> reachable_lifted_facts_;
 	
 	const DomainTransitionGraph* dtg_graph_;
 
@@ -129,7 +132,7 @@ private:
 	 * Every equivalent object group has a finger print which correlates to the terms of the facts in the DTG nodes
 	 * the object can be a part of. At the mommnt we do not consider sub / super sets yet.
 	 */
-	void initialiseFingerPrint(const Object& object, const DomainTransitionGraph& dtg_graph);
+	void initialiseFingerPrint(const Object& object);
 	
 	/**
 	 * Merge the given group with this group.
@@ -157,6 +160,8 @@ public:
 	
 	void updateEquivalences(const std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* >& reachable_nodes_);
 	
+	EquivalentObject& getEquivalentObject(const Object& object) const;
+	
 	void print(std::ostream& os) const;
 	
 private:
@@ -166,7 +171,7 @@ private:
 	 */
 	void merge(const Object& object1, const Object& object2);
 
-	std::map<const Object*, EquivalentObjectGroup*> object_to_equivalent_group_mapping_;
+	std::map<const Object*, EquivalentObject*> object_to_equivalent_object_mapping_;
 	std::vector<EquivalentObjectGroup*> equivalent_groups_;
 	
 	const DTGReachability* dtg_reachability_;
@@ -174,24 +179,6 @@ private:
 	const DomainTransitionGraph* dtg_graph_;
 };
 
-/**
- * Basic fact used in reachability. This represents a lifted fact where the objects involved are handled by
- * the EquivalentObjectGroup attached. This means that we deal with sets of equivalent objects rather than 
- * with individual objects.
- */
-class EOGFact
-{
-public:
-	EOGFact(const Predicate& predicate, const std::vector<const EquivalentObjectGroup*>& terms);
-	
-	bool canUnify(const BoundedAtom& bounded_atom) const;
-	
-private:
-	const Predicate* predicate_;
-	
-	const std::vector<const EquivalentObjectGroup*> terms_;
-};
-	
 /**
  * Utility class to perform relaxed reachability analysis on a given DTG.
  */

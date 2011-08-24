@@ -1094,7 +1094,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 		for (std::vector<BoundedAtom*>::const_iterator ci = identical_dtg_node->getAtoms().begin(); ci != identical_dtg_node->getAtoms().end(); ci++)
 		{
 			const BoundedAtom* bounded_atom = *ci;
-			bool found_equivalent = false;
+//			bool found_equivalent = false;
 			
 			if (bounded_atom->getProperties().empty()) continue;
 			
@@ -1106,7 +1106,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 				
 				if (combined_dtg_node->getDTG().getBindings().areEquivalent(combined_atom->getAtom(), combined_atom->getId(), bounded_atom->getAtom(), bounded_atom->getId(), &identical_dtg_node->getDTG().getBindings()))
 				{
-					found_equivalent = true;
+//					found_equivalent = true;
 					for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
 					{
 						const Property* property = *ci;

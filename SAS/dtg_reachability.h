@@ -91,6 +91,8 @@ public:
 	
 	void addEquivalentObject(const EquivalentObject& eo);
 	
+	void getReachableFacts(std::vector<const ReachableFact*>& results, const DomainTransitionGraphNode& dtg_node, const BoundedAtom& bounded_atom) const;
+	
 	/**
 	 * Try to merge the given objectGroup with this group. If the merge can take place, the other object place is merged with
 	 * this one. We can merge two groups if the initial DTG node of this group is reachable from the initial DTG node of the other
@@ -119,8 +121,7 @@ private:
 	std::vector<const EquivalentObject*> equivalent_objects_;
 	
 	// All the facts which are reachable by all objects in this domain.
-	std::map<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*>, ReachableFact*> reachable_facts_;
-	//std::vector<const EOGFact*> reachable_lifted_facts_;
+	std::multimap<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*>, ReachableFact*> reachable_facts_;
 	
 	const DomainTransitionGraph* dtg_graph_;
 
@@ -162,6 +163,8 @@ public:
 	
 	EquivalentObject& getEquivalentObject(const Object& object) const;
 	
+	const std::vector<const EquivalentObjectGroup*>* getSupportingEquivalentObjectGroup(const DomainTransitionGraphNode& dtg_node) const;
+	
 	void print(std::ostream& os) const;
 	
 private:
@@ -173,6 +176,8 @@ private:
 
 	std::map<const Object*, EquivalentObject*> object_to_equivalent_object_mapping_;
 	std::vector<EquivalentObjectGroup*> equivalent_groups_;
+	
+	std::map<const DomainTransitionGraphNode*, std::vector<EquivalentObjectGroup*>* > supported_dtg_nodes_;
 	
 	const DTGReachability* dtg_reachability_;
 	

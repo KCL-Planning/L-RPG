@@ -5,15 +5,23 @@
 #include <vector>
 #include <iosfwd>
 #include <set>
+#include <assert.h>
+
+#include "dtg_types.h"
+#include "plan_types.h"
+#include "dtg_node.h"
 
 namespace MyPOP {
-	
+
+class Atom;
+class Bindings;
 class Object;
 class Predicate;
 class TermManager;
 	
 namespace SAS_Plus {
 
+class Property;
 class PropertySpace;
 
 class BoundedAtom;
@@ -27,14 +35,43 @@ class EquivalentObjectGroupManager;
 
 struct ReachableFact
 {
-	ReachableFact(unsigned int index, const BoundedAtom& bounded_atom, const DomainTransitionGraphNode& dtg_node, const EquivalentObjectGroupManager& eog_manager);
+	ReachableFact(unsigned int index, const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
 	
-	unsigned int index_;
-	EquivalentObjectGroup** term_domain_mapping_;
+	ReachableFact(unsigned int index, const BoundedAtom& bounded_atom, const Bindings& bindings, EquivalentObjectGroup** term_domain_mapping_);
+	
+	bool conflictsWith(const std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>&) const;
+	
+	void updateMappings(std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>&) const;
+	
+	bool containsNonRootEOG() const;
+	
+	bool isEquivalentTo(const ReachableFact& other) const;
+	
+	// In case this fact is part of a DTG, the index determines which atom of the DTG node it refers to.
+	// TODO: depricated.
+	unsigned int index_; 
+	
 	const BoundedAtom* bounded_atom_;
-	const DomainTransitionGraphNode* dtg_node_;
+	const Bindings* bindings_;
+	
+	EquivalentObjectGroup** term_domain_mapping_;
 };
 
+std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact);
+
+struct ReachableNode
+{
+	ReachableNode(const DomainTransitionGraphNode& dtg_node, const std::vector<const ReachableFact*>& supporting_facts)
+		: dtg_node_(&dtg_node), supporting_facts_(&supporting_facts)
+	{
+		assert (supporting_facts.size() == dtg_node_->getAtoms().size());
+	}
+	
+	bool isEquivalentTo(const ReachableNode& other) const;
+	
+	const DomainTransitionGraphNode* dtg_node_;
+	const std::vector<const ReachableFact*>* supporting_facts_;
+};
 
 /**
  * The equivalent object class keeps track of a single object and its initial state. The initial state records both
@@ -48,8 +85,11 @@ public:
 	EquivalentObjectGroup& getEquivalentObjectGroup() const { return *equivalent_group_; }
 	
 	void addInitialFact(const ReachableFact& reachable_fact);
+	//void addInitialNode(const ReachableNode& reachable_node);
 	
 	bool areEquivalent(const EquivalentObject& other) const;
+	
+	const Object& getObject() const { return *object_; }
 
 private:
 	
@@ -58,6 +98,7 @@ private:
 	EquivalentObjectGroup* equivalent_group_;
 	
 	std::vector<const ReachableFact*> initial_facts_;
+	//std::vector<const ReachableNode*> initial_nodes_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_object);
 };
@@ -91,7 +132,17 @@ public:
 	
 	void addEquivalentObject(const EquivalentObject& eo);
 	
-	void getReachableFacts(std::vector<const ReachableFact*>& results, const DomainTransitionGraphNode& dtg_node, const BoundedAtom& bounded_atom) const;
+	void getSupportingFacts(std::vector<const ReachableFact*>& results, const DomainTransitionGraphNode& dtg_node, const BoundedAtom& bounded_atom) const;
+	
+	void getSupportingFacts(std::vector<const ReachableFact*>& results, const BoundedAtom& bounded_atom, const Bindings& bindings) const;
+	
+	bool isRootNode() const;
+	
+	bool contains(const Object& object) const;
+	
+	bool isIdenticalTo(EquivalentObjectGroup& other);
+	
+	const std::vector<const EquivalentObject*>& getEquivalentObjects() const { return equivalent_objects_; }
 	
 	/**
 	 * Try to merge the given objectGroup with this group. If the merge can take place, the other object place is merged with
@@ -122,6 +173,9 @@ private:
 	
 	// All the facts which are reachable by all objects in this domain.
 	std::multimap<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*>, ReachableFact*> reachable_facts_;
+	
+	// Map properties to the set of reachable facts.
+	std::multimap<std::pair<std::string, unsigned int>, ReachableFact*> reachable_properties_;
 	
 	const DomainTransitionGraph* dtg_graph_;
 
@@ -162,12 +216,16 @@ public:
 	void updateEquivalences(const std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* >& reachable_nodes_);
 	
 	EquivalentObject& getEquivalentObject(const Object& object) const;
-	
-	const std::vector<const EquivalentObjectGroup*>* getSupportingEquivalentObjectGroup(const DomainTransitionGraphNode& dtg_node) const;
+
+
+	void getSupportingFacts(std::vector<const ReachableNode*>& results, const DomainTransitionGraphNode& dtg_node) const;
+	void getSupportingFacts(std::vector<const ReachableNode*>& results, std::vector<const ReachableFact*>& achieved_facts, const DomainTransitionGraphNode& dtg_node, const std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>& variable_domain_mapping) const;
 	
 	void print(std::ostream& os) const;
 	
 private:
+	
+	void deleteMergedEquivalenceGroups();
 	
 	/**
 	 * Merge two equivalent groups and declare them identical.
@@ -177,7 +235,7 @@ private:
 	std::map<const Object*, EquivalentObject*> object_to_equivalent_object_mapping_;
 	std::vector<EquivalentObjectGroup*> equivalent_groups_;
 	
-	std::map<const DomainTransitionGraphNode*, std::vector<EquivalentObjectGroup*>* > supported_dtg_nodes_;
+	std::multimap<const DomainTransitionGraphNode*, const ReachableNode*> supported_dtg_nodes_;
 	
 	const DTGReachability* dtg_reachability_;
 	
@@ -218,6 +276,10 @@ public:
 	
 private:
 	
+	bool canSatisfyPreconditions(const Transition& transition, const ReachableNode& supporting_fact, std::set<const std::vector<const Object*>* >& invariables) const;
+	
+	const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* canSatisfyPrecondition(std::vector<std::pair<const Atom*, InvariableIndex> >& all_preconditions, unsigned int index, const Transition& transition, std::set<const std::vector<const Object*>* >& invariables, std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& domain_variable_mapping) const;
+	
 	void iterateThroughFixedPoint(std::vector<const BoundedAtom*>& established_facts, std::set<const Transition*>& achieved_transitions);
 	
 	/**
@@ -251,6 +313,8 @@ private:
 	std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* > reachable_nodes_;
 	
 	EquivalentObjectGroupManager* equivalent_object_manager_;
+	
+	std::vector<const ReachableFact*> static_facts_;
 };
 
 };

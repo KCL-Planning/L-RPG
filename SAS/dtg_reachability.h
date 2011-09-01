@@ -73,6 +73,28 @@ struct ReachableNode
 	const std::vector<const ReachableFact*>* supporting_facts_;
 };
 
+struct ReachableTransition
+{
+public:
+	ReachableTransition(const Transition& transition)
+		: transition_(&transition)
+	{
+		
+	}
+	
+	void addMapping(const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& new_mapping)
+	{
+		possible_mappings_.push_back(&new_mapping);
+	}
+	
+	const std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* >& getPossibleMappings() const { return possible_mappings_; }
+	
+private:
+	const Transition* transition_;
+	
+	std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* > possible_mappings_;
+};
+
 /**
  * The equivalent object class keeps track of a single object and its initial state. The initial state records both
  * the DTG the object is part of and all relations to other objects based on the predicates it is part of.
@@ -85,7 +107,8 @@ public:
 	EquivalentObjectGroup& getEquivalentObjectGroup() const { return *equivalent_group_; }
 	
 	void addInitialFact(const ReachableFact& reachable_fact);
-	//void addInitialNode(const ReachableNode& reachable_node);
+	
+	const std::vector<const ReachableFact*>& getInitialFacts() const { return initial_facts_; }
 	
 	bool areEquivalent(const EquivalentObject& other) const;
 	
@@ -98,7 +121,6 @@ private:
 	EquivalentObjectGroup* equivalent_group_;
 	
 	std::vector<const ReachableFact*> initial_facts_;
-	//std::vector<const ReachableNode*> initial_nodes_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_object);
 };
@@ -158,6 +180,8 @@ public:
 	bool operator==(const EquivalentObjectGroup& other) const;
 	bool operator!=(const EquivalentObjectGroup& other) const;
 	
+	void printObjects(std::ostream& os) const;
+	
 private:
 	
 	/**
@@ -216,12 +240,14 @@ public:
 	void updateEquivalences(const std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* >& reachable_nodes_);
 	
 	EquivalentObject& getEquivalentObject(const Object& object) const;
-
+	
+	void makeReachable(const DomainTransitionGraphNode&, const ReachableNode&);
 
 	void getSupportingFacts(std::vector<const ReachableNode*>& results, const DomainTransitionGraphNode& dtg_node) const;
-	void getSupportingFacts(std::vector<const ReachableNode*>& results, std::vector<const ReachableFact*>& achieved_facts, const DomainTransitionGraphNode& dtg_node, const std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>& variable_domain_mapping) const;
 	
 	void print(std::ostream& os) const;
+	
+	void printAll(std::ostream& os) const;
 	
 private:
 	
@@ -274,13 +300,15 @@ public:
 	 */
 	void getSupportingFacts(std::vector<std::vector<const BoundedAtom*>* >& supporting_tupples, const std::map<const std::vector<const Object*>*, const std::vector<const Object*>* >& variable_assignments, const std::vector<BoundedAtom*>& atoms_to_achieve, const std::vector<const BoundedAtom*>& initial_supporting_facts, const std::vector<const BoundedAtom*>& initial_facts) const;
 	
+	ReachableTransition& getReachableTransition(const Transition& transition) const;
+	
 private:
 	
 	bool canSatisfyPreconditions(const Transition& transition, const ReachableNode& supporting_fact, std::set<const std::vector<const Object*>* >& invariables) const;
 	
 	const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* canSatisfyPrecondition(std::vector<std::pair<const Atom*, InvariableIndex> >& all_preconditions, unsigned int index, const Transition& transition, std::set<const std::vector<const Object*>* >& invariables, std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& domain_variable_mapping) const;
 	
-	void iterateThroughFixedPoint(std::vector<const BoundedAtom*>& established_facts, std::set<const Transition*>& achieved_transitions);
+	void iterateTillFixPoint(std::vector<const BoundedAtom*>& established_facts, std::set<const Transition*>& achieved_transitions);
 	
 	/**
 	 * After every iteration the reachable nodes are propagated through the graph.
@@ -315,6 +343,8 @@ private:
 	EquivalentObjectGroupManager* equivalent_object_manager_;
 	
 	std::vector<const ReachableFact*> static_facts_;
+	
+	std::map<const Transition*, ReachableTransition*> reachable_transitions_;
 };
 
 };

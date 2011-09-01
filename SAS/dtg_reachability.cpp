@@ -616,6 +616,7 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group)
 	
 	equivalent_objects_.insert(equivalent_objects_.begin(), other_group.equivalent_objects_.begin(), other_group.equivalent_objects_.end());
 	reachable_facts_.insert(other_group.reachable_facts_.begin(), other_group.reachable_facts_.end());
+	reachable_properties_.insert(other_group.reachable_properties_.begin(), other_group.reachable_properties_.end());
 	other_group.link_ = this;
 }
 
@@ -927,6 +928,17 @@ bool EquivalentObjectGroupManager::makeReachable(const DomainTransitionGraphNode
 		if (already_reachable_node->isEquivalentTo(reachable_node)) return false;
 	}
 	
+	for (std::vector<const ReachableFact*>::const_iterator ci = reachable_node.supporting_facts_->begin(); ci != reachable_node.supporting_facts_->end(); ci++)
+	{
+		ReachableFact* reachable_fact = const_cast<ReachableFact*>(*ci);
+		
+		for (unsigned int i = 0; i < reachable_fact->bounded_atom_->getAtom().getArity(); i++)
+		{
+			EquivalentObjectGroup* eog = reachable_fact->term_domain_mapping_[i];
+			eog->makeReachable(dtg_node, *reachable_fact->bounded_atom_, *reachable_fact);
+		}
+	}
+	
 	supported_dtg_nodes_.insert(std::make_pair(&dtg_node, &reachable_node));
 	return true;
 }
@@ -998,17 +1010,18 @@ void DTGReachability::propagateReachableNodes()
 				const Transition* transition = *ci;
 				const ReachableTransition& reachable_transition = getReachableTransition(*transition);
 				
-//				std::cout << "Propagate the transition: " << *transition << "." << std::endl;
-				
 				/// Check if the transition is possible.
 				const std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* >& possible_mappings = reachable_transition.getPossibleMappings();
+				
+//				if (possible_mappings.size() > 0)
+//					std::cout << "Propagate the transition: " << *transition << "." << std::endl;
 				
 				for (std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* >::const_iterator ci = possible_mappings.begin(); ci != possible_mappings.end(); ci++)
 				{
 					std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* possible_mapping = new std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>(**ci);
 					
 					// Update the mapping to include the assignments made to the reachable_node.
-					bool mapping_possible = true;
+//					bool mapping_possible = true;
 					for (std::vector<const ReachableNode*>::const_iterator ci = reachable_node.begin(); ci != reachable_node.end(); ci++)
 					{
 						const ReachableNode* reachable_node = *ci;
@@ -1027,9 +1040,9 @@ void DTGReachability::propagateReachableNodes()
 								
 								EquivalentObjectGroup* reachable_fact_eog = reachable_fact->term_domain_mapping_[i];
 								
-								std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>::const_iterator ci = possible_mapping->find(&term_domain);
+/*								std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>::const_iterator ci = possible_mapping->find(&term_domain);
 								
-								// The mapping either does not exist or the EOG must be the same!
+								// The mapping either does not exist or the EOG must be the same! <- BS!
 								EquivalentObjectGroup* transition_eog = NULL;
 								if (ci != possible_mapping->end())
 								{
@@ -1040,20 +1053,20 @@ void DTGReachability::propagateReachableNodes()
 								{
 //									std::cout << "Got conflicting EOGs for the " << i << "th term!" << std::endl;
 //									std::cout << *transition_eog << " v.s. " << *reachable_fact_eog << std::endl;
-									mapping_possible = false;
-									break;
+//									mapping_possible = false;
+//									break;
 									//assert (false);
 								}
 								
 								if (transition_eog != NULL) continue;
-								
+*/
 								(*possible_mapping)[&term_domain] = reachable_fact_eog;
 							}
 							
-							if (!mapping_possible) break;
+//							if (!mapping_possible) break;
 						}
 						
-						if (!mapping_possible) break;
+//						if (!mapping_possible) break;
 					}
 					
 					// New mapping ^^.
@@ -1510,10 +1523,10 @@ bool DTGReachability::iterateTillFixPoint(std::vector<const BoundedAtom*>& estab
 				
 				/// DEBUG:
 				bool debug = false;
-				for (std::vector<BoundedAtom*>::const_iterator ci = transition->getFromNode().getAtoms().begin(); ci != transition->getFromNode().getAtoms().end(); ci++)
-				{
-					if ((*ci)->getAtom().getPredicate().getName() == "in") debug = true;
-				}
+//				for (std::vector<BoundedAtom*>::const_iterator ci = transition->getFromNode().getAtoms().begin(); ci != transition->getFromNode().getAtoms().end(); ci++)
+//				{
+//					if ((*ci)->getAtom().getPredicate().getName() == "in") debug = true;
+//				}
 				
 				if (debug)
 					std::cout << " * Work on the transition: " << *transition << "." << std::endl;

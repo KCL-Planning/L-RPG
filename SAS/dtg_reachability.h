@@ -47,6 +47,8 @@ struct ReachableFact
 	
 	bool isEquivalentTo(const ReachableFact& other) const;
 	
+	bool isIdenticalTo(const ReachableFact& other) const;
+	
 	// In case this fact is part of a DTG, the index determines which atom of the DTG node it refers to.
 	// TODO: depricated.
 	unsigned int index_; 
@@ -68,6 +70,8 @@ struct ReachableNode
 	}
 	
 	bool isEquivalentTo(const ReachableNode& other) const;
+	
+	bool isIdenticalTo(const ReachableNode& other) const;
 	
 	const DomainTransitionGraphNode* dtg_node_;
 	const std::vector<const ReachableFact*>* supporting_facts_;
@@ -113,6 +117,8 @@ public:
 	const std::vector<const ReachableFact*>& getInitialFacts() const { return initial_facts_; }
 	
 	bool areEquivalent(const EquivalentObject& other) const;
+	
+//	bool areIdentical(const EquivalentObject& other) const;
 	
 	const Object& getObject() const { return *object_; }
 

@@ -132,6 +132,32 @@ bool ReachableFact::isEquivalentTo(const ReachableFact& other) const
 	return true;
 }
 
+bool ReachableFact::isIdenticalTo(const ReachableFact& other) const
+{
+//	std::cout << "Are " << *this << " and " << other << " equivalent?" << std::endl;
+	
+	// TODO: depricated.
+	if (index_ != other.index_)
+	{
+//		std::cout << "Indexes don't match up!" << std::endl;
+		return false;
+	}
+	
+	if (bounded_atom_->getAtom().getArity() != other.bounded_atom_->getAtom().getArity())
+	{
+//		std::cout << "Arities don't match up!" << std::endl;
+		return false;
+	}
+	for (unsigned int i = 0; i < bounded_atom_->getAtom().getArity(); i++)
+	{
+		if (!term_domain_mapping_[i]->isIdenticalTo(*other.term_domain_mapping_[i]))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact)
 {
 	os << "Reachable fact: (" << reachable_fact.bounded_atom_->getAtom().getPredicate().getName() << " ";
@@ -168,6 +194,21 @@ bool ReachableNode::isEquivalentTo(const ReachableNode& other) const
 		const ReachableFact* other_fact = (*other.supporting_facts_)[i];
 		
 		if (!this_fact->isEquivalentTo(*other_fact)) return false;
+	}
+	
+	return true;
+}
+
+bool ReachableNode::isIdenticalTo(const ReachableNode& other) const
+{
+	if (dtg_node_ != other.dtg_node_) return false;
+	
+	for (unsigned int i = 0; i < supporting_facts_->size(); i++)
+	{
+		const ReachableFact* this_fact = (*supporting_facts_)[i];
+		const ReachableFact* other_fact = (*other.supporting_facts_)[i];
+		
+		if (!this_fact->isIdenticalTo(*other_fact)) return false;
 	}
 	
 	return true;
@@ -236,6 +277,44 @@ bool EquivalentObject::areEquivalent(const EquivalentObject& other) const
 	std::cout << "Are equivalent!" << std::endl;
 	return true;
 }
+
+/*bool EquivalentObject::areIdentical(const EquivalentObject& other) const
+{
+	std::cout << "Are " << other << " and " << *this << " identical?" << std::endl;
+
+	if (initial_facts_.size() != other.initial_facts_.size() ||
+	    initial_facts_.empty())
+	{
+		std::cout << initial_facts_.size() << " v.s. " << other.initial_facts_.size() << std::endl;
+		return false;
+	}
+	
+	for (std::vector<const ReachableFact*>::const_iterator ci = initial_facts_.begin(); ci != initial_facts_.end(); ci++)
+	{
+		const ReachableFact* this_reachable_fact = *ci;
+		
+		bool is_fact_reachable = false;
+		for (std::vector<const ReachableFact*>::const_iterator ci = other.initial_facts_.begin(); ci != other.initial_facts_.end(); ci++)
+		{
+			const ReachableFact* other_reachable_fact = *ci;
+			
+			if (this_reachable_fact->isIdenticalTo(*other_reachable_fact))
+			{
+				is_fact_reachable = true;
+				break;
+			}
+		}
+		
+		if (!is_fact_reachable)
+		{
+			std::cout << "The fact: " << *this_reachable_fact << " is not reachable!" << std::endl;
+			return false;
+		}
+	}
+
+	std::cout << "Are identical!" << std::endl;
+	return true;
+}*/
 
 std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_object)
 {
@@ -352,7 +431,8 @@ bool EquivalentObjectGroup::makeReachable(const DomainTransitionGraphNode& dtg_n
 	bool already_part = false;
 	for (ci = ret.first; ci != ret.second; ci++)
 	{
-		if ((*ci).second->isEquivalentTo(reachable_fact))
+		//if ((*ci).second->isEquivalentTo(reachable_fact))
+		if ((*ci).second->isIdenticalTo(reachable_fact))
 		{
 			already_part = true;
 			break;
@@ -376,7 +456,8 @@ bool EquivalentObjectGroup::makeReachable(const DomainTransitionGraphNode& dtg_n
 		bool already_part = false;
 		for (ci = ret.first; ci != ret.second; ci++)
 		{
-			if ((*ci).second->isEquivalentTo(reachable_fact))
+			//if ((*ci).second->isEquivalentTo(reachable_fact))
+			if ((*ci).second->isIdenticalTo(reachable_fact))
 			{
 				already_part = true;
 				break;
@@ -925,7 +1006,8 @@ bool EquivalentObjectGroupManager::makeReachable(const DomainTransitionGraphNode
 	for (ci = ret.first; ci != ret.second; ci++)
 	{
 		const ReachableNode* already_reachable_node = (*ci).second;
-		if (already_reachable_node->isEquivalentTo(reachable_node)) return false;
+		//if (already_reachable_node->isEquivalentTo(reachable_node)) return false;
+		if (already_reachable_node->isIdenticalTo(reachable_node)) return false;
 	}
 	
 	for (std::vector<const ReachableFact*>::const_iterator ci = reachable_node.supporting_facts_->begin(); ci != reachable_node.supporting_facts_->end(); ci++)
@@ -1000,10 +1082,19 @@ void DTGReachability::propagateReachableNodes()
 //			mask[index] = true;
 			
 			const DomainTransitionGraphNode* dtg_node = *ci;
+			std::cout << "Work on the DTG node: " << *dtg_node << std::endl;
+			
 			Bindings& bindings = dtg_node->getDTG().getBindings();
 			
 			std::vector<const ReachableNode*> reachable_node;
 			equivalent_object_manager_->getSupportingFacts(reachable_node, *dtg_node);
+
+			std::cout << "Reachable nodes: " << std::endl;
+			for (std::vector<const ReachableNode*>::const_iterator ci = reachable_node.begin(); ci != reachable_node.end(); ci++)
+			{
+				const ReachableNode* reachable_node = *ci;
+				std::cout << "- " << *reachable_node << "." << std::endl;
+			}
 			
 			for (std::vector<const Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
 			{
@@ -1013,8 +1104,27 @@ void DTGReachability::propagateReachableNodes()
 				/// Check if the transition is possible.
 				const std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* >& possible_mappings = reachable_transition.getPossibleMappings();
 				
-//				if (possible_mappings.size() > 0)
-//					std::cout << "Propagate the transition: " << *transition << "." << std::endl;
+				if (possible_mappings.size() > 0)
+				{
+					std::cout << "Propagate the transition: " << *transition << "." << std::endl;
+					for (std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* >::const_iterator ci = possible_mappings.begin(); ci != possible_mappings.end(); ci++)
+					{
+						std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* possible_mapping = new std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>(**ci);
+						
+						std::cout << " - (" << transition->getStep()->getAction().getPredicate() << " ";
+						for (std::vector<const Variable*>::const_iterator ci = transition->getStep()->getAction().getVariables().begin(); ci != transition->getStep()->getAction().getVariables().end(); ci++)
+						{
+							const Variable* variable = *ci;
+							const std::vector<const Object*>& variable_domain = variable->getDomain(transition->getStep()->getStepId(), dtg_node->getDTG().getBindings());
+							
+							(*possible_mapping)[&variable_domain]->printObjects(std::cout);
+							
+							if (ci + 1 != transition->getStep()->getAction().getVariables().end())
+								std::cout << ", ";
+						}
+						std::cout << ")" << std::endl;
+					}
+				}
 				
 				for (std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* >::const_iterator ci = possible_mappings.begin(); ci != possible_mappings.end(); ci++)
 				{
@@ -1025,6 +1135,7 @@ void DTGReachability::propagateReachableNodes()
 					for (std::vector<const ReachableNode*>::const_iterator ci = reachable_node.begin(); ci != reachable_node.end(); ci++)
 					{
 						const ReachableNode* reachable_node = *ci;
+						std::cout << "Process reachable node: " << *reachable_node << "." << std::endl;
 						for (std::vector<const ReachableFact*>::const_iterator ci = reachable_node->supporting_facts_->begin(); ci != reachable_node->supporting_facts_->end(); ci++)
 						{
 							const ReachableFact* reachable_fact = *ci;
@@ -1108,6 +1219,10 @@ void DTGReachability::propagateReachableNodes()
 						if (added)
 						{
 							std::cout << "New reachable fact: " << *reachable_fact << "." << std::endl;
+						}
+						else
+						{
+							std::cout << "Already achieved reachable fact: " << *reachable_fact << "." << std::endl;
 						}
 					}
 				}
@@ -1735,8 +1850,10 @@ bool DTGReachability::canSatisfyPreconditions(const Transition& transition, cons
 //	std::cout << "." << std::endl;
 	
 	ReachableNode* reachable_node = new ReachableNode(transition.getToNode(), *reachable_facts);
-	equivalent_object_manager_->makeReachable(transition.getToNode(), *reachable_node);
-	std::cout << *reachable_node << std::endl;
+	if (equivalent_object_manager_->makeReachable(transition.getToNode(), *reachable_node))
+	{
+		std::cout << *reachable_node << std::endl;
+	}
 	
 	return true;
 }

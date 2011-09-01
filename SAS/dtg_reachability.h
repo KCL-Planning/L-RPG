@@ -73,6 +73,8 @@ struct ReachableNode
 	const std::vector<const ReachableFact*>* supporting_facts_;
 };
 
+std::ostream& operator<<(std::ostream& os, const ReachableNode& reachable_node);
+
 struct ReachableTransition
 {
 public:
@@ -150,7 +152,7 @@ public:
 	
 	void updateReachableFacts(const Object& object, const DomainTransitionGraphNode& dtg_node);
 	
-	void makeReachable(const DomainTransitionGraphNode& dtg_node, const BoundedAtom& bounded_atom, ReachableFact& reachable_fact);
+	bool makeReachable(const DomainTransitionGraphNode& dtg_node, const BoundedAtom& bounded_atom, ReachableFact& reachable_fact);
 	
 	void addEquivalentObject(const EquivalentObject& eo);
 	
@@ -241,7 +243,7 @@ public:
 	
 	EquivalentObject& getEquivalentObject(const Object& object) const;
 	
-	void makeReachable(const DomainTransitionGraphNode&, const ReachableNode&);
+	bool makeReachable(const DomainTransitionGraphNode&, const ReachableNode&);
 
 	void getSupportingFacts(std::vector<const ReachableNode*>& results, const DomainTransitionGraphNode& dtg_node) const;
 	
@@ -308,7 +310,7 @@ private:
 	
 	const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* canSatisfyPrecondition(std::vector<std::pair<const Atom*, InvariableIndex> >& all_preconditions, unsigned int index, const Transition& transition, std::set<const std::vector<const Object*>* >& invariables, std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& domain_variable_mapping) const;
 	
-	void iterateTillFixPoint(std::vector<const BoundedAtom*>& established_facts, std::set<const Transition*>& achieved_transitions);
+	bool iterateTillFixPoint(std::vector<const BoundedAtom*>& established_facts, std::set<const Transition*>& achieved_transitions);
 	
 	/**
 	 * After every iteration the reachable nodes are propagated through the graph.

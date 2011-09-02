@@ -1895,7 +1895,15 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 							
 							// Try to establish the original transitions.
 							// TODO: WAY TO SLOWWW!!! - called too often!
-							const Transition* new_transition = Transition::createTransition(transition->getStep()->getAction(), *from_dtg_node, *to_dtg_node, *initial_facts_);
+///							const Transition* test_new_transition = Transition::createTransition(transition->getStep()->getAction(), *from_dtg_node, *to_dtg_node, *initial_facts_);
+							const Transition* new_transition = transition->migrateTransition(*initial_facts_, *from_dtg_node, *to_dtg_node);
+							
+/*							if (test_new_transition == NULL && new_transition != NULL)
+							{
+								std::cout << *new_transition << " cannot exist!!!" << std::endl;
+								std::cout << "ORG: " << *transition << std::endl;
+								assert (false);
+							}*/
 							
 							if (new_transition == NULL)
 							{

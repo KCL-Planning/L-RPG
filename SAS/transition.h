@@ -94,7 +94,7 @@ public:
 	/**
 	 * Migrate a transition from a pair of lifted nodes to their grounded equivalents.
 	 */
-	Transition* migrateTransition(const DomainTransitionGraphNode& from_node, const DomainTransitionGraphNode& to_node) const;
+	Transition* migrateTransition(const std::vector<const Atom*>& initial_facts, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node) const;
 	
 	/**
 	 * Create a transitions between the two nodes. Note that from_node and to_node must be part of the same DTG!

@@ -131,24 +131,24 @@ public:
 	/**
 	 * Get the effects which achieves to_node_.
 	 */
-	const std::vector<std::pair<const Atom*, InvariableIndex> >& getEffects() const { return effects_; }
+	const std::vector<std::pair<const Atom*, InvariableIndex> >& getEffects() const { return *effects_; }
 
 	/**
 	 * The effects which deletes from_node_.
 	 */
-	const std::vector<std::pair<const Atom*, InvariableIndex> >& getAffected() const { return affected_; }
+	const std::vector<std::pair<const Atom*, InvariableIndex> >& getAffected() const { return *affected_; }
 
 	/**
 	 * The preconditions which are present in from_node_.
 	 */
-	const std::vector<std::pair<const Atom*, InvariableIndex> >& getPreconditions() const { return preconditions_; }
+	const std::vector<std::pair<const Atom*, InvariableIndex> >& getPreconditions() const { return *preconditions_; }
 	
 	/**
 	 * Given an atom which is linked to this transition, return the index of the variable which is invariable.
 	 */
-	const std::vector<std::pair<const Atom*, InvariableIndex> >& getAllPreconditions() const { return all_precondition_mappings_; }
+	const std::vector<std::pair<const Atom*, InvariableIndex> >& getAllPreconditions() const { return *all_precondition_mappings_; }
 	
-	const std::vector<std::pair<const Atom*, InvariableIndex> >& getAllPersistentPreconditions() const { return persistent_preconditions_; }
+	const std::vector<std::pair<const Atom*, InvariableIndex> >& getAllPersistentPreconditions() const { return *persistent_preconditions_; }
 	
 	bool isPreconditionPersistent(const Atom&, InvariableIndex index) const;
 	
@@ -206,22 +206,22 @@ private:
 
 	// pair <atom of the Transition, bounded atom of the DTG node it is connected to>.
 	// The preconditions which are linked to from_node_.
-	std::vector<std::pair<const Atom*, InvariableIndex> > preconditions_;
+	const std::vector<std::pair<const Atom*, InvariableIndex> >* preconditions_;
 
 	// The effects which achieves the facts of to_node_.
-	std::vector<std::pair<const Atom*, InvariableIndex> > effects_;
+	const std::vector<std::pair<const Atom*, InvariableIndex> >* effects_;
 
 	// The effect which deletes the facts from from_node_.
-	std::vector<std::pair<const Atom*, InvariableIndex> > affected_;
+	const std::vector<std::pair<const Atom*, InvariableIndex> >* affected_;
 	
 	// A list of facts which remain unaltered.
-	std::vector<std::pair<const Atom*, InvariableIndex> > persistent_preconditions_;
+	const std::vector<std::pair<const Atom*, InvariableIndex> >* persistent_preconditions_;
 	
 	// Per property space the variable which is invariable.
 	const std::map<const PropertySpace*, const Variable*>* action_invariables_;
 	
 	// A list of all preconditions of the action, including the index of the term which is invariable.
-	const std::vector<std::pair<const Atom*, InvariableIndex> > all_precondition_mappings_;
+	const std::vector<std::pair<const Atom*, InvariableIndex> >* all_precondition_mappings_;
 };
 /*
 class RecursivePreconditions

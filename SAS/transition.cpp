@@ -272,13 +272,13 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 	/**
 	 * Make sure all the added and deleted facts are accounted for.
 	 */
-	std::vector<std::pair<const Atom*, InvariableIndex> > precondition_mapping_to_from_node; // Pair of precondition and invariable index.
-	std::vector<std::pair<const Atom*, InvariableIndex> > add_effects_mapping_to_to_node;    // Pair of effect and invariable index.
-	std::vector<std::pair<const Atom*, InvariableIndex> > remove_effects_mapping_to_to_node; // Pair of effect and invariable index.
-	std::vector<std::pair<const Atom*, InvariableIndex> > persistent_preconditions; // Pair of precondition and invariable index.
+	std::vector<std::pair<const Atom*, InvariableIndex> >* precondition_mapping_to_from_node = new std::vector<std::pair<const Atom*, InvariableIndex> >(); // Pair of precondition and invariable index.
+	std::vector<std::pair<const Atom*, InvariableIndex> >* add_effects_mapping_to_to_node = new std::vector<std::pair<const Atom*, InvariableIndex> >();    // Pair of effect and invariable index.
+	std::vector<std::pair<const Atom*, InvariableIndex> >* remove_effects_mapping_to_to_node = new std::vector<std::pair<const Atom*, InvariableIndex> >(); // Pair of effect and invariable index.
+	std::vector<std::pair<const Atom*, InvariableIndex> >* persistent_preconditions = new std::vector<std::pair<const Atom*, InvariableIndex> >(); // Pair of precondition and invariable index.
 	
-	std::vector<std::pair<const Atom*, const BoundedAtom*> > add_effects_to_to_node_bindings;
-	std::vector<std::pair<const Atom*, const BoundedAtom*> > precondition_to_from_node_bindings;
+	std::vector<std::pair<const Atom*, const BoundedAtom*> >* add_effects_to_to_node_bindings = new std::vector<std::pair<const Atom*, const BoundedAtom*> >();
+	std::vector<std::pair<const Atom*, const BoundedAtom*> >* precondition_to_from_node_bindings = new std::vector<std::pair<const Atom*, const BoundedAtom*> >();
 	
 	StepID action_step_id = action_step->getStepId();
 	const Action& action = action_step->getAction();
@@ -333,8 +333,8 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 //					effect->print(std::cout, bindings, action_step_id);
 //					std::cout << std::endl;
 					is_added = true;
-					add_effects_mapping_to_to_node.push_back(std::make_pair(effect, to_node.getIndex(*added_fact)));
-					add_effects_to_to_node_bindings.push_back(std::make_pair(effect, added_fact));
+					add_effects_mapping_to_to_node->push_back(std::make_pair(effect, to_node.getIndex(*added_fact)));
+					add_effects_to_to_node_bindings->push_back(std::make_pair(effect, added_fact));
 					break;
 				}
 			}
@@ -378,8 +378,8 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 //					std::cout << "It's removed by: ";
 //					precondition->print(std::cout, bindings, action_step_id);
 //					std::cout << std::endl;
-					precondition_mapping_to_from_node.push_back(std::make_pair(precondition, from_node.getIndex(*removed_fact)));
-					precondition_to_from_node_bindings.push_back(std::make_pair(precondition, removed_fact));
+					precondition_mapping_to_from_node->push_back(std::make_pair(precondition, from_node.getIndex(*removed_fact)));
+					precondition_to_from_node_bindings->push_back(std::make_pair(precondition, removed_fact));
 					is_a_precondition = true;
 					break;
 				}
@@ -403,7 +403,7 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 //					std::cout << "It's removed by: ";
 //					effect->print(std::cout, bindings, action_step_id);
 //					std::cout << std::endl;
-					remove_effects_mapping_to_to_node.push_back(std::make_pair(effect, from_node.getIndex(*removed_fact)));
+					remove_effects_mapping_to_to_node->push_back(std::make_pair(effect, from_node.getIndex(*removed_fact)));
 					is_removed = true;
 					break;
 				}
@@ -423,7 +423,7 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 	 * Start making the actual bindings!
 	 */
 //	std::cout << "[Transition::createTransition] Unify the effects!" << std::endl;
-	for (std::vector<std::pair<const Atom*, const BoundedAtom*> >::const_iterator ci = add_effects_to_to_node_bindings.begin(); ci != add_effects_to_to_node_bindings.end(); ci++)
+	for (std::vector<std::pair<const Atom*, const BoundedAtom*> >::const_iterator ci = add_effects_to_to_node_bindings->begin(); ci != add_effects_to_to_node_bindings->end(); ci++)
 	{
 		const Atom* added_effect = (*ci).first;
 		const BoundedAtom* to_node_atom = (*ci).second;
@@ -440,7 +440,7 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 	}
 	
 //	std::cout << "[Transition::createTransition] Unify the preconditions!" << std::endl;
-	for (std::vector<std::pair<const Atom*, const BoundedAtom*> >::const_iterator ci = precondition_to_from_node_bindings.begin(); ci != precondition_to_from_node_bindings.end(); ci++)
+	for (std::vector<std::pair<const Atom*, const BoundedAtom*> >::const_iterator ci = precondition_to_from_node_bindings->begin(); ci != precondition_to_from_node_bindings->end(); ci++)
 	{
 		const Atom* precondition = (*ci).first;
 		const BoundedAtom* from_node_atom = (*ci).second;
@@ -456,11 +456,11 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 		}
 	}
 	
-	std::vector<std::pair<const Atom*, InvariableIndex> > all_precondition_mappings;
+	std::vector<std::pair<const Atom*, InvariableIndex> >* all_precondition_mappings = new std::vector<std::pair<const Atom*, InvariableIndex> >();
 	for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 	{
 		const Atom* precondition = *ci;
-		all_precondition_mappings.push_back(std::make_pair(precondition, NO_INVARIABLE_INDEX));
+		all_precondition_mappings->push_back(std::make_pair(precondition, NO_INVARIABLE_INDEX));
 	}
 	
 /*
@@ -475,7 +475,7 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 */
 	std::map<const PropertySpace*, const Variable*>* property_space_action_invariables = new std::map<const PropertySpace*, const Variable*>();
 	
-	return new Transition(action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, persistent_preconditions, *property_space_action_invariables, all_precondition_mappings);
+	return new Transition(action_step, from_node, to_node, *precondition_mapping_to_from_node, *add_effects_mapping_to_to_node, *remove_effects_mapping_to_to_node, *persistent_preconditions, *property_space_action_invariables, *all_precondition_mappings);
 }
 
 Transition* Transition::createTransition(const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts)
@@ -1304,13 +1304,13 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 	/**
 	 * Make sure all the added and deleted facts are accounted for.
 	 */
-	std::vector<std::pair<const Atom*, InvariableIndex> > precondition_mapping_to_from_node; // Pair of precondition and invariable index.
-	std::vector<std::pair<const Atom*, InvariableIndex> > add_effects_mapping_to_to_node;    // Pair of effect and invariable index.
-	std::vector<std::pair<const Atom*, InvariableIndex> > remove_effects_mapping_to_to_node; // Pair of effect and invariable index.
-	std::vector<std::pair<const Atom*, InvariableIndex> > persistent_preconditions;
+	std::vector<std::pair<const Atom*, InvariableIndex> >* precondition_mapping_to_from_node = new std::vector<std::pair<const Atom*, InvariableIndex> >(); // Pair of precondition and invariable index.
+	std::vector<std::pair<const Atom*, InvariableIndex> >* add_effects_mapping_to_to_node = new std::vector<std::pair<const Atom*, InvariableIndex> >();    // Pair of effect and invariable index.
+	std::vector<std::pair<const Atom*, InvariableIndex> >* remove_effects_mapping_to_to_node = new std::vector<std::pair<const Atom*, InvariableIndex> >(); // Pair of effect and invariable index.
+	std::vector<std::pair<const Atom*, InvariableIndex> >* persistent_preconditions = new std::vector<std::pair<const Atom*, InvariableIndex> >();
 	
-	std::vector<std::pair<const Atom*, const BoundedAtom*> > add_effects_to_to_node_bindings;
-	std::vector<std::pair<const Atom*, const BoundedAtom*> > precondition_to_from_node_bindings;
+	std::vector<std::pair<const Atom*, const BoundedAtom*> >* add_effects_to_to_node_bindings = new std::vector<std::pair<const Atom*, const BoundedAtom*> >();
+	std::vector<std::pair<const Atom*, const BoundedAtom*> >* precondition_to_from_node_bindings = new std::vector<std::pair<const Atom*, const BoundedAtom*> >();
 
 	for (std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
 	{
@@ -1396,8 +1396,8 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 					std::cout << std::endl;
 #endif
 					is_added = true;
-					add_effects_mapping_to_to_node.push_back(std::make_pair(effect, linked_property->getIndex()));
-					add_effects_to_to_node_bindings.push_back(std::make_pair(effect, added_fact));
+					add_effects_mapping_to_to_node->push_back(std::make_pair(effect, linked_property->getIndex()));
+					add_effects_to_to_node_bindings->push_back(std::make_pair(effect, added_fact));
 					break;
 				}
 			}
@@ -1468,8 +1468,8 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 					precondition->print(std::cout, bindings, action_step_id);
 					std::cout << std::endl;
 #endif
-					precondition_mapping_to_from_node.push_back(std::make_pair(precondition, linked_property->getIndex()));
-					precondition_to_from_node_bindings.push_back(std::make_pair(precondition, removed_fact));
+					precondition_mapping_to_from_node->push_back(std::make_pair(precondition, linked_property->getIndex()));
+					precondition_to_from_node_bindings->push_back(std::make_pair(precondition, removed_fact));
 					is_a_precondition = true;
 					break;
 				}
@@ -1498,7 +1498,7 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 					effect->print(std::cout, bindings, action_step_id);
 					std::cout << std::endl;
 #endif
-					remove_effects_mapping_to_to_node.push_back(std::make_pair(effect, linked_property->getIndex()));
+					remove_effects_mapping_to_to_node->push_back(std::make_pair(effect, linked_property->getIndex()));
 					is_removed = true;
 					break;
 				}
@@ -1569,7 +1569,7 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 	std::cout << "[Transition::createTransition] Unify the optional preconditions!" << std::endl;
 #endif
 
-for (std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
+	for (std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
 	{
 		const PropertySpace* property_space = (*ci).first.first;
 //		const std::vector<const Object*>* invariable_term = (*ci).first.second;
@@ -1628,7 +1628,7 @@ for (std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* 
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 	std::cout << "[Transition::createTransition] Unify the effects!" << std::endl;
 #endif
-	for (std::vector<std::pair<const Atom*, const BoundedAtom*> >::const_iterator ci = add_effects_to_to_node_bindings.begin(); ci != add_effects_to_to_node_bindings.end(); ci++)
+	for (std::vector<std::pair<const Atom*, const BoundedAtom*> >::const_iterator ci = add_effects_to_to_node_bindings->begin(); ci != add_effects_to_to_node_bindings->end(); ci++)
 	{
 		const Atom* added_effect = (*ci).first;
 		const BoundedAtom* to_node_atom = (*ci).second;
@@ -1649,7 +1649,7 @@ for (std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* 
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 	std::cout << "[Transition::createTransition] Unify the preconditions!" << std::endl;
 #endif
-	for (std::vector<std::pair<const Atom*, const BoundedAtom*> >::const_iterator ci = precondition_to_from_node_bindings.begin(); ci != precondition_to_from_node_bindings.end(); ci++)
+	for (std::vector<std::pair<const Atom*, const BoundedAtom*> >::const_iterator ci = precondition_to_from_node_bindings->begin(); ci != precondition_to_from_node_bindings->end(); ci++)
 	{
 		const Atom* precondition = (*ci).first;
 		const BoundedAtom* from_node_atom = (*ci).second;
@@ -1835,7 +1835,7 @@ for (std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* 
 	 * TODO: Make this more appearant in the function, but splitting up the property_space_balanced_sets into a property_balanced_set
 	 * and a separate set for optional preconditions.
 	 */
-	std::vector<std::pair<const Atom*, InvariableIndex> > all_precondition_mappings;
+	std::vector<std::pair<const Atom*, InvariableIndex> >* all_precondition_mappings = new std::vector<std::pair<const Atom*, InvariableIndex> >();
 	for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 	{
 		const Atom* precondition = *ci;
@@ -1868,7 +1868,7 @@ for (std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* 
 #endif
 					found_binding = true;
 					
-					all_precondition_mappings.push_back(std::make_pair(precondition, i));
+					all_precondition_mappings->push_back(std::make_pair(precondition, i));
 					break;
 				}
 			}
@@ -1880,7 +1880,7 @@ for (std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* 
 				precondition->print(std::cout, bindings, action_step_id);
 				std::cout << " (No binding!)" << std::endl;
 #endif
-				all_precondition_mappings.push_back(std::make_pair(precondition, NO_INVARIABLE_INDEX));
+				all_precondition_mappings->push_back(std::make_pair(precondition, NO_INVARIABLE_INDEX));
 			}
 		}
 	}
@@ -1895,7 +1895,7 @@ for (std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* 
 	action_step->getAction().print(std::cout, from_node.getDTG().getBindings(), action_step->getStepId());
 	std::cout << std::endl;
 #endif
-	return new Transition(action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, persistent_preconditions, *property_space_action_invariables, all_precondition_mappings);
+	return new Transition(action_step, from_node, to_node, *precondition_mapping_to_from_node, *add_effects_mapping_to_to_node, *remove_effects_mapping_to_to_node, *persistent_preconditions, *property_space_action_invariables, *all_precondition_mappings);
 }
 
 bool Transition::unifyDTGAtomsWithAction(const std::vector<const BoundedAtom*>& facts_to_unify, const DomainTransitionGraphNode& dtg_node, const std::vector<const Atom*>& action_atoms, StepID action_step_id, const Action& action, Bindings& bindings, const std::vector<const Object*>& invariable_domain)
@@ -1970,7 +1970,7 @@ bool Transition::unifyDTGAtomsWithAction(const std::vector<const BoundedAtom*>& 
 }
 
 Transition::Transition(MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map<const PropertySpace*, const Variable*>& action_invariables, const std::vector<std::pair<const Atom*, InvariableIndex> >& all_precondition_mappings)
-	: step_(step), from_node_(&from_node), to_node_(&to_node), preconditions_(preconditions), effects_(effects), affected_(affected), persistent_preconditions_(persistent_preconditions), action_invariables_(&action_invariables), all_precondition_mappings_(all_precondition_mappings)
+	: step_(step), from_node_(&from_node), to_node_(&to_node), preconditions_(&preconditions), effects_(&effects), affected_(&affected), persistent_preconditions_(&persistent_preconditions), action_invariables_(&action_invariables), all_precondition_mappings_(&all_precondition_mappings)
 {
 /*	std::cout << "New transition: " << step->getAction() << std::endl;
 	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
@@ -1983,9 +1983,31 @@ Transition::Transition(MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGra
 
 Transition* Transition::migrateTransition(const DomainTransitionGraphNode& from_node, const DomainTransitionGraphNode& to_node) const
 {
+/*	StepID new_id = from_node.getDTG().getBindings().createVariableDomains(step_->getAction());
+	StepPtr new_step(new Step(new_id, step_->getAction()));
+	
+	std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >* preconditions = new std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >(preconditions_);
+	std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >* effects = new std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >(effects_);
+	std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >* affected, 
+	std::vector<std::pair<const Atom*, InvariableIndex> >* persistent_preconditions, 
+	std::map< const MyPOP::SAS_Plus::PropertySpace*, const MyPOP::Variable* >* action_invariables, 
+	std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >* all_precondition_mappings);
+	
+	
+	return new Transitin(new_step, from_node, to_node, ???, ???, ???, ???, ???, ???);
+*/
 	return NULL;
 	
-	//Transition(MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map< const MyPOP::SAS_Plus::PropertySpace*, const MyPOP::Variable* >& action_invariables, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& all_precondition_mappings);
+	//Transition(
+	// MyPOP::StepPtr step, 
+	// MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, 
+	// MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, 
+	// const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, 
+	// const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, 
+	// const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, 
+	// const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, 
+	// const std::map< const MyPOP::SAS_Plus::PropertySpace*, const MyPOP::Variable* >& action_invariables, 
+	// const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& all_precondition_mappings);
 }
 
 Transition* Transition::cloneWithNodes(const std::vector<const Atom*>& initial_facts) const
@@ -2032,7 +2054,7 @@ bool Transition::isPreconditionRemoved(const Atom& precondition, const Bindings&
 
 bool Transition::achieves(const BoundedAtom& bounded_atom) const
 {
-	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = effects_.begin(); ci != effects_.end(); ci++)
+	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = effects_->begin(); ci != effects_->end(); ci++)
 	{
 		const Atom* affected_atom = (*ci).first;
 
@@ -2052,7 +2074,7 @@ bool Transition::achieves(const BoundedAtom& bounded_atom) const
 
 bool Transition::affects(const BoundedAtom& bounded_atom) const
 {
-	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = affected_.begin(); ci != affected_.end(); ci++)
+	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = affected_->begin(); ci != affected_->end(); ci++)
 	{
 		const Atom* affected_atom = (*ci).first;
 
@@ -2072,7 +2094,7 @@ bool Transition::affects(const BoundedAtom& bounded_atom) const
 
 bool Transition::isPreconditionPersistent(const Atom& atom, InvariableIndex index) const
 {
-	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = persistent_preconditions_.begin(); ci != persistent_preconditions_.end(); ci++)
+	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = persistent_preconditions_->begin(); ci != persistent_preconditions_->end(); ci++)
 	{
 		const Atom* persistent_atom = (*ci).first;
 		InvariableIndex persistent_index = (*ci).second;

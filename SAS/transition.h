@@ -98,13 +98,12 @@ public:
 	
 	/**
 	 * Create a transitions between the two nodes. Note that from_node and to_node must be part of the same DTG!
-	 * @param enablers The enablers for this action (e.g. dependencies on other DTGs for its preconditions).
 	 * @param action The action which needs to be executed for the transition to work.
 	 * @param from_node The start node of the transition.
 	 * @param to_node The end node of the transition.
 	 * @return The formed transition OR NULL if the transition was not possible.
 	 */
-	static Transition* createTransition(const std::vector<BoundedAtom>& enablers, const Action& action, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
+	static Transition* createTransition(const Action& action, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
 	
 	/**
 	 * Create a new transition which has the same bindings to the variables as this transition. But the
@@ -112,16 +111,6 @@ public:
 	 */
 	Transition* cloneWithNodes(const std::vector<const Atom*>& initial_facts) const;
 	
-	/**
-	 * Get the enabler (i.e. external dependencies for this transition to execute).
-	 */
-	const std::vector<BoundedAtom>& getEnablers() const { return enablers_; }
-	
-	/**
-	 * Add an enabler to this transition.
-	 */
-	void addEnabler(BoundedAtom bounded_atom);
-
 	/**
 	 * The step holds the action which makes the transition happen and the step id
 	 * under which the action's variables are bounded.
@@ -175,16 +164,15 @@ private:
 	
 	/**
 	 * Create a transitions between the two nodes. Note that from_node and to_node must be part of the same DTG!
-	 * @param enablers The enablers for this action (e.g. dependencies on other DTGs for its preconditions).
 	 * @param step The bounded action which needs to be executed for the transition to work.
 	 * @param from_node The start node of the transition.
 	 * @param to_node The end node of the transition.
 	 * @return The formed transition OR NULL if the transition was not possible.
 	 */
-	static Transition* createTransition(const std::vector<BoundedAtom>& enablers, const StepPtr step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
+	static Transition* createTransition(const StepPtr step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
 	
 	// TODO: Remove this function.
-	static Transition* createSimpleTransition(const std::vector<BoundedAtom>& enablers, const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
+	static Transition* createSimpleTransition(const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
 
 	/**
 	 * Utility function to unify atoms from a dtg node with a set of (action) atoms (either effects or preconditions).
@@ -205,10 +193,7 @@ private:
 	bool shareVariableDomains(const BoundedAtom& bounded_atom, const Atom& atom) const;
 
 	// A transition is not to be created manualy.
-	Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map< const MyPOP::SAS_Plus::PropertySpace*, const MyPOP::Variable* >& action_invariables, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& all_precondition_mappings);
-
-	// Some transaction require a fact from another DTG to be true before it can be excuted.
-	std::vector<BoundedAtom> enablers_;
+	Transition(MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map< const MyPOP::SAS_Plus::PropertySpace*, const MyPOP::Variable* >& action_invariables, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& all_precondition_mappings);
 
 	// The step contains:
 	// 1) The action which needs to be executed to make the transition happen and,

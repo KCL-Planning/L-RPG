@@ -86,7 +86,7 @@ void BalancedPropertySet::removeRemovedProperty(const BoundedAtom& fact)
 }
 
 
-Transition* Transition::createTransition(const std::vector<BoundedAtom>& enablers, const Action& action, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts)
+Transition* Transition::createTransition(const Action& action, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts)
 {
 	if (&to_node.getDTG() != &from_node.getDTG())
 	{
@@ -117,11 +117,11 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	
 	if (contains_invariables)
 	{
-		transition = Transition::createTransition(enablers, action_step, from_node, to_node, initial_facts);
+		transition = Transition::createTransition(action_step, from_node, to_node, initial_facts);
 	}
 	else
 	{
-		transition = Transition::createSimpleTransition(enablers, action_step, from_node, to_node, initial_facts);
+		transition = Transition::createSimpleTransition(action_step, from_node, to_node, initial_facts);
 	}
 	
 	if (transition == NULL)
@@ -134,7 +134,7 @@ Transition* Transition::createTransition(const std::vector<BoundedAtom>& enabler
 	return transition;
 }
 
-Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& enablers, const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts)
+Transition* Transition::createSimpleTransition(const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts)
 {
 	std::cout << std::endl << std::endl;
 	std::cout << "[Transition::createSimpleTransition] NEW TRANSITION!!!!" << std::endl;
@@ -475,10 +475,10 @@ Transition* Transition::createSimpleTransition(const std::vector<BoundedAtom>& e
 */
 	std::map<const PropertySpace*, const Variable*>* property_space_action_invariables = new std::map<const PropertySpace*, const Variable*>();
 	
-	return new Transition(enablers, action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, persistent_preconditions, *property_space_action_invariables, all_precondition_mappings);
+	return new Transition(action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, persistent_preconditions, *property_space_action_invariables, all_precondition_mappings);
 }
 
-Transition* Transition::createTransition(const std::vector<BoundedAtom>& enablers, const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts)
+Transition* Transition::createTransition(const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts)
 {
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 	std::cout << std::endl << std::endl;
@@ -1895,7 +1895,7 @@ for (std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* 
 	action_step->getAction().print(std::cout, from_node.getDTG().getBindings(), action_step->getStepId());
 	std::cout << std::endl;
 #endif
-	return new Transition(enablers, action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, persistent_preconditions, *property_space_action_invariables, all_precondition_mappings);
+	return new Transition(action_step, from_node, to_node, precondition_mapping_to_from_node, add_effects_mapping_to_to_node, remove_effects_mapping_to_to_node, persistent_preconditions, *property_space_action_invariables, all_precondition_mappings);
 }
 
 bool Transition::unifyDTGAtomsWithAction(const std::vector<const BoundedAtom*>& facts_to_unify, const DomainTransitionGraphNode& dtg_node, const std::vector<const Atom*>& action_atoms, StepID action_step_id, const Action& action, Bindings& bindings, const std::vector<const Object*>& invariable_domain)
@@ -1969,8 +1969,8 @@ bool Transition::unifyDTGAtomsWithAction(const std::vector<const BoundedAtom*>& 
 	return true;
 }
 
-Transition::Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map<const PropertySpace*, const Variable*>& action_invariables, const std::vector<std::pair<const Atom*, InvariableIndex> >& all_precondition_mappings)
-	: enablers_(enablers), step_(step), from_node_(&from_node), to_node_(&to_node), preconditions_(preconditions), effects_(effects), affected_(affected), persistent_preconditions_(persistent_preconditions), action_invariables_(&action_invariables), all_precondition_mappings_(all_precondition_mappings)
+Transition::Transition(MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map<const PropertySpace*, const Variable*>& action_invariables, const std::vector<std::pair<const Atom*, InvariableIndex> >& all_precondition_mappings)
+	: step_(step), from_node_(&from_node), to_node_(&to_node), preconditions_(preconditions), effects_(effects), affected_(affected), persistent_preconditions_(persistent_preconditions), action_invariables_(&action_invariables), all_precondition_mappings_(all_precondition_mappings)
 {
 /*	std::cout << "New transition: " << step->getAction() << std::endl;
 	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
@@ -1985,15 +1985,14 @@ Transition* Transition::migrateTransition(const DomainTransitionGraphNode& from_
 {
 	return NULL;
 	
-	//Transition(const std::vector< MyPOP::SAS_Plus::BoundedAtom >& enablers, MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map< const MyPOP::SAS_Plus::PropertySpace*, const MyPOP::Variable* >& action_invariables, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& all_precondition_mappings);
+	//Transition(MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map< const MyPOP::SAS_Plus::PropertySpace*, const MyPOP::Variable* >& action_invariables, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& all_precondition_mappings);
 }
 
 Transition* Transition::cloneWithNodes(const std::vector<const Atom*>& initial_facts) const
 {
 	DomainTransitionGraphNode* new_dtg_from_node = new DomainTransitionGraphNode(*from_node_, false);
 	DomainTransitionGraphNode* new_dtg_to_node = new DomainTransitionGraphNode(*to_node_, false);
-	std::vector<BoundedAtom>* enablers = new std::vector<BoundedAtom>();
-	Transition* new_transition = Transition::createTransition(*enablers, step_->getAction(), *new_dtg_from_node, *new_dtg_to_node, initial_facts);
+	Transition* new_transition = Transition::createTransition(step_->getAction(), *new_dtg_from_node, *new_dtg_to_node, initial_facts);
 	
 	if (new_transition == NULL)
 	{
@@ -2012,20 +2011,6 @@ Transition* Transition::cloneWithNodes(const std::vector<const Atom*>& initial_f
 void Transition::setStep(StepPtr step)
 {
 	step_ = step;
-}
-
-void Transition::addEnabler(BoundedAtom enabler)
-{
-	// Don't add the same enabler twice!
-	for (std::vector<BoundedAtom>::const_iterator ci = enablers_.begin(); ci != enablers_.end(); ci++)
-	{
-		if (&enabler.getAtom() == &(*ci).getAtom())
-		{
-			return;
-		}
-	}
-
-	enablers_.push_back(enabler);
 }
 
 bool Transition::isPreconditionRemoved(const Atom& precondition, const Bindings& bindings) const

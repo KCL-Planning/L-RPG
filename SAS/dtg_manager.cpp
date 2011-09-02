@@ -675,8 +675,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 					const Action* achieving_action = (*ci).first;
 					
 					// Create a transition between the two nodes.
-					std::vector<BoundedAtom>* enablers = new std::vector<BoundedAtom>();
-					const Transition* transition = Transition::createTransition(*enablers, *achieving_action, *negative_new_dtg_node, *possitive_new_dtg_node, *initial_facts_);
+					const Transition* transition = Transition::createTransition(*achieving_action, *negative_new_dtg_node, *possitive_new_dtg_node, *initial_facts_);
 					
 					assert (transition != NULL);
 					
@@ -1284,8 +1283,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 			merged_to_dtg_node->print(std::cout);
 			std::cout << "." << std::endl;*/
 			
-			std::vector<BoundedAtom>* enables = new std::vector<BoundedAtom>();
-			const Transition* new_transition = Transition::createTransition(*enables, org_transition->getStep()->getAction(), *merged_from_dtg_node, *merged_to_dtg_node, *initial_facts_);
+			const Transition* new_transition = Transition::createTransition(org_transition->getStep()->getAction(), *merged_from_dtg_node, *merged_to_dtg_node, *initial_facts_);
 			if (new_transition == NULL) {
 //				std::cout << "Failed to make that transition!" << std::endl;
 //				assert (false);
@@ -1398,9 +1396,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 				DomainTransitionGraphNode* from_dtg_node_clone = new DomainTransitionGraphNode(*dtg_node, false, false);
 				DomainTransitionGraphNode* to_dtg_node_clone = new DomainTransitionGraphNode(org_transition->getToNode(), false, false);
 				
-				std::vector<BoundedAtom>* enablers = new std::vector<BoundedAtom>();
-				
-				Transition* transition = Transition::createTransition(*enablers, org_transition->getStep()->getAction(), *from_dtg_node_clone, *to_dtg_node_clone, *initial_facts_);
+				Transition* transition = Transition::createTransition(org_transition->getStep()->getAction(), *from_dtg_node_clone, *to_dtg_node_clone, *initial_facts_);
 				
 				assert (transition != NULL);
 
@@ -1853,7 +1849,6 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 					std::vector<DomainTransitionGraphNode*> to_grounded_nodes;
 					to_dtg_node_clone->groundTerms(to_grounded_nodes, to_terms_to_ground);
 					
-					std::vector<BoundedAtom>* enable_dummy = new std::vector<BoundedAtom>();
 					for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = from_grounded_nodes.begin(); ci != from_grounded_nodes.end(); ci++)
 					{
 						DomainTransitionGraphNode* from_dtg_node = *ci;
@@ -1900,7 +1895,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 							
 							// Try to establish the original transitions.
 							// TODO: WAY TO SLOWWW!!! - called too often!
-							const Transition* new_transition = Transition::createTransition(*enable_dummy, transition->getStep()->getAction(), *from_dtg_node, *to_dtg_node, *initial_facts_);
+							const Transition* new_transition = Transition::createTransition(transition->getStep()->getAction(), *from_dtg_node, *to_dtg_node, *initial_facts_);
 							
 							if (new_transition == NULL)
 							{

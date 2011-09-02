@@ -884,9 +884,7 @@ void DomainTransitionGraph::reestablishTransitions()
 			for (std::vector<const Action*>::const_iterator ci = possible_transitions.begin(); ci != possible_transitions.end(); ci++)
 			{
 				const Action* action = *ci;
-				std::vector<BoundedAtom>* enabler_dummy = new std::vector<BoundedAtom>();
-
-				Transition* transition = Transition::createTransition(*enabler_dummy, *action, *from_node, *to_node, *initial_facts_);
+				Transition* transition = Transition::createTransition(*action, *from_node, *to_node, *initial_facts_);
 				if (transition != NULL)
 				{
 					from_node->addTransition(*transition, false);
@@ -929,9 +927,7 @@ void DomainTransitionGraph::establishTransitions()
 					to_node = new DomainTransitionGraphNode(*to_node, false, false);
 				}
 				
-				std::vector<BoundedAtom>* enabler_dummy = new std::vector<BoundedAtom>();
-
-				Transition* transition = Transition::createTransition(*enabler_dummy, *action, *from_node, *to_node, *initial_facts_);
+				Transition* transition = Transition::createTransition(*action, *from_node, *to_node, *initial_facts_);
 				if (transition != NULL)
 				{
 					from_node->addTransition(*transition, true);
@@ -1459,8 +1455,7 @@ void DomainTransitionGraph::solveSubsets()
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 						std::cout << "Create a transition from: " << *sub_set_dtg_node << " to " << *new_to_node << std::endl;
 #endif
-						std::vector<BoundedAtom>* enables = new std::vector<BoundedAtom>();
-						Transition* new_transition = Transition::createTransition(*enables, transition->getStep()->getAction(), *sub_set_dtg_node, *new_to_node, *initial_facts_);
+						Transition* new_transition = Transition::createTransition(transition->getStep()->getAction(), *sub_set_dtg_node, *new_to_node, *initial_facts_);
 						assert (new_transition != NULL);
 						sub_set_dtg_node->addTransition(*new_transition, false);
 					}
@@ -1469,8 +1464,7 @@ void DomainTransitionGraph::solveSubsets()
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 						std::cout << "Create a transition from: " << *sub_set_dtg_node << " to " << *existing_to_dtg_node << std::endl;
 #endif
-						std::vector<BoundedAtom>* enables = new std::vector<BoundedAtom>();
-						Transition* new_transition = Transition::createTransition(*enables, transition->getStep()->getAction(), *sub_set_dtg_node, *existing_to_dtg_node, *initial_facts_);
+						Transition* new_transition = Transition::createTransition(transition->getStep()->getAction(), *sub_set_dtg_node, *existing_to_dtg_node, *initial_facts_);
 						assert (new_transition != NULL);
 						sub_set_dtg_node->addTransition(*new_transition, false);
 					}

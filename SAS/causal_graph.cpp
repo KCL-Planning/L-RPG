@@ -123,7 +123,7 @@ CausalGraph::CausalGraph(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dt
 							addTransition(*precondition_dtg_ci, dtg);
 							
 							
-							transition->addEnabler(BoundedAtom(transition->getStep()->getStepId(), **precondition_ci));
+///							transition->addEnabler(BoundedAtom(transition->getStep()->getStepId(), **precondition_ci));
 						}
 					}
 				}

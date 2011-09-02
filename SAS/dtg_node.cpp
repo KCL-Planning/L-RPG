@@ -60,7 +60,7 @@ DomainTransitionGraphNode::DomainTransitionGraphNode(const DomainTransitionGraph
 				to_node = &transition->getToNode();
 			}
 
-			addTransition(transition->getEnablers(), transition->getStep()->getAction(), *to_node);
+			addTransition(transition->getStep()->getAction(), *to_node);
 		}
 	}
 
@@ -83,7 +83,7 @@ DomainTransitionGraphNode::DomainTransitionGraphNode(const DomainTransitionGraph
 				if (&existing_transition->getToNode() == &dtg_node)
 				{
 //					std::cout << "Add a new transition from " << *existing_dtg_node << " to " << *this << std::endl;
-					existing_dtg_node->addTransition(existing_transition->getEnablers(), existing_transition->getStep()->getAction(), *this);
+					existing_dtg_node->addTransition(existing_transition->getStep()->getAction(), *this);
 //					std::cout << "Result: " << *existing_dtg_node << std::endl;
 				}
 			}
@@ -757,10 +757,10 @@ bool DomainTransitionGraphNode::groundTerms(std::vector<DomainTransitionGraphNod
 	return did_ground_a_term;
 }
 
-bool DomainTransitionGraphNode::addTransition(const std::vector<BoundedAtom>& enablers, const Action& action, DomainTransitionGraphNode& to_node)
+bool DomainTransitionGraphNode::addTransition(const Action& action, DomainTransitionGraphNode& to_node)
 {
 	//std::cout << "[DomainTransitionGraphNode::addTransition] " << action << " from " << *this << " to " << to_node << std::endl;
-	Transition* transition = Transition::createTransition(enablers, action, *this, to_node, dtg_->getDTGManager().getInitialFacts());
+	Transition* transition = Transition::createTransition(action, *this, to_node, dtg_->getDTGManager().getInitialFacts());
 	if (transition == NULL || !addTransition(*transition, false))
 	{
 	//	std::cout << "[DomainTransitionGraphNode::addTransition] FAIL!" << std::endl;

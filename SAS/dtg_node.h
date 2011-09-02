@@ -121,7 +121,7 @@ public:
 	/**
 	 * Add a transition from this node to to_node, without checking for static preconditions.
 	 */
-	bool addTransition(const std::vector<BoundedAtom>& enablers, const Action& action, DomainTransitionGraphNode& to_node);
+	bool addTransition(const Action& action, DomainTransitionGraphNode& to_node);
 
 	/**
 	 * Add a transition to this node.

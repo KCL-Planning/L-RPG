@@ -26,7 +26,7 @@
 #include "recursive_function.h"
 #include "dtg_reachability.h"
 
-#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+///#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 ///#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 
 
@@ -538,7 +538,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	gettimeofday(&end_time_apply_rules, NULL);
 	
 	time_spend = end_time_apply_rules.tv_sec - start_time_apply_rules.tv_sec + (end_time_apply_rules.tv_usec - start_time_apply_rules.tv_usec) / 1000000.0;
-	std::cerr << "Applying the rules took: " << time_spend << " seconds" << std::endl;
+	std::cerr << "Creating point to point transitions took: " << time_spend << " seconds" << std::endl;
 	
 	struct timeval start_time_unsupported_predicates;
 	gettimeofday(&start_time_unsupported_predicates, NULL);
@@ -774,21 +774,39 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	// 3) For all transitions which involve the set of invariables A and produce the set B. If B / A != \emptyset then the difference are in-
 	// variables which were implied due to grounding a term in the from-node. Apply the same transition to all DTG nodes which contain the 
 	// difference. E.g. (at ticket loc -> (have driver ticket) /\ (at driver loc) imply the precondition (at driver log).
+	
+	struct timeval start_time_merge_dtgs;
+	gettimeofday(&start_time_merge_dtgs, NULL);
+	
 	Bindings* merged_dtg_bindings = new Bindings(bindings);
 	DomainTransitionGraph& combined_graph = mergeIdenticalDTGs(*merged_dtg_bindings);
+	
+	struct timeval end_time_merge_dtgs;
+	gettimeofday(&end_time_merge_dtgs, NULL);
+	time_spend = end_time_merge_dtgs.tv_sec - start_time_merge_dtgs.tv_sec + (end_time_merge_dtgs.tv_usec - start_time_merge_dtgs.tv_usec) / 1000000.0;
+	std::cerr << "Merge identical DTGs took: " << time_spend << " seconds" << std::endl;
+	
 	
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 	std::cout << "Combined graph after merging identical DTGs." << std::endl;
 	std::cout << combined_graph << std::endl;
 #endif
 	
+	struct timeval start_time_solve_subsets;
+	gettimeofday(&start_time_solve_subsets, NULL);
+	
 	combined_graph.solveSubsets();
+	
+	struct timeval end_time_solve_subsets;
+	gettimeofday(&end_time_solve_subsets, NULL);
+	time_spend = end_time_solve_subsets.tv_sec - start_time_solve_subsets.tv_sec + (end_time_solve_subsets.tv_usec - start_time_solve_subsets.tv_usec) / 1000000.0;
+	std::cerr << "Solve subsets: " << time_spend << " seconds" << std::endl;
 	
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 	std::cout << "FINAL RESULTS" << std::endl;
 	std::cout << combined_graph << std::endl;
 #endif
-
+/*
 	std::ofstream ofs;
 	ofs.open("combined_dtg.dot", std::ios::out);
 	
@@ -798,21 +816,30 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	
 	ofs << "}" << std::endl;
 	ofs.close();
+*/
 
 	struct timeval start_time_reachability;
 	gettimeofday(&start_time_reachability, NULL);
 	
-	SAS_Plus::DTGReachability analyst(combined_graph);
+	time_spend = start_time_reachability.tv_sec - start_time_tim_translation.tv_sec + (start_time_reachability.tv_usec - start_time_tim_translation.tv_usec) / 1000000.0;
+	std::cerr << "Initialize structures: " << time_spend << " seconds" << std::endl;
 	
 	
-	std::vector<const BoundedAtom*> initial_facts;
-	for (std::vector<const Atom*>::const_iterator ci = initial_facts_->begin(); ci != initial_facts_->end(); ci++)
+	//for (unsigned int i = 0; i < 1000; i++)
 	{
-		BoundedAtom* bounded_atom = new BoundedAtom(Step::INITIAL_STEP, **ci);
-		initial_facts.push_back(bounded_atom);
+
+		SAS_Plus::DTGReachability analyst(combined_graph);
+		
+		
+		std::vector<const BoundedAtom*> initial_facts;
+		for (std::vector<const Atom*>::const_iterator ci = initial_facts_->begin(); ci != initial_facts_->end(); ci++)
+		{
+			BoundedAtom* bounded_atom = new BoundedAtom(Step::INITIAL_STEP, **ci);
+			initial_facts.push_back(bounded_atom);
+		}
+		
+		analyst.performReachabilityAnalsysis(initial_facts, *term_manager_);
 	}
-	
-	analyst.performReachabilityAnalsysis(initial_facts, *term_manager_);
 	
 	struct timeval end_time_reachability;
 	gettimeofday(&end_time_reachability, NULL);	
@@ -1074,7 +1101,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 		}
 		
 		// Merge the properties of all the facts.
-		std::cout << "Merge the properties of all facts: " << *identical_dtg_node << " - combine it with:" << *combined_dtg_node << "." << std::endl;
+//		std::cout << "Merge the properties of all facts: " << *identical_dtg_node << " - combine it with:" << *combined_dtg_node << "." << std::endl;
 		
 		// Make sure the invariable references by the properties match up.
 		std::set<const std::vector<const Object*>* > possible_matching_invariables;
@@ -1148,13 +1175,8 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 		// If no domains are left these nodes cannot be combined!
 		if (possible_matching_invariables.empty())
 		{
-			std::cout << "Could not find a possible matching invariant - aborting!" << std::endl;
+//			std::cout << "Could not find a possible matching invariant - aborting!" << std::endl;
 			continue;
-		}
-		
-		for (std::set<const std::vector<const Object*>* >::const_iterator ci = possible_matching_invariables.begin(); ci != possible_matching_invariables.end(); ci++)
-		{
-			std::cout << "- IV: " << *ci << std::endl;
 		}
 		
 		for (std::vector<BoundedAtom*>::const_iterator ci = identical_dtg_node->getAtoms().begin(); ci != identical_dtg_node->getAtoms().end(); ci++)
@@ -1180,10 +1202,10 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 							{
 								combined_atom->addProperty(**ci);
 							}
-							else
-							{
-								std::cout << "Although the atoms were equivalent, the (invariable) terms could not be combined!" << std::endl;
-							}
+//							else
+//							{
+//								std::cout << "Although the atoms were equivalent, the (invariable) terms could not be combined!" << std::endl;
+//							}
 						}
 						else
 						{
@@ -1265,7 +1287,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 			std::vector<BoundedAtom>* enables = new std::vector<BoundedAtom>();
 			const Transition* new_transition = Transition::createTransition(*enables, org_transition->getStep()->getAction(), *merged_from_dtg_node, *merged_to_dtg_node, *initial_facts_);
 			if (new_transition == NULL) {
-				std::cout << "Failed to make that transition!" << std::endl;
+//				std::cout << "Failed to make that transition!" << std::endl;
 //				assert (false);
 				continue;
 			}
@@ -1479,7 +1501,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 						}
 						
 						/**
-						 * Check all pairwise terms of the precondition and all the facts in the from node. If they terms are the same three things
+						 * Check all pairwise terms of the precondition and all the facts in the from node. If the terms are the same three things
 						 * can happen:
 						 * 1) The precondition is added to the from node:
 						 * - If the term is the invariable and the invariable occurs in the precondition it needs to be added.
@@ -1548,14 +1570,14 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 											for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ci++)
 											{
 												const std::vector<const Property*>& existing_property_set = (*ci).second->getProperties();
-												std::cout << "Check the DTG Node: " << *(*ci).first << "." << std::endl;
+//												std::cout << "Check the DTG Node: " << *(*ci).first << "." << std::endl;
 												
 												// If any of the properties point to the invariable term, we can add it.
 												for (std::vector<const Property*>::const_iterator ci = existing_property_set.begin(); ci != existing_property_set.end(); ci++)
 												{
 													const Property* property = *ci;
 													
-													std::cout << "Check the property: " << *property << "." << std::endl;
+//													std::cout << "Check the property: " << *property << "." << std::endl;
 													
 													bool is_present = false;
 													for (std::vector<const Property*>::const_iterator ci = property_set.begin(); ci != property_set.end(); ci++)
@@ -1735,7 +1757,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 					/**
 					 * In addition add all the effects which are added and refer to an invariable in the to node.
 					 */
-					std::cout << "Add the effects!" << std::endl;
+//					std::cout << "Add the effects!" << std::endl;
 					const std::vector<const Atom*>& effects = transition->getStep()->getAction().getEffects();
 					std::vector<std::pair<BoundedAtom*, InvariableIndex> > bounded_effects;
 					
@@ -1746,9 +1768,9 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 						
 						InvariableIndex invariable_index = NO_INVARIABLE_INDEX;
 						
-						std::cout << "Process the effect: ";
-						effect->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
-						std::cout << std::endl;
+//						std::cout << "Process the effect: ";
+//						effect->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
+//						std::cout << std::endl;
 						
 						std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
 						getDTGNodes(found_nodes, transition->getStep()->getStepId(), *effect, dtg->getBindings());
@@ -1763,7 +1785,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 								const Property* property_to_add = *ci;
 								if (std::find(possible_properties->begin(), possible_properties->end(), property_to_add) != possible_properties->end()) continue;
 								
-								std::cout << "Possible property: " << *property_to_add << "." << std::endl;
+//								std::cout << "Possible property: " << *property_to_add << "." << std::endl;
 								
 								possible_properties->push_back(property_to_add);
 							}
@@ -1773,7 +1795,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 					}
 					
 					addFactsToNode(bounded_effects, *to_dtg_node_clone);
-					std::cout << "[END] Add the effects!" << std::endl;
+//					std::cout << "[END] Add the effects!" << std::endl;
 				}
 
 				/**
@@ -1877,6 +1899,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 							}
 							
 							// Try to establish the original transitions.
+							// TODO: WAY TO SLOWWW!!! - called too often!
 							const Transition* new_transition = Transition::createTransition(*enable_dummy, transition->getStep()->getAction(), *from_dtg_node, *to_dtg_node, *initial_facts_);
 							
 							if (new_transition == NULL)
@@ -1953,6 +1976,21 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 	ofs.close();
 #endif
 */
+	unsigned int nr_transitions = 0;
+	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
+	{
+		DomainTransitionGraph* dtg = *ci;
+		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ci++)
+		{
+			const DomainTransitionGraphNode* dtg_node = *ci;
+			for (std::vector<const Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
+			{
+				++nr_transitions;
+			}
+		}
+	}
+	
+	std::cerr << "Point to point transitions: " << nr_transitions << "." << std::endl;
 }
 
 
@@ -1961,7 +1999,7 @@ void DomainTransitionGraphManager::addFactsToNode(const std::vector<std::pair<Bo
 	bool precondition_added = true;
 	bool facts_processed[facts_to_add.size()];
 	
-	std::cout << "Add the following facts:" << std::endl;
+//	std::cout << "Add the following facts:" << std::endl;
 	
 	for (std::vector<std::pair<BoundedAtom*, InvariableIndex> >::const_iterator ci = facts_to_add.begin(); ci != facts_to_add.end(); ci++)
 	{
@@ -1970,14 +2008,14 @@ void DomainTransitionGraphManager::addFactsToNode(const std::vector<std::pair<Bo
 		
 		facts_processed[index] = dtg_node.containsExactCopyOf(*bounded_atom);
 		
-		std::cout << "- ";
-		bounded_atom->print(std::cout, dtg_node.getDTG().getBindings());
-		std::cout << "." << std::endl;
+//		std::cout << "- ";
+//		bounded_atom->print(std::cout, dtg_node.getDTG().getBindings());
+//		std::cout << "." << std::endl;
 	}
 	
-	std::cout << " to: ";
-	dtg_node.print(std::cout);
-	std::cout << std::endl;
+//	std::cout << " to: ";
+//	dtg_node.print(std::cout);
+//	std::cout << std::endl;
 	
 	bool done_map[facts_to_add.size()];
 	memset(&done_map[0], true, sizeof(bool) * facts_to_add.size());
@@ -2017,9 +2055,9 @@ void DomainTransitionGraphManager::addFactsToNode(const std::vector<std::pair<Bo
 							{
 								dtg_node.addAtom(atom_to_add, invariable_index);
 								
-								std::cout << "The fact: ";
-								atom_to_add->print(std::cout, dtg_node.getDTG().getBindings());
-								std::cout << "HAS been added!" << std::endl;
+//								std::cout << "The fact: ";
+//								atom_to_add->print(std::cout, dtg_node.getDTG().getBindings());
+//								std::cout << "HAS been added!" << std::endl;
 								
 								facts_processed[index] = true;
 								precondition_added = true;
@@ -2064,9 +2102,9 @@ void DomainTransitionGraphManager::addFactsToNode(const std::vector<std::pair<Bo
 						{
 							dtg_node.addAtom(atom_to_add, invariable_index);
 							
-							std::cout << "The fact: ";
-							atom_to_add->print(std::cout, dtg_node.getDTG().getBindings());
-							std::cout << "HAS been added!" << std::endl;
+//							std::cout << "The fact: ";
+//							atom_to_add->print(std::cout, dtg_node.getDTG().getBindings());
+//							std::cout << "HAS been added!" << std::endl;
 							
 							facts_processed[index] = true;
 							found_property = true;
@@ -2082,12 +2120,12 @@ void DomainTransitionGraphManager::addFactsToNode(const std::vector<std::pair<Bo
 				if (found_property) break;
 			}
 
-			if (!added)
-			{
-				std::cout << "The fact: ";
-				atom_to_add->print(std::cout, dtg_node.getDTG().getBindings());
-				std::cout << " could not been added!" << std::endl;
-			}
+//			if (!added)
+//			{
+//				std::cout << "The fact: ";
+//				atom_to_add->print(std::cout, dtg_node.getDTG().getBindings());
+//				std::cout << " could not been added!" << std::endl;
+//			}
 		}
 	}
 }

@@ -214,13 +214,13 @@ int main(int argc,char * argv[])
 	dtg_manager.generateDomainTransitionGraphsTIM(*the_domain->types, plan->getBindings());
 	
 	Graphviz::printToDot(dtg_manager);
-	for (std::vector<SAS_Plus::DomainTransitionGraph*>::const_iterator ci = dtg_manager.getManagableObjects().begin(); ci != dtg_manager.getManagableObjects().end(); ci++)
-	{
-		std::cout << " == Start DTG == " << std::endl;
-		std::cout << **ci << std::endl;
-		std::cout << " == End DTG == " << std::endl;
-	}
-	std::cout << " === DONE! Creating the DTGs === " << std::endl;
+//	for (std::vector<SAS_Plus::DomainTransitionGraph*>::const_iterator ci = dtg_manager.getManagableObjects().begin(); ci != dtg_manager.getManagableObjects().end(); ci++)
+//	{
+//		std::cout << " == Start DTG == " << std::endl;
+//		std::cout << **ci << std::endl;
+//		std::cout << " == End DTG == " << std::endl;
+//	}
+//	std::cout << " === DONE! Creating the DTGs === " << std::endl;
 	
 //	std::cout << " === Creating the CGs === " << std::endl;
 //	SAS_Plus::CausalGraph cg(dtg_manager, action_manager);

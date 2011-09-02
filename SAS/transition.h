@@ -92,6 +92,11 @@ class Transition
 public:
 	
 	/**
+	 * Migrate a transition from a pair of lifted nodes to their grounded equivalents.
+	 */
+	Transition* migrateTransition(const DomainTransitionGraphNode& from_node, const DomainTransitionGraphNode& to_node) const;
+	
+	/**
 	 * Create a transitions between the two nodes. Note that from_node and to_node must be part of the same DTG!
 	 * @param enablers The enablers for this action (e.g. dependencies on other DTGs for its preconditions).
 	 * @param action The action which needs to be executed for the transition to work.

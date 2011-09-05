@@ -2029,9 +2029,6 @@ Transition* Transition::migrateTransition(const std::vector<const Atom*>& initia
 		for (unsigned int i = 0; i < to_node_->getAtoms().size(); i++)
 		{
 			const BoundedAtom* org_to_fact = to_node_->getAtoms()[i];
-//			std::cout << "Process: ";
-//			org_to_fact->print(std::cout, to_node_->getDTG().getBindings());
-//			std::cout << std::endl;
 			
 			for (unsigned int j = 0; j < org_to_fact->getAtom().getArity(); j++)
 			{
@@ -2042,13 +2039,11 @@ Transition* Transition::migrateTransition(const std::vector<const Atom*>& initia
 				{
 					if (new_step->getAction().getVariables()[action_variable_index]->unify(new_step->getStepId(), *to_node.getAtoms()[i]->getAtom().getTerms()[j], to_node.getAtoms()[i]->getId(), to_node.getDTG().getBindings()))
 					{
-//						std::cout << "The " << i << "th atom and " << j << "th term match in the to node!" << std::endl;
 						found_matching_to_variable = true;
 						break;
 					}
 					else
 					{
-//						std::cout << "The " << i << "th atom and " << j << "th term match in the to node! - NULL" << std::endl;
 						return NULL;
 					}
 				}

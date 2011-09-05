@@ -335,6 +335,8 @@ private:
 	
 	void handleExternalDependencies(std::vector<const BoundedAtom*>& established_facts);
 	
+	void makeToNodeReachable(const Transition& transition, const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& possible_mapping) const;
+	
 	/**
 	 * The combined DTG graph we are working on.
 	 */

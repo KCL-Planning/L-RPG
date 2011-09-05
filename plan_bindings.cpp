@@ -89,11 +89,11 @@ bool VariableDomain::makeEqualTo(const VariableDomain& variable_domain)
 #endif
 	
 	// Make sure we do not do the restriction if it is already in place. To do this, we will compare 
-	// a step, variable pair from the given variable domain agains all those of this variable domain.
+	// a step, variable pair from the given variable domain against all those of this variable domain.
 	StepID step = variable_domain.equal_variables_[0].first;
 	const Variable& variable = *variable_domain.equal_variables_[0].second;
 
-	bool already_included = false;
+//	bool already_included = false;
 	for (std::vector<std::pair<StepID, const Variable*> >::const_iterator ci = equal_variables_.begin(); ci != equal_variables_.end(); ci++)
 	{
 		StepID equal_variable_step = (*ci).first;
@@ -107,12 +107,13 @@ bool VariableDomain::makeEqualTo(const VariableDomain& variable_domain)
 #ifdef MYPOP_VARIABLE_DOMAIN_DEBUG
 			std::cout << "EQUAL!" << std::endl;
 #endif
-			already_included = true;
-			break;
+//			already_included = true;
+//			break;
+			return false;
 		}
 	}
 	
-	if (!already_included)
+//	if (!already_included)
 	{
 		// Limit the domain to contain only the objects in both variables.
 		std::vector<const Object*> new_domain;

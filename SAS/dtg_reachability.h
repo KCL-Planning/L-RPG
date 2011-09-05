@@ -49,6 +49,8 @@ struct ReachableFact
 	
 	bool isIdenticalTo(const ReachableFact& other) const;
 	
+	void printGrounded(std::ostream& os) const;
+	
 	// In case this fact is part of a DTG, the index determines which atom of the DTG node it refers to.
 	// TODO: depricated.
 	unsigned int index_; 
@@ -117,8 +119,6 @@ public:
 	const std::vector<const ReachableFact*>& getInitialFacts() const { return initial_facts_; }
 	
 	bool areEquivalent(const EquivalentObject& other) const;
-	
-//	bool areIdentical(const EquivalentObject& other) const;
 	
 	const Object& getObject() const { return *object_; }
 
@@ -189,6 +189,8 @@ public:
 	bool operator!=(const EquivalentObjectGroup& other) const;
 	
 	void printObjects(std::ostream& os) const;
+	
+	void printGrounded(std::ostream& os) const;
 	
 private:
 	

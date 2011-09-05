@@ -2083,6 +2083,7 @@ Transition* Transition::migrateTransition(const std::vector<const Atom*>& initia
 		for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
 		{
 			const Atom* initial_fact = *ci;
+			if (!initial_fact->getPredicate().isStatic()) continue;
 			if (from_node.getDTG().getBindings().canUnify(*precondition, new_step->getStepId(), *initial_fact, Step::INITIAL_STEP))
 			{
 				is_supported = true;

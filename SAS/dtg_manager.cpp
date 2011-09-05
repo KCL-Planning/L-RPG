@@ -1852,15 +1852,17 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 					for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = from_grounded_nodes.begin(); ci != from_grounded_nodes.end(); ci++)
 					{
 						DomainTransitionGraphNode* from_dtg_node = *ci;
+						//DomainTransitionGraphNode* from_dtg_node = new DomainTransitionGraphNode(**ci, false, false);
 						
 						for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = to_grounded_nodes.begin(); ci != to_grounded_nodes.end(); ci++)
 						{
-							DomainTransitionGraphNode* to_dtg_node = new DomainTransitionGraphNode(**ci, false, false);
+							DomainTransitionGraphNode* to_dtg_node = *ci;
+							//DomainTransitionGraphNode* to_dtg_node = new DomainTransitionGraphNode(**ci, false, false);
 							
 							/**
 							 * Fix the terms, if two terms are equal in the original transition they should be equal in the
 							 * grounded instances.
-							 */
+							 *
 							for (std::vector<BoundedAtom*>::const_iterator from_dtg_node_ci = from_dtg_node_clone->getAtoms().begin(); from_dtg_node_ci != from_dtg_node_clone->getAtoms().end(); from_dtg_node_ci++)
 							{
 								BoundedAtom* from_dtg_node_clone_bounded_atom = *from_dtg_node_ci;
@@ -1891,7 +1893,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 										}
 									}
 								}
-							}
+							}*/
 							
 							// Try to establish the original transitions.
 							// TODO: WAY TO SLOWWW!!! - called too often!
@@ -2077,7 +2079,7 @@ void DomainTransitionGraphManager::addFactsToNode(const std::vector<std::pair<Bo
 				continue;
 			}
 			
-			bool added = false;
+//			bool added = false;
 			
 			// TODO: This code is now used as a substitute to figure out which predicates can be mapped to
 			// which bounded atoms which is very expensive and a shit way of doing this.
@@ -2112,7 +2114,7 @@ void DomainTransitionGraphManager::addFactsToNode(const std::vector<std::pair<Bo
 							facts_processed[index] = true;
 							found_property = true;
 							precondition_added = true;
-							added = true;
+//							added = true;
 							break;
 						}
 					}

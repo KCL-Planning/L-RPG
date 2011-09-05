@@ -3,6 +3,7 @@
 #include "plan_bindings.h"
 
 ///#define MYPOP_TERM_MANAGER_COMMENTS
+///#define MYPOP_TERM_MANAGER_DEBUG
 
 namespace MyPOP {
 
@@ -207,12 +208,14 @@ bool Object::unify(StepID lhs_id, const Term& rhs, StepID rhs_id, Bindings& bind
 
 bool Object::makeDisjunct(StepID lhs_id, const Term& rhs, StepID rhs_id, Bindings& bindings) const
 {
+#ifdef MYPOP_TERM_MANAGER_DEBUG
 	// We cannot make an object disjunct from anything.
 	if (rhs.contains(*this, rhs_id, bindings))
 	{
 		std::cout << "Cannot make an object disjunct from itself!" << std::endl;
 		assert (false);
 	}
+#endif
 	return false;
 }
 
@@ -223,12 +226,14 @@ bool Object::makeDomainEqualTo(StepID lhs_id, const Term& rhs, StepID rhs_id, Bi
 		rhs_bindings = &lhs_bindings;
 	}
 
+#ifdef MYPOP_TERM_MANAGER_DEBUG
 	// Not sure what to do if asked to make equal to a term which does not contain the object in its domain.
 	if (!rhs.contains(*this, rhs_id, *rhs_bindings))
 	{
 		std::cout << "Cannot make an object equal to something that does not contain the object..." << std::endl;
 		assert (false);
 	}
+#endif
 	
 	// We cannot manipulate the object.
 	return false;
@@ -236,6 +241,7 @@ bool Object::makeDomainEqualTo(StepID lhs_id, const Term& rhs, StepID rhs_id, Bi
 
 bool Object::makeDomainEqualTo(StepID lhs_id, const std::vector<const Object*>& objects, Bindings& bindings) const
 {
+#ifdef MYPOP_TERM_MANAGER_DEBUG
 	// Not sure what to do if we are asked to make an object equal to an empty set.
 	for (std::vector<const Object*>::const_iterator ci = objects.begin(); ci != objects.end(); ci++)
 	{
@@ -249,6 +255,9 @@ bool Object::makeDomainEqualTo(StepID lhs_id, const std::vector<const Object*>& 
 	
 	assert (false);
 	return true;
+#else
+	return false;
+#endif
 }
 
 bool Object::makeDomainUnequalTo(StepID lhs_id, const Term& rhs, StepID rhs_id, Bindings& lhs_bindings, Bindings* rhs_bindings) const
@@ -258,17 +267,20 @@ bool Object::makeDomainUnequalTo(StepID lhs_id, const Term& rhs, StepID rhs_id, 
 		rhs_bindings = &lhs_bindings;
 	}
 
+#ifdef MYPOP_TERM_MANAGER_DEBUG
 	if (rhs.contains(*this, rhs_id, *rhs_bindings))
 	{
 		std::cout << "Tried to make an object unequal to itself..." << std::endl;
 		assert (false);
 	}
+#endif
 	
 	return false;
 }
 
 bool Object::makeDomainUnequalTo(StepID lhs_id, const std::vector<const Object*>& objects, Bindings& bindings) const
 {
+#ifdef MYPOP_TERM_MANAGER_DEBUG
 	for (std::vector<const Object*>::const_iterator ci = objects.begin(); ci != objects.end(); ci++)
 	{
 		if (*ci == this)
@@ -277,7 +289,7 @@ bool Object::makeDomainUnequalTo(StepID lhs_id, const std::vector<const Object*>
 			assert (false);
 		}
 	}
-	
+#endif
 	return false;
 }
 
@@ -378,7 +390,8 @@ const std::vector<const Object*>& Variable::getDomain(StepID id, const Bindings&
 bool Variable::unifyWith(StepID lhs_id, const Object& object, Bindings& bindings) const
 {
 	VariableDomain& vd = bindings.getNonConstVariableDomain(lhs_id, *this);
-	return vd.makeEqualTo(object);
+	vd.makeEqualTo(object);
+	return !vd.getDomain().empty();
 }
 
 bool Variable::unifyWith(StepID lhs_id, const Variable& variable, StepID rhs_id, Bindings& bindings) const
@@ -389,7 +402,6 @@ bool Variable::unifyWith(StepID lhs_id, const Variable& variable, StepID rhs_id,
 	}
 
 	if (!canUnify(lhs_id, variable, rhs_id, bindings))
-//	if (!bindings.canUnify(*this, lhs_id, variable, rhs_id))
 	{
 		return false;
 	}
@@ -410,7 +422,9 @@ bool Variable::unifyWith(StepID lhs_id, const Variable& variable, StepID rhs_id,
 	
 	//std::cout << "Result: " << result << std::endl;
 	
+#ifdef MYPOP_TERM_MANAGER_DEBUG
 	assert (isTheSameAs(lhs_id, variable, rhs_id, bindings));
+#endif
 	
 	return true;
 }

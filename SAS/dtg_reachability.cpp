@@ -158,6 +158,49 @@ bool ReachableFact::isIdenticalTo(const ReachableFact& other) const
 	return true;
 }
 
+void ReachableFact::printGrounded(std::ostream& os) const
+{
+	unsigned int counter[bounded_atom_->getAtom().getArity()];
+	memset (&counter[0], 0, sizeof(unsigned int) * bounded_atom_->getAtom().getArity());
+	
+	bool done = false;
+	while (!done)
+	{
+		os << bounded_atom_->getAtom().getPredicate().getName() << " ";
+		for (unsigned int i = 0; i < bounded_atom_->getAtom().getArity(); i++)
+		{
+			const std::vector<const EquivalentObject*>& objects = term_domain_mapping_[i]->getEquivalentObjects();
+			
+			os << *objects[counter[i]];
+			
+			if (i + 1 != bounded_atom_->getAtom().getArity())
+			{
+				os << " ";
+			}
+		}
+		os << std::endl;
+		
+		// Update counters or stop if all objects have been printed.
+		for (unsigned int i = 0; i < bounded_atom_->getAtom().getArity(); i++)
+		{
+			if (counter[i] + 1 == term_domain_mapping_[i]->getEquivalentObjects().size())
+			{
+				if (i + 1 == bounded_atom_->getAtom().getArity())
+				{
+					done = true;
+					break;
+				}
+				
+				counter[i] = 0;
+				continue;
+			}
+			
+			++counter[i];
+			break;
+		}
+	}
+}
+
 std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact)
 {
 	os << "Reachable fact: (" << reachable_fact.bounded_atom_->getAtom().getPredicate().getName() << " ";
@@ -281,13 +324,13 @@ bool EquivalentObject::areEquivalent(const EquivalentObject& other) const
 std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_object)
 {
 	os << *equivalent_object.object_;
-	os << " {" << std::endl;
+/*	os << " {" << std::endl;
 	for (std::vector<const ReachableFact*>::const_iterator ci = equivalent_object.initial_facts_.begin(); ci != equivalent_object.initial_facts_.end(); ci++)
 	{
 		(*ci)->bounded_atom_->print(os, *(*ci)->bindings_);
 		os << " (" << (*ci)->index_ << ")" << std::endl;
 	}
-	os << " }";
+	os << " }";*/
 	return os;
 }
 
@@ -651,6 +694,15 @@ void EquivalentObjectGroup::printObjects(std::ostream& os) const
 	}
 }
 
+void EquivalentObjectGroup::printGrounded(std::ostream& os) const
+{
+	for (std::multimap<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*>, ReachableFact*>::const_iterator ci = reachable_facts_.begin(); ci != reachable_facts_.end(); ci++)
+	{
+		(*ci).second->printGrounded(os);
+	}
+}
+
+
 void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group)
 {
 	assert (other_group.link_ == NULL);
@@ -1000,10 +1052,10 @@ void EquivalentObjectGroupManager::print(std::ostream& os) const
 
 void EquivalentObjectGroupManager::printAll(std::ostream& os) const
 {
-	os << "All reachable facts: " << std::endl;
 	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
 	{
-		os << **ci << std::endl;
+		(*ci)->printGrounded(os);
+//		os << **ci << std::endl;
 	}
 }
 
@@ -1174,7 +1226,11 @@ void DTGReachability::propagateReachableNodes()
 						}
 						
 						ReachableFact* reachable_fact = new ReachableFact(index, *bounded_atom, dtg_node->getDTG().getBindings(), term_domain_mapping);
-						bool added = false;
+						for (std::set<EquivalentObjectGroup*>::const_iterator ci = tmp.begin(); ci != tmp.end(); ci++)
+						{
+							(*ci)->makeReachable(transition->getToNode(), *bounded_atom, *reachable_fact);
+						}
+/*						bool added = false;
 						for (std::set<EquivalentObjectGroup*>::const_iterator ci = tmp.begin(); ci != tmp.end(); ci++)
 						{
 							if ((*ci)->makeReachable(transition->getToNode(), *bounded_atom, *reachable_fact))
@@ -1183,7 +1239,7 @@ void DTGReachability::propagateReachableNodes()
 							}
 						}
 						
-/*						if (added)
+						if (added)
 						{
 							std::cout << "New reachable fact: " << *reachable_fact << "." << std::endl;
 						}
@@ -1398,7 +1454,12 @@ void DTGReachability::performReachabilityAnalsysis(const std::vector<const Bound
 	}
 	
 	std::cout << "All the facts from the EOGs: " << std::endl;
-	equivalent_object_manager_->printAll(std::cout);
+	
+	std::ofstream ofs;
+	ofs.open("lollipop_rpg_results", std::ios::out);
+	
+	equivalent_object_manager_->printAll(ofs);
+	ofs.close();
 	
 /*	std::cout << "Transitions which were not satisfied: " << std::endl;
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph_->getNodes().begin(); ci != dtg_graph_->getNodes().end(); ci++)

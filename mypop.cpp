@@ -67,6 +67,21 @@ int main(int argc,char * argv[])
 	TIM::performTIMAnalysis(&argv[1]);
 	for_each(TA->pbegin(),TA->pend(), ptrwriter<PropertySpace>(cout,"\n"));
 	for_each(TA->abegin(),TA->aend(), ptrwriter<PropertySpace>(cout,"\n"));
+	
+	std::string domain_name(argv[1]);
+	std::size_t index = domain_name.find_last_of('/');
+	std::size_t end_index = domain_name.find_last_of('.');
+	std::string real_domain_name = domain_name.substr(index + 1, end_index - index - 1);
+	
+	std::cerr << real_domain_name << " " << argv[1] << std::endl;
+	
+	
+	std::string problem_name(argv[2]);
+	index = problem_name.find_last_of('/');
+	end_index = problem_name.find_last_of('.');
+	std::string real_problem_name = problem_name.substr(index + 1, end_index - index - 1);
+	
+	std::cerr << real_problem_name << " " << argv[2] << std::endl;
 
 	/*//current_analysis = &an_analysis;
 	ifstream* current_in_stream;

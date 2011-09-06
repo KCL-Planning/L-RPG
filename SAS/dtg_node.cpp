@@ -243,9 +243,12 @@ bool DomainTransitionGraphNode::containsExactCopyOf(const BoundedAtom& bounded_a
 	for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
 	{
 		const BoundedAtom* existing_bounded_atom = *ci;
+		
 		if (dtg_->getBindings().areIdentical(existing_bounded_atom->getAtom(), existing_bounded_atom->getId(), bounded_atom.getAtom(), bounded_atom.getId()))
 		{
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
 			bounded_atom.getAtom().print(std::cout, dtg_->getBindings(), bounded_atom.getId());
+#endif
 			return true;
 		}
 	}

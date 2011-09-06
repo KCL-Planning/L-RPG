@@ -33,7 +33,6 @@ bool FactLayer::addFact(const SAS_Plus::BoundedAtom& bounded_atom)
 	{
 		if (bounded_atom.getAtom().isNegative() == (*ci)->getAtom().isNegative() &&
 		    bounded_atom.canUnifyWith(**ci, *bindings_))
-		//if (bounded_atom.second->isNegative() == (*ci).second->isNegative() && bindings_->canUnify(*bounded_atom.second, bounded_atom.first, *(*ci).second, (*ci).first))
 		{
 			return false;
 		}
@@ -47,20 +46,18 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 {
 	const Action& initial_state_action = initial_plan.getSteps()[0]->getAction();
 	FactLayer* current_fact_layer = new FactLayer(*bindings_);
-	//std::set<BoundedAtom, CompareBoundedAtoms> current_fact_layer(compare_bounded_atoms);
 	
 	for (std::vector<const Atom*>::const_iterator ci = initial_state_action.getEffects().begin(); ci != initial_state_action.getEffects().end(); ci++)
 	{
 		SAS_Plus::BoundedAtom* new_bounded_atom = new SAS_Plus::BoundedAtom(Step::INITIAL_STEP, **ci);
 		current_fact_layer->addFact(*new_bounded_atom);
-//		current_fact_layer->addFact(std::make_pair<StepID, const Atom*>(Step::INITIAL_STEP, *ci));
-		//current_fact_layer.insert(std::make_pair<StepID, const Atom*>(Step::INITIAL_STEP, *ci));
 	}
 	FactLayer* next_fact_layer = new FactLayer(*current_fact_layer);
 	FactLayer* initial_fact_layer = new FactLayer(*current_fact_layer);
 	fact_layers_.push_back(initial_fact_layer);
 
 	// First we will ground all the actions.
+	std::cerr << "Ground actions..." << std::endl;
 	std::vector<const Step*> all_grounded_actions;
 	for (std::vector<Action*>::const_iterator ci = action_manager.getManagableObjects().begin(); ci != action_manager.getManagableObjects().end(); ci++)
 	{
@@ -73,8 +70,9 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 	// Now check for each grounded action which one is applicable in the current fact layer.
 	while (true)
 	{
+		std::cerr << "Work on layer " << fact_layers_.size() << "..." << std::endl;
 		std::vector<const Step*>* new_action_layer = new std::vector<const Step*>();
-		for (std::vector<const Step*>::const_iterator action_ci = all_grounded_actions.begin(); action_ci != all_grounded_actions.end(); action_ci++)
+		for (std::vector<const Step*>::reverse_iterator action_ci = all_grounded_actions.rbegin(); action_ci != all_grounded_actions.rend(); action_ci++)
 		{
 			// Check if all preconditions are satisfied in the current layer.
 			const Action& grounded_action = (*action_ci)->getAction();
@@ -93,7 +91,6 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 				{
 					if (precondition->isNegative() == (*layer_ci)->getAtom().isNegative() && 
 					    bindings_->canUnify(*precondition, grounded_action_id, (*layer_ci)->getAtom(), (*layer_ci)->getId()))
-//					if (precondition->isNegative() == (*layer_ci).second->isNegative() && bindings_->canUnify(*precondition, grounded_action_id, *(*layer_ci).second, (*layer_ci).first))
 					{
 						precondition_satisfied = true;
 						break;
@@ -110,21 +107,15 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 			// If all preconditions are satisfied, add all the action's effects to the new layer.
 			if (preconditions_are_satisfied)
 			{
-				//std::cout << "Add effects: ";
 				for (std::vector<const Atom*>::const_iterator ci = grounded_action.getEffects().begin(); ci != grounded_action.getEffects().end(); ci++)
 				{
-					//std::cout << "* ";
-					//(*ci)->print(std::cout, *bindings_, grounded_action_id);
-					//std::cout << std::endl;
-					
 					SAS_Plus::BoundedAtom* bounded_atom = new SAS_Plus::BoundedAtom(grounded_action_id, **ci);
 					next_fact_layer->addFact(*bounded_atom);
-					//next_fact_layer->addFact(std::make_pair(grounded_action_id, *ci));
 				}
-//				std::cout << std::endl;
 
 				// Add this action to the action layer.
 				new_action_layer->push_back(new Step(grounded_action_id, grounded_action));
+				all_grounded_actions.erase(action_ci.base() - 1);
 			}
 		}
 

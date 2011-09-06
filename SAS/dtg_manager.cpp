@@ -827,8 +827,6 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	
 	time_spend = end_time_generation.tv_sec - start_time_tim_translation.tv_sec + (end_time_generation.tv_usec - start_time_tim_translation.tv_usec) / 1000000.0;
 	std::cerr << "Initialize structures: " << time_spend << " seconds" << std::endl;
-
-	std::cout << "COMBINED GRAPH: " << combined_graph << std::endl;
 	
 	return combined_graph;
 }
@@ -1840,56 +1838,14 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 						
 						for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = to_grounded_nodes.begin(); ci != to_grounded_nodes.end(); ci++)
 						{
+							// TODO: What's the difference between making a new to node and using the grounded one..?
 							//DomainTransitionGraphNode* to_dtg_node = *ci;
 							DomainTransitionGraphNode* to_dtg_node = new DomainTransitionGraphNode(**ci, false, false);
-							
-							/**
-							 * Fix the terms, if two terms are equal in the original transition they should be equal in the
-							 * grounded instances.
-							 *
-							for (std::vector<BoundedAtom*>::const_iterator from_dtg_node_ci = from_dtg_node_clone->getAtoms().begin(); from_dtg_node_ci != from_dtg_node_clone->getAtoms().end(); from_dtg_node_ci++)
-							{
-								BoundedAtom* from_dtg_node_clone_bounded_atom = *from_dtg_node_ci;
-								
-								for (std::vector<BoundedAtom*>::const_iterator to_dtg_node_ci = to_dtg_node_clone->getAtoms().begin(); to_dtg_node_ci != to_dtg_node_clone->getAtoms().end(); to_dtg_node_ci++)
-								{
-									BoundedAtom* to_dtg_node_clone_bounded_atom = *to_dtg_node_ci;
-									
-									for (std::vector<const Term*>::const_iterator from_dtg_node_term_ci = from_dtg_node_clone_bounded_atom->getAtom().getTerms().begin(); from_dtg_node_term_ci != from_dtg_node_clone_bounded_atom->getAtom().getTerms().end(); from_dtg_node_term_ci++)
-									{
-										const Term* from_dtg_node_clone_term = *from_dtg_node_term_ci;
-										
-										for (std::vector<const Term*>::const_iterator to_dtg_node_term_ci = to_dtg_node_clone_bounded_atom->getAtom().getTerms().begin(); to_dtg_node_term_ci != to_dtg_node_clone_bounded_atom->getAtom().getTerms().end(); to_dtg_node_term_ci++)
-										{
-											const Term* to_dtg_node_clone_term = *to_dtg_node_term_ci;
-											
-											if (from_dtg_node_clone_term->isTheSameAs(from_dtg_node_clone_bounded_atom->getId(), *to_dtg_node_clone_term, to_dtg_node_clone_bounded_atom->getId(), dtg->getBindings()))
-											{
-												// Establish the same relationship in the grounded version.
-												const BoundedAtom* equivalent_from_bounded_atom = from_dtg_node->getAtoms()[std::distance(from_dtg_node_clone->getAtoms().begin(), from_dtg_node_ci)];
-												const BoundedAtom* equivalent_to_bounded_atom = to_dtg_node->getAtoms()[std::distance(to_dtg_node_clone->getAtoms().begin(), to_dtg_node_ci)];
-												
-												const Term* equivalent_from_term = equivalent_from_bounded_atom->getAtom().getTerms()[std::distance(from_dtg_node_clone_bounded_atom->getAtom().getTerms().begin(), from_dtg_node_term_ci)];
-												const Term* equivalent_to_term = equivalent_to_bounded_atom->getAtom().getTerms()[std::distance(to_dtg_node_clone_bounded_atom->getAtom().getTerms().begin(), to_dtg_node_term_ci)];
-												
-												equivalent_from_term->unify(equivalent_from_bounded_atom->getId(), *equivalent_to_term, equivalent_to_bounded_atom->getId(), dtg->getBindings());
-											}
-										}
-									}
-								}
-							}*/
 							
 							// Try to establish the original transitions.
 							// TODO: WAY TO SLOWWW!!! - called too often!
 ///							const Transition* test_new_transition = Transition::createTransition(transition->getStep()->getAction(), *from_dtg_node, *to_dtg_node, *initial_facts_);
 							const Transition* new_transition = transition->migrateTransition(*initial_facts_, *from_dtg_node, *to_dtg_node);
-							
-/*							if (test_new_transition == NULL && new_transition != NULL)
-							{
-								std::cout << *new_transition << " cannot exist!!!" << std::endl;
-								std::cout << "ORG: " << *transition << std::endl;
-								assert (false);
-							}*/
 							
 							if (new_transition == NULL)
 							{

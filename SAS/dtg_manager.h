@@ -130,10 +130,11 @@ public:
 	/**
 	 * Check if this bounded atom is equivalent to the other bounded atom.
 	 * @param other The other bounded atom to compare against.
-	 * @param bindings The bindings both bounded atoms are binded by.
+	 * @param lhs_bindings The bindings this bounded atoms is binded by.
+	 * @param rhs_bindings The bindings the other bounded atom is binded by.
 	 * @return True if this bounded atom is equivalent to the other bounded atom.
 	 */
-	bool isEquivalentTo(const BoundedAtom& other, const Bindings& bindings) const;
+	bool isEquivalentTo(const BoundedAtom& other, const Bindings& lhs_bindings, const Bindings* rhs_bindings = NULL) const;
 	
 	/**
 	 * Check if this bounded atom is a proper subset of the other bounded atom.
@@ -175,7 +176,7 @@ public:
 	 * @param types All types as found by VAL.
 	 * @param bindings The bindings used to bind the initial facts.
 	 */
-	void generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, Bindings& bindings);
+	const DomainTransitionGraph& generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, Bindings& bindings);
 
 	/**
 	 * Get the DTGs which contains a node which actually unifies with the given atom and binding.

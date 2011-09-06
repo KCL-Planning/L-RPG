@@ -24,9 +24,9 @@
 #include "landmarks.h"
 #include "SAS/dtg_manager.h"
 #include "SAS/causal_graph.h"
-//#include "SAS/relaxed_reachability_analyst.h"
+#include "SAS/dtg_graph.h"
+#include "SAS/dtg_reachability.h"
 #include "relaxed_planning_graph.h"
-//#include "action_graph.h"
 
 ///#define MYPOP_COMMENTS
 
@@ -82,40 +82,6 @@ int main(int argc,char * argv[])
 	std::string real_problem_name = problem_name.substr(index + 1, end_index - index - 1);
 	
 	std::cerr << real_problem_name << " " << argv[2] << std::endl;
-
-	/*//current_analysis = &an_analysis;
-	ifstream* current_in_stream;
-
-	// Parse the file.
-	yydebug=0; // Set to 1 to output yacc trace 
-
-	yfl= new yyFlexLexer;
-
-	// Loop over given args
-	for (int a = 1; a < argc; ++a)
-	{
-		current_filename= argv[a];
-		cout << "File: " << current_filename << '\n';
-		current_in_stream= new ifstream(current_filename);
-		if (current_in_stream->bad())
-		{
-			// Output a message now.
-			cout << "Failed to open\n";
-
-			// Log an error to be reported in summary later
-			line_no= 0;
-			log_error(E_FATAL,"Failed to open file");
-		}
-		else
-		{
-			line_no= 1;
-
-			// Switch the tokeniser to the current input stream
-			yfl->switch_streams(current_in_stream,&cout);
-			yyparse();
-		}
-		delete current_in_stream;
-	}*/
 
 	VAL::problem* the_problem = VAL::current_analysis->the_problem;
 	VAL::domain* the_domain = VAL::current_analysis->the_domain;
@@ -178,13 +144,13 @@ int main(int argc,char * argv[])
 	Plan* plan = new Plan(action_manager, term_manager, type_manager, *propagator);
 	const Formula* goal = Utility::convertGoal(term_manager, predicate_manager, the_problem->the_goal, false);
 	
-	std::vector<const Atom*>* initial_effects = new std::vector<const Atom*>();	
-	Utility::convertEffects(term_manager, predicate_manager, *the_problem->initial_state, *initial_effects);
+	std::vector<const Atom*>* initial_facts = new std::vector<const Atom*>();	
+	Utility::convertEffects(term_manager, predicate_manager, *the_problem->initial_state, *initial_facts);
 
 	std::vector<const Variable*>* initial_action_variables = new std::vector<const Variable*>();
 
 	// Create the initial step, which is a custom action with the atoms of the initial state as its effects.
-	Action* initial_action = new Action("Initial action", Formula::TRUE, initial_action_variables, initial_effects);
+	Action* initial_action = new Action("Initial action", Formula::TRUE, initial_action_variables, initial_facts);
 
 #ifdef MYPOP_COMMENTS
 	std::cout << "Print initial action" << std::endl;
@@ -213,20 +179,107 @@ int main(int argc,char * argv[])
 
 	assert (plan->getSteps().size() == 2);
 
-//	RPG::RelaxedPlanningGraph rpg(action_manager, *plan);
-//	std::cout << rpg << std::endl;
-
 	// Do the domain analysis.
 #ifdef MYPOP_COMMENTS
 	std::cout << " === Creating the DTGs === " << std::endl;
 #endif
-	SAS_Plus::DomainTransitionGraphManager dtg_manager(predicate_manager, type_manager, action_manager, term_manager, *initial_effects);
+	SAS_Plus::DomainTransitionGraphManager dtg_manager(predicate_manager, type_manager, action_manager, term_manager, *initial_facts);
 	
 	// Old style, working with the lifted SAS structures.
 //	dtg_manager.generateDomainTransitionGraphs(*the_domain->types, plan->getBindings());
 
 	// New style, working directly on the TIM structure.
-	dtg_manager.generateDomainTransitionGraphsTIM(*the_domain->types, plan->getBindings());
+	const SAS_Plus::DomainTransitionGraph& combined_graph = dtg_manager.generateDomainTransitionGraphsTIM(*the_domain->types, plan->getBindings());
+	
+	// Do the reachability analysis.
+	struct timeval start_time_reachability;
+	gettimeofday(&start_time_reachability, NULL);
+	
+	//for (unsigned int i = 0; i < 1000; i++)
+	std::vector<const SAS_Plus::BoundedAtom*> lifted_reachable_facts;
+	{
+		
+		SAS_Plus::DTGReachability analyst(combined_graph);
+		
+		
+		std::vector<const SAS_Plus::BoundedAtom*> bounded_initial_facts;
+		for (std::vector<const Atom*>::const_iterator ci = initial_facts->begin(); ci != initial_facts->end(); ci++)
+		{
+			SAS_Plus::BoundedAtom* bounded_atom = new SAS_Plus::BoundedAtom(Step::INITIAL_STEP, **ci);
+			bounded_initial_facts.push_back(bounded_atom);
+		}
+		
+		analyst.performReachabilityAnalsysis(lifted_reachable_facts, bounded_initial_facts, term_manager);
+	}
+	
+	struct timeval end_time_reachability;
+	gettimeofday(&end_time_reachability, NULL);	
+
+	double time_spend = end_time_reachability.tv_sec - start_time_reachability.tv_sec + (end_time_reachability.tv_usec - start_time_reachability.tv_usec) / 1000000.0;
+	std::cerr << "Reachability analysis: " << time_spend << " seconds" << std::endl;
+	
+	// Validate the result.
+	RPG::RelaxedPlanningGraph rpg(action_manager, *plan);
+	//std::cout << rpg << std::endl;
+	
+	const std::vector<RPG::FactLayer*>& fact_layers = rpg.getFactLayers();
+	const RPG::FactLayer* last_layer = fact_layers[fact_layers.size() - 1];
+	const std::vector<const SAS_Plus::BoundedAtom*>& reachable_facts = last_layer->getFacts();
+	
+	bool all_clear = true;
+	for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
+	{
+		const SAS_Plus::BoundedAtom* rpg_bounded_atom = *ci;
+		if (rpg_bounded_atom->getAtom().isNegative()) continue;
+		bool reached = false;
+		for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
+		{
+			const SAS_Plus::BoundedAtom* lifted_bounded_atom = *ci;
+			
+			if (rpg_bounded_atom->isEquivalentTo(*lifted_bounded_atom, rpg.getBindings(), &combined_graph.getBindings()))
+			{
+				reached = true;
+				break;
+			}
+		}
+		
+		if (!reached)
+		{
+			std::cerr << "Fact reachable by the RPG but not by the lifted implementation: ";
+			rpg_bounded_atom->print(std::cerr, rpg.getBindings());
+			std::cerr << "." << std::endl;
+			all_clear = false;
+		}
+	}
+	
+	
+	for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
+	{
+		const SAS_Plus::BoundedAtom* lifted_bounded_atom = *ci;
+		bool reached = false;
+		for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
+		{
+			const SAS_Plus::BoundedAtom* rpg_bounded_atom = *ci;
+			
+			if (rpg_bounded_atom->isEquivalentTo(*lifted_bounded_atom, rpg.getBindings(), &combined_graph.getBindings()))
+			{
+				reached = true;
+				break;
+			}
+		}
+		
+		if (!reached)
+		{
+			std::cerr << "Fact reachable by the lifted implementation but not by the RPG: ";
+			lifted_bounded_atom->print(std::cerr, combined_graph.getBindings());
+			std::cerr << "." << std::endl;
+			all_clear = false;
+		}
+	}
+	
+	assert (all_clear);
+	
+	exit(0);
 	
 	Graphviz::printToDot(dtg_manager);
 //	for (std::vector<SAS_Plus::DomainTransitionGraph*>::const_iterator ci = dtg_manager.getManagableObjects().begin(); ci != dtg_manager.getManagableObjects().end(); ci++)
@@ -245,21 +298,6 @@ int main(int argc,char * argv[])
 //	std::cout << " === DONE! Creating the CGs === " << std::endl;
 
 	getitimer(ITIMER_PROF, &timer);
-
-	// Based on the DTG structures, do domain analysis!
-	struct timeval start_time_reachability;
-	gettimeofday(&start_time_reachability, NULL);
-
-//	SAS_Plus::RelaxedReachabilityAnalyst analyst(dtg_manager);
-//	analyst.performReachabilityAnalysis(*initial_effects, plan->getBindings());
-
-	struct timeval end_time_reachability;
-	gettimeofday(&end_time_reachability, NULL);
-
-	double time_spend = end_time_reachability.tv_sec - start_time_reachability.tv_sec + (end_time_reachability.tv_usec - start_time_reachability.tv_usec) / 1000000.0;
-	std::cerr << "Reachability analysis: " << time_spend << " seconds" << std::endl;
-	
-
 	
 	exit (0);
 

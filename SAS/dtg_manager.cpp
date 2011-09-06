@@ -242,8 +242,13 @@ const std::vector<const Object*>& BoundedAtom::getVariableDomain(unsigned int te
 	return atom_->getTerms()[term_index]->getDomain(id_, bindings);
 }
 
-bool BoundedAtom::isEquivalentTo(const BoundedAtom& other, const Bindings& bindings) const
+bool BoundedAtom::isEquivalentTo(const BoundedAtom& other, const Bindings& lhs_bindings, const Bindings* rhs_bindings) const
 {
+	if (rhs_bindings == NULL)
+	{
+		rhs_bindings = &lhs_bindings;
+	}
+	
 	if (atom_->getPredicate().getName() != other.getAtom().getPredicate().getName())
 		return false;
 	
@@ -252,7 +257,7 @@ bool BoundedAtom::isEquivalentTo(const BoundedAtom& other, const Bindings& bindi
 	
 	for (unsigned int i = 0; i < atom_->getArity(); i++)
 	{
-		if (!atom_->getTerms()[i]->isEquivalentTo(id_, *other.getAtom().getTerms()[i], other.getId(), bindings))
+		if (!atom_->getTerms()[i]->isEquivalentTo(id_, *other.getAtom().getTerms()[i], other.getId(), lhs_bindings, rhs_bindings))
 			return false;
 	}
 	return true;
@@ -357,7 +362,7 @@ void DomainTransitionGraphManager::getProperties(std::vector<std::pair<const Pre
 	}
 }
 
-void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, Bindings& bindings)
+const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, Bindings& bindings)
 {
 	struct timeval start_time_tim_translation;
 	gettimeofday(&start_time_tim_translation, NULL);
@@ -817,36 +822,15 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	ofs.close();
 */
 
-	struct timeval start_time_reachability;
-	gettimeofday(&start_time_reachability, NULL);
+	struct timeval end_time_generation;
+	gettimeofday(&end_time_generation, NULL);
 	
-	time_spend = start_time_reachability.tv_sec - start_time_tim_translation.tv_sec + (start_time_reachability.tv_usec - start_time_tim_translation.tv_usec) / 1000000.0;
+	time_spend = end_time_generation.tv_sec - start_time_tim_translation.tv_sec + (end_time_generation.tv_usec - start_time_tim_translation.tv_usec) / 1000000.0;
 	std::cerr << "Initialize structures: " << time_spend << " seconds" << std::endl;
-	
-	
-	//for (unsigned int i = 0; i < 1000; i++)
-	{
 
-		SAS_Plus::DTGReachability analyst(combined_graph);
-		
-		
-		std::vector<const BoundedAtom*> initial_facts;
-		for (std::vector<const Atom*>::const_iterator ci = initial_facts_->begin(); ci != initial_facts_->end(); ci++)
-		{
-			BoundedAtom* bounded_atom = new BoundedAtom(Step::INITIAL_STEP, **ci);
-			initial_facts.push_back(bounded_atom);
-		}
-		
-		analyst.performReachabilityAnalsysis(initial_facts, *term_manager_);
-	}
+	std::cout << "COMBINED GRAPH: " << combined_graph << std::endl;
 	
-	struct timeval end_time_reachability;
-	gettimeofday(&end_time_reachability, NULL);	
-
-	time_spend = end_time_reachability.tv_sec - start_time_reachability.tv_sec + (end_time_reachability.tv_usec - start_time_reachability.tv_usec) / 1000000.0;
-	std::cerr << "Reachability analysis: " << time_spend << " seconds" << std::endl;
-	
-	exit(0);
+	return combined_graph;
 }
 
 DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings& bindings)
@@ -1856,8 +1840,8 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 						
 						for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = to_grounded_nodes.begin(); ci != to_grounded_nodes.end(); ci++)
 						{
-							DomainTransitionGraphNode* to_dtg_node = *ci;
-							//DomainTransitionGraphNode* to_dtg_node = new DomainTransitionGraphNode(**ci, false, false);
+							//DomainTransitionGraphNode* to_dtg_node = *ci;
+							DomainTransitionGraphNode* to_dtg_node = new DomainTransitionGraphNode(**ci, false, false);
 							
 							/**
 							 * Fix the terms, if two terms are equal in the original transition they should be equal in the

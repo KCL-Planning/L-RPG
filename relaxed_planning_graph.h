@@ -16,9 +16,13 @@ class TermManager;
 class Atom;
 class Step;
 
+namespace SAS_Plus {
+	class BoundedAtom;
+};
+
 namespace RPG {
 
-typedef std::pair<StepID, const Atom*> BoundedAtom;
+//typedef std::pair<StepID, const Atom*> BoundedAtom;
 
 /**
  * Because we allow no duplicate facts in a layer we first check if the atom can be bounded to an existing
@@ -41,16 +45,16 @@ public:
 	 * Add a fact to this fact layer, this method only succeeds if the bounded atom cannot be unified
 	 * with any atoms already present in this fact layer.
 	 */
-	bool addFact(const BoundedAtom& bounded_atom);
+	bool addFact(const SAS_Plus::BoundedAtom& bounded_atom);
 
 	/**
 	 * Return all the facts stored in this fact layer.
 	 */
-	const std::vector<BoundedAtom>& getFacts() const { return facts_; }
+	const std::vector<const SAS_Plus::BoundedAtom*>& getFacts() const { return facts_; }
 
 private:
 	// All the facts stored in this fact layer.
-	std::vector<BoundedAtom> facts_;
+	std::vector<const SAS_Plus::BoundedAtom*> facts_;
 
 	// The bindings of all the facts in this layer.
 	const Bindings* bindings_;

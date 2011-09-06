@@ -51,6 +51,8 @@ struct ReachableFact
 	
 	void printGrounded(std::ostream& os) const;
 	
+	void getAllReachableFacts(std::vector<const BoundedAtom*>& results) const;
+	
 	// In case this fact is part of a DTG, the index determines which atom of the DTG node it refers to.
 	// TODO: depricated.
 	unsigned int index_; 
@@ -90,10 +92,7 @@ public:
 		
 	}
 	
-	void addMapping(const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& new_mapping)
-	{
-		possible_mappings_.push_back(&new_mapping);
-	}
+	void addMapping(const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& new_mapping);
 	
 	const std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* >& getPossibleMappings() const { return possible_mappings_; }
 	
@@ -192,6 +191,8 @@ public:
 	
 	void printGrounded(std::ostream& os) const;
 	
+	void getAllReachableFacts(std::vector<const BoundedAtom*>& results) const;
+	
 private:
 	
 	/**
@@ -259,6 +260,8 @@ public:
 	
 	void printAll(std::ostream& os) const;
 	
+	void getAllReachableFacts(std::vector<const BoundedAtom*>& results) const;
+	
 private:
 	
 	void deleteMergedEquivalenceGroups();
@@ -289,7 +292,7 @@ public:
 	 */
 	DTGReachability(const DomainTransitionGraph& dtg_graph);
 	
-	void performReachabilityAnalsysis(const std::vector<const BoundedAtom*>& initial_facts, const TermManager& term_manager);
+	void performReachabilityAnalsysis(std::vector<const BoundedAtom*>& reachable_facts, const std::vector<const BoundedAtom*>& initial_facts, const TermManager& term_manager);
 
 	/** 
 	 * Find all possible supports for @ref(atoms_to_achieve) from all the facts in @ref(initial_facts). Whilst working
@@ -333,7 +336,7 @@ private:
 	 */
 	bool makeReachable(const DomainTransitionGraphNode& dtg_node, std::vector<const BoundedAtom*>& reachable_facts);
 	
-	void handleExternalDependencies(std::vector<const BoundedAtom*>& established_facts);
+	bool handleExternalDependencies(std::vector<const BoundedAtom*>& established_facts);
 	
 	void makeToNodeReachable(const Transition& transition, const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& possible_mapping) const;
 	

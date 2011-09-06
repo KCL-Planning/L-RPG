@@ -2239,12 +2239,13 @@ bool Utilities::TransitionToNodeEquals::operator()(const Transition* transition,
 
 std::ostream& operator<<(std::ostream& os, const Transition& transition)
 {
-	os << "Transition from: " << std::endl;
-	transition.getFromNode().print(os);
-	os << std::endl << " to " << std::endl;
-	transition.getToNode().print(os);
-	os << "[" << transition.getStep()->getAction() << "]" << std::endl;
-	
+//	os << "Transition from: " << std::endl;
+//	transition.getFromNode().print(os);
+//	os << std::endl << " to " << std::endl;
+//	transition.getToNode().print(os);
+//	os << "[" << transition.getStep()->getAction() << "]" << std::endl;
+	transition.getStep()->getAction().print(os, transition.getFromNode().getDTG().getBindings(), transition.getStep()->getStepId());
+/*
 	std::vector<std::pair<const Atom*, InvariableIndex> > all_preconditions = transition.getAllPreconditions();
 	os << "All preconditions: " << std::endl;
 	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = all_preconditions.begin(); ci != all_preconditions.end(); ci++)
@@ -2267,7 +2268,7 @@ std::ostream& operator<<(std::ostream& os, const Transition& transition)
 	{
 		(*ci).first->print(os, transition.getToNode().getDTG().getBindings(), transition.getStep()->getStepId());
 		os << " (" << (*ci).second << ") Ox" << (*ci).first << "." << std::endl;
-	}
+	}*/
 	return os;
 }
 

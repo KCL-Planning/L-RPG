@@ -5,6 +5,9 @@
 #include "plan_bindings.h"
 #include "parser_utils.h"
 #include "formula.h"
+#include "SAS/dtg_manager.h"
+
+///#define MYPOP_RPG_RELAXED_PLANNING_GRAPH
 
 namespace MyPOP {
 
@@ -22,18 +25,20 @@ FactLayer::FactLayer(const FactLayer& fact_layer)
 	facts_.insert(facts_.begin(), fact_layer.facts_.begin(), fact_layer.facts_.end());
 }
 
-bool FactLayer::addFact(const BoundedAtom& bounded_atom)
+bool FactLayer::addFact(const SAS_Plus::BoundedAtom& bounded_atom)
 {
 	// Check if any of the existing facts can be unified with the given bounded atom. If this is the case
 	// this atom will not be added.
-	for (std::vector<BoundedAtom>::const_iterator ci = facts_.begin(); ci != facts_.end(); ci++)
+	for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = facts_.begin(); ci != facts_.end(); ci++)
 	{
-		if (bounded_atom.second->isNegative() == (*ci).second->isNegative() && bindings_->canUnify(*bounded_atom.second, bounded_atom.first, *(*ci).second, (*ci).first))
+		if (bounded_atom.getAtom().isNegative() == (*ci)->getAtom().isNegative() &&
+		    bounded_atom.canUnifyWith(**ci, *bindings_))
+		//if (bounded_atom.second->isNegative() == (*ci).second->isNegative() && bindings_->canUnify(*bounded_atom.second, bounded_atom.first, *(*ci).second, (*ci).first))
 		{
 			return false;
 		}
 	}
-	facts_.push_back(bounded_atom);
+	facts_.push_back(&bounded_atom);
 	return true;
 }
 
@@ -46,7 +51,9 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 	
 	for (std::vector<const Atom*>::const_iterator ci = initial_state_action.getEffects().begin(); ci != initial_state_action.getEffects().end(); ci++)
 	{
-		current_fact_layer->addFact(std::make_pair<StepID, const Atom*>(Step::INITIAL_STEP, *ci));
+		SAS_Plus::BoundedAtom* new_bounded_atom = new SAS_Plus::BoundedAtom(Step::INITIAL_STEP, **ci);
+		current_fact_layer->addFact(*new_bounded_atom);
+//		current_fact_layer->addFact(std::make_pair<StepID, const Atom*>(Step::INITIAL_STEP, *ci));
 		//current_fact_layer.insert(std::make_pair<StepID, const Atom*>(Step::INITIAL_STEP, *ci));
 	}
 	FactLayer* next_fact_layer = new FactLayer(*current_fact_layer);
@@ -82,9 +89,11 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 				const Atom* precondition = *precondition_ci;
 				bool precondition_satisfied = false;
 
-				for (std::vector<BoundedAtom>::const_iterator layer_ci = current_fact_layer->getFacts().begin(); layer_ci != current_fact_layer->getFacts().end(); layer_ci++)
+				for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator layer_ci = current_fact_layer->getFacts().begin(); layer_ci != current_fact_layer->getFacts().end(); layer_ci++)
 				{
-					if (precondition->isNegative() == (*layer_ci).second->isNegative() && bindings_->canUnify(*precondition, grounded_action_id, *(*layer_ci).second, (*layer_ci).first))
+					if (precondition->isNegative() == (*layer_ci)->getAtom().isNegative() && 
+					    bindings_->canUnify(*precondition, grounded_action_id, (*layer_ci)->getAtom(), (*layer_ci)->getId()))
+//					if (precondition->isNegative() == (*layer_ci).second->isNegative() && bindings_->canUnify(*precondition, grounded_action_id, *(*layer_ci).second, (*layer_ci).first))
 					{
 						precondition_satisfied = true;
 						break;
@@ -107,9 +116,12 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 					//std::cout << "* ";
 					//(*ci)->print(std::cout, *bindings_, grounded_action_id);
 					//std::cout << std::endl;
-					next_fact_layer->addFact(std::make_pair(grounded_action_id, *ci));
+					
+					SAS_Plus::BoundedAtom* bounded_atom = new SAS_Plus::BoundedAtom(grounded_action_id, **ci);
+					next_fact_layer->addFact(*bounded_atom);
+					//next_fact_layer->addFact(std::make_pair(grounded_action_id, *ci));
 				}
-				std::cout << std::endl;
+//				std::cout << std::endl;
 
 				// Add this action to the action layer.
 				new_action_layer->push_back(new Step(grounded_action_id, grounded_action));
@@ -158,9 +170,10 @@ std::ostream& operator<<(std::ostream& os, const RelaxedPlanningGraph& rpg)
 	for (unsigned int i = 0; i < action_layers.size(); i++)
 	{
 		std::cout << "Fact layer " << i << std::endl;
-		for (std::vector<BoundedAtom>::const_iterator facts_ci = fact_layers[i]->getFacts().begin(); facts_ci != fact_layers[i]->getFacts().end(); facts_ci++)
+		for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator facts_ci = fact_layers[i]->getFacts().begin(); facts_ci != fact_layers[i]->getFacts().end(); facts_ci++)
 		{
-			(*facts_ci).second->print(std::cout, rpg.getBindings(), (*facts_ci).first);
+			(*facts_ci)->print(std::cout, rpg.getBindings());
+//			(*facts_ci).second->print(std::cout, rpg.getBindings(), (*facts_ci).first);
 			std::cout << std::endl;
 		}
 
@@ -175,9 +188,10 @@ std::ostream& operator<<(std::ostream& os, const RelaxedPlanningGraph& rpg)
 
 	// The last layer is the last fact layer.
 	std::cout << "Fact layer " << fact_layers.size() - 1 << std::endl;
-	for (std::vector<BoundedAtom>::const_iterator facts_ci = fact_layers[fact_layers.size() - 1]->getFacts().begin(); facts_ci != fact_layers[fact_layers.size() - 1]->getFacts().end(); facts_ci++)
+	for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator facts_ci = fact_layers[fact_layers.size() - 1]->getFacts().begin(); facts_ci != fact_layers[fact_layers.size() - 1]->getFacts().end(); facts_ci++)
 	{
-		(*facts_ci).second->print(std::cout, rpg.getBindings(), (*facts_ci).first);
+		(*facts_ci)->print(std::cout, rpg.getBindings());
+//		(*facts_ci).second->print(std::cout, rpg.getBindings(), (*facts_ci).first);
 		std::cout << std::endl;
 	}
 	return os;

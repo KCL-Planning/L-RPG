@@ -238,14 +238,14 @@ const Action* ActionManager::getAction(const VAL::operator_& val_operator) const
 
 void ActionManager::ground(Bindings& bindings, std::vector<const Step*>& grounded_actions, const Action& action) const
 {
-	std::cout << "ground " << action << std::endl;
+//	std::cout << "ground " << action << std::endl;
 	
 	// In succession, assing one of the objects in each of its variable domains.
 	const std::vector<const Variable*>& action_variables = action.getVariables();
 	unsigned int variable_counter[action_variables.size()];
 	unsigned int max_variable_counter[action_variables.size()];
 	
-	std::cout << " " << action_variables.size() << " variables!" << std::endl;
+//	std::cout << " " << action_variables.size() << " variables!" << std::endl;
 
 	// Initialise the maximum domain size of each action variable.
 	for (unsigned int i = 0; i < action_variables.size(); i++)
@@ -255,18 +255,18 @@ void ActionManager::ground(Bindings& bindings, std::vector<const Step*>& grounde
 		variable_counter[i] = 0;
 		max_variable_counter[i] = values.size();
 		
-		std::cout << " Size of variable domain " << *action_variables[i] << " is: " << values.size() << std::endl;
+//		std::cout << " Size of variable domain " << *action_variables[i] << " is: " << values.size() << std::endl;
 	}
 
 	
 	while (true)
 	{
-		std::cout << " process: ";
-		for (unsigned int i = 0; i < action_variables.size(); i++)
-		{
-			std::cout << variable_counter[i] << ", ";
-		}
-		std::cout << std::endl;
+//		std::cout << " process: ";
+//		for (unsigned int i = 0; i < action_variables.size(); i++)
+//		{
+//			std::cout << variable_counter[i] << ", ";
+//		}
+//		std::cout << std::endl;
 		
 		// Create a new action binding.
 		StepID action_id = bindings.createVariableDomains(action);
@@ -276,7 +276,7 @@ void ActionManager::ground(Bindings& bindings, std::vector<const Step*>& grounde
 		{
 			VariableDomain& variable_domain = bindings.getNonConstVariableDomain(action_id, *action_variables[i]);
 			variable_domain.makeEqualTo(*variable_domain.getDomain()[variable_counter[i]]);
-			std::cout << variable_domain << " [" << *variable_domain.getDomain()[variable_counter[i]] << "]" << std::endl;
+//			std::cout << variable_domain << " [" << *variable_domain.getDomain()[variable_counter[i]] << "]" << std::endl;
 		}
 
 		// Store the grounded action.

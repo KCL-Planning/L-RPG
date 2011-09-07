@@ -26,7 +26,7 @@
 #include "recursive_function.h"
 #include "dtg_reachability.h"
 
-///#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 ///#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 
 
@@ -806,6 +806,8 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	time_spend = end_time_solve_subsets.tv_sec - start_time_solve_subsets.tv_sec + (end_time_solve_subsets.tv_usec - start_time_solve_subsets.tv_usec) / 1000000.0;
 	std::cerr << "Solve subsets: " << time_spend << " seconds" << std::endl;
 	
+	combined_graph.splitSelfReferencingNodes();
+	
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 	std::cout << "FINAL RESULTS" << std::endl;
 	std::cout << combined_graph << std::endl;
@@ -930,6 +932,32 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 					{
 						continue;
 					}
+					
+					/*
+					// TEST:
+					bool self_referencing = false;
+					for (std::vector<const Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
+					{
+						if (&(*ci)->getToNode() == dtg_node2)
+						{
+							self_referencing = true;
+							break;
+						}
+					}
+					
+					if (self_referencing) continue;
+					
+					for (std::vector<const Transition*>::const_iterator ci = dtg_node2->getTransitions().begin(); ci != dtg_node2->getTransitions().end(); ci++)
+					{
+						if (&(*ci)->getToNode() == dtg_node)
+						{
+							self_referencing = true;
+							break;
+						}
+					}
+					
+					if (self_referencing) continue;
+					*/
 					
 					// The two nodes are equivalent - merge!
 					bool properties_differ = false;
@@ -1844,7 +1872,6 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 							
 							// Try to establish the original transitions.
 							// TODO: WAY TO SLOWWW!!! - called too often!
-///							const Transition* test_new_transition = Transition::createTransition(transition->getStep()->getAction(), *from_dtg_node, *to_dtg_node, *initial_facts_);
 							const Transition* new_transition = transition->migrateTransition(*initial_facts_, *from_dtg_node, *to_dtg_node);
 							
 							if (new_transition == NULL)

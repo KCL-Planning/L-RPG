@@ -238,6 +238,8 @@ public:
 	void mergeInvariableDTGs();
 	
 	void solveSubsets();
+	
+	void splitSelfReferencingNodes();
 
 	friend std::ostream& operator<<(std::ostream& os, const DomainTransitionGraph& dtg);
 private:

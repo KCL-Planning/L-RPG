@@ -2239,12 +2239,12 @@ bool Utilities::TransitionToNodeEquals::operator()(const Transition* transition,
 
 std::ostream& operator<<(std::ostream& os, const Transition& transition)
 {
-//	os << "Transition from: " << std::endl;
-//	transition.getFromNode().print(os);
-//	os << std::endl << " to " << std::endl;
-//	transition.getToNode().print(os);
-//	os << "[" << transition.getStep()->getAction() << "]" << std::endl;
-	transition.getStep()->getAction().print(os, transition.getFromNode().getDTG().getBindings(), transition.getStep()->getStepId());
+	os << "Transition from: " << std::endl;
+	transition.getFromNode().print(os);
+	os << std::endl << " to " << std::endl;
+	transition.getToNode().print(os);
+	os << "[" << transition.getStep()->getAction() << "]" << std::endl;
+//	transition.getStep()->getAction().print(os, transition.getFromNode().getDTG().getBindings(), transition.getStep()->getStepId());
 /*
 	std::vector<std::pair<const Atom*, InvariableIndex> > all_preconditions = transition.getAllPreconditions();
 	os << "All preconditions: " << std::endl;

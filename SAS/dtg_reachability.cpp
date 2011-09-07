@@ -12,7 +12,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-//#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 #define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
 	
@@ -316,6 +316,39 @@ void ReachableTransition::addMapping(const std::map< const std::vector< const My
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "Transition: " << *transition_ << " is reachable!" << std::endl;
 #endif
+
+/*	// Make sure all variables are mapped!
+	for (std::vector<BoundedAtom*>::const_iterator ci = transition_->getFromNode().getAtoms().begin(); ci != transition_->getFromNode().getAtoms().end(); ci++)
+	{
+		const BoundedAtom* bounded_atom = *ci;
+		
+		for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
+		{
+			const Term* term = *ci;
+			const std::vector<const Object*>& domain = term->getDomain(bounded_atom->getId(), transition_->getFromNode().getDTG().getBindings());
+			assert (new_mapping.find(&domain) != new_mapping.end());
+		}
+	}
+	
+	for (std::vector<BoundedAtom*>::const_iterator ci = transition_->getToNode().getAtoms().begin(); ci != transition_->getToNode().getAtoms().end(); ci++)
+	{
+		const BoundedAtom* bounded_atom = *ci;
+		
+		for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
+		{
+			const Term* term = *ci;
+			const std::vector<const Object*>& domain = term->getDomain(bounded_atom->getId(), transition_->getFromNode().getDTG().getBindings());
+			if (new_mapping.find(&domain) == new_mapping.end())
+			{
+				std::cout << "The term: ";
+				term->print(std::cout, transition_->getFromNode().getDTG().getBindings(), bounded_atom->getId());
+				std::cout << " in the fact: ";
+				bounded_atom->print(std::cout, transition_->getFromNode().getDTG().getBindings());
+				std::cout << " was not mapped!!!" << std::endl;
+				assert (false);
+			}
+		}
+	}*/
 
 	possible_mappings_.push_back(&new_mapping);
 }
@@ -1204,7 +1237,7 @@ void DTGReachability::propagateReachableNodes()
 					std::cout << "Propagate the transition: " << *transition << "." << std::endl;
 					for (std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* >::const_iterator ci = possible_mappings.begin(); ci != possible_mappings.end(); ci++)
 					{
-						std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* possible_mapping = new std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>(**ci);
+						const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* possible_mapping = *ci;
 						
 						std::cout << " - (" << transition->getStep()->getAction().getPredicate() << " ";
 						for (std::vector<const Variable*>::const_iterator ci = transition->getStep()->getAction().getVariables().begin(); ci != transition->getStep()->getAction().getVariables().end(); ci++)
@@ -1212,7 +1245,17 @@ void DTGReachability::propagateReachableNodes()
 							const Variable* variable = *ci;
 							const std::vector<const Object*>& variable_domain = variable->getDomain(transition->getStep()->getStepId(), dtg_node->getDTG().getBindings());
 							
-							(*possible_mapping)[&variable_domain]->printObjects(std::cout);
+							std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>::const_iterator find_ci = possible_mapping->find(&variable_domain);
+							
+							if (find_ci == possible_mapping->end())
+							{
+								std::cout << "The variable domain: ";
+								variable->print(std::cout, dtg_node->getDTG().getBindings(), transition->getStep()->getStepId());
+								std::cout << " was not mapped in the possible mappings!!!" << std::endl;
+								continue;
+							}
+							
+							(*find_ci).second->printObjects(std::cout);
 							
 							if (ci + 1 != transition->getStep()->getAction().getVariables().end())
 								std::cout << ", ";
@@ -1225,7 +1268,106 @@ void DTGReachability::propagateReachableNodes()
 					std::cout << "Transition has not been reached yet! " << *transition << std::endl;
 				}
 #endif
+
+				// Some transitions have effects which are linked to terms in the preconditions which are not a part of the from node. Updating
+				// the facts in the from node will not yield the required results. For example consider the following transition:
+				//
+				// (holding ball gripper) -> (in ball room)
+				//
+				// The value of room is not dictated by any of the terms in the from node, but rather by the precondition: (at hilbert room). Note
+				// that hilbert nor room is part of the terms in the from node so it completely stands alone, we will call these /free variables/.
+				//
+				// To take this into account we need to identify these preconditions and assert what values they can take.
+				// NOTE: Will need to change this into a function later on (e.g. room := all rooms which can contain a robot.
+				std::set<const std::vector<const Object*>* >mapped_terms;
+				for (std::vector<BoundedAtom*>::const_iterator ci = transition->getFromNode().getAtoms().begin(); ci != transition->getFromNode().getAtoms().end(); ci++)
+				{
+					const BoundedAtom* bounded_atom = *ci;
+					for (unsigned int i = 0; i < bounded_atom->getAtom().getArity(); i++)
+					{
+						mapped_terms.insert(&bounded_atom->getVariableDomain(i, transition->getFromNode().getDTG().getBindings()));
+					}
+				}
 				
+				const std::vector<std::pair<const Atom*, InvariableIndex> >& all_preconditions = transition->getAllPreconditions();
+				bool unmapped_preconditions[all_preconditions.size()];
+				memset (&unmapped_preconditions[0], true, sizeof(bool) * all_preconditions.size());
+				
+				unsigned int size = 0;
+				while (size != mapped_terms.size())
+				{
+					size = mapped_terms.size();
+					for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = all_preconditions.begin(); ci != all_preconditions.end(); ci++)
+					{
+						const Atom* precondition = (*ci).first;
+						unsigned int precondition_index = std::distance(all_preconditions.begin(), ci);
+						
+						bool contains_mapped_term = false;
+						for (unsigned int i = 0; i < precondition->getArity(); i++)
+						{
+							const std::vector<const Object*>& domain = precondition->getTerms()[i]->getDomain(transition->getStep()->getStepId(), transition->getFromNode().getDTG().getBindings());
+							if (mapped_terms.find(&domain) != mapped_terms.end())
+							{
+								contains_mapped_term = true;
+								break;
+							}
+						}
+						
+						if (!contains_mapped_term) continue;
+						
+						unmapped_preconditions[precondition_index] = false;
+						
+						for (unsigned int i = 0; i < precondition->getArity(); i++)
+						{
+							const std::vector<const Object*>& domain = precondition->getTerms()[i]->getDomain(transition->getStep()->getStepId(), transition->getFromNode().getDTG().getBindings());
+							mapped_terms.insert(&domain);
+						}
+					}
+				}
+				
+				// We create a set of artificial EOGs to update the reachable facts.
+				std::map<const std::vector<const Object*>*, EquivalentObjectGroup*> free_variable_mappings;
+				for (unsigned int i = 0; i < all_preconditions.size(); i++)
+				{
+					if (unmapped_preconditions[i])
+					{
+						const Atom* precondition = all_preconditions[i].first;
+						std::cout << "The precondition: ";
+						all_preconditions[i].first->print(std::cout, transition->getFromNode().getDTG().getBindings(), transition->getStep()->getStepId());
+						std::cout << " is not bounded!" << std::endl;	
+						
+						for (unsigned int j =  0; j < precondition->getArity(); j++)
+						{
+							const std::vector<const Object*>& domain = precondition->getTerms()[j]->getDomain(transition->getStep()->getStepId(), transition->getFromNode().getDTG().getBindings());
+							
+							EquivalentObjectGroup* eog = NULL;
+							std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>::iterator it = free_variable_mappings.find(&domain);
+							if (it != free_variable_mappings.end())
+							{
+								eog = (*it).second;
+							}
+							else
+							{
+								eog = new EquivalentObjectGroup(transition->getFromNode().getDTG(), *domain[0]);
+								free_variable_mappings[&domain] = eog;
+							}
+							
+							for (std::vector<const Object*>::const_iterator ci = domain.begin(); ci != domain.end(); ci++)
+							{
+								EquivalentObject* eo = new EquivalentObject(**ci, *eog);
+								eog->addEquivalentObject(*eo);
+							}
+							
+							free_variable_mappings[&domain] = eog;
+						}
+					}
+				}
+				
+				for (std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>::const_iterator ci = free_variable_mappings.begin(); ci != free_variable_mappings.end(); ci++)
+				{
+					std::cout << "Bind " << (*ci).first << " to " << *(*ci).second << "." << std::endl;
+				}
+
 				for (std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* >::const_iterator ci = possible_mappings.begin(); ci != possible_mappings.end(); ci++)
 				{
 					const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* reachable_transition_mapping = *ci;
@@ -1252,6 +1394,14 @@ void DTGReachability::propagateReachableNodes()
 								(*possible_mapping)[&term_domain] = reachable_fact_eog;
 							}
 						}
+						
+						// Free variables overwrite everything else.
+						for (std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>::const_iterator ci = free_variable_mappings.begin(); ci != free_variable_mappings.end(); ci++)
+						{
+							possible_mapping->erase((*ci).first);
+						}
+						possible_mapping->insert(free_variable_mappings.begin(), free_variable_mappings.end());
+						
 						makeToNodeReachable(*transition, *possible_mapping);
 					}
 				}
@@ -1267,6 +1417,22 @@ void DTGReachability::makeToNodeReachable(const Transition& transition, const st
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "[DTGReachability::makeToNodeReachable]" << std::endl;
+
+	for (std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>::const_iterator ci = possible_mapping.begin(); ci != possible_mapping.end(); ci++)
+	{
+		std::cout << "Map: ";
+		
+		const std::vector<const Object*>* domain = (*ci).first;
+		const EquivalentObjectGroup* eog = (*ci).second;
+		for (std::vector<const Object*>::const_iterator ci = domain->begin(); ci != domain->end(); ci++)
+		{
+			(*ci)->print(std::cout, transition.getToNode().getDTG().getBindings(), transition.getStep()->getStepId());
+			if (ci + 1 != domain->end())
+				std::cout << ", ";
+		}
+		
+		std::cout << " to: " << *eog << "." << std::endl;
+	}
 #endif
 
 	std::vector<const ReachableFact*>* reachable_facts[transition.getToNode().getAtoms().size()];
@@ -1973,7 +2139,7 @@ bool DTGReachability::canSatisfyPreconditions(const Transition& transition, cons
 	for (std::vector<std::pair<const Atom*, InvariableIndex> >::reverse_iterator ri = all_preconditions.rbegin(); ri != all_preconditions.rend(); ri++)
 	{
 		const Atom* precondition = (*ri).first;
-		bool satisfied = false;
+//		bool satisfied = false;
 		
 		// Make sure we only consider preconditions which have not previously been achieved.
 		for (std::vector<BoundedAtom*>::const_iterator ci = from_dtg_node.getAtoms().begin(); ci != from_dtg_node.getAtoms().end(); ci++)
@@ -1983,7 +2149,7 @@ bool DTGReachability::canSatisfyPreconditions(const Transition& transition, cons
 			if (dtg_graph_->getBindings().areIdentical(bounded_atom->getAtom(), bounded_atom->getId(), *precondition, transition.getStep()->getStepId()))
 			{
 				all_preconditions.erase(ri.base() - 1);
-				satisfied = true;
+//				satisfied = true;
 //				std::cout << "The precondition: ";
 //				precondition->print(std::cout, bindings, transition.getStep()->getStepId());
 //				std::cout << " is supported by ";
@@ -1993,7 +2159,7 @@ bool DTGReachability::canSatisfyPreconditions(const Transition& transition, cons
 			}
 		}
 		
-		if (satisfied) continue;
+//		if (satisfied) continue;
 		
 //		std::cout << "Unsatisfied precondition: ";
 //		precondition->print(std::cout, bindings, transition.getStep()->getStepId());
@@ -2004,6 +2170,8 @@ bool DTGReachability::canSatisfyPreconditions(const Transition& transition, cons
 	const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* possible_mapping = canSatisfyPrecondition(all_preconditions, 0, transition, invariables, *variable_domain_mapping);
 	
 	if (possible_mapping == NULL || possible_mapping->size() == 0) return false;
+	
+	// Check if all the 
 	
 	// Transition is possible! :D
 //	std::cout << "Transition is possible! These are the effects: ";

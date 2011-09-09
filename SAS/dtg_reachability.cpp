@@ -1279,7 +1279,8 @@ void DTGReachability::propagateReachableNodes()
 				//
 				// To take this into account we need to identify these preconditions and assert what values they can take.
 				// NOTE: Will need to change this into a function later on (e.g. room := all rooms which can contain a robot.
-				std::set<const std::vector<const Object*>* >mapped_terms;
+				std::set<const std::vector<const Object*>* > mapped_terms;
+				
 				for (std::vector<BoundedAtom*>::const_iterator ci = transition->getFromNode().getAtoms().begin(); ci != transition->getFromNode().getAtoms().end(); ci++)
 				{
 					const BoundedAtom* bounded_atom = *ci;
@@ -1290,8 +1291,6 @@ void DTGReachability::propagateReachableNodes()
 				}
 				
 				const std::vector<std::pair<const Atom*, InvariableIndex> >& all_preconditions = transition->getAllPreconditions();
-				bool unmapped_preconditions[all_preconditions.size()];
-				memset (&unmapped_preconditions[0], true, sizeof(bool) * all_preconditions.size());
 				
 				unsigned int size = 0;
 				while (size != mapped_terms.size())
@@ -1300,7 +1299,6 @@ void DTGReachability::propagateReachableNodes()
 					for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = all_preconditions.begin(); ci != all_preconditions.end(); ci++)
 					{
 						const Atom* precondition = (*ci).first;
-						unsigned int precondition_index = std::distance(all_preconditions.begin(), ci);
 						
 						bool contains_mapped_term = false;
 						for (unsigned int i = 0; i < precondition->getArity(); i++)
@@ -1315,8 +1313,6 @@ void DTGReachability::propagateReachableNodes()
 						
 						if (!contains_mapped_term) continue;
 						
-						unmapped_preconditions[precondition_index] = false;
-						
 						for (unsigned int i = 0; i < precondition->getArity(); i++)
 						{
 							const std::vector<const Object*>& domain = precondition->getTerms()[i]->getDomain(transition->getStep()->getStepId(), transition->getFromNode().getDTG().getBindings());
@@ -1325,41 +1321,53 @@ void DTGReachability::propagateReachableNodes()
 					}
 				}
 				
-				// We create a set of artificial EOGs to update the reachable facts.
-				std::map<const std::vector<const Object*>*, EquivalentObjectGroup*> free_variable_mappings;
-				for (unsigned int i = 0; i < all_preconditions.size(); i++)
+				// If two variables refer to eachother they are free variables too - only if the action variables involved are different too!
+				for (std::vector<const Variable*>::const_iterator ci = transition->getStep()->getAction().getVariables().begin(); ci != transition->getStep()->getAction().getVariables().end(); ci++)
 				{
-					if (unmapped_preconditions[i])
+					unsigned int index = std::distance(transition->getStep()->getAction().getVariables().begin(), ci);
+					const std::vector<const Object*>& domain = (*ci)->getDomain(transition->getStep()->getStepId(), transition->getFromNode().getDTG().getBindings());
+					for (std::vector<const Variable*>::const_iterator ci2 = transition->getStep()->getAction().getVariables().begin(); ci2 != transition->getStep()->getAction().getVariables().end(); ci2++)
 					{
-						const Atom* precondition = all_preconditions[i].first;
-						std::cout << "The precondition: ";
-						all_preconditions[i].first->print(std::cout, transition->getFromNode().getDTG().getBindings(), transition->getStep()->getStepId());
-						std::cout << " is not bounded!" << std::endl;	
-						
-						for (unsigned int j =  0; j < precondition->getArity(); j++)
+						unsigned int index2 = std::distance(transition->getStep()->getAction().getVariables().begin(), ci2);
+						if (index == index2) continue;
+						const std::vector<const Object*>& other_domain = (*ci2)->getDomain(transition->getStep()->getStepId(), transition->getFromNode().getDTG().getBindings());
+						if (&domain == &other_domain)
 						{
-							const std::vector<const Object*>& domain = precondition->getTerms()[j]->getDomain(transition->getStep()->getStepId(), transition->getFromNode().getDTG().getBindings());
-							
-							EquivalentObjectGroup* eog = NULL;
-							std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>::iterator it = free_variable_mappings.find(&domain);
-							if (it != free_variable_mappings.end())
-							{
-								eog = (*it).second;
-							}
-							else
-							{
-								eog = new EquivalentObjectGroup(transition->getFromNode().getDTG(), *domain[0]);
-								free_variable_mappings[&domain] = eog;
-							}
-							
-							for (std::vector<const Object*>::const_iterator ci = domain.begin(); ci != domain.end(); ci++)
-							{
-								EquivalentObject* eo = new EquivalentObject(**ci, *eog);
-								eog->addEquivalentObject(*eo);
-							}
-							
+							mapped_terms.erase(&domain);
+							break;
+						}
+					}
+				}
+				
+				std::map<const std::vector<const Object*>*, EquivalentObjectGroup*> free_variable_mappings;
+				for (std::vector<const Variable*>::const_iterator ci = transition->getStep()->getAction().getVariables().begin(); ci != transition->getStep()->getAction().getVariables().end(); ci++)
+				{
+					const std::vector<const Object*>& domain = (*ci)->getDomain(transition->getStep()->getStepId(), transition->getFromNode().getDTG().getBindings());
+					if (mapped_terms.count(&domain) == 0)
+					{
+						std::cout << "The variable: ";
+						(*ci)->print(std::cout, transition->getFromNode().getDTG().getBindings(), transition->getStep()->getStepId());
+						std::cout << " is not bounded!" << std::endl;
+
+						EquivalentObjectGroup* eog = NULL;
+						std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>::iterator it = free_variable_mappings.find(&domain);
+						if (it != free_variable_mappings.end())
+						{
+							eog = (*it).second;
+						}
+						else
+						{
+							eog = new EquivalentObjectGroup(transition->getFromNode().getDTG(), *domain[0]);
 							free_variable_mappings[&domain] = eog;
 						}
+						
+						for (std::vector<const Object*>::const_iterator ci = domain.begin(); ci != domain.end(); ci++)
+						{
+							EquivalentObject* eo = new EquivalentObject(**ci, *eog);
+							eog->addEquivalentObject(*eo);
+						}
+						
+						free_variable_mappings[&domain] = eog;
 					}
 				}
 				

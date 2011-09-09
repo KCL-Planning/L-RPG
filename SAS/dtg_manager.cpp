@@ -1303,11 +1303,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 			merged_from_dtg_node->addTransition(*new_transition, false);
 		}
 	}
-	
-#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-	std::cout << "FINAL Combined DTG: " << *combined_dtg << "." << std::endl;
-#endif
-	
+
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 	/**
 	 * Print out the result in DOT format.

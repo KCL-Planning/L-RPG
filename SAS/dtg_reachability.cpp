@@ -1321,6 +1321,7 @@ void DTGReachability::propagateReachableNodes()
 					}
 				}
 				
+				/*
 				// If two variables refer to eachother they are free variables too - only if the action variables involved are different too!
 				for (std::vector<const Variable*>::const_iterator ci = transition->getStep()->getAction().getVariables().begin(); ci != transition->getStep()->getAction().getVariables().end(); ci++)
 				{
@@ -1338,6 +1339,7 @@ void DTGReachability::propagateReachableNodes()
 						}
 					}
 				}
+				*/
 				
 				std::map<const std::vector<const Object*>*, EquivalentObjectGroup*> free_variable_mappings;
 				for (std::vector<const Variable*>::const_iterator ci = transition->getStep()->getAction().getVariables().begin(); ci != transition->getStep()->getAction().getVariables().end(); ci++)
@@ -1347,7 +1349,7 @@ void DTGReachability::propagateReachableNodes()
 					{
 						std::cout << "The variable: ";
 						(*ci)->print(std::cout, transition->getFromNode().getDTG().getBindings(), transition->getStep()->getStepId());
-						std::cout << " is not bounded!" << std::endl;
+						std::cout << " is not bounded by the terms in from node!" << std::endl;
 
 						EquivalentObjectGroup* eog = NULL;
 						std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>::iterator it = free_variable_mappings.find(&domain);

@@ -1473,7 +1473,13 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 						const Atom* precondition = (*precondition_ci).first;
 						InvariableIndex precondition_invariable_index = (*precondition_ci).second;
 						bool static_precondition = precondition->getPredicate().isStatic();
-						
+
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+						std::cout << "Process the precondition: ";
+						precondition->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
+						std::cout << "." << std::endl;
+#endif
+
 						// Ignore those which are already part of the DTG node.
 						const BoundedAtom* identical_bounded_atom = NULL;
 						for (std::vector<BoundedAtom*>::const_iterator ci = from_dtg_node_clone->getAtoms().begin(); ci != from_dtg_node_clone->getAtoms().end(); ci++)
@@ -1521,6 +1527,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 						{
 							const Term* precondition_term = *term_precondition_ci;
 							
+							// Compare with the from dtg node.
 							for (std::vector<BoundedAtom*>::const_iterator ci = from_dtg_node_clone->getAtoms().begin(); ci != from_dtg_node_clone->getAtoms().end(); ci++)
 							{
 								const BoundedAtom* bounded_atom = *ci;
@@ -1738,6 +1745,45 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 									break;
 								}
 							}
+
+							// Process the to nodes.
+							// TODO: This process can be removed and replaced by a function later on. E.g. the following transition:
+							// (holding gripper ball) -> (in ball room)
+							// is dependent on the precondition (at helbert room). Instead of grounding room (what we do here) we could
+							// replace the precondition with a function which check all possible values for room. Future work :).
+							// 
+							for (std::vector<BoundedAtom*>::const_iterator ci = to_dtg_node_clone->getAtoms().begin(); ci != to_dtg_node_clone->getAtoms().end(); ci++)
+							{
+								const BoundedAtom* bounded_atom = *ci;
+								
+								for( std::vector<const Term*>::const_iterator bounded_atom_ci = bounded_atom->getAtom().getTerms().begin(); bounded_atom_ci != bounded_atom->getAtom().getTerms().end(); bounded_atom_ci++)
+								{
+									const Term* to_term = *bounded_atom_ci;
+									
+									if (to_term->isTheSameAs(bounded_atom->getId(), *precondition_term, transition->getStep()->getStepId(), dtg->getBindings()))
+									{
+										std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_matching_nodes;
+										
+										getDTGNodes(found_matching_nodes, bounded_atom->getId(), bounded_atom->getAtom(), dtg->getBindings(), std::distance(bounded_atom->getAtom().getTerms().begin(), bounded_atom_ci));
+										bool self_ballanced = !found_matching_nodes.empty();
+										
+										if (self_ballanced) continue;
+										
+										// Check if precondition_term is unballanced in the precondition predicate.
+										std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
+										getDTGNodes(found_nodes, transition->getStep()->getStepId(), *precondition, dtg->getBindings(), std::distance(precondition->getTerms().begin(), term_precondition_ci));
+										
+										if (!found_nodes.empty()) continue;
+										
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+										std::cout << "Ground the term: ";
+										to_term->print(std::cout, dtg->getBindings(), bounded_atom->getId());
+										std::cout << " in the TO node!" << std::endl;
+#endif
+										to_terms_to_ground.push_back(std::make_pair(to_term, bounded_atom->getId()));
+									}
+								}
+							}
 							
 							if (precondition_added)
 							{
@@ -1847,24 +1893,49 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 				 * Ground all the terms which need to be grounded and add the result to the final DTG.
 				 */
 				std::vector<DomainTransitionGraphNode*> from_grounded_nodes;
-				if (from_dtg_node_clone->groundTerms(from_grounded_nodes, from_terms_to_ground))
+				bool grounded_from_nodes = from_dtg_node_clone->groundTerms(from_grounded_nodes, from_terms_to_ground);
+				if (grounded_from_nodes)
 				{
 					from_dtg_node_clone->removeTransitions(true);
 					dtg_nodes_to_remove.push_back(dtg_node);
-					
-					std::vector<DomainTransitionGraphNode*> to_grounded_nodes;
-					to_dtg_node_clone->groundTerms(to_grounded_nodes, to_terms_to_ground);
-					
+				}
+				
+				std::vector<DomainTransitionGraphNode*> to_grounded_nodes;
+				bool grounded_to_nodes = to_dtg_node_clone->groundTerms(to_grounded_nodes, to_terms_to_ground);
+				if (grounded_to_nodes)
+				{
+					to_dtg_node_clone->removeTransitions(true);
+					dtg_nodes_to_remove.push_back(&transition->getToNode());
+				}
+
+				if (grounded_from_nodes || grounded_to_nodes)
+				{
 					for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = from_grounded_nodes.begin(); ci != from_grounded_nodes.end(); ci++)
 					{
-						DomainTransitionGraphNode* from_dtg_node = *ci;
-						//DomainTransitionGraphNode* from_dtg_node = new DomainTransitionGraphNode(**ci, false, false);
+						
+						DomainTransitionGraphNode* from_dtg_node = NULL;
+						
+						if (grounded_from_nodes)
+						{
+							from_dtg_node = *ci;
+						}
+						else
+						{
+							from_dtg_node = new DomainTransitionGraphNode(**ci, false, false);
+						}
 						
 						for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = to_grounded_nodes.begin(); ci != to_grounded_nodes.end(); ci++)
 						{
-							// TODO: What's the difference between making a new to node and using the grounded one..?
-							//DomainTransitionGraphNode* to_dtg_node = *ci;
-							DomainTransitionGraphNode* to_dtg_node = new DomainTransitionGraphNode(**ci, false, false);
+							DomainTransitionGraphNode* to_dtg_node = NULL;
+							
+							if (grounded_to_nodes)
+							{
+								to_dtg_node = *ci;
+							}
+							else
+							{
+								to_dtg_node = new DomainTransitionGraphNode(**ci, false, false);
+							}
 							
 							// Try to establish the original transitions.
 							// TODO: WAY TO SLOWWW!!! - called too often!
@@ -1878,9 +1949,9 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 								
 							dtg_nodes_to_add.push_back(to_dtg_node);
 						}
-#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+	#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 						std::cout << " NEW: " << *from_dtg_node << std::endl;
-#endif
+	#endif
 						dtg_nodes_to_add.push_back(from_dtg_node);
 					}
 				}

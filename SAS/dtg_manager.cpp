@@ -784,6 +784,7 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	
 	Bindings* merged_dtg_bindings = new Bindings(bindings);
 	DomainTransitionGraph& combined_graph = mergeIdenticalDTGs(*merged_dtg_bindings);
+	std::cout << combined_graph << std::endl;
 	
 	struct timeval end_time_merge_dtgs;
 	gettimeofday(&end_time_merge_dtgs, NULL);
@@ -800,6 +801,8 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	gettimeofday(&start_time_solve_subsets, NULL);
 	
 	combined_graph.solveSubsets();
+	std::cout << "After solving subsets:" << std::endl;
+	std::cout << combined_graph << std::endl;
 	
 	struct timeval end_time_solve_subsets;
 	gettimeofday(&end_time_solve_subsets, NULL);
@@ -837,6 +840,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 {
 	// Map all identical DTGs to a single DTG.
 	std::map<const DomainTransitionGraphNode*, const DomainTransitionGraphNode*> mapping_old_to_new_dtg_node;
+	std::map<const DomainTransitionGraphNode*, int*> map_old_facts_to_new;
 	
 	// Accumulate all the transitions of the identical DTGs.
 	std::map<const DomainTransitionGraphNode*, std::vector<const Transition*>* > mapping_merged_transitions;
@@ -858,6 +862,14 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 			std::vector<const Transition*>* accumulated_dtgs = new std::vector<const Transition*>();
 			mapping_merged_transitions[dtg_node] = accumulated_dtgs;
 			mapping_old_to_new_dtg_node[dtg_node] = dtg_node;
+			
+			int* initial_mapping = new int[dtg_node->getAtoms().size()];
+			for (unsigned int i = 0; i < dtg_node->getAtoms().size(); i++)
+			{
+				initial_mapping[i] = i;
+			}
+			
+			map_old_facts_to_new[dtg_node] = initial_mapping;
 			
 			accumulated_dtgs->insert(accumulated_dtgs->end(), dtg_node->getTransitions().begin(), dtg_node->getTransitions().end());
 			bool merged = false;
@@ -905,18 +917,24 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 						continue;
 					}
 					
+					int* mapping = new int[dtg_node->getAtoms().size()];
+					memset(mapping, -1, sizeof(int) * dtg_node->getAtoms().size());
+					
 					for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node2->getAtoms().begin(); ci != dtg_node2->getAtoms().end(); ci++)
 					{
+						unsigned int old_fact_index = std::distance(dtg_node2->getAtoms().begin(), ci);
 						const BoundedAtom* bounded_atom = *ci;
 						bool found_equivalent = false;
 						
 						for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
 						{
+							unsigned int new_fact_index = std::distance(dtg_node->getAtoms().begin(), ci);
 							const BoundedAtom* bounded_atom2 = *ci;
 							if (bounded_atom->getAtom().isNegative() == bounded_atom2->getAtom().isNegative() &&
 							    dtg->getBindings().areEquivalent(bounded_atom->getAtom(), bounded_atom->getId(), bounded_atom2->getAtom(), bounded_atom2->getId(), &dtg2->getBindings()))
 							{
 								found_equivalent = true;
+								mapping[old_fact_index] = new_fact_index;
 								break;
 							}
 						}
@@ -930,34 +948,9 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 					
 					if (!dtg_node_is_equivalent)
 					{
+						delete mapping;
 						continue;
 					}
-					
-					/*
-					// TEST:
-					bool self_referencing = false;
-					for (std::vector<const Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
-					{
-						if (&(*ci)->getToNode() == dtg_node2)
-						{
-							self_referencing = true;
-							break;
-						}
-					}
-					
-					if (self_referencing) continue;
-					
-					for (std::vector<const Transition*>::const_iterator ci = dtg_node2->getTransitions().begin(); ci != dtg_node2->getTransitions().end(); ci++)
-					{
-						if (&(*ci)->getToNode() == dtg_node)
-						{
-							self_referencing = true;
-							break;
-						}
-					}
-					
-					if (self_referencing) continue;
-					*/
 					
 					// The two nodes are equivalent - merge!
 					bool properties_differ = false;
@@ -1015,7 +1008,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 						std::cout << "Overwrite: " << *dtg_node2 << " -> " << *mapping_old_to_new_dtg_node[dtg_node2] << " with "" -> " << *dtg_node << "." << std::endl;
 					}
 #endif
-					
+					map_old_facts_to_new[dtg_node2] = mapping;
 					mapping_old_to_new_dtg_node[dtg_node2] = dtg_node;
 					accumulated_dtgs->insert(accumulated_dtgs->end(), dtg_node2->getTransitions().begin(), dtg_node2->getTransitions().end());
 					
@@ -1245,10 +1238,10 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 	// Reconnect all the DTG nodes by copying the transitions.
 	for (std::map<const DomainTransitionGraphNode*, std::vector<const Transition*>* >::const_iterator ci = mapping_merged_transitions.begin(); ci != mapping_merged_transitions.end(); ci++)
 	{
-		const DomainTransitionGraphNode* org_from_dtg_node = (*ci).first;
+		const DomainTransitionGraphNode* fake_org_from_dtg_node = (*ci).first;
 		const std::vector<const Transition*>* org_transition = (*ci).second;
 		
-		DomainTransitionGraphNode* merged_from_dtg_node = org_node_to_combined_node[org_from_dtg_node];
+		DomainTransitionGraphNode* merged_from_dtg_node = org_node_to_combined_node[fake_org_from_dtg_node];
 		assert (merged_from_dtg_node != NULL);
 		
 		for (std::vector<const Transition*>::const_iterator ci = org_transition->begin(); ci != org_transition->end(); ci++)
@@ -1257,6 +1250,8 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 			std::cout << "Process the transition: " << *org_transition << std::endl;
 #endif
+			//assert (org_from_dtg_node == &org_transition->getFromNode());
+			const DomainTransitionGraphNode& org_from_dtg_node = org_transition->getFromNode();
 			const DomainTransitionGraphNode& org_to_dtg_node = org_transition->getToNode();
 			
 			assert (mapping_old_to_new_dtg_node.count(&org_to_dtg_node) != 0);
@@ -1285,24 +1280,64 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 			
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 			std::cout << "Create a transition from: " << *merged_from_dtg_node << " to " << *merged_to_dtg_node << "." << std::endl;
+			std::cout << "Original transition: " << org_from_dtg_node << " to " << org_to_dtg_node << std::endl;
 #endif
 			
-/*			std::cout << "Create a transition from: ";
+			// Check if any of the variables is in fact a free variable.
+			const std::vector<std::pair<const Atom*, InvariableIndex> >& all_preconditions = org_transition->getAllPreconditions();
+			
+			
+			for (std::vector<const Variable*>::const_iterator ci = org_transition->getStep()->getAction().getVariables().begin(); ci != org_transition->getStep()->getAction().getVariables().end(); ci++)
+			{
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+				unsigned int index = std::distance(org_transition->getStep()->getAction().getVariables().begin(), ci);
+#endif
+				const Variable* variable = *ci;
+				
+				bool present = false;
+				
+				for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = all_preconditions.begin(); !present && ci != all_preconditions.end(); ci++)
+				{
+					const Atom* precondition = (*ci).first;
+					for (std::vector<const Term*>::const_iterator ci = precondition->getTerms().begin(); ci != precondition->getTerms().end(); ci++)
+					{
+						const Term* term = *ci;
+						if (term == variable)
+						{
+							present = true;
+							break;
+						}
+					}
+				}
+				
+				if (!present)
+				{
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+					std::cout << "The index: " << index << " is a free variable!" << std::endl;
+#endif
+				}
+			}
+
+/*			
+			std::cout << "Create a transition from: ";
 			merged_from_dtg_node->print(std::cout);
 			std::cout << " to ";
 			merged_to_dtg_node->print(std::cout);
-			std::cout << "." << std::endl;*/
+			std::cout << "." << std::endl;
+*/
 			
 			const Transition* new_transition = Transition::createTransition(org_transition->getStep()->getAction(), *merged_from_dtg_node, *merged_to_dtg_node, *initial_facts_);
 			if (new_transition == NULL) {
-//				std::cout << "Failed to make that transition!" << std::endl;
-//				assert (false);
 				continue;
 			}
+			
+			
 			
 			merged_from_dtg_node->addTransition(*new_transition, false);
 		}
 	}
+
+	std::cout << *combined_dtg << std::endl;
 
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 	/**

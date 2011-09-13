@@ -1,6 +1,7 @@
 #ifndef SAS_PLUS_TRANSITION_H
 #define SAS_PLUS_TRANSITION_H
 
+#include <set>
 #include <map>
 #include <vector>
 #include <iostream>
@@ -12,12 +13,11 @@
 namespace MyPOP {
 
 class Predicate;
-
-
 class Atom;
 class Action;
 class Bindings;
 class Object;
+class Term;
 class Variable;
 	
 namespace SAS_Plus {
@@ -160,6 +160,8 @@ public:
 	bool achieves(const BoundedAtom& bounded_atom) const;
 	bool affects(const BoundedAtom& bounded_atom) const;
 	
+	bool isVariableFree(const Term& term) const;
+	
 private:
 	
 	/**
@@ -193,7 +195,7 @@ private:
 	bool shareVariableDomains(const BoundedAtom& bounded_atom, const Atom& atom) const;
 
 	// A transition is not to be created manualy.
-	Transition(MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map< const MyPOP::SAS_Plus::PropertySpace*, const MyPOP::Variable* >& action_invariables, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& all_precondition_mappings);
+	Transition(MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map< const MyPOP::SAS_Plus::PropertySpace*, const MyPOP::Variable* >& action_invariables, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& all_precondition_mappings, const std::set<const Term*>& free_variables);
 
 	// The step contains:
 	// 1) The action which needs to be executed to make the transition happen and,
@@ -222,6 +224,9 @@ private:
 	
 	// A list of all preconditions of the action, including the index of the term which is invariable.
 	const std::vector<std::pair<const Atom*, InvariableIndex> >* all_precondition_mappings_;
+	
+	// A array of action variables which are considered to be 'free'.
+	const std::set<const Term*>* free_variables_;
 };
 /*
 class RecursivePreconditions

@@ -140,6 +140,7 @@ bool DomainTransitionGraph::addNode(DomainTransitionGraphNode& dtg_node, std::ve
 
 	if (!could_unify)
 */
+	assert (&dtg_node.getDTG() == this);
 	{
 		nodes_.push_back(&dtg_node);
 		if (added_nodes != NULL)
@@ -1479,37 +1480,42 @@ void DomainTransitionGraph::splitSelfReferencingNodes()
 	std::vector<DomainTransitionGraphNode*> nodes_to_add;
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator nodes_ci = nodes_.begin(); nodes_ci != nodes_.end(); nodes_ci++)
 	{
-		DomainTransitionGraphNode* dtg = *nodes_ci;
+		DomainTransitionGraphNode* dtg_node = *nodes_ci;
 		std::vector<std::pair<const Action*, DomainTransitionGraphNode*> > transitions_to_add;
 		
-		for (std::vector<const Transition*>::const_reverse_iterator ci = dtg->getTransitions().rbegin(); ci != dtg->getTransitions().rend(); ci++)
+		for (std::vector<const Transition*>::const_reverse_iterator ci = dtg_node->getTransitions().rbegin(); ci != dtg_node->getTransitions().rend(); ci++)
 		{
 			const Transition* transition = *ci;
 			
-			if (&transition->getToNode() != dtg) continue;
+			if (&transition->getToNode() != dtg_node) continue;
+			
+			std::cout << "Found a self referencing transition!!! " << *transition << "." << std::endl;
 			
 			// If a transition references to the same DTG we need to split it into two!
-			DomainTransitionGraphNode* clone_node = new DomainTransitionGraphNode(*dtg, false, false);
+			DomainTransitionGraphNode* clone_node = new DomainTransitionGraphNode(*dtg_node, *this);
 			
 			transitions_to_add.push_back(std::make_pair(&transition->getStep()->getAction(), clone_node));
-			//assert (dtg->addTransition(transition->getStep()->getAction(), *clone_node));
-			assert (clone_node->addTransition(transition->getStep()->getAction(), *dtg));
+			assert (clone_node->addTransition(transition->getStep()->getAction(), *dtg_node));
 			
-			std::cout << *dtg << std::endl;
-			std::cout << *clone_node << std::endl;
+			std::cout << "Created clone node: " << *clone_node << std::endl;
 			
 			nodes_to_add.push_back(clone_node);
 			
-			dtg->removeTransition(*transition);
+			dtg_node->removeTransition(*transition);
 		}
 		
+		std::cout << "After adding clone transition: " << *dtg_node << std::endl;
+		
+		std::cout << "Add transitions from the original node to the clone node: " << std::endl;
 		for (std::vector<std::pair<const Action*, DomainTransitionGraphNode*> >::const_iterator ci = transitions_to_add.begin(); ci != transitions_to_add.end(); ci++)
 		{
-			dtg->addTransition(*(*ci).first, *(*ci).second);
+			dtg_node->addTransition(*(*ci).first, *(*ci).second);
 		}
+		std::cout << "After adding all transitions: " << *dtg_node << std::endl;
 	}
 	
 	nodes_.insert(nodes_.end(), nodes_to_add.begin(), nodes_to_add.end());
+	std::cout << "Final result: " << *this << std::endl;
 }
 
 bool DomainTransitionGraph::isSupported(unsigned int id, const MyPOP::Atom& atom, const MyPOP::Bindings& bindings) const

@@ -6,6 +6,7 @@
 #include <iosfwd>
 #include <set>
 #include <assert.h>
+#include <stdio.h>
 
 #include "dtg_types.h"
 #include "plan_types.h"
@@ -71,6 +72,16 @@ struct ReachableNode
 		: dtg_node_(&dtg_node), supporting_facts_(&supporting_facts)
 	{
 		assert (supporting_facts.size() == dtg_node_->getAtoms().size());
+		
+		bool sanity_test[dtg_node.getAtoms().size()];
+		memset(&sanity_test[0], false, sizeof(bool) * dtg_node.getAtoms().size());
+		
+		for (std::vector<const ReachableFact*>::const_iterator ci = supporting_facts.begin(); ci != supporting_facts.end(); ci++)
+		{
+			assert (!sanity_test[(*ci)->index_]);
+			sanity_test[(*ci)->index_] = true;
+		}
+		
 	}
 	
 	bool isEquivalentTo(const ReachableNode& other) const;

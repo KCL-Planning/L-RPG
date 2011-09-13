@@ -447,11 +447,11 @@ const VariableDomain& Bindings::getVariableDomain(StepID step_id, const Variable
 	std::map<std::pair<StepID, const Variable*>, VariableDomain*>::const_iterator ci = binding_mapping_.find(std::make_pair(step_id, &variable));
 	if (ci == binding_mapping_.end())
 	{
-		for (std::map<std::pair<StepID, const Variable*>, VariableDomain*>::const_iterator i = binding_mapping_.begin(); i != binding_mapping_.end(); i++)
-		{
-			std::pair<StepID, const Variable*> binding = (*i).first;
-			std::cout << binding.first << " and " << *binding.second << std::endl;
-		}
+//		for (std::map<std::pair<StepID, const Variable*>, VariableDomain*>::const_iterator i = binding_mapping_.begin(); i != binding_mapping_.end(); i++)
+//		{
+//			std::pair<StepID, const Variable*> binding = (*i).first;
+//			std::cout << binding.first << " and " << *binding.second << std::endl;
+//		}
 		
 		std::cout << "Could not find the variable domain for: Step id: " << step_id << " " << variable << std::endl;
 		throw RequestNonExistingVariableBindingException();

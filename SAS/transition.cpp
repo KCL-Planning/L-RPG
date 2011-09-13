@@ -137,6 +137,7 @@ Transition* Transition::createTransition(const Action& action, DomainTransitionG
 
 Transition* Transition::createSimpleTransition(const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts)
 {
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 	std::cout << std::endl << std::endl;
 	std::cout << "[Transition::createSimpleTransition] NEW TRANSITION!!!!" << std::endl;
 	std::cout << "From: " << std::endl;
@@ -146,6 +147,7 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 	std::cout << "Action: ";
 	action_step->getAction().print(std::cout, from_node.getDTG().getBindings(), action_step->getStepId());
 	std::cout << std::endl;
+#endif
 
 	if (&to_node.getDTG() != &from_node.getDTG())
 	{

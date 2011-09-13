@@ -12,7 +12,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+///#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 #define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
 	
@@ -1335,10 +1335,11 @@ void DTGReachability::propagateReachableNodes()
 					const std::vector<const Object*>& domain = (*ci)->getDomain(transition->getStep()->getStepId(), transition->getFromNode().getDTG().getBindings());
 					if (mapped_terms.count(&domain) == 0)
 					{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 						std::cout << "The variable: ";
 						(*ci)->print(std::cout, transition->getFromNode().getDTG().getBindings(), transition->getStep()->getStepId());
 						std::cout << " is not bounded by the terms in from node!" << std::endl;
-
+#endif
 						EquivalentObjectGroup* eog = NULL;
 						std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>::iterator it = free_variable_mappings.find(&domain);
 						if (it != free_variable_mappings.end())
@@ -1361,10 +1362,12 @@ void DTGReachability::propagateReachableNodes()
 					}
 				}
 				
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 				for (std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>::const_iterator ci = free_variable_mappings.begin(); ci != free_variable_mappings.end(); ci++)
 				{
 					std::cout << "Bind " << (*ci).first << " to " << *(*ci).second << "." << std::endl;
 				}
+#endif
 
 				for (std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* >::const_iterator ci = possible_mappings.begin(); ci != possible_mappings.end(); ci++)
 				{
@@ -1967,30 +1970,49 @@ bool DTGReachability::handleExternalDependencies(std::vector<const BoundedAtom*>
 			for (std::vector<const ReachableNode*>::const_iterator ci = supporting_nodes.begin(); ci != supporting_nodes.end(); ci++)
 			{
 				const ReachableNode* reachable_node = *ci;
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+				std::cout << "STart with reachable node: " << *reachable_node << "." << std::endl;
+#endif
 				
-				for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = matching_dtgs.begin(); ci != matching_dtgs.end() - 1; ci++)
+				for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = matching_dtgs.begin(); ci != matching_dtgs.end(); ci++)
 				{
 					const DomainTransitionGraphNode* equivalent_dtg_node = *ci;
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+					std::cout << "Process: " << *equivalent_dtg_node << "." << std::endl;
+#endif
 
 					if (equivalent_dtg_node == &from_node) continue;
 					assert (equivalent_dtg_node->getAtoms().size() == from_node.getAtoms().size());
 					
-					std::vector<const ReachableFact*>* reachable_facts = new std::vector<const ReachableFact*>();
+					std::vector<std::vector<const ReachableFact*>* > reachable_facts;
+					for (unsigned int i = 0; i < equivalent_dtg_node->getAtoms().size(); i++)
+					{
+						reachable_facts.push_back(new std::vector<const ReachableFact*>());
+					}
 					
 					/**
 					 * Check which node(s) differs and see if the already established reachable EOGs has reached the required facts.
 					 */
 					for (unsigned int i = 0; i < equivalent_dtg_node->getAtoms().size(); i++)
 					{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+						std::cout << "Process the " << i << "th fact..." << std::endl;
+#endif
 						const BoundedAtom* equivalent_fact = equivalent_dtg_node->getAtoms()[i];
 						const BoundedAtom* this_fact = dtg_node->getAtoms()[i];
 						
 						const ReachableFact* reachable_this_fact = (*reachable_node->supporting_facts_)[i];
 						
+						std::vector<const ReachableFact*>* this_reachable_facts = reachable_facts[i];
+						
+						// TODO: Get all possible values! Not the ones reachable for this specific DTG node!
 						if (dtg_node->getDTG().getBindings().areEquivalent(equivalent_fact->getAtom(), equivalent_fact->getId(), this_fact->getAtom(), this_fact->getId(), &equivalent_dtg_node->getDTG().getBindings()))
 						{
 							ReachableFact* reachable_equivalent_fact = new ReachableFact(reachable_this_fact->index_, *equivalent_fact, equivalent_dtg_node->getDTG().getBindings(), reachable_this_fact->term_domain_mapping_);
-							reachable_facts->push_back(reachable_equivalent_fact);
+							this_reachable_facts->push_back(reachable_equivalent_fact);
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+							std::cout << "* Found: " << *reachable_equivalent_fact << "." << std::endl;
+#endif
 							assert (reachable_equivalent_fact->index_ == i);
 							continue;
 						}
@@ -2002,8 +2024,6 @@ bool DTGReachability::handleExternalDependencies(std::vector<const BoundedAtom*>
 						std::cout << "." << std::endl;
 #endif
 						// If they differ, determine the invariable and see if that invariable can take on the required value.
-
-						
 						PropertySpace tmp_ps;
 						std::vector<std::pair<const Predicate*, InvariableIndex> > tmp_p;
 						PropertyState tmp_pst(tmp_ps, tmp_p);
@@ -2027,36 +2047,77 @@ bool DTGReachability::handleExternalDependencies(std::vector<const BoundedAtom*>
 							std::vector<const ReachableFact*> results;
 							eog->getSupportingFacts(results, tmp_bounded_atom, equivalent_dtg_node->getDTG().getBindings());
 							
-							// TODO: Is this good enough!?
-							if (results.size() > 0)
+							for (std::vector<const ReachableFact*>::const_iterator ci = results.begin(); ci != results.end(); ci++)
 							{
-								ReachableFact* reachable_fact = new ReachableFact(i, *results[0]->bounded_atom_, *results[0]->bindings_, results[0]->term_domain_mapping_);
-								//reachable_facts->push_back(results[0]);
-								reachable_facts->push_back(reachable_fact);
+								ReachableFact* reachable_fact = new ReachableFact(i, *(*ci)->bounded_atom_, *(*ci)->bindings_, (*ci)->term_domain_mapping_);
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+								std::cout << "* Found: " << *reachable_fact << "." << std::endl;
+#endif
+								this_reachable_facts->push_back(reachable_fact);
 								can_be_achieved = true;
-								break;
 							}
 						}
 						
 						if (!can_be_achieved) break;
 					}
-					
-					if (reachable_facts->size() != equivalent_dtg_node->getAtoms().size()) continue;
-					
-					/// Make achievable.
-					ReachableNode* reachable_node = new ReachableNode(*equivalent_dtg_node, *reachable_facts);
-					if (!equivalent_object_manager_->makeReachable(*equivalent_dtg_node, *reachable_node))
+
+					bool is_reachable = true;
+					for (std::vector<std::vector<const ReachableFact*>* >::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
 					{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-						std::cout << "The reachable node: " << *reachable_node << " was already achieved!!!" << std::endl;
-#endif
+						if ((*ci)->empty())
+						{
+							is_reachable = false;
+							break;
+						}
 					}
-					else
+					
+					if (!is_reachable) continue;
+					
+					unsigned int counter[equivalent_dtg_node->getAtoms().size()];
+					memset(&counter[0], 0, sizeof(unsigned int) * equivalent_dtg_node->getAtoms().size());
+					
+					bool done = false;
+					while (!done)
 					{
-						new_facts_reached = true;
+						std::vector<const ReachableFact*>* cur_reachable_facts = new std::vector<const ReachableFact*>();
+						for (unsigned int i = 0; i < equivalent_dtg_node->getAtoms().size(); i++)
+						{
+							cur_reachable_facts->push_back((*reachable_facts[i])[counter[i]]);
+						}
+						
+						/// Make achievable.
+						ReachableNode* reachable_node = new ReachableNode(*equivalent_dtg_node, *cur_reachable_facts);
+						if (!equivalent_object_manager_->makeReachable(*equivalent_dtg_node, *reachable_node))
+						{
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-						std::cout << "Achieved by: " << *reachable_node << "." << std::endl;
+							std::cout << "The reachable node: " << *reachable_node << " was already achieved!!!" << std::endl;
 #endif
+						}
+						else
+						{
+							new_facts_reached = true;
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+							std::cout << "Achieved by: " << *reachable_node << "." << std::endl;
+#endif
+						}
+						
+						for (unsigned int j = 0; j < equivalent_dtg_node->getAtoms().size(); j++)
+						{
+							if (counter[j] + 1 == reachable_facts[j]->size())
+							{
+								if (j + 1 == equivalent_dtg_node->getAtoms().size())
+								{
+									done = true;
+									break;
+								}
+								
+								counter[j] = 0;
+								continue;
+							}
+							
+							++counter[j];
+							break;
+						}
 					}
 				}
 			}

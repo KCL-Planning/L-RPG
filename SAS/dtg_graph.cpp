@@ -222,8 +222,10 @@ void DomainTransitionGraph::addBalancedSet(const PropertySpace& property_space, 
 			}
 			
 			const Type* type = property->getPredicate().getTypes()[property->getIndex()];
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 			std::cout << "* " << property->getPredicate() << "_" << property->getIndex() << "(" << *type << ");" << std::endl;
-			
+#endif
+
 			// If no type has been assigned to the invariable objects, do it now.
 			if (type_ == NULL)
 			{
@@ -1489,7 +1491,9 @@ void DomainTransitionGraph::splitSelfReferencingNodes()
 			
 			if (&transition->getToNode() != dtg_node) continue;
 			
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 			std::cout << "Found a self referencing transition!!! " << *transition << "." << std::endl;
+#endif
 			
 			// If a transition references to the same DTG we need to split it into two!
 			DomainTransitionGraphNode* clone_node = new DomainTransitionGraphNode(*dtg_node, *this);
@@ -1497,25 +1501,30 @@ void DomainTransitionGraph::splitSelfReferencingNodes()
 			transitions_to_add.push_back(std::make_pair(&transition->getStep()->getAction(), clone_node));
 			assert (clone_node->addTransition(transition->getStep()->getAction(), *dtg_node));
 			
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 			std::cout << "Created clone node: " << *clone_node << std::endl;
+#endif
 			
 			nodes_to_add.push_back(clone_node);
 			
 			dtg_node->removeTransition(*transition);
 		}
 		
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 		std::cout << "After adding clone transition: " << *dtg_node << std::endl;
 		
 		std::cout << "Add transitions from the original node to the clone node: " << std::endl;
+#endif
 		for (std::vector<std::pair<const Action*, DomainTransitionGraphNode*> >::const_iterator ci = transitions_to_add.begin(); ci != transitions_to_add.end(); ci++)
 		{
 			dtg_node->addTransition(*(*ci).first, *(*ci).second);
 		}
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 		std::cout << "After adding all transitions: " << *dtg_node << std::endl;
+#endif
 	}
 	
 	nodes_.insert(nodes_.end(), nodes_to_add.begin(), nodes_to_add.end());
-	std::cout << "Final result: " << *this << std::endl;
 }
 
 bool DomainTransitionGraph::isSupported(unsigned int id, const MyPOP::Atom& atom, const MyPOP::Bindings& bindings) const
@@ -1536,9 +1545,11 @@ bool DomainTransitionGraph::removeUnsupportedTransitions()
 	bool graph_affected = false;
 	for (std::vector<DomainTransitionGraphNode*>::reverse_iterator ci = nodes_.rbegin(); ci != nodes_.rend(); ci++)
 	{
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 		std::cout << "Remove the unsupported transitions from the DTG node: ";
 		(*ci)->print(std::cout);
 		std::cout << std::endl;
+#endif
 		if ((*ci)->removeUnsupportedTransitions())
 		{
 			graph_affected = true;
@@ -1547,9 +1558,11 @@ bool DomainTransitionGraph::removeUnsupportedTransitions()
 		// If one of the variable domains is empty, remove the node.
 		if ((*ci)->containsEmptyVariableDomain())
 		{
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 			std::cout << "Remove the node: ";
 			(*ci)->print(std::cout);
 			std::cout << std::endl;
+#endif
 			removeNode(**ci);
 			graph_affected = true;
 		}

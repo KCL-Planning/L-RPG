@@ -26,7 +26,7 @@
 #include "recursive_function.h"
 #include "dtg_reachability.h"
 
-#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+///#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 ///#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 
 
@@ -784,7 +784,6 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	
 	Bindings* merged_dtg_bindings = new Bindings(bindings);
 	DomainTransitionGraph& combined_graph = mergeIdenticalDTGs(*merged_dtg_bindings);
-	std::cout << combined_graph << std::endl;
 	
 	struct timeval end_time_merge_dtgs;
 	gettimeofday(&end_time_merge_dtgs, NULL);
@@ -801,8 +800,10 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	gettimeofday(&start_time_solve_subsets, NULL);
 	
 	combined_graph.solveSubsets();
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 	std::cout << "After solving subsets:" << std::endl;
 	std::cout << combined_graph << std::endl;
+#endif
 	
 	struct timeval end_time_solve_subsets;
 	gettimeofday(&end_time_solve_subsets, NULL);
@@ -1250,8 +1251,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 			std::cout << "Process the transition: " << *org_transition << std::endl;
 #endif
-			//assert (org_from_dtg_node == &org_transition->getFromNode());
-			const DomainTransitionGraphNode& org_from_dtg_node = org_transition->getFromNode();
+
 			const DomainTransitionGraphNode& org_to_dtg_node = org_transition->getToNode();
 			
 			assert (mapping_old_to_new_dtg_node.count(&org_to_dtg_node) != 0);
@@ -1279,6 +1279,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 			if (transitionAlreadyExists) continue;
 			
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+			const DomainTransitionGraphNode& org_from_dtg_node = org_transition->getFromNode();
 			std::cout << "Create a transition from: " << *merged_from_dtg_node << " to " << *merged_to_dtg_node << "." << std::endl;
 			std::cout << "Original transition: " << org_from_dtg_node << " to " << org_to_dtg_node << std::endl;
 #endif
@@ -1336,8 +1337,6 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 			merged_from_dtg_node->addTransition(*new_transition, false);
 		}
 	}
-
-	std::cout << *combined_dtg << std::endl;
 
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 	/**

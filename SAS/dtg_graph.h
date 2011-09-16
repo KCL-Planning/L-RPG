@@ -31,25 +31,6 @@ class DomainTransitionGraphManager;
 class PropertySpace;
 class Property;
 class PropertyState;
-
-/**
- * Bindings class extended to deal with DTG nodes.
- *
-class DTGBindings : public MyPOP::Bindings
-{
-public:
-
-	DTGBindings(const TermManager& term_manager, const BindingsPropagator& propagator);
-	DTGBindings(const Bindings& other);
-
-	**
-	 * Check if two DTG nodes can be unified.
-	 *
-	bool canUnifyDTGNodes(const DomainTransitionGraphNode& node1, const DomainTransitionGraphNode& node2) const;
-	
-	bool canUnifyBoundedAtoms(const BoundedAtom& bounded_atom1, const BoundedAtom& bounded_atom2) const;
-};
-*/
 	
 /**
  * A domain transition graph(DTG) captures the transitions objects of a certain type can make

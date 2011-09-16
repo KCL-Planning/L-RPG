@@ -36,7 +36,7 @@ class DomainTransitionGraphNode;
 class DomainTransitionGraphNode
 {
 public:
-	DomainTransitionGraphNode(DomainTransitionGraph& dtg, unsigned int unique_id);
+	DomainTransitionGraphNode(DomainTransitionGraph& dtg, unsigned int unique_id, bool attribute_space = false);
 
 	/**
 	 * Make a copy of an existing DTG node. We inherrit the same domain for the variables and atom,
@@ -248,6 +248,8 @@ public:
 	
 	bool canUnifyWith(const DomainTransitionGraphNode& other) const;
 	
+	bool isAttributeSpace() const { return attribute_space_; }
+	
 private:
 	
 	/**
@@ -265,6 +267,9 @@ private:
 	
 	// The DTG this node is part of.
 	DomainTransitionGraph* dtg_;
+	
+	// Check if this node is an attribute space.
+	bool attribute_space_;
 
 	// The value of this node.
 	std::vector<BoundedAtom*> atoms_;

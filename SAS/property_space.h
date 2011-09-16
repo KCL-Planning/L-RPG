@@ -5,9 +5,12 @@
 #include <iostream>
 
 #include "dtg_types.h"
+#include <plan_types.h>
 
 namespace MyPOP {
 
+class Atom;
+class Bindings;
 class Predicate;
 
 namespace SAS_Plus {
@@ -56,10 +59,16 @@ public:
 	
 	bool operator==(const Property& property) const;
 	
+	static void getProperties(std::vector<const Property*>& result, const Atom& atom);
+	
 private:
 	const PropertyState* property_state_;
 	const Predicate* predicate_;
 	InvariableIndex index_;
+	
+	static std::vector<const Property*> all_properties_;
+	
+	static void addProperty(const Property& property);
 };
 
 /**

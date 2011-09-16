@@ -2,11 +2,14 @@
 
 #include <vector>
 #include "../predicate_manager.h"
+#include "../formula.h"
 
 namespace MyPOP {
 
 namespace SAS_Plus {
 
+std::vector<const Property*> Property::all_properties_;
+	
 /*****************************
  * Property state.
  ****************************/
@@ -65,7 +68,7 @@ std::ostream& operator<<(std::ostream& os, const PropertyState& property_state)
 Property::Property(const PropertyState& property_state, const Predicate& predicate, InvariableIndex index)
 	: property_state_(&property_state), predicate_(&predicate), index_(index)
 {
-
+	addProperty(*this);
 }
 	
 const PropertyState& Property::getPropertyState() const
@@ -146,6 +149,31 @@ std::ostream& operator<<(std::ostream& os, const Property& property)
 	os << property.getPredicate() << "(" << property.getIndex() << ")";
 	return os;
 }
+
+void Property::getProperties(std::vector< const MyPOP::SAS_Plus::Property* >& result, const Atom& atom)
+{
+	for (std::vector<const Property*>::const_iterator ci = all_properties_.begin(); ci != all_properties_.end(); ci++)
+	{
+		const Predicate* predicate = (*ci)->predicate_;
+		
+		if (predicate->canSubstitute(atom.getPredicate()))
+		{
+			result.push_back(*ci);
+		}
+	}
+}
+
+void Property::addProperty(const MyPOP::SAS_Plus::Property& property)
+{
+	for (std::vector<const Property*>::const_iterator ci = all_properties_.begin(); ci != all_properties_.end(); ci++)
+	{
+		if (property == **ci) return;
+	}
+	
+	all_properties_.push_back(&property);
+}
+
+
 
 /*****************************
  * Property space.

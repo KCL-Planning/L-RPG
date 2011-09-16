@@ -173,6 +173,8 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 	 * Store per property state a pair of: removed properties and added properties.
 	 */
 	std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > > property_space_balanced_sets;
+	
+	std::vector<std::pair<const BoundedAtom*, const BoundedAtom*> > persistent_facts;
 
 	for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
 	{
@@ -200,9 +202,10 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 			assert (from_node.getIndex(*from_fact) == NO_INVARIABLE_INDEX);
 			
 			/**
-			* Determine if this fact has been removed (i.e. is not part of the to_node). If the fact has not been removed it is marked as
-			* persistent. This can later be undone if we find that the fact is removed and later added by the given action.
-			*/
+			 * Determine if this fact has been removed (i.e. is not part of the to_node). If the fact has not been removed it is marked as
+			 * persistent. This can later be undone if we find that the fact is removed and later added by the given action.
+			 */
+			bool persistent = false;
 			for (std::vector<BoundedAtom*>::const_iterator ci = to_node.getAtoms().begin(); ci != to_node.getAtoms().end(); ci++)
 			{
 				const BoundedAtom* to_fact = *ci;
@@ -215,20 +218,22 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 					to_fact->getAtom().isNegative() == from_fact->getAtom().isNegative() &&
 					bindings.canUnify(from_fact->getAtom(), from_fact->getId(), to_fact->getAtom(), to_fact->getId()))
 				{
-					assert (false);
+					persistent_facts.push_back(std::make_pair(from_fact, to_fact));
+					persistent = true;
+//					assert (false);
 				}
 			}
 
-			add_remove_list.second->push_back(from_fact);
+			if (!persistent)
+			{
+				add_remove_list.second->push_back(from_fact);
+			}
 		}
 	}
 	
 	for (std::vector<BoundedAtom*>::const_iterator ci = to_node.getAtoms().begin(); ci != to_node.getAtoms().end(); ci++)
 	{
 		const BoundedAtom* to_fact = *ci;
-		
-//		if (to_fact->getProperty() == NULL)
-//			continue;
 
 		for (std::vector<const Property*>::const_iterator ci = to_fact->getProperties().begin(); ci != to_fact->getProperties().end(); ci++)
 		{
@@ -292,16 +297,12 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 
 	for (std::map<const PropertySpace*, std::pair<std::vector<const BoundedAtom*>*, std::vector<const BoundedAtom*>* > >::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
 	{
-///		const PropertySpace* property_space = (*ci).first;
 		const std::vector<const BoundedAtom*>* added_facts = (*ci).second.first;
 		const std::vector<const BoundedAtom*>* removed_facts = (*ci).second.second;
 		
-		if (added_facts->empty() || removed_facts->empty())
-		{
-			continue;
-		}
-//		std::cout << " ****************************** " << std::endl;
-/*		std::cout << "Check all added and removed facts are accounted for: " << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+		std::cout << " ****************************** " << std::endl;
+		std::cout << "Check all added and removed facts are accounted for: " << std::endl;
 		for (std::vector<const BoundedAtom*>::const_iterator ci = added_facts->begin(); ci != added_facts->end(); ci++)
 		{
 			std::cout << "+ ";
@@ -314,7 +315,13 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 			(*ci)->print(std::cout, bindings);
 			std::cout << std::endl;
 		}
-*/
+#endif
+		
+//		if (added_facts->empty() || removed_facts->empty())
+//		{
+//			continue;
+//		}
+
 		for (std::vector<const BoundedAtom*>::const_iterator ci = added_facts->begin(); ci != added_facts->end(); ci++)
 		{
 			const BoundedAtom* added_fact = *ci;
@@ -351,6 +358,11 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 			}
 		}
 		
+//		if (added_facts->empty() || removed_facts->empty())
+//		{
+//			continue;
+//		}
+		
 //		std::cout << "Make sure all delete facts are accounted for!" << std::endl;
 		for (std::vector<const BoundedAtom*>::const_iterator ci = removed_facts->begin(); ci != removed_facts->end(); ci++)
 		{
@@ -370,7 +382,7 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 //			removed_fact->print(std::cout, bindings);
 //			std::cout << "is accounted for..." << std::endl;
 			
-			// Make sure an effect actually added this fact.
+			// Make sure an effect actually removes this fact.
 			for (std::vector<const Atom*>::const_iterator ci = preconditions.begin();  ci != preconditions.end(); ci++)
 			{
 				const Atom* precondition = *ci;
@@ -425,12 +437,22 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 	/**
 	 * Start making the actual bindings!
 	 */
-//	std::cout << "[Transition::createTransition] Unify the effects!" << std::endl;
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+	std::cout << "[Transition::createTransition] Unify the effects!" << std::endl;
+#endif
 	for (std::vector<std::pair<const Atom*, const BoundedAtom*> >::const_iterator ci = add_effects_to_to_node_bindings->begin(); ci != add_effects_to_to_node_bindings->end(); ci++)
 	{
 		const Atom* added_effect = (*ci).first;
 		const BoundedAtom* to_node_atom = (*ci).second;
 		
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+		std::cout << "Bind effect: ";
+		added_effect->print(std::cout, bindings, action_step_id);
+		std::cout << " to DTG node: ";
+		to_node_atom->print(std::cout, bindings);
+		std::cout << "." << std::endl;
+#endif
+
 		if (!bindings.unify(*added_effect, action_step_id, to_node_atom->getAtom(), to_node_atom->getId()))
 		{
 //			std::cout << "[Transition::createTransition] Could not perform the actual bindings on effects!" << std::endl;
@@ -441,12 +463,22 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 			return NULL;
 		}
 	}
-	
-//	std::cout << "[Transition::createTransition] Unify the preconditions!" << std::endl;
+
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+	std::cout << "[Transition::createTransition] Unify the preconditions!" << std::endl;
+#endif
 	for (std::vector<std::pair<const Atom*, const BoundedAtom*> >::const_iterator ci = precondition_to_from_node_bindings->begin(); ci != precondition_to_from_node_bindings->end(); ci++)
 	{
 		const Atom* precondition = (*ci).first;
 		const BoundedAtom* from_node_atom = (*ci).second;
+		
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+		std::cout << "Bind precondition: ";
+		precondition->print(std::cout, bindings, action_step_id);
+		std::cout << " to DTG node: ";
+		from_node_atom->print(std::cout, bindings);
+		std::cout << "." << std::endl;
+#endif
 		
 		if (!bindings.unify(*precondition, action_step_id, from_node_atom->getAtom(), from_node_atom->getId()))
 		{
@@ -457,6 +489,14 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 //			std::cout << std::endl;
 			return NULL;
 		}
+	}
+	
+	for (std::vector<std::pair<const BoundedAtom*, const BoundedAtom*> >::const_iterator ci = persistent_facts.begin(); ci != persistent_facts.end(); ci++)
+	{
+		const BoundedAtom* from_node = (*ci).first;
+		const BoundedAtom* to_node = (*ci).second;
+		
+		bindings.unify(from_node->getAtom(), from_node->getId(), to_node->getAtom(), to_node->getId());
 	}
 	
 	std::set<const Term*>* free_variables = new std::set<const Term*>();
@@ -474,16 +514,17 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 		}
 	}
 	
-/*
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 	std::cout << "Success!" << std::endl;
 	std::cout << "Created a transition from " << std::endl;
 	std::cout << from_node << std::endl;
 	std::cout << " to " << std::endl;
 	std::cout << to_node << std::endl;
 	std::cout << "Action: ";
-	new_action_step->getAction().print(std::cout, from_node.getDTG().getBindings(), new_action_step->getStepId());
+	action_step->getAction().print(std::cout, from_node.getDTG().getBindings(), action_step->getStepId());
 	std::cout << std::endl;
-*/
+#endif
+
 	std::map<const PropertySpace*, const Variable*>* property_space_action_invariables = new std::map<const PropertySpace*, const Variable*>();
 	
 	return new Transition(action_step, from_node, to_node, *precondition_mapping_to_from_node, *add_effects_mapping_to_to_node, *remove_effects_mapping_to_to_node, *persistent_preconditions, *property_space_action_invariables, *all_precondition_mappings, *free_variables);
@@ -2267,10 +2308,11 @@ bool Utilities::TransitionToNodeEquals::operator()(const Transition* transition,
 
 std::ostream& operator<<(std::ostream& os, const Transition& transition)
 {
-//	os << "Transition from: " << std::endl;
-//	transition.getFromNode().print(os);
-//	os << std::endl << " to " << std::endl;
-//	transition.getToNode().print(os);
+	os << "Transition from: " << std::endl;
+	transition.getFromNode().print(os);
+	os << std::endl << " to " << std::endl;
+	transition.getToNode().print(os);
+	os << std::endl;
 //	os << "[" << transition.getStep()->getAction() << "]" << std::endl;
 	transition.getStep()->getAction().print(os, transition.getFromNode().getDTG().getBindings(), transition.getStep()->getStepId());
 

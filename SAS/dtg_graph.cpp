@@ -1483,6 +1483,8 @@ void DomainTransitionGraph::splitSelfReferencingNodes()
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator nodes_ci = nodes_.begin(); nodes_ci != nodes_.end(); nodes_ci++)
 	{
 		DomainTransitionGraphNode* dtg_node = *nodes_ci;
+		if (dtg_node->isAttributeSpace()) continue;
+		
 		std::vector<std::pair<const Action*, DomainTransitionGraphNode*> > transitions_to_add;
 		
 		for (std::vector<const Transition*>::const_reverse_iterator ci = dtg_node->getTransitions().rbegin(); ci != dtg_node->getTransitions().rend(); ci++)

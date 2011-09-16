@@ -25,8 +25,8 @@ namespace MyPOP {
 
 namespace SAS_Plus {
 
-DomainTransitionGraphNode::DomainTransitionGraphNode(DomainTransitionGraph& dtg, unsigned int unique_id)
-	: dtg_(&dtg)
+DomainTransitionGraphNode::DomainTransitionGraphNode(DomainTransitionGraph& dtg, unsigned int unique_id, bool attribute_space)
+	: dtg_(&dtg), attribute_space_(attribute_space)
 {
 	unique_ids_.push_back(unique_id);
 }
@@ -38,6 +38,7 @@ DomainTransitionGraphNode::DomainTransitionGraphNode(const DomainTransitionGraph
 	dtg_ = dtg_node.dtg_;
 	unique_ids_.insert(unique_ids_.end(), dtg_node.unique_ids_.begin(), dtg_node.unique_ids_.end());
 	possible_actions_= dtg_node.possible_actions_;
+	attribute_space_ = dtg_node.attribute_space_;
 	
 	copyAtoms(dtg_node);
 
@@ -97,6 +98,7 @@ DomainTransitionGraphNode::DomainTransitionGraphNode(const DomainTransitionGraph
 	dtg_ = &dtg;
 	unique_ids_.insert(unique_ids_.end(), dtg_node.unique_ids_.begin(), dtg_node.unique_ids_.end());
 	possible_actions_ = dtg_node.possible_actions_;
+	attribute_space_ = dtg_node.attribute_space_;
 	copyAtoms(dtg_node);
 }
 
@@ -227,10 +229,6 @@ bool DomainTransitionGraphNode::contains(StepID id, const Atom& atom, Invariable
 		{
 			if (dtg_->getBindings().canUnify(existing_bounded_atom->getAtom(), existing_bounded_atom->getId(), atom, id))
 			{
-				atom.print(std::cout, dtg_->getBindings(), id);
-				std::cout << " intersects with existing atom: ";
-				existing_bounded_atom->print(std::cout, dtg_->getBindings());
-				std::cout << std::endl;
 				return true;
 			}
 		}

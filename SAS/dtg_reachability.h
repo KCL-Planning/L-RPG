@@ -78,7 +78,16 @@ struct ReachableNode
 		
 		for (std::vector<const ReachableFact*>::const_iterator ci = supporting_facts.begin(); ci != supporting_facts.end(); ci++)
 		{
-			assert (!sanity_test[(*ci)->index_]);
+			if (sanity_test[(*ci)->index_])
+			{
+				std::cout << "Tried to couple the following facts: " << std::endl;
+				for (std::vector<const ReachableFact*>::const_iterator ci2 = supporting_facts.begin(); ci2 != supporting_facts.end(); ci2++)
+				{
+					std::cout << "(" << (*ci2)->index_ << ")* " << **ci2 << "." << std::endl;
+				}
+				std::cout << "To the DTG node: " << dtg_node << "." << std::endl;
+				assert (false);
+			}
 			sanity_test[(*ci)->index_] = true;
 		}
 		
@@ -267,6 +276,9 @@ public:
 
 	void getSupportingFacts(std::vector<const ReachableNode*>& results, const DomainTransitionGraphNode& dtg_node) const;
 	
+	void getSupportingFacts(std::vector<const ReachableFact*>& results, const BoundedAtom& bounded_atom, const Bindings& bindings) const;
+	
+	// Output methods.
 	void print(std::ostream& os) const;
 	
 	void printAll(std::ostream& os) const;
@@ -350,6 +362,8 @@ private:
 	bool handleExternalDependencies(std::vector<const BoundedAtom*>& established_facts);
 	
 	void makeToNodeReachable(const Transition& transition, const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& possible_mapping) const;
+	
+	void mapPossibleFacts(std::vector<const ReachableNode*>& results, const DomainTransitionGraphNode& dtg_node, const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& mappings, const std::vector<const ReachableFact*>& assignments);
 	
 	/**
 	 * The combined DTG graph we are working on.

@@ -36,9 +36,9 @@ class EquivalentObjectGroupManager;
 
 struct ReachableFact
 {
-	ReachableFact(unsigned int index, const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
+	ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
 	
-	ReachableFact(unsigned int index, const BoundedAtom& bounded_atom, const Bindings& bindings, EquivalentObjectGroup** term_domain_mapping_);
+	ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, EquivalentObjectGroup** term_domain_mapping_);
 	
 	bool conflictsWith(const std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>&) const;
 	
@@ -54,10 +54,6 @@ struct ReachableFact
 	
 	void getAllReachableFacts(std::vector<const BoundedAtom*>& results) const;
 	
-	// In case this fact is part of a DTG, the index determines which atom of the DTG node it refers to.
-	// TODO: depricated.
-	unsigned int index_; 
-	
 	const BoundedAtom* bounded_atom_;
 	const Bindings* bindings_;
 	
@@ -72,25 +68,6 @@ struct ReachableNode
 		: dtg_node_(&dtg_node), supporting_facts_(&supporting_facts)
 	{
 		assert (supporting_facts.size() == dtg_node_->getAtoms().size());
-		
-		bool sanity_test[dtg_node.getAtoms().size()];
-		memset(&sanity_test[0], false, sizeof(bool) * dtg_node.getAtoms().size());
-		
-		for (std::vector<const ReachableFact*>::const_iterator ci = supporting_facts.begin(); ci != supporting_facts.end(); ci++)
-		{
-			if (sanity_test[(*ci)->index_])
-			{
-				std::cout << "Tried to couple the following facts: " << std::endl;
-				for (std::vector<const ReachableFact*>::const_iterator ci2 = supporting_facts.begin(); ci2 != supporting_facts.end(); ci2++)
-				{
-					std::cout << "(" << (*ci2)->index_ << ")* " << **ci2 << "." << std::endl;
-				}
-				std::cout << "To the DTG node: " << dtg_node << "." << std::endl;
-				assert (false);
-			}
-			sanity_test[(*ci)->index_] = true;
-		}
-		
 	}
 	
 	bool isEquivalentTo(const ReachableNode& other) const;

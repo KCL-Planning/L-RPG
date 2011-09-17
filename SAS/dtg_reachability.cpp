@@ -2478,8 +2478,8 @@ void DTGPropagator::propagateReachableNodes()
 			// If the DTG node is part of an attribute space we need to construct all possible values the nodes can take.
 			if (dtg_node->isAttributeSpace())
 			{
-				unsigned int misses = 0;
-				unsigned int hits = 0;
+///				unsigned int misses = 0;
+///				unsigned int hits = 0;
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 				std::cout << "Found a dtg node which is part of a attribute space: " << *dtg_node << "." << std::endl;
 #endif
@@ -2516,23 +2516,23 @@ void DTGPropagator::propagateReachableNodes()
 						dtg_graph_closed_list_.insert(std::make_pair(dtg_node, reachable_node));
 						if (!equivalent_object_manager_->makeReachable(*dtg_node, *reachable_node))
 						{
-							++misses;
+///							++misses;
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 							std::cout << "Already reachable!" << std::endl;
 #endif
 						}
-						else
-						{
-							++hits;
-						}
+///						else
+///						{
+///							++hits;
+///						}
 					}
-					if (hits + misses != 0)
+/*					if (hits + misses != 0)
 					{
 						double accuracy = 0;
 						if (misses == 0) accuracy = 100;
 						else accuracy = ((double)hits / (hits + misses)) * 100;
 						std::cerr << "Map possible maps hits / misses: " << hits << "/" << misses << " " << accuracy << "%." << std::endl;
-					}
+					}*/
 				}
 			}
 			

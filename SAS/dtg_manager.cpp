@@ -631,7 +631,7 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 		std::vector<std::pair<const Predicate*, unsigned int> >* predicates_to_add = new std::vector<std::pair<const Predicate*, unsigned int> >();
 		predicates_to_add->push_back(std::make_pair(predicate, NO_INVARIABLE_INDEX));
 		
-		DomainTransitionGraphNode* possitive_new_dtg_node = new DomainTransitionGraphNode(*new_dtg, NO_INVARIABLE_INDEX, true);
+		DomainTransitionGraphNode* possitive_new_dtg_node = new DomainTransitionGraphNode(*new_dtg, NO_INVARIABLE_INDEX, !predicate->isStatic());
 		
 		StepID possitive_atom_id = new_dtg->getBindings().createVariableDomains(*possitive_atom);
 		

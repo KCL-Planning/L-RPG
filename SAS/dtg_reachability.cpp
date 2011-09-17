@@ -1224,6 +1224,10 @@ void EquivalentObjectGroupManager::getAllReachableFacts(std::vector<const Bounde
 	}
 }
 
+/*******************************
+ * DTGReachability
+*******************************/
+
 DTGReachability::DTGReachability(const DomainTransitionGraph& dtg_graph)
 	: dtg_graph_(&dtg_graph)
 {
@@ -1240,351 +1244,6 @@ DTGReachability::DTGReachability(const DomainTransitionGraph& dtg_graph)
 			reachable_transitions_[*ci] = new ReachableTransition(**ci);
 		}
 	}
-}
-
-void DTGReachability::mapPossibleFacts(std::vector<const ReachableNode*>& results, const DomainTransitionGraphNode& dtg_node, const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& mappings, const std::vector<const ReachableFact*>& assignments)
-{
-	// If we have found a reachable fact for every fact in the dtg node, create a reachable node and add it to the list of reachable facts.
-	if (assignments.size() == dtg_node.getAtoms().size())
-	{
-		std::vector<const ReachableFact*>* reachable_facts = new std::vector<const ReachableFact*>(assignments);
-		ReachableNode* reachable_node = new ReachableNode(dtg_node, *reachable_facts);
-		results.push_back(reachable_node);
-		return;
-	}
-	
-	// The fact to work on.
-	const BoundedAtom* current_fact = dtg_node.getAtoms()[assignments.size()];
-	
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-	std::cout << "+ Work on: ";
-	current_fact->print(std::cout, dtg_node.getDTG().getBindings());
-	std::cout << "." << std::endl;
-	
-	std::cout << "+ Assignments so far: " << std::endl;
-	for (std::vector<const ReachableFact*>::const_iterator ci = assignments.begin(); ci != assignments.end(); ci++)
-	{
-		std::cout << "++ " << **ci << "." << std::endl;
-	}
-#endif
-	
-	// Get all possible facts.
-	std::vector<const ReachableFact*> reachable_facts;
-	equivalent_object_manager_->getSupportingFacts(reachable_facts, *current_fact, dtg_node.getDTG().getBindings());
-	
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-	if (reachable_facts.size() == 0)
-	{
-		std::cout << " No reachable facts found :((." << std::endl;
-	}
-#endif
-	
-	// Check if they are consistent with the current mappings.
-	for (std::vector<const ReachableFact*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
-	{
-		const ReachableFact* reachable_fact = *ci;
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-		std::cout << "Possible reachable fact: " << *reachable_fact << "." << std::endl;
-#endif
-		
-		std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*> new_mappings(mappings);
-		
-		bool consistent = true;
-		for (unsigned int i = 0; i < current_fact->getAtom().getArity(); i++)
-		{
-			const std::vector<const Object*>& domain_variable = current_fact->getVariableDomain(i, dtg_node.getDTG().getBindings());
-			const EquivalentObjectGroup* eog = reachable_fact->term_domain_mapping_[i];
-			
-			std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>::const_iterator ci = new_mappings.find(&domain_variable);
-			if (ci == new_mappings.end())
-			{
-				new_mappings[&domain_variable] = eog;
-			}
-			else if ((*ci).second != eog)
-			{
-				consistent = false;
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-				std::cout << "Clash! Cannot be used!" << std::endl;
-#endif
-				break;
-			}
-		}
-		
-		if (!consistent) continue;
-		
-		std::vector<const ReachableFact*> new_assignments(assignments);
-		//new_assignments.push_back(new ReachableFact(assignments.size(), *reachable_fact->bounded_atom_, *reachable_fact->bindings_, reachable_fact->term_domain_mapping_));
-		new_assignments.push_back(reachable_fact);
-		
-		mapPossibleFacts(results, dtg_node, new_mappings, new_assignments);
-	}
-}
-
-void DTGReachability::propagateReachableNodes()
-{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-	std::cout << "[DTGReachability::propagateReachableNodes]" << std::endl;
-
-	std::cout << "Current state: " << std::endl;
-	equivalent_object_manager_->print(std::cout);
-	std::cout << std::endl;
-#endif
-
-//	bool mask[dtg_graph_->getNodes().size()];
-//	memset(&mask[0], false, dtg_graph_->getNodes().size() * sizeof(bool));
-	
-	bool finished = false;
-	while (!finished)
-	{
-		finished = true;
-		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph_->getNodes().begin(); ci != dtg_graph_->getNodes().end(); ci++)
-		{
-//			unsigned int index = std::distance(dtg_graph_->getNodes().begin(), ci);
-			
-//			if (mask[index]) continue;
-//			mask[index] = true;
-			
-			const DomainTransitionGraphNode* dtg_node = *ci;
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-			std::cout << "Work on the DTG node: " << *dtg_node << std::endl;
-#endif
-
-			// If the DTG node is part of an attribute space we need to construct all possible values the nodes can take.
-			if (dtg_node->isAttributeSpace())
-			{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-				std::cout << "Found a dtg node which is part of a attribute space: " << *dtg_node << "." << std::endl;
-#endif
-				const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*> mappings;
-				const std::vector<const ReachableFact*> assignments;
-				std::vector<const ReachableNode*> results;
-				mapPossibleFacts(results, *dtg_node, mappings, assignments);
-				
-				for (std::vector<const ReachableNode*>::const_iterator ci = results.begin(); ci != results.end(); ci++)
-				{
-					const ReachableNode* reachable_node =  *ci;
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-					std::cout << "* " << *reachable_node << "." << std::endl;
-#endif
-					
-					if (!equivalent_object_manager_->makeReachable(*dtg_node, *reachable_node))
-					{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-						std::cout << "Already reachable!" << std::endl;
-#endif
-					}
-				}
-			}
-			
-//			Bindings& bindings = dtg_node->getDTG().getBindings();
-			
-			std::vector<const ReachableNode*> reachable_node;
-			equivalent_object_manager_->getSupportingFacts(reachable_node, *dtg_node);
-
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-			std::cout << "Reachable nodes: " << std::endl;
-			for (std::vector<const ReachableNode*>::const_iterator ci = reachable_node.begin(); ci != reachable_node.end(); ci++)
-			{
-				const ReachableNode* reachable_node = *ci;
-				std::cout << "- " << *reachable_node << "." << std::endl;
-			}
-#endif
-			
-			for (std::vector<const Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
-			{
-				const Transition* transition = *ci;
-				const ReachableTransition& reachable_transition = getReachableTransition(*transition);
-				
-				/// Check if the transition is possible.
-				const std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* >& possible_mappings = reachable_transition.getPossibleMappings();
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-				if (possible_mappings.size() > 0)
-				{
-					std::cout << "Propagate the transition: " << *transition << "." << std::endl;
-					for (std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* >::const_iterator ci = possible_mappings.begin(); ci != possible_mappings.end(); ci++)
-					{
-						const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* possible_mapping = *ci;
-						
-						std::cout << " - (" << transition->getStep()->getAction().getPredicate() << " ";
-						for (std::vector<const Variable*>::const_iterator ci = transition->getStep()->getAction().getVariables().begin(); ci != transition->getStep()->getAction().getVariables().end(); ci++)
-						{
-							const Variable* variable = *ci;
-							const std::vector<const Object*>& variable_domain = variable->getDomain(transition->getStep()->getStepId(), dtg_node->getDTG().getBindings());
-							
-							std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>::const_iterator find_ci = possible_mapping->find(&variable_domain);
-							
-							if (find_ci == possible_mapping->end())
-							{
-								std::cout << "The variable domain: ";
-								variable->print(std::cout, dtg_node->getDTG().getBindings(), transition->getStep()->getStepId());
-								std::cout << " was not mapped in the possible mappings!!!" << std::endl;
-								continue;
-							}
-							
-							std::cout << "|Map: ";
-							for (std::vector<const Object*>::const_iterator ci2 = (*find_ci).first->begin(); ci2 != (*find_ci).first->end(); ci2++)
-							{
-								(*ci2)->print(std::cout, dtg_node->getDTG().getBindings(), transition->getStep()->getStepId());
-								std::cout << ", ";
-							}
-							std::cout << " =-> |";
-							
-							(*find_ci).second->printObjects(std::cout);
-							
-							if (ci + 1 != transition->getStep()->getAction().getVariables().end())
-								std::cout << ", ";
-						}
-						std::cout << ")" << std::endl;
-					}
-				}
-				else
-				{
-					std::cout << "Transition has not been reached yet! " << *transition << std::endl;
-				}
-#endif
-
-				// Some transitions have effects which are linked to terms in the preconditions which are not a part of the from node. Updating
-				// the facts in the from node will not yield the required results. For example consider the following transition:
-				//
-				// (holding ball gripper) -> (in ball room)
-				//
-				// The value of room is not dictated by any of the terms in the from node, but rather by the precondition: (at hilbert room). Note
-				// that hilbert nor room is part of the terms in the from node so it completely stands alone, we will call these /free variables/.
-				//
-				// To take this into account we need to identify these preconditions and assert what values they can take.
-				// NOTE: Will need to change this into a function later on (e.g. room := all rooms which can contain a robot.
-				std::set<const std::vector<const Object*>* > mapped_terms;
-				
-				for (std::vector<BoundedAtom*>::const_iterator ci = transition->getFromNode().getAtoms().begin(); ci != transition->getFromNode().getAtoms().end(); ci++)
-				{
-					const BoundedAtom* bounded_atom = *ci;
-					for (unsigned int i = 0; i < bounded_atom->getAtom().getArity(); i++)
-					{
-						mapped_terms.insert(&bounded_atom->getVariableDomain(i, transition->getFromNode().getDTG().getBindings()));
-					}
-				}
-				
-				const std::vector<std::pair<const Atom*, InvariableIndex> >& all_preconditions = transition->getAllPreconditions();
-				
-				unsigned int size = 0;
-				while (size != mapped_terms.size())
-				{
-					size = mapped_terms.size();
-					for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = all_preconditions.begin(); ci != all_preconditions.end(); ci++)
-					{
-						const Atom* precondition = (*ci).first;
-						
-						bool contains_mapped_term = false;
-						for (unsigned int i = 0; i < precondition->getArity(); i++)
-						{
-							const std::vector<const Object*>& domain = precondition->getTerms()[i]->getDomain(transition->getStep()->getStepId(), transition->getFromNode().getDTG().getBindings());
-							if (mapped_terms.find(&domain) != mapped_terms.end())
-							{
-								contains_mapped_term = true;
-								break;
-							}
-						}
-						
-						if (!contains_mapped_term) continue;
-						
-						for (unsigned int i = 0; i < precondition->getArity(); i++)
-						{
-							const std::vector<const Object*>& domain = precondition->getTerms()[i]->getDomain(transition->getStep()->getStepId(), transition->getFromNode().getDTG().getBindings());
-							mapped_terms.insert(&domain);
-						}
-					}
-				}
-				
-				std::map<const std::vector<const Object*>*, EquivalentObjectGroup*> free_variable_mappings;
-				for (std::vector<const Variable*>::const_iterator ci = transition->getStep()->getAction().getVariables().begin(); ci != transition->getStep()->getAction().getVariables().end(); ci++)
-				{
-					const std::vector<const Object*>& domain = (*ci)->getDomain(transition->getStep()->getStepId(), transition->getFromNode().getDTG().getBindings());
-					if (mapped_terms.count(&domain) == 0)
-					{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-						std::cout << "The variable: ";
-						(*ci)->print(std::cout, transition->getFromNode().getDTG().getBindings(), transition->getStep()->getStepId());
-						std::cout << " is not bounded by the terms in from node!" << std::endl;
-#endif
-						EquivalentObjectGroup* eog = NULL;
-						std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>::iterator it = free_variable_mappings.find(&domain);
-						if (it != free_variable_mappings.end())
-						{
-							eog = (*it).second;
-						}
-						else
-						{
-							eog = new EquivalentObjectGroup(transition->getFromNode().getDTG(), *domain[0]);
-							free_variable_mappings[&domain] = eog;
-						}
-						
-						for (std::vector<const Object*>::const_iterator ci = domain.begin(); ci != domain.end(); ci++)
-						{
-							EquivalentObject* eo = new EquivalentObject(**ci, *eog);
-							eog->addEquivalentObject(*eo);
-						}
-						
-						free_variable_mappings[&domain] = eog;
-					}
-				}
-				
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-				for (std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>::const_iterator ci = free_variable_mappings.begin(); ci != free_variable_mappings.end(); ci++)
-				{
-					std::cout << "Bind " << (*ci).first << " to " << *(*ci).second << "." << std::endl;
-				}
-#endif
-
-				for (std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* >::const_iterator ci = possible_mappings.begin(); ci != possible_mappings.end(); ci++)
-				{
-					const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* reachable_transition_mapping = *ci;
-					// Update the mapping to include the assignments made to the reachable_node.
-					for (std::vector<const ReachableNode*>::const_iterator ci = reachable_node.begin(); ci != reachable_node.end(); ci++)
-					{
-						std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* possible_mapping = new std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>(*reachable_transition_mapping);
-						const ReachableNode* reachable_node = *ci;
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-						std::cout << "Process reachable node: " << *reachable_node << "." << std::endl;
-#endif
-						for (std::vector<const ReachableFact*>::const_iterator ci = reachable_node->supporting_facts_->begin(); ci != reachable_node->supporting_facts_->end(); ci++)
-						{
-							unsigned index = std::distance(reachable_node->supporting_facts_->begin(), ci);
-							const ReachableFact* reachable_fact = *ci;
-//							std::cout << "Get the bounded atom at index: " << reachable_fact->index_ << "." << std::endl;
-							
-							const BoundedAtom* bounded_atom = dtg_node->getAtoms()[index];
-							assert (bounded_atom != NULL);
-							
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-							std::cout << "Update the fact: ";
-							bounded_atom->print(std::cout, dtg_node->getDTG().getBindings());
-							std::cout << " to " << *reachable_fact << "." << std::endl;
-#endif
-							for (unsigned int i = 0; i < bounded_atom->getAtom().getArity(); i++)
-							{
-								const Term* term = bounded_atom->getAtom().getTerms()[i];
-								const std::vector<const Object*>& term_domain = term->getDomain(bounded_atom->getId(), dtg_node->getDTG().getBindings());
-								
-								EquivalentObjectGroup* reachable_fact_eog = reachable_fact->term_domain_mapping_[i];
-								(*possible_mapping)[&term_domain] = reachable_fact_eog;
-							}
-						}
-						
-						// Free variables overwrite everything else.
-						for (std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>::const_iterator ci = free_variable_mappings.begin(); ci != free_variable_mappings.end(); ci++)
-						{
-							possible_mapping->erase((*ci).first);
-						}
-						possible_mapping->insert(free_variable_mappings.begin(), free_variable_mappings.end());
-						makeToNodeReachable(*transition, *possible_mapping);
-					}
-				}
-			}
-		}
-	}
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-	std::cout << "[DTGReachability::propagateReachableNodes] DONE!" << std::endl;
-#endif
 }
 
 void DTGReachability::makeToNodeReachable(const Transition& transition, const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& possible_mapping) const
@@ -1704,7 +1363,6 @@ void DTGReachability::makeToNodeReachable(const Transition& transition, const st
 			}
 			
 			ReachableFact* new_reachable_fact = new ReachableFact(*bounded_atom, bindings, term_domain_mapping);
-			//reachable_facts->push_back(new_reachable_fact);
 			reachable_facts[index]->push_back(new_reachable_fact);
 			
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
@@ -1863,6 +1521,8 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const BoundedAtom
 	// Initialise the individual groups per object.
 	equivalent_object_manager_ = new EquivalentObjectGroupManager(*this, *dtg_graph_, term_manager, initial_facts);
 	
+	DTGPropagator propagator(*this, *equivalent_object_manager_, *dtg_graph_);
+	
 	// Keep a list of all established facts so far.
 	std::vector<const BoundedAtom*> established_facts(initial_facts);
 	
@@ -1923,7 +1583,7 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const BoundedAtom
 		struct timeval start_time;
 		gettimeofday(&start_time, NULL);
 #endif
-		new_transitions_achieved = iterateTillFixPoint(established_facts, achieved_transitions);
+		new_transitions_achieved = iterateTillFixPoint(propagator, established_facts, achieved_transitions);
 #ifdef DTG_REACHABILITY_KEEP_TIME
 		struct timeval end_time;
 		gettimeofday(&end_time, NULL);
@@ -2295,7 +1955,7 @@ bool DTGReachability::handleExternalDependencies(std::vector<const BoundedAtom*>
 	return new_facts_reached;
 }
 
-bool DTGReachability::iterateTillFixPoint(std::vector<const BoundedAtom*>& established_facts, std::set<const Transition*>& achieved_transitions)
+bool DTGReachability::iterateTillFixPoint(DTGPropagator& propagator, std::vector<const BoundedAtom*>& established_facts, std::set<const Transition*>& achieved_transitions)
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "[DTGReachability::iterateTillFixPoint]" << std::endl;
@@ -2385,7 +2045,7 @@ bool DTGReachability::iterateTillFixPoint(std::vector<const BoundedAtom*>& estab
 		}
 		
 		// Propagate the reachable nodes.
-		propagateReachableNodes();
+		propagator.propagateReachableNodes();
 	}
 	
 	return achieved_transitions.size() != amount_of_achieved_transitions;
@@ -2773,6 +2433,403 @@ ReachableTransition& DTGReachability::getReachableTransition(const Transition& t
 	std::map<const Transition*, ReachableTransition*>::const_iterator ci = reachable_transitions_.find(&transition);
 	assert (ci != reachable_transitions_.end());
 	return *(*ci).second;
+}
+
+
+/*******************************
+ * DTGPropagator
+*******************************/
+
+DTGPropagator::DTGPropagator(DTGReachability& dtg_reachability, EquivalentObjectGroupManager& equivalent_object_manager, const DomainTransitionGraph& dtg_graph)
+	 : dtg_reachability_(&dtg_reachability),  equivalent_object_manager_(&equivalent_object_manager), dtg_graph_(&dtg_graph)
+{
+	
+}
+
+void DTGPropagator::propagateReachableNodes()
+{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+	std::cout << "[DTGReachability::propagateReachableNodes]" << std::endl;
+
+	std::cout << "Current state: " << std::endl;
+	equivalent_object_manager_->print(std::cout);
+	std::cout << std::endl;
+#endif
+
+//	bool mask[dtg_graph_->getNodes().size()];
+//	memset(&mask[0], false, dtg_graph_->getNodes().size() * sizeof(bool));
+	
+	bool finished = false;
+	while (!finished)
+	{
+		finished = true;
+		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph_->getNodes().begin(); ci != dtg_graph_->getNodes().end(); ci++)
+		{
+//			unsigned int index = std::distance(dtg_graph_->getNodes().begin(), ci);
+			
+//			if (mask[index]) continue;
+//			mask[index] = true;
+			
+			const DomainTransitionGraphNode* dtg_node = *ci;
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+			std::cout << "Work on the DTG node: " << *dtg_node << std::endl;
+#endif
+
+			// If the DTG node is part of an attribute space we need to construct all possible values the nodes can take.
+			if (dtg_node->isAttributeSpace())
+			{
+				unsigned int misses = 0;
+				unsigned int hits = 0;
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+				std::cout << "Found a dtg node which is part of a attribute space: " << *dtg_node << "." << std::endl;
+#endif
+				const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*> mappings;
+				const std::vector<const ReachableFact*> assignments;
+				std::vector<const ReachableNode*> results;
+				
+				const std::vector<const ReachableFact*>* cached_reachable_facts[dtg_node->getAtoms().size()];
+				bool reachable = true;
+				for (unsigned int i = 0; i < dtg_node->getAtoms().size(); i++)
+				{
+					std::vector<const ReachableFact*>* reachable_facts = new std::vector<const ReachableFact*>();
+					equivalent_object_manager_->getSupportingFacts(*reachable_facts, *dtg_node->getAtoms()[i], dtg_node->getDTG().getBindings());
+					if (reachable_facts->empty())
+					{
+						reachable = false;
+						break;
+					}
+					cached_reachable_facts[i] = reachable_facts;
+				}
+				
+				if (reachable)
+				{
+					mapPossibleFacts(results, cached_reachable_facts, *dtg_node, mappings, assignments);
+					
+					for (std::vector<const ReachableNode*>::const_iterator ci = results.begin(); ci != results.end(); ci++)
+					{
+						const ReachableNode* reachable_node =  *ci;
+						if (dtg_graph_closed_list_.count(std::make_pair(dtg_node, reachable_node)) != 0) continue;
+						
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+						std::cout << "* " << *reachable_node << "." << std::endl;
+#endif
+						dtg_graph_closed_list_.insert(std::make_pair(dtg_node, reachable_node));
+						if (!equivalent_object_manager_->makeReachable(*dtg_node, *reachable_node))
+						{
+							++misses;
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+							std::cout << "Already reachable!" << std::endl;
+#endif
+						}
+						else
+						{
+							++hits;
+						}
+					}
+					if (hits + misses != 0)
+					{
+						double accuracy = 0;
+						if (misses == 0) accuracy = 100;
+						else accuracy = ((double)hits / (hits + misses)) * 100;
+						std::cerr << "Map possible maps hits / misses: " << hits << "/" << misses << " " << accuracy << "%." << std::endl;
+					}
+				}
+			}
+			
+//			Bindings& bindings = dtg_node->getDTG().getBindings();
+			
+			std::vector<const ReachableNode*> reachable_node;
+			equivalent_object_manager_->getSupportingFacts(reachable_node, *dtg_node);
+
+			if (reachable_node.empty()) continue;
+			
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+			std::cout << "Reachable nodes: " << std::endl;
+			for (std::vector<const ReachableNode*>::const_iterator ci = reachable_node.begin(); ci != reachable_node.end(); ci++)
+			{
+				const ReachableNode* reachable_node = *ci;
+				std::cout << "- " << *reachable_node << "." << std::endl;
+			}
+#endif
+			
+			for (std::vector<const Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
+			{
+				const Transition* transition = *ci;
+				const ReachableTransition& reachable_transition = dtg_reachability_->getReachableTransition(*transition);
+				
+				/// Check if the transition is possible.
+				const std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* >& possible_mappings = reachable_transition.getPossibleMappings();
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+				if (possible_mappings.size() > 0)
+				{
+					std::cout << "Propagate the transition: " << *transition << "." << std::endl;
+					for (std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* >::const_iterator ci = possible_mappings.begin(); ci != possible_mappings.end(); ci++)
+					{
+						const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* possible_mapping = *ci;
+						
+						std::cout << " - (" << transition->getStep()->getAction().getPredicate() << " ";
+						for (std::vector<const Variable*>::const_iterator ci = transition->getStep()->getAction().getVariables().begin(); ci != transition->getStep()->getAction().getVariables().end(); ci++)
+						{
+							const Variable* variable = *ci;
+							const std::vector<const Object*>& variable_domain = variable->getDomain(transition->getStep()->getStepId(), dtg_node->getDTG().getBindings());
+							
+							std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>::const_iterator find_ci = possible_mapping->find(&variable_domain);
+							
+							if (find_ci == possible_mapping->end())
+							{
+								std::cout << "The variable domain: ";
+								variable->print(std::cout, dtg_node->getDTG().getBindings(), transition->getStep()->getStepId());
+								std::cout << " was not mapped in the possible mappings!!!" << std::endl;
+								continue;
+							}
+							
+							std::cout << "|Map: ";
+							for (std::vector<const Object*>::const_iterator ci2 = (*find_ci).first->begin(); ci2 != (*find_ci).first->end(); ci2++)
+							{
+								(*ci2)->print(std::cout, dtg_node->getDTG().getBindings(), transition->getStep()->getStepId());
+								std::cout << ", ";
+							}
+							std::cout << " =-> |";
+							
+							(*find_ci).second->printObjects(std::cout);
+							
+							if (ci + 1 != transition->getStep()->getAction().getVariables().end())
+								std::cout << ", ";
+						}
+						std::cout << ")" << std::endl;
+					}
+				}
+				else
+				{
+					std::cout << "Transition has not been reached yet! " << *transition << std::endl;
+				}
+#endif
+
+				// Some transitions have effects which are linked to terms in the preconditions which are not a part of the from node. Updating
+				// the facts in the from node will not yield the required results. For example consider the following transition:
+				//
+				// (holding ball gripper) -> (in ball room)
+				//
+				// The value of room is not dictated by any of the terms in the from node, but rather by the precondition: (at hilbert room). Note
+				// that hilbert nor room is part of the terms in the from node so it completely stands alone, we will call these /free variables/.
+				//
+				// To take this into account we need to identify these preconditions and assert what values they can take.
+				// NOTE: Will need to change this into a function later on (e.g. room := all rooms which can contain a robot.
+				std::set<const std::vector<const Object*>* > mapped_terms;
+				
+				for (std::vector<BoundedAtom*>::const_iterator ci = transition->getFromNode().getAtoms().begin(); ci != transition->getFromNode().getAtoms().end(); ci++)
+				{
+					const BoundedAtom* bounded_atom = *ci;
+					for (unsigned int i = 0; i < bounded_atom->getAtom().getArity(); i++)
+					{
+						mapped_terms.insert(&bounded_atom->getVariableDomain(i, transition->getFromNode().getDTG().getBindings()));
+					}
+				}
+				
+				const std::vector<std::pair<const Atom*, InvariableIndex> >& all_preconditions = transition->getAllPreconditions();
+				
+				unsigned int size = 0;
+				while (size != mapped_terms.size())
+				{
+					size = mapped_terms.size();
+					for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = all_preconditions.begin(); ci != all_preconditions.end(); ci++)
+					{
+						const Atom* precondition = (*ci).first;
+						
+						bool contains_mapped_term = false;
+						for (unsigned int i = 0; i < precondition->getArity(); i++)
+						{
+							const std::vector<const Object*>& domain = precondition->getTerms()[i]->getDomain(transition->getStep()->getStepId(), transition->getFromNode().getDTG().getBindings());
+							if (mapped_terms.find(&domain) != mapped_terms.end())
+							{
+								contains_mapped_term = true;
+								break;
+							}
+						}
+						
+						if (!contains_mapped_term) continue;
+						
+						for (unsigned int i = 0; i < precondition->getArity(); i++)
+						{
+							const std::vector<const Object*>& domain = precondition->getTerms()[i]->getDomain(transition->getStep()->getStepId(), transition->getFromNode().getDTG().getBindings());
+							mapped_terms.insert(&domain);
+						}
+					}
+				}
+				
+				std::map<const std::vector<const Object*>*, EquivalentObjectGroup*> free_variable_mappings;
+				for (std::vector<const Variable*>::const_iterator ci = transition->getStep()->getAction().getVariables().begin(); ci != transition->getStep()->getAction().getVariables().end(); ci++)
+				{
+					const std::vector<const Object*>& domain = (*ci)->getDomain(transition->getStep()->getStepId(), transition->getFromNode().getDTG().getBindings());
+					if (mapped_terms.count(&domain) == 0)
+					{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+						std::cout << "The variable: ";
+						(*ci)->print(std::cout, transition->getFromNode().getDTG().getBindings(), transition->getStep()->getStepId());
+						std::cout << " is not bounded by the terms in from node!" << std::endl;
+#endif
+						EquivalentObjectGroup* eog = NULL;
+						std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>::iterator it = free_variable_mappings.find(&domain);
+						if (it != free_variable_mappings.end())
+						{
+							eog = (*it).second;
+						}
+						else
+						{
+							eog = new EquivalentObjectGroup(transition->getFromNode().getDTG(), *domain[0]);
+							free_variable_mappings[&domain] = eog;
+						}
+						
+						for (std::vector<const Object*>::const_iterator ci = domain.begin(); ci != domain.end(); ci++)
+						{
+							EquivalentObject* eo = new EquivalentObject(**ci, *eog);
+							eog->addEquivalentObject(*eo);
+						}
+						
+						free_variable_mappings[&domain] = eog;
+					}
+				}
+				
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+				for (std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>::const_iterator ci = free_variable_mappings.begin(); ci != free_variable_mappings.end(); ci++)
+				{
+					std::cout << "Bind " << (*ci).first << " to " << *(*ci).second << "." << std::endl;
+				}
+#endif
+
+				for (std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* >::const_iterator ci = possible_mappings.begin(); ci != possible_mappings.end(); ci++)
+				{
+					const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* reachable_transition_mapping = *ci;
+					// Update the mapping to include the assignments made to the reachable_node.
+					for (std::vector<const ReachableNode*>::const_iterator ci = reachable_node.begin(); ci != reachable_node.end(); ci++)
+					{
+						const ReachableNode* reachable_node = *ci;
+						if (closed_list_.count(std::make_pair(transition, reachable_node)) != 0) continue;
+						
+						std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* possible_mapping = new std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>(*reachable_transition_mapping);
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+						std::cout << "Process reachable node: " << *reachable_node << "." << std::endl;
+#endif
+						for (std::vector<const ReachableFact*>::const_iterator ci = reachable_node->supporting_facts_->begin(); ci != reachable_node->supporting_facts_->end(); ci++)
+						{
+							unsigned index = std::distance(reachable_node->supporting_facts_->begin(), ci);
+							const ReachableFact* reachable_fact = *ci;
+//							std::cout << "Get the bounded atom at index: " << reachable_fact->index_ << "." << std::endl;
+							
+							const BoundedAtom* bounded_atom = dtg_node->getAtoms()[index];
+							assert (bounded_atom != NULL);
+							
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+							std::cout << "Update the fact: ";
+							bounded_atom->print(std::cout, dtg_node->getDTG().getBindings());
+							std::cout << " to " << *reachable_fact << "." << std::endl;
+#endif
+							for (unsigned int i = 0; i < bounded_atom->getAtom().getArity(); i++)
+							{
+								const Term* term = bounded_atom->getAtom().getTerms()[i];
+								const std::vector<const Object*>& term_domain = term->getDomain(bounded_atom->getId(), dtg_node->getDTG().getBindings());
+								
+								EquivalentObjectGroup* reachable_fact_eog = reachable_fact->term_domain_mapping_[i];
+								(*possible_mapping)[&term_domain] = reachable_fact_eog;
+							}
+						}
+						
+						// Free variables overwrite everything else.
+						for (std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>::const_iterator ci = free_variable_mappings.begin(); ci != free_variable_mappings.end(); ci++)
+						{
+							possible_mapping->erase((*ci).first);
+						}
+						possible_mapping->insert(free_variable_mappings.begin(), free_variable_mappings.end());
+						dtg_reachability_->makeToNodeReachable(*transition, *possible_mapping);
+						closed_list_.insert(std::make_pair(transition, reachable_node));
+					}
+				}
+			}
+		}
+	}
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+	std::cout << "[DTGReachability::propagateReachableNodes] DONE!" << std::endl;
+#endif
+}
+
+
+void DTGPropagator::mapPossibleFacts(std::vector<const ReachableNode*>& results, const std::vector<const ReachableFact*>* cached_reachable_facts[], const DomainTransitionGraphNode& dtg_node, const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& mappings, const std::vector<const ReachableFact*>& assignments)
+{
+	// If we have found a reachable fact for every fact in the dtg node, create a reachable node and add it to the list of reachable facts.
+	if (assignments.size() == dtg_node.getAtoms().size())
+	{
+		std::vector<const ReachableFact*>* reachable_facts = new std::vector<const ReachableFact*>(assignments);
+		ReachableNode* reachable_node = new ReachableNode(dtg_node, *reachable_facts);
+		results.push_back(reachable_node);
+		return;
+	}
+	
+	// The fact to work on.
+	const BoundedAtom* current_fact = dtg_node.getAtoms()[assignments.size()];
+	
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+	std::cout << "+ Work on: ";
+	current_fact->print(std::cout, dtg_node.getDTG().getBindings());
+	std::cout << "." << std::endl;
+	
+	std::cout << "+ Assignments so far: " << std::endl;
+	for (std::vector<const ReachableFact*>::const_iterator ci = assignments.begin(); ci != assignments.end(); ci++)
+	{
+		std::cout << "++ " << **ci << "." << std::endl;
+	}
+#endif
+	
+	// Get all possible facts.
+	const std::vector<const ReachableFact*>* reachable_facts = cached_reachable_facts[assignments.size()];
+//	equivalent_object_manager_->getSupportingFacts(reachable_facts, *current_fact, dtg_node.getDTG().getBindings());
+	
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+	assert (!reachable_facts->empty());
+//	if (reachable_facts.size() == 0)
+//	{
+//		std::cout << " No reachable facts found :((." << std::endl;
+//	}
+#endif
+	
+	// Check if they are consistent with the current mappings.
+	for (std::vector<const ReachableFact*>::const_iterator ci = reachable_facts->begin(); ci != reachable_facts->end(); ci++)
+	{
+		const ReachableFact* reachable_fact = *ci;
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+		std::cout << "Possible reachable fact: " << *reachable_fact << "." << std::endl;
+#endif
+		
+		std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*> new_mappings(mappings);
+		
+		bool consistent = true;
+		for (unsigned int i = 0; i < current_fact->getAtom().getArity(); i++)
+		{
+			const std::vector<const Object*>& domain_variable = current_fact->getVariableDomain(i, dtg_node.getDTG().getBindings());
+			const EquivalentObjectGroup* eog = reachable_fact->term_domain_mapping_[i];
+			
+			std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>::const_iterator ci = new_mappings.find(&domain_variable);
+			if (ci == new_mappings.end())
+			{
+				new_mappings[&domain_variable] = eog;
+			}
+			else if ((*ci).second != eog)
+			{
+				consistent = false;
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+				std::cout << "Clash! Cannot be used!" << std::endl;
+#endif
+				break;
+			}
+		}
+		
+		if (!consistent) continue;
+		
+		std::vector<const ReachableFact*> new_assignments(assignments);
+		//new_assignments.push_back(new ReachableFact(assignments.size(), *reachable_fact->bounded_atom_, *reachable_fact->bindings_, reachable_fact->term_domain_mapping_));
+		new_assignments.push_back(reachable_fact);
+		
+		mapPossibleFacts(results, cached_reachable_facts, dtg_node, new_mappings, new_assignments);
+	}
 }
 
 };

@@ -825,7 +825,7 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group)
 {
 	assert (other_group.link_ == NULL);
 	
-	std::cout << "Merging " << *this << " with " << other_group << "." << std::endl;
+//	std::cout << "Merging " << *this << " with " << other_group << "." << std::endl;
 	
 	
 	equivalent_objects_.insert(equivalent_objects_.begin(), other_group.equivalent_objects_.begin(), other_group.equivalent_objects_.end());
@@ -833,7 +833,7 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group)
 	reachable_properties_.insert(other_group.reachable_properties_.begin(), other_group.reachable_properties_.end());
 	other_group.link_ = this;
 	
-	std::cout << "Result " << *this << "." << std::endl;
+//	std::cout << "Result " << *this << "." << std::endl;
 	
 }
 
@@ -1711,10 +1711,12 @@ void DTGReachability::makeToNodeReachable(const Transition& transition, const st
 			std::cout << "Reachable for the " << index << "th atom: " << *new_reachable_fact << std::endl;
 #endif
 
-			for (std::set<EquivalentObjectGroup*>::const_iterator ci = tmp.begin(); ci != tmp.end(); ci++)
-			{
-				(*ci)->makeReachable(transition.getToNode(), *bounded_atom, *new_reachable_fact);
-			}
+			// NOTE: Done below when we call make reachable on the ReachableNode which is constructed from these
+			// Reachable facts.
+//			for (std::set<EquivalentObjectGroup*>::const_iterator ci = tmp.begin(); ci != tmp.end(); ci++)
+//			{
+//				(*ci)->makeReachable(transition.getToNode(), *bounded_atom, *new_reachable_fact);
+//			}
 			
 			for (unsigned int i = 0; i < bounded_atom->getAtom().getArity(); i++)
 			{

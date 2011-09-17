@@ -73,7 +73,7 @@ struct ReachableNode
 	bool isEquivalentTo(const ReachableNode& other) const;
 	
 	bool isIdenticalTo(const ReachableNode& other) const;
-	
+
 	const DomainTransitionGraphNode* dtg_node_;
 	const std::vector<const ReachableFact*>* supporting_facts_;
 };
@@ -279,6 +279,14 @@ private:
 	const DTGReachability* dtg_reachability_;
 	
 	const DomainTransitionGraph* dtg_graph_;
+};
+
+/**
+ * Clas which takes care of propagating reachable facts from transitions which have been proven to be possible.
+ */
+class DTGPropagator
+{
+	
 };
 
 /**

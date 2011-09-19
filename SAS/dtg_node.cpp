@@ -839,11 +839,11 @@ bool DomainTransitionGraphNode::removeTransition(const Transition& transition)
 		if (*i == &transition)
 		{
 			transitions_.erase(i);
-			for (std::vector<const Variable*>::const_iterator ci = transition.getStep()->getAction().getVariables().begin(); ci != transition.getStep()->getAction().getVariables().end(); ci++)
+/*			for (std::vector<const Variable*>::const_iterator ci = transition.getStep()->getAction().getVariables().begin(); ci != transition.getStep()->getAction().getVariables().end(); ci++)
 			{
 				const Variable* variable = *ci;
 				dtg_->getBindings().removeBindings(transition.getStep()->getStepId(), *variable);
-			}
+			}*/
 			return true;
 		}
 	}

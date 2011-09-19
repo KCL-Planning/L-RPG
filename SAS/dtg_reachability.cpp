@@ -12,7 +12,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-///#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 #define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
 	
@@ -1029,20 +1029,6 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const DTGReachability
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "Merge together equivalent groups if their initial states match - Done!" << std::endl;
 #endif
-/*
-	for (std::vector<const BoundedAtom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
-	{
-		const BoundedAtom* bounded_atom = *ci;
-		
-		for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
-		{
-			const Property* property = *ci;
-			if (property->getIndex() == NO_INVARIABLE_INDEX) continue;
-			
-			
-		}
-	}
-*/
 }
 
 
@@ -1231,6 +1217,9 @@ void EquivalentObjectGroupManager::getAllReachableFacts(std::vector<const Bounde
 DTGReachability::DTGReachability(const DomainTransitionGraph& dtg_graph)
 	: dtg_graph_(&dtg_graph)
 {
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+	std::cout << "DTG Reachability on graph: " << dtg_graph << "." << std::endl;
+#endif
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph.getNodes().begin(); ci != dtg_graph.getNodes().end(); ci++)
 	{
 		DomainTransitionGraphNode* dtg_node = *ci;

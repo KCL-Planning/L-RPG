@@ -26,9 +26,9 @@
 #include "recursive_function.h"
 #include "dtg_reachability.h"
 
-///#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 ///#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
-#define MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
+///#define MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
 
 namespace MyPOP {
 
@@ -581,27 +581,33 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 
 		assert (objects_.size() > 0);
 		
-		// Check if this predicate is present.
-		for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
+		// Static predicates need to be added as a separate node. Otherwise we might not detect they are true in the initial state.
+		// This happens in Rovers where can_traverse is part of the DTG node: (at rover waypoint) && (can_traverse rover waypoint waypoint') &&
+		// (available rover). If any of these is not true than all the static can_traverse will not be detected!
+		if (!predicate->isStatic())
 		{
-			const DomainTransitionGraph* dtg = *ci;
-			
-			StepID test_atom_id = dtg->getBindings().createVariableDomains(*possitive_atom);
-			std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
-			dtg->getNodes(found_nodes, test_atom_id, *possitive_atom, dtg->getBindings());
-			
-			if (found_nodes.size() > 0)
+			// Check if this predicate is present.
+			for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
 			{
-#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-				std::cout << "The predicate " << *predicate << " is supported by " << std::endl;
-				for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ci++)
+				const DomainTransitionGraph* dtg = *ci;
+				
+				StepID test_atom_id = dtg->getBindings().createVariableDomains(*possitive_atom);
+				std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
+				dtg->getNodes(found_nodes, test_atom_id, *possitive_atom, dtg->getBindings());
+				
+				if (found_nodes.size() > 0)
 				{
-					(*ci).first->print(std::cout);
-					std::cout << std::endl;
+	#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+					std::cout << "The predicate " << *predicate << " is supported by " << std::endl;
+					for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ci++)
+					{
+						(*ci).first->print(std::cout);
+						std::cout << std::endl;
+					}
+	#endif
+					is_supported = true;
+					break;
 				}
-#endif
-				is_supported = true;
-				break;
 			}
 		}
 		
@@ -1587,6 +1593,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 						 * 1) The precondition is added to the from node:
 						 * - If the term is the invariable and the invariable occurs in the precondition it needs to be added.
 						 * - If the term is an invariable in a separate DTG it needs to be added too. (*)
+						 * - If the term is part of the to node and is invariable, it needs to be added.
 						 * 2) Ground the term:
 						 * - If the term is not part of any ballanced set it will need to be grounded.
 						 * - If the term is part of a ballanced set, but appears in a term in the to node where it is not ballanced.

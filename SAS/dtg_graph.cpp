@@ -593,18 +593,26 @@ void DomainTransitionGraph::getNodes(std::vector<std::pair<const SAS_Plus::Domai
 		for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
 		{
 			const BoundedAtom* bounded_atom = *ci;
-
-//			std::cout << "[DomainTransitionGraph::getNodes] Compare: ";
-//			bounded_atom->print(std::cout, dtg_node->getDTG().getBindings());
-//			std::cout << "(" << dtg_node->getIndex(*bounded_atom) << ") v.s. ";
-//			atom.print(std::cout, bindings, step_id);
-//			std::cout << std::endl;
 			
-			if (bindings_->canUnify(bounded_atom->getAtom(), bounded_atom->getId(), atom, step_id, &bindings) &&
-				(index == ALL_INVARIABLE_INDEXES || 
-				dtg_node->getIndex(*bounded_atom) == index))
+			bool contains_index = (index == ALL_INVARIABLE_INDEXES);
+			
+			if (!contains_index)
 			{
-///				std::cout << "SUCCES!!!" << std::endl;
+				for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
+				{
+					const Property* property = *ci;
+					if (property->getIndex() == index)
+					{
+						contains_index = true;
+						break;
+					}
+				}
+			}
+			
+			if (!contains_index) continue;
+
+			if (bindings_->canUnify(bounded_atom->getAtom(), bounded_atom->getId(), atom, step_id, &bindings))
+			{
 				dtg_nodes.push_back(std::make_pair(dtg_node, bounded_atom));
 				break;
 			}

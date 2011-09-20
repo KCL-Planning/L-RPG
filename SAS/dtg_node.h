@@ -182,6 +182,8 @@ public:
 
 	bool groundTerms(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const std::vector<std::pair<const Term*, StepID> >& terms_to_ground);
 	
+	bool groundTerms(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const std::vector<const std::vector<const Object*>* >& variable_domains_to_ground);
+	
 	/**
 	 * Check if this node contains an empty variable domain, in that case the node has to be removed.
 	 */

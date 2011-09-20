@@ -758,6 +758,92 @@ bool DomainTransitionGraphNode::groundTerms(std::vector<DomainTransitionGraphNod
 	return did_ground_a_term;
 }
 
+bool DomainTransitionGraphNode::groundTerms(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const std::vector<const std::vector<const Object*>* >& variable_domains_to_ground)
+{
+	/**
+	 * If more than a single term needs to be grounded the pointers to the original terms will not refer to the actual terms
+	 * to be grounded any more. Therefore all terms to be grounded are indexed so we know which one to ground regardless of
+	 * where they are stored in momory.
+	 */
+	std::vector<std::pair<unsigned int, unsigned int> > terms_to_ground_pos;
+	
+	for (std::vector<const std::vector<const Object*>* >::const_iterator ci = variable_domains_to_ground.begin(); ci != variable_domains_to_ground.end(); ci++)
+	{
+		const std::vector<const Object*>* variable_domain_to_ground = *ci;
+		
+		// Identify which terms to ground.
+		for (std::vector<BoundedAtom*>::const_iterator dtg_atoms_ci = atoms_.begin(); dtg_atoms_ci != atoms_.end(); dtg_atoms_ci++)
+		{
+			const BoundedAtom* bounded_atom = *dtg_atoms_ci;
+			
+			for (unsigned int i = 0;  i < bounded_atom->getAtom().getArity(); i++)
+			{
+				if (&bounded_atom->getVariableDomain(i, dtg_->getBindings()) == variable_domain_to_ground)
+				{
+					terms_to_ground_pos.push_back(std::make_pair(std::distance((std::vector<BoundedAtom*>::const_iterator)(atoms_.begin()), dtg_atoms_ci), i));
+				}
+			}
+		}
+	}
+	
+	// Move on to actual grounding.
+	std::vector<DomainTransitionGraphNode*> open_list;
+	open_list.push_back(this);
+	bool did_ground_a_term = false;
+	
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
+	std::cout << "Process " << open_list.size() << " DTG nodes." << std::endl;
+#endif
+	
+	for (std::vector<std::pair<unsigned int, unsigned int> >::const_iterator ci = terms_to_ground_pos.begin(); ci != terms_to_ground_pos.end(); ci++)
+	{
+		unsigned int atom_index = (*ci).first;
+		unsigned int term_index = (*ci).second;
+		
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
+		std::cout << "Ground the " << term_index << "th term of the " << atom_index << " atom." << std::endl;
+#endif
+		
+		std::vector<DomainTransitionGraphNode*> grounded_nodes_tmp;
+		
+		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = open_list.begin(); ci != open_list.end(); ci++)
+		{
+			DomainTransitionGraphNode* node_to_ground = *ci;
+
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
+			std::cout << "Process: " << std::endl << *node_to_ground << std::endl;
+#endif
+			
+			const BoundedAtom* atom_to_ground = node_to_ground->getAtoms()[atom_index];
+			const Term* term_to_ground = atom_to_ground->getAtom().getTerms()[term_index];
+			
+			if (!node_to_ground->groundTerm(grounded_nodes_tmp, *term_to_ground, atom_to_ground->getId()))
+			{
+				grounded_nodes_tmp.push_back(node_to_ground);
+			}
+			else
+			{
+				did_ground_a_term = true;
+			}
+		}
+		open_list.clear();
+		open_list.insert(open_list.end(), grounded_nodes_tmp.begin(), grounded_nodes_tmp.end());
+		
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
+		std::cout << "Temp results: " << std::endl;
+		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = grounded_nodes_tmp.begin(); ci != grounded_nodes_tmp.end(); ci++)
+		{
+			DomainTransitionGraphNode* dtg_node = *ci;
+			std::cout << *dtg_node << std::endl;
+		}
+#endif
+	}
+	
+	grounded_nodes.insert(grounded_nodes.end(), open_list.begin(), open_list.end());
+
+	return did_ground_a_term;
+}
+
 bool DomainTransitionGraphNode::addTransition(const Action& action, DomainTransitionGraphNode& to_node)
 {
 	//std::cout << "[DomainTransitionGraphNode::addTransition] " << action << " from " << *this << " to " << to_node << std::endl;

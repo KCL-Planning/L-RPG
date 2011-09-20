@@ -1640,9 +1640,6 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 		 */
 		if (added_facts.empty())
 		{
-///#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-///			std::cout << "Unify the optional preconditions..." << std::endl;
-///#endif
 			if (!unifyDTGAtomsWithAction(removed_facts, from_node, preconditions, action_step_id, action, bindings, *invariable_property_space_to_domain_mapping[property_space]))
 			{
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS

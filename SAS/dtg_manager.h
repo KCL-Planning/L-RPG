@@ -137,6 +137,14 @@ public:
 	bool isEquivalentTo(const BoundedAtom& other, const Bindings& lhs_bindings, const Bindings* rhs_bindings = NULL) const;
 	
 	/**
+	 * Check if this bounded atom is identical to the other bounded atom.
+	 * @param other The other bounded atom to compare against.
+	 * @param lhs_bindings The bindings this bounded atoms is binded by.
+	 * @return True if this bounded atom is identical to the other bounded atom.
+	 */
+	bool isIdenticalTo(const BoundedAtom& other, const Bindings& lhs_bindings) const;
+	
+	/**
 	 * Check if this bounded atom is a proper subset of the other bounded atom.
 	 * @param other The other bounded atom to compare against.
 	 * @param bindings The bindings both bounded atoms are binded by.

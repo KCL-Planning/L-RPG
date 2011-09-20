@@ -11,6 +11,7 @@
 #include "dtg_types.h"
 #include "plan_types.h"
 #include "dtg_node.h"
+#include "dtg_manager.h"
 
 namespace MyPOP {
 
@@ -35,8 +36,9 @@ class DTGPropagator;
 class EquivalentObjectGroup;
 class EquivalentObjectGroupManager;
 
-struct ReachableFact
+class ReachableFact
 {
+public:
 	ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
 	
 	ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, EquivalentObjectGroup** term_domain_mapping_);
@@ -55,28 +57,84 @@ struct ReachableFact
 	
 	void getAllReachableFacts(std::vector<const BoundedAtom*>& results) const;
 	
+	EquivalentObjectGroup& getTermDomain(unsigned int index) const
+	{
+		assert (index < bounded_atom_->getAtom().getArity());
+		EquivalentObjectGroup* eog = term_domain_mapping_[index];
+		assert (eog != NULL);
+		return *eog;
+	}
+	
+	void sanityCheck() const
+	{
+		for (unsigned int i = 0; i < bounded_atom_->getAtom().getArity(); i++)
+		{
+			EquivalentObjectGroup* eog = term_domain_mapping_[i];
+			assert (eog != NULL);
+		}
+	}
+	
+	EquivalentObjectGroup** getTermDomains() const { return term_domain_mapping_; }
+	
+	const BoundedAtom& getBoundedAtom() const { return *bounded_atom_; }
+	
+	const Bindings& getBindings() const { return *bindings_; }
+	
+private:
+	
 	const BoundedAtom* bounded_atom_;
 	const Bindings* bindings_;
 	
 	EquivalentObjectGroup** term_domain_mapping_;
+	
+	friend std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact);
 };
 
 std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact);
 
-struct ReachableNode
+class ReachableNode
 {
+public:
 	ReachableNode(const DomainTransitionGraphNode& dtg_node, const std::vector<const ReachableFact*>& supporting_facts)
 		: dtg_node_(&dtg_node), supporting_facts_(&supporting_facts)
 	{
+		std::cout << "NEW REACHABLE NODE!!!!" << std::endl;
 		assert (supporting_facts.size() == dtg_node_->getAtoms().size());
+		
+		std::cout << "New reachable node for: " << dtg_node << "." << std::endl;
+		
+		std::cout << "VAlidate reachable facts!" << std::endl;
+		sanityCheck();
+	}
+	
+	void sanityCheck() const
+	{
+		for (std::vector<const ReachableFact*>::const_iterator ci = supporting_facts_->begin(); ci != supporting_facts_->end(); ci++)
+		{
+			const ReachableFact* reachable_fact = *ci;
+			for (unsigned int i = 0; i < (*ci)->getBoundedAtom().getAtom().getArity(); i++)
+			{
+				reachable_fact->getTermDomain(i);
+			}
+		}
 	}
 	
 	bool isEquivalentTo(const ReachableNode& other) const;
 	
 	bool isIdenticalTo(const ReachableNode& other) const;
+	
+	const DomainTransitionGraphNode& getDTGNode() const { return *dtg_node_; }
+	
+	const ReachableFact& getSupportingFact(unsigned int i) const { return *(*supporting_facts_)[i]; }
+	
+	const std::vector<const ReachableFact*>& getSupportingFacts() const { return *supporting_facts_; };
 
+private:
+	
 	const DomainTransitionGraphNode* dtg_node_;
 	const std::vector<const ReachableFact*>* supporting_facts_;
+	
+	friend std::ostream& operator<<(std::ostream& os, const ReachableNode& reachable_node);
 };
 
 std::ostream& operator<<(std::ostream& os, const ReachableNode& reachable_node);

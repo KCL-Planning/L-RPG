@@ -465,6 +465,10 @@ void DomainTransitionGraphNode::getExternalDependendTransitions(std::map<const T
 //		std::cout << "Process the transition: " << *transition << std::endl;
 		
 		const DomainTransitionGraphNode& from_node = transition->getFromNode();
+		
+		// NOTE: Ignore transitions which are not actually from this node but are part of a subset...
+		if (&from_node != this) continue;
+		
 		const DomainTransitionGraphNode& to_node = transition->getToNode();
 		
 		// Look for grounded facts.
@@ -906,6 +910,8 @@ bool DomainTransitionGraphNode::addTransition(const Transition& transition, bool
 			}
 		}
 	}
+	// NOTE: SolveSubSets actually adds transitions without cahnging the from node...
+	//assert (&transition.getFromNode() == this);
 	transitions_.push_back(&transition);
 	
 	if (update_possible_transitions)

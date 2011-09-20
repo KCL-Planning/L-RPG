@@ -84,9 +84,9 @@ public:
 	 * Check if the bounded atom contains the given term, that is a term which shares
 	 * the same variable domain.
 	 * @param term The term domain to search for.
-	 * @return True if the same term exists, false otherwise.
+	 * @return The index of the first term which matches, or std::numeric_limits< unsigned int>::max() if none do.
 	 */
-	bool constainsVariableDomain(const std::vector<const Object*>& variable_domain, const Bindings& bindings) const;
+	unsigned int constainsVariableDomain(const std::vector<const Object*>& variable_domain, const Bindings& bindings) const;
 	
 	/**
 	 * Add a property this bounded atom is part of.

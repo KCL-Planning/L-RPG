@@ -120,13 +120,13 @@ void Atom::print(std::ostream& os, const Bindings& bindings, StepID step_id, boo
 	}
 }
 
-bool Atom::constainsVariableDomain(StepID step_id, const std::vector<const Object*>& domain, const Bindings& bindings) const
+unsigned int Atom::constainsVariableDomain(StepID step_id, const std::vector<const Object*>& domain, const Bindings& bindings) const
 {
 	for (std::vector<const Term*>::const_iterator ci = terms_->begin(); ci != terms_->end(); ci++)
 	{
-		if (&(*ci)->getDomain(step_id, bindings) == &domain) return true;
+		if (&(*ci)->getDomain(step_id, bindings) == &domain) return std::distance(terms_->begin(), ci);
 	}
-	return false;
+	return std::numeric_limits< unsigned int>::max();
 }
 
 /*************************

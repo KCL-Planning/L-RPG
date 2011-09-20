@@ -86,9 +86,9 @@ public:
 	 * Check if the atom contains the given term, that is a term which shares
 	 * the same variable domain.
 	 * @param term The term to search for.
-	 * @return True if a equivalent term exists, false otherwise.
+	 * @return The index of the (first) term which has the given domain, std::numeric_limits< unsigned int>::max() if none do.
 	 */
-	bool constainsVariableDomain(StepID step_id, const std::vector<const Object*>& domain, const Bindings& bindings) const;
+	unsigned int constainsVariableDomain(StepID step_id, const std::vector<const Object*>& domain, const Bindings& bindings) const;
 
 protected:
 	// The predicate of this atom.

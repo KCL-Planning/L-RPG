@@ -1725,10 +1725,12 @@ bool DTGReachability::handleExternalDependencies(std::vector<const BoundedAtom*>
 		for (std::map<const Transition*, std::vector<const std::vector<const Object*>* >* >::const_iterator ci = transitions.begin(); ci != transitions.end(); ci++)
 		{
 			const Transition* transition = (*ci).first;
+			
 			const std::vector<const std::vector<const Object*>* >* dependend_term_domains = (*ci).second;
 			
 			// Check if atom which is part of the external dependency can take on different values for the grounded term.
 			const DomainTransitionGraphNode& from_node = transition->getFromNode();
+			assert (&from_node == dtg_node);
 			std::vector<const ReachableNode*> supporting_nodes;
 			equivalent_object_manager_->getSupportingFacts(supporting_nodes, from_node);
 			
@@ -1813,7 +1815,6 @@ bool DTGReachability::handleExternalDependencies(std::vector<const BoundedAtom*>
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 				std::cout << "Start with reachable node: " << *reachable_node << "." << std::endl;
 #endif
-				reachable_node->sanityCheck();
 				
 				for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = matching_dtgs.begin(); ci != matching_dtgs.end(); ci++)
 				{
@@ -1838,6 +1839,13 @@ bool DTGReachability::handleExternalDependencies(std::vector<const BoundedAtom*>
 						reachable_facts.push_back(new std::vector<const ReachableFact*>());
 					}
 					
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+					std::cout << "Process the facts of: " << std::endl;
+					std::cout << *dtg_node << std::endl;
+					std::cout << " AND " << std::endl;
+					std::cout << *equivalent_dtg_node << std::endl;
+#endif
+					
 					/**
 					 * Check which node(s) differs and see if the already established reachable EOGs has reached the required facts.
 					 */
@@ -1846,8 +1854,12 @@ bool DTGReachability::handleExternalDependencies(std::vector<const BoundedAtom*>
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 						std::cout << "Process the " << i << "th fact..." << std::endl;
 #endif
+
+						std::cout << " Reachable node: " << *reachable_node << std::endl;
+
 						const BoundedAtom* equivalent_fact = equivalent_dtg_node->getAtoms()[i];
 						const BoundedAtom* this_fact = dtg_node->getAtoms()[i];
+						reachable_node->sanityCheck();
 						
 						const ReachableFact& reachable_this_fact = reachable_node->getSupportingFact(i);
 						reachable_this_fact.sanityCheck();

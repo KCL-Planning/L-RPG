@@ -67,6 +67,9 @@ public:
 	
 	void sanityCheck() const
 	{
+		assert (bounded_atom_ != NULL);
+		bounded_atom_->print(std::cout, *bindings_);
+		std::cout << std::endl;
 		for (unsigned int i = 0; i < bounded_atom_->getAtom().getArity(); i++)
 		{
 			EquivalentObjectGroup* eog = term_domain_mapping_[i];
@@ -112,6 +115,7 @@ public:
 		for (std::vector<const ReachableFact*>::const_iterator ci = supporting_facts_->begin(); ci != supporting_facts_->end(); ci++)
 		{
 			const ReachableFact* reachable_fact = *ci;
+			assert (reachable_fact != NULL);
 			for (unsigned int i = 0; i < (*ci)->getBoundedAtom().getAtom().getArity(); i++)
 			{
 				reachable_fact->getTermDomain(i);
@@ -125,7 +129,11 @@ public:
 	
 	const DomainTransitionGraphNode& getDTGNode() const { return *dtg_node_; }
 	
-	const ReachableFact& getSupportingFact(unsigned int i) const { return *(*supporting_facts_)[i]; }
+	const ReachableFact& getSupportingFact(unsigned int i) const
+	{
+		assert (dtg_node_->getAtoms().size() > i);
+		return *(*supporting_facts_)[i];
+	}
 	
 	const std::vector<const ReachableFact*>& getSupportingFacts() const { return *supporting_facts_; };
 

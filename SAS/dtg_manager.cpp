@@ -110,7 +110,7 @@ const std::vector<const Property*>& BoundedAtom::getProperties() const
 	return properties_;
 }
 
-bool BoundedAtom::constainsVariableDomain(const std::vector<const Object*>& variable_domain, const Bindings& bindings) const
+unsigned int BoundedAtom::constainsVariableDomain(const std::vector<const Object*>& variable_domain, const Bindings& bindings) const
 {
 	return atom_->constainsVariableDomain(id_, variable_domain, bindings);
 }
@@ -1694,10 +1694,11 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 							std::vector<const Property*>* property_list = new std::vector<const Property*>();
 							property_list->insert(property_list->end(), property_set.begin(), property_set.end());
 							
+							bool is_grounded = false;
 							if (!precondition_is_ballanced)
 							{
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-								std::cout << "Is not ballanced - ground!" << std::endl;
+								std::cout << "Is not ballanced - potentially ground!" << std::endl;
 #endif
 								// Ground the term if it is part of any term in the dtg_node!
 								const std::vector<const Object*>& precondition_variable_domain = precondition_term->getDomain(transition->getStep()->getStepId(), bindings);
@@ -1709,13 +1710,31 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 									bounded_atom->print(std::cout, bindings);
 									std::cout << "? ->";
 #endif
-									
-									if (bounded_atom->constainsVariableDomain(precondition_variable_domain, bindings))
+									unsigned int invariable_index = bounded_atom->constainsVariableDomain(precondition_variable_domain, bindings);
+									if (invariable_index != std::numeric_limits< unsigned int>::max())
 									{
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 										std::cout << "YES" << std::endl;
 #endif
+
+										// Check if the term is ballanced in the bounded_atom.
+										bool is_ballanced_after_all = false;
+										for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
+										{
+											if ((*ci)->getIndex() == invariable_index)
+											{
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+												std::cout << "Is invariable after all!" << std::endl;
+#endif
+												is_ballanced_after_all = true;
+												break;
+											}
+										}
+										
+										if (is_ballanced_after_all) break;
+										
 										// Ground!
+										is_grounded = true;
 										variable_domains_to_ground.push_back(&precondition_term->getDomain(transition->getStep()->getStepId(), bindings));
 									}
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
@@ -1734,13 +1753,30 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 									bounded_atom->print(std::cout, bindings);
 									std::cout << "? -> ";
 #endif
-									
-									if (bounded_atom->constainsVariableDomain(precondition_variable_domain, bindings))
+									unsigned int invariable_index = bounded_atom->constainsVariableDomain(precondition_variable_domain, bindings);
+									if (invariable_index != std::numeric_limits< unsigned int>::max())
 									{
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 										std::cout << "YES" << std::endl;
 #endif
+										// Check if the term is ballanced in the bounded_atom.
+										bool is_ballanced_after_all = false;
+										for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
+										{
+											if ((*ci)->getIndex() == invariable_index)
+											{
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+												std::cout << "Is invariable after all!" << std::endl;
+#endif
+												is_ballanced_after_all = true;
+												break;
+											}
+										}
+										
+										if (is_ballanced_after_all) break;
+
 										// Ground!
+										is_grounded = true;
 										variable_domains_to_ground.push_back(&precondition_term->getDomain(transition->getStep()->getStepId(), bindings));
 									}
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
@@ -1751,7 +1787,8 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 #endif
 								}
 							}
-							else
+							
+							if (!is_grounded)
 							{
 								
 								// If the term IS ballanced, check if it matches any of the terms in the from dtg_node's facts.
@@ -1881,7 +1918,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 						for (std::vector<BoundedAtom*>::const_iterator ci = to_dtg_node_clone->getAtoms().begin(); ci != to_dtg_node_clone->getAtoms().end(); ci++)
 						{
 							const BoundedAtom* to_bounded_atom = *ci;
-							if (to_bounded_atom->constainsVariableDomain(imballanced_variable_domain, to_dtg_node_clone->getDTG().getBindings()) &&
+							if (to_bounded_atom->constainsVariableDomain(imballanced_variable_domain, to_dtg_node_clone->getDTG().getBindings()) != std::numeric_limits< unsigned int>::max() &&
 							    !from_bounded_atom->isIdenticalTo(*to_bounded_atom, to_dtg_node_clone->getDTG().getBindings()))
 							{
 								variable_domains_to_ground.push_back(&imballanced_variable_domain);
@@ -2138,7 +2175,7 @@ void DomainTransitionGraphManager::addFactsToNode(const std::vector<std::pair<Bo
 					
 					for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node.getAtoms().begin(); ci != dtg_node.getAtoms().end(); ci++)
 					{
-						if ((*ci)->constainsVariableDomain(invariable_domain, dtg_node.getDTG().getBindings()))
+						if ((*ci)->constainsVariableDomain(invariable_domain, dtg_node.getDTG().getBindings()) != std::numeric_limits< unsigned int>::max())
 						{
 							dtg_node.addAtom(atom_to_add, invariable_index);
 							

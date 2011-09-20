@@ -391,6 +391,8 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 //	property_spaces.insert(property_spaces.end(), TIM::TA->sbegin(), TIM::TA->send());
 
 	assert (property_spaces.size() > 0);
+	
+	std::set<const Predicate*> state_valued_predicates;
 
 	// Construct the DTGs by combining all properties which appear together in either the LHS or RHS of a transition rule.
 	for (std::vector<TIM::PropertySpace*>::const_iterator property_space_i = property_spaces.begin(); property_space_i != property_spaces.end(); ++property_space_i)
@@ -541,6 +543,18 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 		std::cout << *dtg << std::endl;
 		std::cout << " === END DTG === " << std::endl;
 #endif
+
+		// Record all the state values predicates here so we know which ones are not yet processed later.
+		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ci++)
+		{
+			const DomainTransitionGraphNode* dtg_node = *ci;
+			
+			for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
+			{
+				state_valued_predicates.insert(&(*ci)->getAtom().getPredicate());
+			}
+		}
+
 		addManagableObject(dtg);
 	}
 	struct timeval end_time_tim_translation;
@@ -581,11 +595,26 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	for (std::vector<Predicate*>::const_iterator ci = predicate_manager_->getManagableObjects().begin(); ci != predicate_manager_->getManagableObjects().end(); ci++)
 	{
 		const Predicate* predicate = *ci;
+
 		bool is_supported = false;
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 		std::cout << "Check if the predicate : " << *predicate << " is supported!" << std::endl;
 #endif
+
+		for (std::set<const Predicate*>::const_iterator ci = state_valued_predicates.begin(); ci != state_valued_predicates.end(); ci++)
+		{
+			const Predicate* state_valued_predicate = *ci;
+			if (state_valued_predicate == predicate ||
+			    state_valued_predicate->canSubstitute(*predicate))
+			{
+				is_supported = true;
+				break;
+			}
+		}
 		
+		if (is_supported) continue;
+
+		std::cout << "It isn't!" << std::endl;
 		// Check if any of the DTG nodes supports the given predicate by making a dummy atom of it.
 		std::vector<const Term*>* new_terms = new std::vector<const Term*>();
 		for (std::vector<const Type*>::const_iterator ci = predicate->getTypes().begin(); ci != predicate->getTypes().end(); ci++)
@@ -596,41 +625,7 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 		Atom* possitive_atom = new Atom(*predicate, *new_terms, false);
 
 		assert (objects_.size() > 0);
-		
-		// Static predicates need to be added as a separate node. Otherwise we might not detect they are true in the initial state.
-		// This happens in Rovers where can_traverse is part of the DTG node: (at rover waypoint) && (can_traverse rover waypoint waypoint') &&
-		// (available rover). If any of these is not true than all the static can_traverse will not be detected!
-		if (!predicate->isStatic())
-		{
-			// Check if this predicate is present.
-			for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
-			{
-				const DomainTransitionGraph* dtg = *ci;
-				
-				StepID test_atom_id = dtg->getBindings().createVariableDomains(*possitive_atom);
-				std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
-				dtg->getNodes(found_nodes, test_atom_id, *possitive_atom, dtg->getBindings());
-				
-				if (found_nodes.size() > 0)
-				{
-	#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-					std::cout << "The predicate " << *predicate << " is supported by " << std::endl;
-					for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ci++)
-					{
-						(*ci).first->print(std::cout);
-						std::cout << std::endl;
-					}
-	#endif
-					is_supported = true;
-					break;
-				}
-			}
-		}
-		
-		if (!is_supported)
-		{
-			unsupported_predicates.push_back(std::make_pair(predicate, possitive_atom));
-		}
+		unsupported_predicates.push_back(std::make_pair(predicate, possitive_atom));
 	}
 	
 	for (std::vector<std::pair<const Predicate*, const Atom*> >::const_iterator ci = unsupported_predicates.begin(); ci != unsupported_predicates.end(); ci++)

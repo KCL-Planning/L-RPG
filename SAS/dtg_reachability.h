@@ -101,13 +101,7 @@ public:
 	ReachableNode(const DomainTransitionGraphNode& dtg_node, const std::vector<const ReachableFact*>& supporting_facts)
 		: dtg_node_(&dtg_node), supporting_facts_(&supporting_facts)
 	{
-		std::cout << "NEW REACHABLE NODE!!!!" << std::endl;
 		assert (supporting_facts.size() == dtg_node_->getAtoms().size());
-		
-		std::cout << "New reachable node for: " << dtg_node << "." << std::endl;
-		
-		std::cout << "VAlidate reachable facts!" << std::endl;
-		sanityCheck();
 	}
 	
 	void sanityCheck() const

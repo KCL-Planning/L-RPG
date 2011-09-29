@@ -217,8 +217,6 @@ public:
 	 */
 	const std::vector<const Atom*>& getInitialFacts() const { return *initial_facts_; }
 
-	bool isObjectGrounded(const Object& object) const { return grounded_objects_.count(&object) == 1; }
-
 private:
 	
 	/**
@@ -249,13 +247,14 @@ private:
 	// The facts which are true in the initial state.
 	const std::vector<const Atom*>* initial_facts_;
 	
-	std::set<const Object*> grounded_objects_;
-	
 	void getProperties(std::vector<std::pair<const Predicate*, unsigned int> >& predicates, const TIM::PropertyState& property_state) const;
 	
 	void addFactsToNode(const std::vector<std::pair<BoundedAtom*, InvariableIndex> >& facts_to_add, DomainTransitionGraphNode& dtg_node);
 
+
 	bool removeDTG(const DomainTransitionGraph& dtg);
+    void precondition_index_to_add_to_to_node();
+    void precondition_index_to_add_to_to_node(ptrdiff_t arg1);
 };
 
 };

@@ -198,7 +198,9 @@ int main(int argc,char * argv[])
 	//for (unsigned int i = 0; i < 1000; i++)
 	std::vector<const SAS_Plus::BoundedAtom*> lifted_reachable_facts;
 	{
-		SAS_Plus::DTGReachability analyst(dtg_manager, combined_graph);
+		
+		SAS_Plus::DTGReachability analyst(combined_graph);
+		
 		
 		std::vector<const SAS_Plus::BoundedAtom*> bounded_initial_facts;
 		for (std::vector<const Atom*>::const_iterator ci = initial_facts->begin(); ci != initial_facts->end(); ci++)

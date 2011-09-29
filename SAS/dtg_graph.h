@@ -221,8 +221,6 @@ public:
 	void solveSubsets();
 	
 	void splitSelfReferencingNodes();
-	
-	void resolveProperties();
 
 	friend std::ostream& operator<<(std::ostream& os, const DomainTransitionGraph& dtg);
 private:

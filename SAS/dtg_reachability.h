@@ -41,7 +41,7 @@ class ReachableFact
 public:
 	ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
 	
-	ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, EquivalentObjectGroup** term_domain_mapping);
+	ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, EquivalentObjectGroup** term_domain_mapping_);
 	
 	bool conflictsWith(const std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>&) const;
 	
@@ -211,13 +211,11 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_ob
 class EquivalentObjectGroup
 {
 public:
-	EquivalentObjectGroup(const DomainTransitionGraph& dtg_graph, const Object& object, bool is_grounded);
+	EquivalentObjectGroup(const DomainTransitionGraph& dtg_graph, const Object& object);
 	
 	void updateReachableFacts(const Object& object, const DomainTransitionGraphNode& dtg_node);
 	
 	bool makeReachable(const DomainTransitionGraphNode& dtg_node, const BoundedAtom& bounded_atom, ReachableFact& reachable_fact);
-	
-	bool makeReachable(ReachableFact& reachable_fact);
 	
 	void addEquivalentObject(const EquivalentObject& eo);
 	
@@ -274,8 +272,6 @@ private:
 	
 	const DomainTransitionGraph* dtg_graph_;
 
-	bool is_grounded_;
-	
 	// If the EOG is in use link_ is equal to NULL. Once it is made obsolete due to being merged with
 	// another Equivalent Object Group link will link to that object instead.
 	EquivalentObjectGroup* link_;
@@ -308,7 +304,7 @@ public:
 	/**
 	 * Initialise the individual groups.
 	 */
-	EquivalentObjectGroupManager(const DTGReachability& dtg_reachability, const DomainTransitionGraphManager& dtg_manager, const DomainTransitionGraph& dtg_graph, const TermManager& term_manager, const std::vector<const BoundedAtom*>& initial_facts);
+	EquivalentObjectGroupManager(const DTGReachability& dtg_reachability, const DomainTransitionGraph& dtg_graph, const TermManager& term_manager, const std::vector<const BoundedAtom*>& initial_facts);
 	
 	void updateEquivalences(const std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* >& reachable_nodes_);
 	
@@ -355,7 +351,7 @@ public:
 	/**
 	 * Constructor.
 	 */
-	DTGReachability(const DomainTransitionGraphManager& dtg_manager, const DomainTransitionGraph& dtg_graph);
+	DTGReachability(const DomainTransitionGraph& dtg_graph);
 	
 	void performReachabilityAnalsysis(std::vector<const BoundedAtom*>& reachable_facts, const std::vector<const BoundedAtom*>& initial_facts, const TermManager& term_manager);
 
@@ -381,9 +377,7 @@ public:
 	ReachableTransition& getReachableTransition(const Transition& transition) const;
 	
 	void makeToNodeReachable(const Transition& transition, const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& possible_mapping) const;
-	
-	
-	
+		
 private:
 	
 	bool canSatisfyPreconditions(const Transition& transition, const ReachableNode& supporting_fact, std::set<const std::vector<const Object*>* >& invariables) const;
@@ -401,9 +395,6 @@ private:
 	bool makeReachable(const DomainTransitionGraphNode& dtg_node, std::vector<const BoundedAtom*>& reachable_facts);
 	
 	bool handleExternalDependencies(std::vector<const BoundedAtom*>& established_facts);
-	
-	
-	const DomainTransitionGraphManager* dtg_manager_;
 	
 	/**
 	 * The combined DTG graph we are working on.

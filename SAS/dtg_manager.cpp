@@ -1380,7 +1380,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 				for (std::vector<BoundedAtom*>::const_iterator ci = merged_from_dtg_node->getAtoms().begin(); ci != merged_from_dtg_node->getAtoms().end(); ci++)
 				{
 					const BoundedAtom* merged_from_fact = *ci;
-					if (org_from_fact->shareSameProperties(*merged_from_fact) && org_from_fact->canUnifyWith(*merged_from_fact, bindings))
+					if (/*org_from_fact->shareSameProperties(*merged_from_fact) && */org_from_fact->canUnifyWith(*merged_from_fact, bindings))
 					{
 						index = std::distance(merged_from_dtg_node->getAtoms().begin(), ci);
 					}
@@ -1401,11 +1401,12 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 			{
 				const BoundedAtom* org_to_fact = *ci;
 
+//				unsigned int index = std::distance(org_to_dtg_node.getAtoms().begin(), ci);
 				unsigned int index = NO_INVARIABLE_INDEX;
 				for (std::vector<BoundedAtom*>::const_iterator ci = merged_to_dtg_node->getAtoms().begin(); ci != merged_to_dtg_node->getAtoms().end(); ci++)
 				{
 					const BoundedAtom* merged_to_fact = *ci;
-					if (org_to_fact->shareSameProperties(*merged_to_fact) && org_to_fact->canUnifyWith(*merged_to_fact, bindings))
+					if (/*org_to_fact->shareSameProperties(*merged_to_fact) && */org_to_fact->canUnifyWith(*merged_to_fact, bindings))
 					{
 						index = std::distance(merged_to_dtg_node->getAtoms().begin(), ci);
 					}
@@ -1426,7 +1427,6 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 					}
 					assert (false);
 				}
-				
 				to_variable_domains[index] = new const std::vector<const Object*>*[org_to_fact->getAtom().getArity()];
 				
 				for (unsigned int i = 0; i < org_to_fact->getAtom().getArity(); i++)

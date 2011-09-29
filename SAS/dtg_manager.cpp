@@ -872,6 +872,13 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	std::cout << "FINAL RESULTS" << std::endl;
 	std::cout << combined_graph << std::endl;
 #endif
+
+	combined_graph.resolveProperties();
+	
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+	std::cout << "After resolving properties: " << std::endl;
+	std::cout << combined_graph << std::endl;
+#endif
 /*
 	std::ofstream ofs;
 	ofs.open("combined_dtg.dot", std::ios::out);
@@ -1940,6 +1947,11 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 				{
 					to_dtg_node_clone->removeTransitions(true);
 					dtg_nodes_to_remove.push_back(&transition->getToNode());
+				}
+				
+				for (std::vector<const std::vector<const Object*>* >::const_iterator ci = variable_domains_to_ground.begin(); ci != variable_domains_to_ground.end(); ci++)
+				{
+					grounded_objects_.insert((*ci)->begin(), (*ci)->end());
 				}
 
 				if (grounded_from_nodes || grounded_to_nodes)

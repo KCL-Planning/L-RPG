@@ -456,6 +456,55 @@ bool DomainTransitionGraphNode::canUnifyWith(const DomainTransitionGraphNode& ot
 	return true;
 }
 
+void DomainTransitionGraphNode::resolveProperties()
+{
+	for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
+	{
+		BoundedAtom* bounded_atom = *ci;
+		
+		std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > results;
+		dtg_->getDTGManager().getDTGNodes(results, bounded_atom->getId(), bounded_atom->getAtom(), dtg_->getBindings());
+		
+		
+		for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = results.begin(); ci != results.end(); ci++)
+		{
+			const BoundedAtom* found_fact = (*ci).second;
+			
+			for (std::vector<const Property*>::const_iterator ci = found_fact->getProperties().begin(); ci != found_fact->getProperties().end(); ci++)
+			{
+				bounded_atom->addProperty(**ci);
+			}
+		}
+		
+		for (unsigned int i = 0; i < bounded_atom->getAtom().getArity(); i++)
+		{
+			bool supported = false;
+			for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
+			{
+				const Property* property = *ci;
+				if (property->getIndex() == i)
+				{
+					supported = true;
+					break;
+				}
+			}
+			
+			// If not supported, create on ourselves!
+			if (!supported)
+			{
+				PropertySpace* pss = new PropertySpace();
+				std::vector<std::pair<const Predicate*, InvariableIndex> >* new_properties = new std::vector<std::pair<const Predicate*, InvariableIndex> >();
+				new_properties->push_back(std::make_pair(&bounded_atom->getAtom().getPredicate(), NO_INVARIABLE_INDEX));
+				
+				PropertyState* ps = new PropertyState(*pss, *new_properties);
+				
+				
+				bounded_atom->addProperty(*ps->getProperties()[0]);
+			}
+		}
+	}
+}
+
 void DomainTransitionGraphNode::getExternalDependendTransitions(std::map<const Transition*, std::vector<const std::vector<const Object*>* >* >& external_dependend_transitions) const
 {
 //	std::cout << "[DomainTransitionGraphNode::getExternalDependendTransitions] Start!" << std::endl;

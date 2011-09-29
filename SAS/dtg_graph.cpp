@@ -1537,6 +1537,14 @@ void DomainTransitionGraph::splitSelfReferencingNodes()
 	nodes_.insert(nodes_.end(), nodes_to_add.begin(), nodes_to_add.end());
 }
 
+void DomainTransitionGraph::resolveProperties()
+{
+	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
+	{
+		(*ci)->resolveProperties();
+	}
+}
+
 bool DomainTransitionGraph::isSupported(unsigned int id, const MyPOP::Atom& atom, const MyPOP::Bindings& bindings) const
 {
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)

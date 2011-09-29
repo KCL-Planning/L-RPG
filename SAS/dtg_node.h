@@ -252,6 +252,8 @@ public:
 	
 	bool isAttributeSpace() const { return attribute_space_; }
 	
+	void resolveProperties();
+	
 private:
 	
 	/**

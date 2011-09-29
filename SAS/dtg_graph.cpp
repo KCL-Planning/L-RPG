@@ -20,7 +20,7 @@
 #include "../bindings_propagator.h"
 #include "../plan.h"
 
-///#define MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+#define MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 
 namespace MyPOP {
 
@@ -1499,7 +1499,7 @@ void DomainTransitionGraph::splitSelfReferencingNodes()
 		{
 			const Transition* transition = *ci;
 			
-			if (&transition->getToNode() != dtg_node) continue;
+			if (&transition->getFromNode() != dtg_node || &transition->getToNode() != dtg_node) continue;
 			
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 			std::cout << "Found a self referencing transition!!! " << *transition << "." << std::endl;
@@ -1509,7 +1509,12 @@ void DomainTransitionGraph::splitSelfReferencingNodes()
 			DomainTransitionGraphNode* clone_node = new DomainTransitionGraphNode(*dtg_node, *this);
 			
 			transitions_to_add.push_back(std::make_pair(&transition->getStep()->getAction(), clone_node));
-			assert (clone_node->addTransition(transition->getStep()->getAction(), *dtg_node));
+			if (!clone_node->addTransition(transition->getStep()->getAction(), *dtg_node))
+			{
+				std::cout << "Could not create a transition from: " << *clone_node << " to " << *dtg_node << std::endl;
+				std::cout << "Original transition: " << *transition << std::endl;
+				assert (false);
+			}
 			
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 			std::cout << "Created clone node: " << *clone_node << std::endl;

@@ -141,23 +141,42 @@ private:
 
 std::ostream& operator<<(std::ostream& os, const ReachableNode& reachable_node);
 
+/**
+ * When a transition is reachable we state that the transition is reachable for all possible mappings of the from node
+ * of that transition. However, we need to keep track of all the domains of variables which are not present in the from node.
+ * for example:
+ *
+ * (at truck loc) -> (driving driver truck) (at truck loc)
+ *
+ * we need to know the value of driver which - in this case - is bounded by the precondition (at driver loc). Since loc is 
+ * grounded we only need to lookup all the values of driver at that location and insert it.
+ */
 struct ReachableTransition
 {
 public:
-	ReachableTransition(const Transition& transition)
-		: transition_(&transition)
-	{
-		
-	}
+	ReachableTransition(const Transition& transition, const EquivalentObjectGroupManager& eog_manager);
 	
 	void addMapping(const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& new_mapping);
 	
 	const std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* >& getPossibleMappings() const { return possible_mappings_; }
 	
+	void updateVariables();
+	
 private:
 	const Transition* transition_;
 	
+	const EquivalentObjectGroupManager* equivalent_object_group_manager_;
+	
 	std::vector<const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* > possible_mappings_;
+	
+	/**
+	 * We store all the preconditions which contain a variable not covered by the facts in the from node and - if applicable -
+	 * a link to the EOG containing a grounded term for easy lookup. This information is generated once when the reachable
+	 * transition is created and used when we update the list of possible mappings.
+	 */
+	std::vector<std::pair<const BoundedAtom*, EquivalentObjectGroup*> > relevant_preconditions_;
+	
+	void findMappings(std::map< const std::vector< const MyPOP::Object* >*, const MyPOP::SAS_Plus::EquivalentObjectGroup* >& current_mapping, unsigned int index);
 };
 
 /**
@@ -211,9 +230,7 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_ob
 class EquivalentObjectGroup
 {
 public:
-	EquivalentObjectGroup(const DomainTransitionGraph& dtg_graph, const Object& object, bool is_grounded);
-	
-	void updateReachableFacts(const Object& object, const DomainTransitionGraphNode& dtg_node);
+	EquivalentObjectGroup(const DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded);
 	
 	bool makeReachable(const DomainTransitionGraphNode& dtg_node, const BoundedAtom& bounded_atom, ReachableFact& reachable_fact);
 	
@@ -226,6 +243,8 @@ public:
 	void getSupportingFacts(std::vector<const ReachableFact*>& results, const BoundedAtom& bounded_atom, const Bindings& bindings) const;
 	
 	bool isRootNode() const;
+	
+	bool isGrounded() const { return is_grounded_; }
 	
 	bool contains(const Object& object) const;
 	
@@ -251,9 +270,7 @@ public:
 	
 	void printGrounded(std::ostream& os) const;
 	
-	void getAllReachableFacts(std::vector<const BoundedAtom*>& results) const;
-	
-private:
+	void getAllReachableFacts(std::vector<const BoundedAtom*>& results, const std::set<const EquivalentObjectGroup*>& processed_eogs) const;
 	
 	/**
 	 * As equivalent object groups are merged the merged node will become a child node of the node it got merged into. Internally
@@ -262,7 +279,8 @@ private:
 	 * @return The root node of this EOG.
 	 */
 	EquivalentObjectGroup& getRootNode();
-	
+
+private:
 	
 	std::vector<const EquivalentObject*> equivalent_objects_;
 	
@@ -355,9 +373,9 @@ public:
 	/**
 	 * Constructor.
 	 */
-	DTGReachability(const DomainTransitionGraphManager& dtg_manager, const DomainTransitionGraph& dtg_graph);
+	DTGReachability(const DomainTransitionGraphManager& dtg_manager, const DomainTransitionGraph& dtg_graph, const TermManager& term_manager, const std::vector<const BoundedAtom*>& initial_facts);
 	
-	void performReachabilityAnalsysis(std::vector<const BoundedAtom*>& reachable_facts, const std::vector<const BoundedAtom*>& initial_facts, const TermManager& term_manager);
+	void performReachabilityAnalsysis(std::vector<const BoundedAtom*>& reachable_facts, const std::vector<const BoundedAtom*>& initial_facts);
 
 	/** 
 	 * Find all possible supports for @ref(atoms_to_achieve) from all the facts in @ref(initial_facts). Whilst working
@@ -380,7 +398,7 @@ public:
 	
 	ReachableTransition& getReachableTransition(const Transition& transition) const;
 	
-	void makeToNodeReachable(const Transition& transition, const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& possible_mapping) const;
+	bool makeToNodeReachable(const Transition& transition, const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& possible_mapping) const;
 	
 	
 	
@@ -409,6 +427,8 @@ private:
 	 * The combined DTG graph we are working on.
 	 */
 	const DomainTransitionGraph* dtg_graph_;
+	
+	const TermManager* term_manager_;
 	
 	/**
 	 * Propagator.

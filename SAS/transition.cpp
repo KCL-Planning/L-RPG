@@ -11,7 +11,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-///#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 ///#define ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 
 namespace MyPOP {
@@ -2312,7 +2312,7 @@ std::ostream& operator<<(std::ostream& os, const Transition& transition)
 	os << std::endl;
 //	os << "[" << transition.getStep()->getAction() << "]" << std::endl;
 	transition.getStep()->getAction().print(os, transition.getFromNode().getDTG().getBindings(), transition.getStep()->getStepId());
-
+/*
 	std::vector<std::pair<const Atom*, InvariableIndex> > all_preconditions = transition.getAllPreconditions();
 	os << "All preconditions: " << std::endl;
 	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = all_preconditions.begin(); ci != all_preconditions.end(); ci++)
@@ -2335,7 +2335,7 @@ std::ostream& operator<<(std::ostream& os, const Transition& transition)
 	{
 		(*ci).first->print(os, transition.getToNode().getDTG().getBindings(), transition.getStep()->getStepId());
 		os << " (" << (*ci).second << ") Ox" << (*ci).first << "." << std::endl;
-	}
+	}*/
 	return os;
 }
 

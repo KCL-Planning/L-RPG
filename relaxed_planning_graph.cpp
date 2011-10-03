@@ -66,6 +66,7 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 		action_manager.ground(*bindings_, grounded_actions, *action);
 		all_grounded_actions.insert(all_grounded_actions.end(), grounded_actions.begin(), grounded_actions.end());
 	}
+	std::cerr << "#" << all_grounded_actions.size() << std::endl;
 
 	// Now check for each grounded action which one is applicable in the current fact layer.
 	while (true)

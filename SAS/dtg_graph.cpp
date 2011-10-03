@@ -928,6 +928,7 @@ void DomainTransitionGraph::establishTransitions()
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 		{
 			DomainTransitionGraphNode* from_node = *ci;
+			//from_node = new DomainTransitionGraphNode(*from_node, false, false);
 
 			for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 			{
@@ -942,6 +943,7 @@ void DomainTransitionGraph::establishTransitions()
 				if (transition != NULL)
 				{
 					from_node->addTransition(*transition, true);
+					//new_nodes.push_back(from_node);
 					new_nodes.push_back(to_node);
 				}
 			}

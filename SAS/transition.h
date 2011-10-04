@@ -103,7 +103,7 @@ public:
 	 * @param to_node The end node of the transition.
 	 * @return The formed transition OR NULL if the transition was not possible.
 	 */
-	static Transition* createTransition(const Action& action, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
+	static Transition* createTransition(const Action& action, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts, bool check_variable_domains = false);
 	
 	/**
 	 * Create a new transition which has the same bindings to the variables as this transition. But the
@@ -171,7 +171,7 @@ private:
 	 * @param to_node The end node of the transition.
 	 * @return The formed transition OR NULL if the transition was not possible.
 	 */
-	static Transition* createTransition(const StepPtr step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);
+	static Transition* createTransition(const StepPtr step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts, bool check_variable_domains);
 	
 	// TODO: Remove this function.
 	static Transition* createSimpleTransition(const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts);

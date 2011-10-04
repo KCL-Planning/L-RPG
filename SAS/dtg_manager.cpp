@@ -26,7 +26,7 @@
 #include "recursive_function.h"
 #include "dtg_reachability.h"
 
-///#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 ///#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 ///#define MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
 
@@ -1462,7 +1462,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 			std::cout << "." << std::endl;
 #endif
 			
-			const Transition* new_transition = Transition::createTransition(org_transition->getStep()->getAction(), *merged_from_dtg_node, *merged_to_dtg_node, *initial_facts_);
+			const Transition* new_transition = Transition::createTransition(org_transition->getStep()->getAction(), *merged_from_dtg_node, *merged_to_dtg_node, *initial_facts_, true);
 			if (new_transition == NULL) {
 				continue;
 			}

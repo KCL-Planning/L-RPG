@@ -11,7 +11,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-///#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 ///#define ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 
 namespace MyPOP {
@@ -86,7 +86,7 @@ void BalancedPropertySet::removeRemovedProperty(const BoundedAtom& fact)
 }
 
 
-Transition* Transition::createTransition(const Action& action, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts)
+Transition* Transition::createTransition(const Action& action, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts, bool check_variable_domains)
 {
 	if (&to_node.getDTG() != &from_node.getDTG())
 	{
@@ -118,7 +118,7 @@ Transition* Transition::createTransition(const Action& action, DomainTransitionG
 	
 	if (contains_invariables)
 	{
-		transition = Transition::createTransition(action_step, from_node, to_node, initial_facts);
+		transition = Transition::createTransition(action_step, from_node, to_node, initial_facts, check_variable_domains);
 	}
 	else
 	{
@@ -530,11 +530,11 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 	return new Transition(action_step, from_node, to_node, *precondition_mapping_to_from_node, *add_effects_mapping_to_to_node, *remove_effects_mapping_to_to_node, *persistent_preconditions, *property_space_action_invariables, *all_precondition_mappings, *free_variables);
 }
 
-Transition* Transition::createTransition(const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts)
+Transition* Transition::createTransition(const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts, bool check_variable_domains)
 {
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 	std::cout << std::endl << std::endl;
-	std::cout << "[Transition::createTransition] NEW TRANSITION!!!!" << std::endl;
+	std::cout << "[Transition::createTransition] NEW TRANSITION!!!! Check variable domains:" << check_variable_domains << std::endl;
 	std::cout << "From: " << std::endl;
 	std::cout << from_node << std::endl;
 	std::cout << " to " << std::endl;
@@ -588,19 +588,18 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 
 			BalancedPropertySet* balanced_property_set = NULL;
 			
-			std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::iterator property_space_i = property_space_balanced_sets.find(std::make_pair(&from_fact_property_space, static_cast<const std::vector<const Object*>*>(NULL)));
+			const std::vector<const Object*>* invariable_objects = NULL;
+			if (check_variable_domains && from_fact_property->getIndex() != NO_INVARIABLE_INDEX)
+			{
+				invariable_objects = &from_fact->getVariableDomain(from_fact_property->getIndex(), bindings);
+			}
+			
+			std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::iterator property_space_i = property_space_balanced_sets.find(std::make_pair(&from_fact_property_space, invariable_objects));
 			
 			if (property_space_i == property_space_balanced_sets.end())
 			{
-				const std::vector<const Object*>* invariable_objects = NULL;
-//				if (from_fact_property->getIndex() != NO_INVARIABLE_INDEX)
-//				{
-//					invariable_objects = from_fact->getAtom().getTerms()[from_fact_property->getIndex()].getDomain(from_fact->getId(), bindings);
-//				}
-				
 				balanced_property_set = new BalancedPropertySet(from_fact_property_space, invariable_objects);
-
-				property_space_balanced_sets[std::make_pair(&from_fact_property_space, static_cast<const std::vector<const Object*>*>(NULL))] = balanced_property_set;
+				property_space_balanced_sets[std::make_pair(&from_fact_property_space, invariable_objects)] = balanced_property_set;
 			}
 			else
 			{
@@ -625,19 +624,22 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 					// If the same fact appears in the to node we assume it is not deleted and thus is persistent. The next block of code
 					// determines if this is really the case or if the action deletes and adds this fact.
 					if (*from_fact_property == *to_fact_property &&
-						to_fact->getAtom().isNegative() == from_fact->getAtom().isNegative() &&
-						bindings.areEquivalent(from_fact->getAtom(), from_fact->getId(), to_fact->getAtom(), to_fact->getId()))
+						to_fact->getAtom().isNegative() == from_fact->getAtom().isNegative())
 					{
-						is_removed = false;
-						persistent_facts.push_back(std::make_pair(from_fact, to_fact));
+						if ((check_variable_domains && bindings.areIdentical(from_fact->getAtom(), from_fact->getId(), to_fact->getAtom(), to_fact->getId())) ||
+						    (!check_variable_domains && bindings.areEquivalent(from_fact->getAtom(), from_fact->getId(), to_fact->getAtom(), to_fact->getId())))
+						{
+							is_removed = false;
+							persistent_facts.push_back(std::make_pair(from_fact, to_fact));
 						
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-						std::cout << "Potential persistent fact set: ";
-						from_fact->print(std::cout, bindings);
-						std::cout << " - ";
-						to_fact->print(std::cout ,bindings);
-						std::cout << "." << std::endl;
+							std::cout << "Potential persistent fact set: ";
+							from_fact->print(std::cout, bindings);
+							std::cout << " - ";
+							to_fact->print(std::cout ,bindings);
+							std::cout << "." << std::endl;
 #endif
+						}
 					}
 				}
 			}
@@ -659,19 +661,19 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 			const Property* to_fact_property = *ci;
 			const PropertySpace& to_fact_property_space = to_fact_property->getPropertyState().getPropertySpace();
 			
+			const std::vector<const Object*>* invariable_objects = NULL;
+			if (check_variable_domains && to_fact_property->getIndex() != NO_INVARIABLE_INDEX)
+			{
+				invariable_objects = &to_fact->getVariableDomain(to_fact_property->getIndex(), bindings);
+			}
+			
 			BalancedPropertySet* balanced_property_set = NULL;
-			std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::iterator property_space_i = property_space_balanced_sets.find(std::make_pair(&to_fact_property_space, static_cast<const std::vector<const Object*>*>(NULL)));
+			std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::iterator property_space_i = property_space_balanced_sets.find(std::make_pair(&to_fact_property_space, invariable_objects));
 			
 			if (property_space_i == property_space_balanced_sets.end())
 			{
-				const std::vector<const Object*>* invariable_objects = NULL;
-//				if (from_fact_property->getIndex() != NO_INVARIABLE_INDEX)
-//				{
-//					invariable_objects = from_fact->getAtom().getTerms()[from_fact_property->getIndex()].getDomain(from_fact->getId(), bindings);
-//				}
-				
 				balanced_property_set = new BalancedPropertySet(to_fact_property_space, invariable_objects);
-				property_space_balanced_sets[std::make_pair(&to_fact_property_space, static_cast<const std::vector<const Object*>*>(NULL))] = balanced_property_set;
+				property_space_balanced_sets[std::make_pair(&to_fact_property_space, invariable_objects)] = balanced_property_set;
 			}
 			else
 			{
@@ -689,11 +691,14 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 					const Property* from_fact_property = *ci;
 					// Check if the fact in the to node is added or was already present.
 					if (*to_fact_property == *from_fact_property &&
-						to_fact->getAtom().isNegative() == from_fact->getAtom().isNegative() &&
-						bindings.areEquivalent(to_fact->getAtom(), to_fact->getId(), from_fact->getAtom(), from_fact->getId()))
+						to_fact->getAtom().isNegative() == from_fact->getAtom().isNegative())
 					{
-						is_added = false;
-						break;
+						if ((check_variable_domains && bindings.areIdentical(to_fact->getAtom(), to_fact->getId(), from_fact->getAtom(), from_fact->getId())) ||
+						    (!check_variable_domains && bindings.areEquivalent(to_fact->getAtom(), to_fact->getId(), from_fact->getAtom(), from_fact->getId())))
+						{
+							is_added = false;
+							break;
+						}
 					}
 				}
 				
@@ -721,6 +726,9 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 	// removes the same fact, e.g. drive-truck removes (at ?truck ?location) and adds (at ?truck ?location). Based on the 
 	// previous analysis we conclude that the action does not interact, but we might discover that the action adds and 
 	// removes a similar fact and does interact with the nodes.
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+	std::cout << "Validate: " << persistent_facts.size() << " persistent facts!" << std::endl;
+#endif
 	for (std::vector<std::pair<const BoundedAtom*, const BoundedAtom*> >::reverse_iterator persistent_ci = persistent_facts.rbegin(); persistent_ci != persistent_facts.rend(); persistent_ci++)
 	{
 		const BoundedAtom* from_persistent_atom = (*persistent_ci).first;
@@ -765,19 +773,39 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 
 			for (std::vector<const Property*>::const_iterator ci = to_persistent_atom->getProperties().begin(); ci != to_persistent_atom->getProperties().end(); ci++)
 			{
-				const PropertySpace& property_space = (*ci)->getPropertyState().getPropertySpace();
-				std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::iterator i = property_space_balanced_sets.find(std::make_pair(&property_space, static_cast<const std::vector<const Object*>*>(NULL)));
+				const Property* property = *ci;
+				const PropertySpace& property_space = property->getPropertyState().getPropertySpace();
+				const std::vector<const Object*>* variable_domain = NULL;
+				
+				if (check_variable_domains && property->getIndex() != NO_INVARIABLE_INDEX)
+				{
+					variable_domain = &to_persistent_atom->getVariableDomain(property->getIndex(), bindings);
+				}
+				
+				std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::iterator i = property_space_balanced_sets.find(std::make_pair(&property_space, variable_domain));
 				
 				assert (i != property_space_balanced_sets.end());
 				
 				(*i).second->addProperty(*to_persistent_atom);
 				(*i).second->removeProperty(*from_persistent_atom);
+				
+				std::cout << "(" << variable_domain << ")  -> ";
+				to_persistent_atom->print(std::cout, bindings);
+				std::cout << "." << std::endl;
 			}
 			
 			for (std::vector<const Property*>::const_iterator ci = from_persistent_atom->getProperties().begin(); ci != from_persistent_atom->getProperties().end(); ci++)
 			{
-				const PropertySpace& property_space = (*ci)->getPropertyState().getPropertySpace();
-				std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::iterator i = property_space_balanced_sets.find(std::make_pair(&property_space, static_cast<const std::vector<const Object*>*>(NULL)));
+				const Property* property = *ci;
+				const PropertySpace& property_space = property->getPropertyState().getPropertySpace();
+				const std::vector<const Object*>* variable_domain = NULL;
+				
+				if (check_variable_domains && property->getIndex() != NO_INVARIABLE_INDEX)
+				{
+					variable_domain = &from_persistent_atom->getVariableDomain(property->getIndex(), bindings);
+				}
+				
+				std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::iterator i = property_space_balanced_sets.find(std::make_pair(&property_space, variable_domain));
 				
 				assert (i != property_space_balanced_sets.end());
 				
@@ -786,7 +814,7 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 			}
 
 			persistent_facts.erase(persistent_ci.base() - 1);
-			break;
+			//break;
 		}
 	}
 	
@@ -821,8 +849,7 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 	for (std::map<std::pair<const PropertySpace*, const std::vector<const Object*>* >, BalancedPropertySet*>::const_iterator ci = property_space_balanced_sets.begin(); ci != property_space_balanced_sets.end(); ci++)
 	{
-		
-		std::cout << "Add / Remove sets: " << (*ci).first.first << std::endl;
+		std::cout << "Add / Remove sets: " << (*ci).first.first << "(" << (*ci).first.second << ")" << std::endl;
 		BalancedPropertySet* balanced_property_set = (*ci).second;
 		
 		for (std::vector<const BoundedAtom*>::const_iterator ci = balanced_property_set->getAddedProperties().begin(); ci != balanced_property_set->getAddedProperties().end(); ci++)

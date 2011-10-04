@@ -12,7 +12,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-///#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 #define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
 	
@@ -114,6 +114,9 @@ bool ReachableFact::isEquivalentTo(const ReachableFact& other) const
 		const Property* property = *ci;
 		if (property->getIndex() == NO_INVARIABLE_INDEX) continue;
 		
+		// Except when it has been grounded!
+		if (term_domain_mapping_[property->getIndex()]->isGrounded()) continue;
+		
 		this_mask |= 0x1 << property->getIndex();
 	}
 	
@@ -121,6 +124,9 @@ bool ReachableFact::isEquivalentTo(const ReachableFact& other) const
 	{
 		const Property* property = *ci;
 		if (property->getIndex() == NO_INVARIABLE_INDEX) continue;
+		
+		// Except when it has been grounded!
+		if (other.term_domain_mapping_[property->getIndex()]->isGrounded()) continue;
 		
 		other_mask |= 0x1 << property->getIndex();
 	}
@@ -428,6 +434,8 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 						precondition_properties->push_back(property);
 					}
 				}
+				
+				assert (precondition_properties->size() != 0);
 				
 				BoundedAtom* bounded_precondition = new BoundedAtom(transition.getStep()->getStepId(), *precondition, *precondition_properties);
 				relevant_preconditions_.push_back(std::make_pair(bounded_precondition, grounded_object_group));
@@ -973,7 +981,6 @@ void EquivalentObjectGroup::getSupportingFacts(std::vector<const ReachableFact*>
 
 bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group, const std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* >& reachable_nodes)
 {
-	return false;
 	// If the object has been grounded it cannot be merged!
 	if (is_grounded_ || other_group.is_grounded_)
 	{

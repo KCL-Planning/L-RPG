@@ -20,7 +20,7 @@
 #include "../bindings_propagator.h"
 #include "../plan.h"
 
-#define MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+///#define MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 
 namespace MyPOP {
 
@@ -928,28 +928,29 @@ void DomainTransitionGraph::establishTransitions()
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 		{
 			DomainTransitionGraphNode* from_node = *ci;
-			//from_node = new DomainTransitionGraphNode(*from_node, false, false);
+			
+			DomainTransitionGraphNode* new_from_node = new DomainTransitionGraphNode(*from_node, false, false);
 
 			for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 			{
 				DomainTransitionGraphNode* to_node = *ci;
 				
-				if (from_node == to_node)
-				{
-					to_node = new DomainTransitionGraphNode(*to_node, false, false);
-				}
+				DomainTransitionGraphNode* new_to_node = new DomainTransitionGraphNode(*to_node, false, false);
 				
-				Transition* transition = Transition::createTransition(*action, *from_node, *to_node, *initial_facts_);
-				if (transition != NULL)
+				Transition* new_transition = Transition::createTransition(*action, *new_from_node, *new_to_node, *initial_facts_);
+				
+				if (new_transition != NULL)
 				{
-					from_node->addTransition(*transition, true);
-					//new_nodes.push_back(from_node);
-					new_nodes.push_back(to_node);
+					new_from_node->addTransition(*new_transition, true);
+					new_nodes.push_back(new_from_node);
+					new_nodes.push_back(new_to_node);
 				}
 			}
 		}
 	}
 	
+	nodes_.clear();
+
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = new_nodes.begin(); ci != new_nodes.end(); ci++)
 	{
 		addNode(**ci);

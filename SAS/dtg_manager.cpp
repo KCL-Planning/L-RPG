@@ -26,7 +26,7 @@
 #include "recursive_function.h"
 #include "dtg_reachability.h"
 
-#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+///#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 ///#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 ///#define MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
 
@@ -932,6 +932,13 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 	
 	std::set<const DomainTransitionGraphNode*> closed_list;
 	
+	std::cout << "Start mergin!" << std::endl;
+	for (std::vector<DomainTransitionGraph*>::const_iterator objects_ci = objects_.begin(); objects_ci != objects_.end(); objects_ci++)
+	{
+		const DomainTransitionGraph* dtg = *objects_ci;
+		std::cout << "MERGE CANDIDATE: " << *dtg << std::endl;
+	}
+	
 	std::vector<const DomainTransitionGraphNode*> unmerged_dtg_nodes;
 	for (std::vector<DomainTransitionGraph*>::const_iterator objects_ci = objects_.begin(); objects_ci != objects_.end(); objects_ci++)
 	{
@@ -1083,7 +1090,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 						std::cout << std::endl;
 					}
 #endif
-					
+					//if (properties_differ) continue;
 					merged = true;
 					
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
@@ -1369,102 +1376,55 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 #endif
 
 			// Make sure that if in the previous transition two terms were equal they still are!
+
+			// Cache the variable domains.
 			const Bindings& org_bindings = org_from_dtg_node.getDTG().getBindings();
 			const std::vector<const Object*>** from_variable_domains[org_from_dtg_node.getAtoms().size()];
-			
-			unsigned int mapping_org_from_to_merged[org_from_dtg_node.getAtoms().size()];
-			memset (&mapping_org_from_to_merged[0], 0, sizeof(unsigned int) * org_from_dtg_node.getAtoms().size());
-			
 			for (std::vector<BoundedAtom*>::const_iterator ci = org_from_dtg_node.getAtoms().begin(); ci != org_from_dtg_node.getAtoms().end(); ci++)
 			{
 				const BoundedAtom* org_from_fact = *ci;
 				unsigned int org_index = std::distance(org_from_dtg_node.getAtoms().begin(), ci);
-
-				unsigned int index = NO_INVARIABLE_INDEX;
-				for (std::vector<BoundedAtom*>::const_iterator ci = merged_from_dtg_node->getAtoms().begin(); ci != merged_from_dtg_node->getAtoms().end(); ci++)
-				{
-					const BoundedAtom* merged_from_fact = *ci;
-					if (org_from_fact->canUnifyWith(*merged_from_fact, bindings))
-					{
-						index = std::distance(merged_from_dtg_node->getAtoms().begin(), ci);
-						std::cout << "The fact: ";
-						org_from_fact->print(std::cout, bindings);
-						std::cout << " is linked to the " << index << "th fact in the merged from dtg node!" << std::endl;
-					}
-				}
-				
-				assert (index != NO_INVARIABLE_INDEX);
-				mapping_org_from_to_merged[org_index] = index;
-				
 				from_variable_domains[org_index] = new const std::vector<const Object*>*[org_from_fact->getAtom().getArity()];
 				
 				for (unsigned int i = 0; i < org_from_fact->getAtom().getArity(); i++)
 				{
 					from_variable_domains[org_index][i] = &org_from_fact->getVariableDomain(i, org_bindings);
 				}
-				
-				/*from_variable_domains[index] = new const std::vector<const Object*>*[org_from_fact->getAtom().getArity()];
-				
-				for (unsigned int i = 0; i < org_from_fact->getAtom().getArity(); i++)
-				{
-					from_variable_domains[index][i] = &org_from_fact->getVariableDomain(i, org_bindings);
-				}*/
 			}
-			
-			unsigned int mapping_org_to_to_merged[org_to_dtg_node.getAtoms().size()];
-			memset (&mapping_org_to_to_merged[0], 0, sizeof(unsigned int) * org_to_dtg_node.getAtoms().size());
-			
+
 			const std::vector<const Object*>** to_variable_domains[org_to_dtg_node.getAtoms().size()];
 			for (std::vector<BoundedAtom*>::const_iterator ci = org_to_dtg_node.getAtoms().begin(); ci != org_to_dtg_node.getAtoms().end(); ci++)
 			{
 				const BoundedAtom* org_to_fact = *ci;
 				unsigned int org_index = std::distance(org_to_dtg_node.getAtoms().begin(), ci);
-
-//				unsigned int index = std::distance(org_to_dtg_node.getAtoms().begin(), ci);
-				unsigned int index = NO_INVARIABLE_INDEX;
-				for (std::vector<BoundedAtom*>::const_iterator ci = merged_to_dtg_node->getAtoms().begin(); ci != merged_to_dtg_node->getAtoms().end(); ci++)
-				{
-					const BoundedAtom* merged_to_fact = *ci;
-					if (org_to_fact->canUnifyWith(*merged_to_fact, bindings))
-					{
-						index = std::distance(merged_to_dtg_node->getAtoms().begin(), ci);
-						std::cout << "The fact: ";
-						org_to_fact->print(std::cout, bindings);
-						std::cout << " is linked to the " << index << "th fact in the merged to dtg node!" << std::endl;
-					}
-				}
-				
-				if (index == NO_INVARIABLE_INDEX)
-				{
-					std::cout << "Could not find the equivalent merged fact of: ";
-					org_to_fact->print(std::cout, bindings);
-					std::cout << "." << std::endl;
-					
-					for (std::vector<BoundedAtom*>::const_iterator ci = merged_to_dtg_node->getAtoms().begin(); ci != merged_to_dtg_node->getAtoms().end(); ci++)
-					{
-						std::cout << "OPT: ";
-						const BoundedAtom* merged_to_fact = *ci;
-						merged_to_fact->print(std::cout, bindings);
-						std::cout << "." << std::endl;
-					}
-					assert (false);
-				}
-				
-				mapping_org_to_to_merged[org_index] = index;
-				
 				to_variable_domains[org_index] = new const std::vector<const Object*>*[org_to_fact->getAtom().getArity()];
-				
 				for (unsigned int i = 0; i < org_to_fact->getAtom().getArity(); i++)
 				{
 					to_variable_domains[org_index][i] = &org_to_fact->getVariableDomain(i, org_bindings);
 				}
-				
-				/*to_variable_domains[index] = new const std::vector<const Object*>*[org_to_fact->getAtom().getArity()];
-				
-				for (unsigned int i = 0; i < org_to_fact->getAtom().getArity(); i++)
-				{
-					to_variable_domains[index][i] = &org_to_fact->getVariableDomain(i, org_bindings);
-				}*/
+			}
+
+			assert (org_from_dtg_node.getAtoms().size() == merged_from_dtg_node->getAtoms().size());
+			
+			unsigned int from_assignments[org_from_dtg_node.getAtoms().size()];
+			unsigned int* mapping_org_from_to_merged = getRelativeIndexes(org_from_dtg_node, *merged_from_dtg_node, &from_assignments[0], 0, bindings);
+			
+			unsigned int to_assignments[org_to_dtg_node.getAtoms().size()];
+			unsigned int* mapping_org_to_to_merged = getRelativeIndexes(org_to_dtg_node, *merged_to_dtg_node, &to_assignments[0], 0, bindings);
+			
+			assert (mapping_org_from_to_merged != NULL);
+			assert (mapping_org_to_to_merged != NULL);
+			
+			std::cout << "From mappings: " << std::endl;
+			for (unsigned int i = 0; i < org_from_dtg_node.getAtoms().size(); i++)
+			{
+				std::cout << i << " -> " << mapping_org_from_to_merged[i] << std::endl;
+			}
+			
+			std::cout << "To mappings: " << std::endl;
+			for (unsigned int i = 0; i < org_to_dtg_node.getAtoms().size(); i++)
+			{
+				std::cout << i << " -> " << mapping_org_to_to_merged[i] << std::endl;
 			}
 			
 			Bindings& merged_bindings = merged_from_dtg_node->getDTG().getBindings();
@@ -1487,8 +1447,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 								assert (merged_from_dtg_node->getAtoms()[matching_merged_from_index]->getAtom().getTerms().size() > j);
 								assert (merged_to_dtg_node->getAtoms().size() > matching_merged_to_index);
 								assert (merged_to_dtg_node->getAtoms()[matching_merged_to_index]->getAtom().getTerms().size() > l);
-								//merged_from_dtg_node->getAtoms()[matching_merged_from_index]->getAtom().getTerms()[j]->unify(merged_from_dtg_node->getAtoms()[matching_merged_from_index]->getId(), *merged_to_dtg_node->getAtoms()[matching_merged_to_index]->getAtom().getTerms()[l], merged_to_dtg_node->getAtoms()[matching_merged_to_index]->getId(), merged_bindings);
-								merged_from_dtg_node->getAtoms()[i]->getAtom().getTerms()[j]->unify(merged_from_dtg_node->getAtoms()[i]->getId(), *merged_to_dtg_node->getAtoms()[k]->getAtom().getTerms()[l], merged_to_dtg_node->getAtoms()[k]->getId(), merged_bindings);
+								merged_from_dtg_node->getAtoms()[matching_merged_from_index]->getAtom().getTerms()[j]->unify(merged_from_dtg_node->getAtoms()[matching_merged_from_index]->getId(), *merged_to_dtg_node->getAtoms()[matching_merged_to_index]->getAtom().getTerms()[l], merged_to_dtg_node->getAtoms()[matching_merged_to_index]->getId(), merged_bindings);
 							}
 						}
 					}
@@ -1567,6 +1526,129 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 	ofs.close();
 #endif
 	return *combined_dtg;
+}
+
+unsigned int* DomainTransitionGraphManager::getRelativeIndexes(const DomainTransitionGraphNode& source, const DomainTransitionGraphNode& destination, unsigned int* assignments, unsigned int index, const Bindings& bindings) const
+{
+	std::cout << "Assignments so far: ";
+	for (unsigned int i = 0; i < index; i++)
+	{
+		std::cout << assignments[i];
+		if (i != index - 1)
+			std::cout << ", " ;
+	}
+	std::cout << "." << std::endl;
+	
+	// Check if we're done.
+	if (index == source.getAtoms().size())
+	{
+		return assignments;
+	}
+	
+	// Map the bounded atoms in the source to the destination.
+	// Map the `index`th atom to a atom in the destination node.
+	const BoundedAtom* source_bounded_atom = source.getAtoms()[index];
+	
+	for (std::vector<BoundedAtom*>::const_iterator ci = destination.getAtoms().begin(); ci != destination.getAtoms().end(); ci++)
+	{
+		const BoundedAtom* candidate_fact = *ci;
+		unsigned int candidate_index = std::distance(destination.getAtoms().begin(), ci);
+		
+		// Check if this one hasn't been assigned yet!
+		bool already_assigned = false;
+		for (unsigned int i = 0; i < index; i++)
+		{
+			if (assignments[i] == candidate_index)
+			{
+				already_assigned = true;
+				break;
+			}
+		}
+		
+		if (already_assigned) continue;
+		
+		/**
+		 * If we have found a fact in the destination DTG node which matches with the `index`th source fact, we
+		 * need to check if all the assignments made so far match up with the relationships between the terms in
+		 * the destination DTG node.
+		 * 
+		 * E.g. consider the following two nodes:
+		 * (on block block')
+		 * (on block' block*)
+		 * (clear block*)
+		 *
+		 * AND
+		 *
+		 * (clear block*)
+		 * (on block' block*)
+		 * (on block block')
+		 *
+		 * Then we need to make sure that we make the following mapping:
+		 * 0 -> 2
+		 * 1 -> 1
+		 * 2 -> 0
+		 */
+		if (source_bounded_atom->canUnifyWith(*candidate_fact, bindings))
+		{
+			bool mappings_match = true;
+			
+			// Go over the previous made bindings and check if any of these atoms have a variable domain in common.
+			for (unsigned int i = 0; i < index; i++)
+			{
+				// Note that we have made the mapping from i (source) -> assignments[i] (destination).
+				const BoundedAtom* destination_assigned_fact = destination.getAtoms()[assignments[i]];
+				const BoundedAtom* source_assigned_fact = source.getAtoms()[i];
+				
+				// Check if any of the terms in the ith and matching_index matches up.
+				for (unsigned int j = 0; j < candidate_fact->getAtom().getArity(); j++)
+				{
+					const std::vector<const Object*>& candidate_variable_domain = candidate_fact->getVariableDomain(j, bindings);
+					const std::vector<const Object*>& source_variable_domain = source.getAtoms()[index]->getVariableDomain(j, bindings);
+					
+					for (unsigned int k = 0; k < destination_assigned_fact->getAtom().getArity(); k++)
+					{
+						const std::vector<const Object*>& destination_assigned_variable_domain = destination_assigned_fact->getVariableDomain(k, bindings);
+						const std::vector<const Object*>& source_assigned_variable_domain = source_assigned_fact->getVariableDomain(k, bindings);
+						
+						// If they are similar, make sure the same relationship exists between the source facts.
+						if (&candidate_variable_domain == &destination_assigned_variable_domain)
+						{
+							// Assert that the same relation holds between the source facts.
+							if (&source_variable_domain != &source_assigned_variable_domain)
+							{
+								mappings_match = false;
+								break;
+							}
+						}
+						// Otherwise they are not similar and the source variable domains also must be different.
+						else if (&source_variable_domain == &source_assigned_variable_domain)
+						{
+							mappings_match = false;
+							break;
+						}
+					}
+					
+					if (!mappings_match) break;
+				}
+				
+				if (!mappings_match) break;
+			}
+			
+			if (!mappings_match) continue;
+			
+			// We have found a possible mapping!
+			unsigned int* new_assignments = new unsigned int[source.getAtoms().size()];
+			memcpy(&new_assignments[0], assignments, sizeof(unsigned int) * source.getAtoms().size());
+			new_assignments[index] = candidate_index;
+			
+			std::cout << "[" << index << "] Attempt: " << candidate_index << "." << std::endl;
+			
+			return getRelativeIndexes(source, destination, new_assignments, index + 1, bindings);
+		}
+	}
+	
+	std::cout << "[" << index << "] No mapping, backtrack!" << std::endl;
+	return NULL;
 }
 
 void DomainTransitionGraphManager::createPointToPointTransitions()
@@ -1965,7 +2047,9 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 					/**
 					 * In addition add all the effects which are added and refer to an invariable in the to node.
 					 */
-//					std::cout << "Add the effects!" << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT					
+					std::cout << "Add the effects which are added and refer to an invariable!" << std::endl;
+#endif
 					const std::vector<const Atom*>& effects = transition->getStep()->getAction().getEffects();
 					std::vector<std::pair<BoundedAtom*, InvariableIndex> > bounded_effects;
 					
@@ -1976,9 +2060,11 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 						
 						InvariableIndex invariable_index = NO_INVARIABLE_INDEX;
 						
-//						std::cout << "Process the effect: ";
-//						effect->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
-//						std::cout << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT					
+						std::cout << "Process the effect: ";
+						effect->print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
+						std::cout << std::endl;
+#endif
 						
 						std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
 						getDTGNodes(found_nodes, transition->getStep()->getStepId(), *effect, dtg->getBindings());
@@ -1993,7 +2079,9 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 								const Property* property_to_add = *ci;
 								if (std::find(possible_properties->begin(), possible_properties->end(), property_to_add) != possible_properties->end()) continue;
 								
-//								std::cout << "Possible property: " << *property_to_add << "." << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT					
+								std::cout << "Possible property: " << *property_to_add << "." << std::endl;
+#endif
 								
 								possible_properties->push_back(property_to_add);
 							}
@@ -2003,7 +2091,9 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 					}
 					
 					addFactsToNode(bounded_effects, *to_dtg_node_clone);
-//					std::cout << "[END] Add the effects!" << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+					std::cout << "[END] Add the effects!" << std::endl;
+#endif
 				}
 				
 				/**
@@ -2115,6 +2205,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 				}
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 				std::cout << "ORG:" << *from_dtg_node_clone << std::endl;
+				std::cout << "to: " << *to_dtg_node_clone << std::endl;
 				std::cout << " -=- ";
 				transition->getStep()->getAction().print(std::cout, dtg->getBindings(), transition->getStep()->getStepId());
 				std::cout << std::endl << " -+----------+- " << std::endl;

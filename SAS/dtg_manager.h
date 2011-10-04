@@ -239,6 +239,9 @@ private:
 	
 	bool isTermStatic(const Atom& atom, StepID step_id, InvariableIndex term_index, const Bindings& bindings) const;
 
+	unsigned int* getRelativeIndexes(const DomainTransitionGraphNode& source, const DomainTransitionGraphNode& destination, unsigned int* assignments, unsigned int index, const Bindings& bindings) const;
+
+	
 	// The predicate manager.
 	const PredicateManager* predicate_manager_;
 

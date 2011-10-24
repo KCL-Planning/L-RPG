@@ -12,7 +12,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+///define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 #define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
 	
@@ -1259,9 +1259,11 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const DTGReachability
 		std::vector<std::vector<const BoundedAtom*>* > supporting_tupples;
 		std::map<const std::vector<const Object*>*, const std::vector<const Object*>* > variable_assignments;
 		std::vector<const BoundedAtom*> initial_supporting_facts;
-		
+
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 		std::cout << "Process the DTG node: " << *dtg_node << std::endl;
-		
+#endif
+
 		dtg_reachability.getSupportingFacts(supporting_tupples, variable_assignments, atoms_to_achieve, initial_supporting_facts, initial_facts);
 
 		for (std::vector<std::vector<const BoundedAtom*>* >::const_iterator ci = supporting_tupples.begin(); ci != supporting_tupples.end(); ci++)
@@ -2140,12 +2142,13 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const BoundedAtom
 	}
 #endif
 
+/*
 	std::ofstream ofs;
 	ofs.open("lollipop_rpg_results", std::ios::out);
 	
 	equivalent_object_manager_->printAll(ofs);
 	ofs.close();
-	
+*/
 	equivalent_object_manager_->getAllReachableFacts(reachable_facts);
 }
 

@@ -195,7 +195,6 @@ int main(int argc,char * argv[])
 	struct timeval start_time_reachability;
 	gettimeofday(&start_time_reachability, NULL);
 	
-	//for (unsigned int i = 0; i < 1000; i++)
 	std::vector<const SAS_Plus::BoundedAtom*> lifted_reachable_facts;
 	{
 		std::vector<const SAS_Plus::BoundedAtom*> bounded_initial_facts;
@@ -238,7 +237,7 @@ int main(int argc,char * argv[])
 
 	double time_spend = end_time_reachability.tv_sec - start_time_reachability.tv_sec + (end_time_reachability.tv_usec - start_time_reachability.tv_usec) / 1000000.0;
 	std::cerr << "Reachability analysis: " << time_spend << " seconds" << std::endl;
-	
+
 	// Validate the result.
 	RPG::RelaxedPlanningGraph rpg(action_manager, *plan);
 	//std::cout << rpg << std::endl;

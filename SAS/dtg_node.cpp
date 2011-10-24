@@ -811,7 +811,107 @@ bool DomainTransitionGraphNode::groundTerms(std::vector<DomainTransitionGraphNod
 	return did_ground_a_term;
 }
 
-bool DomainTransitionGraphNode::groundTerms(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const std::vector<const std::vector<const Object*>* >& variable_domains_to_ground)
+bool DomainTransitionGraphNode::groundTerms(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const std::vector<const std::vector<const Object*>* >& variable_domains_to_ground, const std::map<const std::vector<const Object*>*, const Object*>& bound_objects)
+{
+	/**
+	 * If more than a single term needs to be grounded the pointers to the original terms will not refer to the actual terms
+	 * to be grounded any more. Therefore all terms to be grounded are indexed so we know which one to ground regardless of
+	 * where they are stored in momory.
+	 */
+	std::vector<std::pair<unsigned int, unsigned int> > terms_to_ground_pos;
+	DomainTransitionGraphNode* pre_grounded_node = new DomainTransitionGraphNode(*this, false, false);
+	
+	
+	
+	for (std::vector<const std::vector<const Object*>* >::const_iterator ci = variable_domains_to_ground.begin(); ci != variable_domains_to_ground.end(); ci++)
+	{
+		const std::vector<const Object*>* variable_domain_to_ground = *ci;
+		
+		// Identify which terms to ground.
+		for (std::vector<BoundedAtom*>::const_iterator dtg_atoms_ci = atoms_.begin(); dtg_atoms_ci != atoms_.end(); dtg_atoms_ci++)
+		{
+			const BoundedAtom* bounded_atom = *dtg_atoms_ci;
+			unsigned int dtg_atom_index = std::distance((std::vector<BoundedAtom*>::const_iterator)(atoms_.begin()), dtg_atoms_ci);
+			
+			for (unsigned int i = 0;  i < bounded_atom->getAtom().getArity(); i++)
+			{
+				
+				const std::vector<const Object*>& variable_domain = bounded_atom->getVariableDomain(i, dtg_->getBindings());
+				
+				std::map<const std::vector<const Object*>*, const Object*>::const_iterator found_fixed_variable_domain = bound_objects.find(&variable_domain);
+				
+				if (found_fixed_variable_domain != bound_objects.end())
+				{
+					std::vector<const Object*> possible_object_set;
+					possible_object_set.push_back((*found_fixed_variable_domain).second);
+					pre_grounded_node->getAtoms()[dtg_atom_index]->getAtom().getTerms()[i]->makeDomainEqualTo(pre_grounded_node->getAtoms()[dtg_atom_index]->getId(), possible_object_set, dtg_->getBindings());
+				}
+				else if (&bounded_atom->getVariableDomain(i, dtg_->getBindings()) == variable_domain_to_ground)
+				{
+					terms_to_ground_pos.push_back(std::make_pair(dtg_atom_index, i));
+				}
+			}
+		}
+	}
+	
+	// Move on to actual grounding.
+	std::vector<DomainTransitionGraphNode*> open_list;
+	open_list.push_back(pre_grounded_node);
+	bool did_ground_a_term = false;
+	
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
+	std::cout << "Process " << open_list.size() << " DTG nodes." << std::endl;
+#endif
+	
+	for (std::vector<std::pair<unsigned int, unsigned int> >::const_iterator ci = terms_to_ground_pos.begin(); ci != terms_to_ground_pos.end(); ci++)
+	{
+		unsigned int atom_index = (*ci).first;
+		unsigned int term_index = (*ci).second;
+		
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
+		std::cout << "Ground the " << term_index << "th term of the " << atom_index << " atom." << std::endl;
+#endif
+		
+		std::vector<DomainTransitionGraphNode*> grounded_nodes_tmp;
+		
+		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = open_list.begin(); ci != open_list.end(); ci++)
+		{
+			DomainTransitionGraphNode* node_to_ground = *ci;
+
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
+			std::cout << "Process: " << std::endl << *node_to_ground << std::endl;
+#endif
+			
+			const BoundedAtom* atom_to_ground = node_to_ground->getAtoms()[atom_index];
+			const Term* term_to_ground = atom_to_ground->getAtom().getTerms()[term_index];
+			
+			if (!node_to_ground->groundTerm(grounded_nodes_tmp, *term_to_ground, atom_to_ground->getId()))
+			{
+				grounded_nodes_tmp.push_back(node_to_ground);
+			}
+			else
+			{
+				did_ground_a_term = true;
+			}
+		}
+		open_list.clear();
+		open_list.insert(open_list.end(), grounded_nodes_tmp.begin(), grounded_nodes_tmp.end());
+		
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
+		std::cout << "Temp results: " << std::endl;
+		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = grounded_nodes_tmp.begin(); ci != grounded_nodes_tmp.end(); ci++)
+		{
+			DomainTransitionGraphNode* dtg_node = *ci;
+			std::cout << *dtg_node << std::endl;
+		}
+#endif
+	}
+	grounded_nodes.insert(grounded_nodes.end(), open_list.begin(), open_list.end());
+
+	return did_ground_a_term;
+}
+
+bool DomainTransitionGraphNode::groundTerms(std::vector<std::pair<DomainTransitionGraphNode*, std::map<const std::vector<const Object*>*, const Object*>* > >& grounded_nodes, const std::vector<const std::vector<const Object*>* >& variable_domains_to_ground)
 {
 	/**
 	 * If more than a single term needs to be grounded the pointers to the original terms will not refer to the actual terms
@@ -892,7 +992,22 @@ bool DomainTransitionGraphNode::groundTerms(std::vector<DomainTransitionGraphNod
 #endif
 	}
 	
-	grounded_nodes.insert(grounded_nodes.end(), open_list.begin(), open_list.end());
+	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = open_list.begin(); ci != open_list.end(); ci++)
+	{
+		DomainTransitionGraphNode* grounded_node = *ci;
+		std::map<const std::vector<const Object*>*, const Object*>* grounded_variables = new std::map<const std::vector<const Object*>*, const Object*>();
+		
+		for (std::vector<std::pair<unsigned int, unsigned int> >::const_iterator ci = terms_to_ground_pos.begin(); ci != terms_to_ground_pos.end(); ci++)
+		{
+			unsigned int atom_index = (*ci).first;
+			unsigned int term_index = (*ci).second;
+			(*grounded_variables)[&getAtoms()[atom_index]->getVariableDomain(term_index, dtg_->getBindings())] = grounded_node->getAtoms()[atom_index]->getVariableDomain(term_index, dtg_->getBindings())[0];
+		}
+		
+		grounded_nodes.push_back(std::make_pair(grounded_node, grounded_variables));
+	}
+	
+	//grounded_nodes.insert(grounded_nodes.end(), open_list.begin(), open_list.end());
 
 	return did_ground_a_term;
 }

@@ -11,7 +11,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+///#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 ///#define ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 
 namespace MyPOP {
@@ -2178,19 +2178,6 @@ Transition* Transition::migrateTransition(const std::vector<const Atom*>& initia
 	
 	// After the transition is made and possible, update the bindings! :)
 	return new Transition(new_step, from_node, to_node, *preconditions_, *effects_, *affected_, *persistent_preconditions_, *action_invariables_, *all_precondition_mappings_, *free_variables_);
-/*	std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >* t_preconditions = new std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >(*preconditions_);
-	std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >* effects = new std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >(*effects_);
-	std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >* affected = new std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >(*affected_); 
-	std::vector<std::pair<const Atom*, InvariableIndex> >* persistent_preconditions = new std::vector<std::pair<const Atom*, InvariableIndex> >(*persistent_preconditions_); 
-	std::map< const MyPOP::SAS_Plus::PropertySpace*, const MyPOP::Variable* >* action_invariables = new std::map< const MyPOP::SAS_Plus::PropertySpace*, const MyPOP::Variable* >(*action_invariables_);
-	std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >* all_precondition_mappings = new std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >(*all_precondition_mappings_);
-
-	new_step->getAction().print(std::cout, from_node.getDTG().getBindings(), new_step->getStepId());
-	std::cout << std::endl;
-	
-	// Update the references.
-	return new Transition(new_step, from_node, to_node, *t_preconditions, *effects, *affected, *persistent_preconditions, *action_invariables, *all_precondition_mappings);
-*/
 }
 
 Transition* Transition::cloneWithNodes(const std::vector<const Atom*>& initial_facts) const

@@ -182,7 +182,11 @@ public:
 
 	bool groundTerms(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const std::vector<std::pair<const Term*, StepID> >& terms_to_ground);
 	
-	bool groundTerms(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const std::vector<const std::vector<const Object*>* >& variable_domains_to_ground);
+//	bool groundTerms(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const std::vector<const std::vector<const Object*>* >& variable_domains_to_ground);
+	
+	bool groundTerms(std::vector<std::pair<DomainTransitionGraphNode*, std::map<const std::vector<const Object*>*, const Object*>* > >& grounded_nodes, const std::vector<const std::vector<const Object*>* >& variable_domains_to_ground);
+
+	bool groundTerms(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const std::vector<const std::vector<const Object*>* >& variable_domains_to_ground, const std::map<const std::vector<const Object*>*, const Object*>& bound_objects);
 	
 	/**
 	 * Check if this node contains an empty variable domain, in that case the node has to be removed.

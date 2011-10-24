@@ -26,7 +26,7 @@
 #include "recursive_function.h"
 #include "dtg_reachability.h"
 
-#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+///#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 ///#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 ///#define MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
 
@@ -932,12 +932,14 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 	
 	std::set<const DomainTransitionGraphNode*> closed_list;
 	
-	std::cout << "Start mergin!" << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+	std::cout << "Start merging!" << std::endl;
 	for (std::vector<DomainTransitionGraph*>::const_iterator objects_ci = objects_.begin(); objects_ci != objects_.end(); objects_ci++)
 	{
 		const DomainTransitionGraph* dtg = *objects_ci;
 		std::cout << "MERGE CANDIDATE: " << *dtg << std::endl;
 	}
+#endif
 	
 	std::vector<const DomainTransitionGraphNode*> unmerged_dtg_nodes;
 	for (std::vector<DomainTransitionGraph*>::const_iterator objects_ci = objects_.begin(); objects_ci != objects_.end(); objects_ci++)
@@ -1414,7 +1416,8 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 			
 			assert (mapping_org_from_to_merged != NULL);
 			assert (mapping_org_to_to_merged != NULL);
-			
+
+/*
 			std::cout << "From mappings: " << std::endl;
 			for (unsigned int i = 0; i < org_from_dtg_node.getAtoms().size(); i++)
 			{
@@ -1426,7 +1429,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 			{
 				std::cout << i << " -> " << mapping_org_to_to_merged[i] << std::endl;
 			}
-			
+*/
 			Bindings& merged_bindings = merged_from_dtg_node->getDTG().getBindings();
 			for (unsigned int i = 0; i < org_from_dtg_node.getAtoms().size(); i++)
 			{
@@ -1442,7 +1445,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 							{
 								unsigned int matching_merged_from_index = mapping_org_from_to_merged[i];
 								unsigned int matching_merged_to_index = mapping_org_to_to_merged[k];
-								std::cout << i << " " << j << " " << k << " " << l << std::endl;
+//								std::cout << i << " " << j << " " << k << " " << l << std::endl;
 								assert (merged_from_dtg_node->getAtoms().size() > matching_merged_from_index);
 								assert (merged_from_dtg_node->getAtoms()[matching_merged_from_index]->getAtom().getTerms().size() > j);
 								assert (merged_to_dtg_node->getAtoms().size() > matching_merged_to_index);
@@ -1530,7 +1533,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 
 unsigned int* DomainTransitionGraphManager::getRelativeIndexes(const DomainTransitionGraphNode& source, const DomainTransitionGraphNode& destination, unsigned int* assignments, unsigned int index, const Bindings& bindings) const
 {
-	std::cout << "Assignments so far: ";
+/*	std::cout << "Assignments so far: ";
 	for (unsigned int i = 0; i < index; i++)
 	{
 		std::cout << assignments[i];
@@ -1538,7 +1541,7 @@ unsigned int* DomainTransitionGraphManager::getRelativeIndexes(const DomainTrans
 			std::cout << ", " ;
 	}
 	std::cout << "." << std::endl;
-	
+*/
 	// Check if we're done.
 	if (index == source.getAtoms().size())
 	{
@@ -1641,13 +1644,13 @@ unsigned int* DomainTransitionGraphManager::getRelativeIndexes(const DomainTrans
 			memcpy(&new_assignments[0], assignments, sizeof(unsigned int) * source.getAtoms().size());
 			new_assignments[index] = candidate_index;
 			
-			std::cout << "[" << index << "] Attempt: " << candidate_index << "." << std::endl;
+//			std::cout << "[" << index << "] Attempt: " << candidate_index << "." << std::endl;
 			
 			return getRelativeIndexes(source, destination, new_assignments, index + 1, bindings);
 		}
 	}
 	
-	std::cout << "[" << index << "] No mapping, backtrack!" << std::endl;
+//	std::cout << "[" << index << "] No mapping, backtrack!" << std::endl;
 	return NULL;
 }
 
@@ -2129,21 +2132,28 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 				/**
 				 * Ground all the terms which need to be grounded and add the result to the final DTG.
 				 */
-				std::vector<DomainTransitionGraphNode*> from_grounded_nodes;
+				//std::vector<DomainTransitionGraphNode*> from_grounded_nodes;
+				std::vector<std::pair<DomainTransitionGraphNode*, std::map<const std::vector<const Object*>*, const Object*>* > > from_grounded_nodes;
 				bool grounded_from_nodes = from_dtg_node_clone->groundTerms(from_grounded_nodes, variable_domains_to_ground);
+				
 				if (grounded_from_nodes)
 				{
 					from_dtg_node_clone->removeTransitions(true);
 					dtg_nodes_to_remove.push_back(dtg_node);
 				}
 				
-				std::vector<DomainTransitionGraphNode*> to_grounded_nodes;
+				//std::vector<DomainTransitionGraphNode*> to_grounded_nodes;
+				std::vector<std::pair<DomainTransitionGraphNode*, std::map<const std::vector<const Object*>*, const Object*>* > > to_grounded_nodes;
 				bool grounded_to_nodes = to_dtg_node_clone->groundTerms(to_grounded_nodes, variable_domains_to_ground);
 				if (grounded_to_nodes)
 				{
 					to_dtg_node_clone->removeTransitions(true);
 					dtg_nodes_to_remove.push_back(&transition->getToNode());
 				}
+				
+//				std::cerr << "Ground ";
+//				transition->getStep()->getAction().print(std::cerr, transition->getFromNode().getDTG().getBindings(), transition->getStep()->getStepId());
+//				std::cerr << " into: " << from_grounded_nodes.size() << " / " << to_grounded_nodes.size() << " nodes!" << std::endl;
 				
 				for (std::vector<const std::vector<const Object*>* >::const_iterator ci = variable_domains_to_ground.begin(); ci != variable_domains_to_ground.end(); ci++)
 				{
@@ -2152,21 +2162,34 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 
 				if (grounded_from_nodes || grounded_to_nodes)
 				{
-					for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = from_grounded_nodes.begin(); ci != from_grounded_nodes.end(); ci++)
+					for (std::vector<std::pair<DomainTransitionGraphNode*, std::map<const std::vector<const Object*>*, const Object*>* > >::const_iterator ci = from_grounded_nodes.begin(); ci != from_grounded_nodes.end(); ci++)
 					{
 						
 						DomainTransitionGraphNode* from_dtg_node = NULL;
 						
 						if (grounded_from_nodes)
 						{
-							from_dtg_node = *ci;
+							from_dtg_node = (*ci).first;
 						}
 						else
 						{
-							from_dtg_node = new DomainTransitionGraphNode(**ci, false, false);
+							from_dtg_node = new DomainTransitionGraphNode(*(*ci).first, false, false);
 						}
 						
-						for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = to_grounded_nodes.begin(); ci != to_grounded_nodes.end(); ci++)
+						// Ground the to node too, but with respect to the variables already grounded!
+						std::vector<DomainTransitionGraphNode*> selective_to_grounded_nodes;
+						bool grounded_to_nodes = to_dtg_node_clone->groundTerms(selective_to_grounded_nodes, variable_domains_to_ground, *(*ci).second);
+						if (grounded_to_nodes)
+						{
+							to_dtg_node_clone->removeTransitions(true);
+							dtg_nodes_to_remove.push_back(&transition->getToNode());
+						}
+						
+						//std::cerr << to_grounded_nodes.size() << " v.s. " << selective_to_grounded_nodes.size() << std::endl;
+						
+						
+						//for (std::vector<std::pair<DomainTransitionGraphNode*, std::map<const std::vector<const Object*>*, const Object*>* > >::const_iterator ci = to_grounded_nodes.begin(); ci != to_grounded_nodes.end(); ci++)
+						for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = selective_to_grounded_nodes.begin(); ci != selective_to_grounded_nodes.end(); ci++)
 						{
 							DomainTransitionGraphNode* to_dtg_node = NULL;
 							
@@ -2191,9 +2214,9 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 								
 							dtg_nodes_to_add.push_back(to_dtg_node);
 						}
-	#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 						std::cout << " NEW: " << *from_dtg_node << std::endl;
-	#endif
+#endif
 						dtg_nodes_to_add.push_back(from_dtg_node);
 					}
 				}

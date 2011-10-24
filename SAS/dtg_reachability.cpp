@@ -334,113 +334,80 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 	std::cout << "New reachable transition: " << transition << "." << std::endl;
 #endif
 
-	// TODO: This assertion fails!
-//	assert (preconditions.size() == transition.getFromNode().getAtoms().size());
-	
+	// Determine the set of grounded variables.
+	std::set<const std::vector<const Object*>*> grounded_variables;
 	for (std::vector<const Variable*>::const_iterator ci = transition.getStep()->getAction().getVariables().begin(); ci != transition.getStep()->getAction().getVariables().end(); ci++)
 	{
 		const Variable* variable = *ci;
 		const std::vector<const Object*>& variable_domain = variable->getDomain(transition.getStep()->getStepId(), transition.getFromNode().getDTG().getBindings());
-		bool covered = false;
 		
-		// If the domain is grounded we do not need to care! :D
 		if (variable_domain.size() == 1)
 		{
 			const EquivalentObject& eo = eog_manager.getEquivalentObject(*variable_domain[0]);
-			if (eo.getEquivalentObjectGroup().isGrounded()) continue;
+			if (eo.getEquivalentObjectGroup().isGrounded())
+			{
+				grounded_variables.insert(&variable_domain);
+			}
 		}
+	}
+
+	// Find out which preconditions are not part of the from node.
+	const std::vector<std::pair<const Atom*, InvariableIndex> >& all_preconditions = transition.getAllPreconditions();
+	const Bindings& bindings = transition.getFromNode().getDTG().getBindings();
+			
+	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = all_preconditions.begin(); ci != all_preconditions.end(); ci++)
+	{
+		const Atom* precondition = (*ci).first;
+		bool precondition_part_of_from_node = false;
 		
-		
-		// Check if this variable is covered by the preconditions.
 		for (std::vector<BoundedAtom*>::const_iterator ci = transition.getFromNode().getAtoms().begin(); ci != transition.getFromNode().getAtoms().end(); ci++)
 		{
 			const BoundedAtom* from_fact = *ci;
-			
-			for (std::vector<const Term*>::const_iterator ci = from_fact->getAtom().getTerms().begin(); ci != from_fact->getAtom().getTerms().end(); ci++)
+			if (bindings.areIdentical(from_fact->getAtom(), from_fact->getId(), *precondition, transition.getStep()->getStepId()))
 			{
-				const Term* from_fact_term = *ci;
-				if (&from_fact_term->getDomain(from_fact->getId(), transition.getFromNode().getDTG().getBindings()) == &variable_domain)
-				{
-					covered = true;
-					break;
-				}
+				precondition_part_of_from_node = true;
+				break;
 			}
-			
-			if (covered) break;
 		}
 		
-		if (!covered)
+		if (precondition_part_of_from_node) continue;
+		
+		// Convert the precondition into a bounded atom.
+		std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
+		transition.getFromNode().getDTG().getDTGManager().getDTGNodes(found_nodes, transition.getStep()->getStepId(), *precondition, transition.getFromNode().getDTG().getBindings());
+		
+		std::vector<const Property*>* precondition_properties = new std::vector<const Property*>();
+		for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ci++)
 		{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-			std::cout << "Transition: " << transition << std::endl;
-			std::cout << "The variable ";
-			variable->print(std::cout, transition.getFromNode().getDTG().getBindings(), transition.getStep()->getStepId());
-			std::cout << "is not covered by the atoms in the from node!" << std::endl;
-#endif
-
-			// Determine the most efficient way of finding the possible facts for this transition. Which is any grounded nodes!
-			const std::vector<std::pair<const Atom*, InvariableIndex> >& all_preconditions = transition.getAllPreconditions();
+			const BoundedAtom* bounded_atom = (*ci).second;
 			
-			for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = all_preconditions.begin(); ci != all_preconditions.end(); ci++)
+			for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
 			{
-				const Atom* precondition = (*ci).first;
-				bool contains_variable_domain = false;
-				EquivalentObjectGroup* grounded_object_group = NULL;
-				for (std::vector<const Term*>::const_iterator ci = precondition->getTerms().begin(); ci != precondition->getTerms().end(); ci++)
-				{
-					const Term* precondition_term = *ci;
-					const std::vector<const Object*>& precondition_variable = precondition_term->getDomain(transition.getStep()->getStepId(), transition.getFromNode().getDTG().getBindings());
-					if (&precondition_variable == &variable_domain)
-					{
-						contains_variable_domain = true;
-					}
-					
-					else if (precondition_variable.size() == 1)
-					{
-						EquivalentObjectGroup& eog = eog_manager.getEquivalentObject(*precondition_variable[0]).getEquivalentObjectGroup();
-						if (eog.isGrounded())
-						{
-							grounded_object_group = &eog;
-						}
-					}
-				}
-				
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-				if (contains_variable_domain)
-				{
-					std::cout << "Relevant precondition: ";
-					precondition->print(std::cout, transition.getFromNode().getDTG().getBindings(), transition.getStep()->getStepId());
-					std::cout << "." << std::endl;
-					
-					if (grounded_object_group != NULL)
-					{
-						std::cout << "Grounded object: " << *grounded_object_group << std::endl;
-					}
-				}
-#endif
-				
-				std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
-				transition.getFromNode().getDTG().getDTGManager().getDTGNodes(found_nodes, transition.getStep()->getStepId(), *precondition, transition.getFromNode().getDTG().getBindings());
-				
-				std::vector<const Property*>* precondition_properties = new std::vector<const Property*>();
-				for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ci++)
-				{
-					const BoundedAtom* bounded_atom = (*ci).second;
-					
-					for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
-					{
-						const Property* property = *ci;
-						if (std::find(precondition_properties->begin(), precondition_properties->end(), property) != precondition_properties->end()) continue;
-						precondition_properties->push_back(property);
-					}
-				}
-				
-				assert (precondition_properties->size() != 0);
-				
-				BoundedAtom* bounded_precondition = new BoundedAtom(transition.getStep()->getStepId(), *precondition, *precondition_properties);
-				relevant_preconditions_.push_back(std::make_pair(bounded_precondition, grounded_object_group));
+				const Property* property = *ci;
+				if (std::find(precondition_properties->begin(), precondition_properties->end(), property) != precondition_properties->end()) continue;
+				precondition_properties->push_back(property);
 			}
 		}
+		
+		assert (precondition_properties->size() != 0);
+		
+		BoundedAtom* bounded_precondition = new BoundedAtom(transition.getStep()->getStepId(), *precondition, *precondition_properties);
+		
+		// For all those not part of the from node, add them to a list.
+		EquivalentObjectGroup* grounded_object_group = NULL;
+		for (std::vector<const Term*>::const_iterator ci = precondition->getTerms().begin(); ci != precondition->getTerms().end(); ci++)
+		{
+			const Term* precondition_term = *ci;
+			const std::vector<const Object*>& precondition_domain = precondition_term->getDomain(transition.getStep()->getStepId(), bindings);
+			if (grounded_variables.count(&precondition_domain) != 0)
+			{
+				grounded_object_group = &eog_manager.getEquivalentObject(*precondition_domain[0]).getEquivalentObjectGroup();
+				assert (grounded_object_group->isGrounded());
+				break;
+			}
+		}
+		
+		relevant_preconditions_.push_back(std::make_pair(bounded_precondition, grounded_object_group));
 	}
 }
 

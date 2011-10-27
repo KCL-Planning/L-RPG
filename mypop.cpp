@@ -192,11 +192,22 @@ int main(int argc,char * argv[])
 	const SAS_Plus::DomainTransitionGraph& combined_graph = dtg_manager.generateDomainTransitionGraphsTIM(*the_domain->types, plan->getBindings());
 	
 	// Do the reachability analysis.
-	struct timeval start_time_reachability;
-	gettimeofday(&start_time_reachability, NULL);
+	struct timeval start_time_prepare_reachability;
+	gettimeofday(&start_time_prepare_reachability, NULL);
 	
-	std::vector<const SAS_Plus::BoundedAtom*> lifted_reachable_facts;
 	{
+
+		SAS_Plus::DTGReachability analyst(dtg_manager, combined_graph, term_manager);
+		
+		struct timeval end_time_prepare_reachability;
+		gettimeofday(&end_time_prepare_reachability, NULL);	
+		
+		double time_spend_preparing = end_time_prepare_reachability.tv_sec - start_time_prepare_reachability.tv_sec + (end_time_prepare_reachability.tv_usec - start_time_prepare_reachability.tv_usec) / 1000000.0;
+		std::cerr << "Prepare reachability analysis: " << time_spend_preparing << " seconds" << std::endl;
+		
+		struct timeval start_time_reachability;
+		gettimeofday(&start_time_reachability, NULL);
+		
 		std::vector<const SAS_Plus::BoundedAtom*> bounded_initial_facts;
 		for (std::vector<const Atom*>::const_iterator ci = initial_facts->begin(); ci != initial_facts->end(); ci++)
 		{
@@ -216,10 +227,14 @@ int main(int argc,char * argv[])
 				}
 			}
 		}
-		
-		SAS_Plus::DTGReachability analyst(dtg_manager, combined_graph, term_manager, bounded_initial_facts);
-		
-		analyst.performReachabilityAnalsysis(lifted_reachable_facts, bounded_initial_facts);
+		std::vector<const SAS_Plus::ReachableFact*> result;
+
+		analyst.performReachabilityAnalsysis(result, bounded_initial_facts, combined_graph.getBindings());
+		struct timeval end_time_reachability;
+		gettimeofday(&end_time_reachability, NULL);	
+
+		double time_spend = end_time_reachability.tv_sec - start_time_reachability.tv_sec + (end_time_reachability.tv_usec - start_time_reachability.tv_usec) / 1000000.0;
+		std::cerr << "Reachability analysis: " << time_spend << " seconds" << std::endl;
 	}
 	
 /*
@@ -232,12 +247,8 @@ int main(int argc,char * argv[])
 	exit(0);
 */
 	
-	struct timeval end_time_reachability;
-	gettimeofday(&end_time_reachability, NULL);	
 
-	double time_spend = end_time_reachability.tv_sec - start_time_reachability.tv_sec + (end_time_reachability.tv_usec - start_time_reachability.tv_usec) / 1000000.0;
-	std::cerr << "Reachability analysis: " << time_spend << " seconds" << std::endl;
-
+/*
 	// Validate the result.
 	RPG::RelaxedPlanningGraph rpg(action_manager, *plan);
 	//std::cout << rpg << std::endl;
@@ -298,7 +309,7 @@ int main(int argc,char * argv[])
 	}
 	
 	assert (all_clear);
-	
+	*/
 	exit(0);
 	
 	Graphviz::printToDot(dtg_manager);

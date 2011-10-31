@@ -274,22 +274,6 @@ public:
 	ReachableTransition& getReachableTransition(const Transition& transition) const;
 	
 private:
-	
-	bool canSatisfyPreconditions(const Transition& transition, const ReachableNode& supporting_fact, std::set<const std::vector<const Object*>* >& invariables) const;
-	
-	const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>* canSatisfyPrecondition(std::vector<std::pair<const Atom*, InvariableIndex> >& all_preconditions, unsigned int index, const Transition& transition, std::set<const std::vector<const Object*>* >& invariables, std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& domain_variable_mapping) const;
-	
-	bool iterateTillFixPoint(DTGPropagator& propagator, std::vector<const BoundedAtom*>& established_facts, std::set<const Transition*>& achieved_transitions);
-	
-	/**
-	 * This method is called every time a DTG node is reachable from another node. It effectively makes
-	 * the from node a subset of the to node.
-	 * @param dtg_node The DTG node for which we want to add a new set of supporting facts.
-	 * @param reachable_facts The reachable facts.
-	 */
-	bool makeReachable(const DomainTransitionGraphNode& dtg_node, std::vector<const BoundedAtom*>& reachable_facts);
-	
-	bool handleExternalDependencies(std::vector<const BoundedAtom*>& established_facts);
 
 	const TermManager* term_manager_;
 	
@@ -318,31 +302,6 @@ private:
 	std::vector<const ReachableFact*> static_facts_;
 	
 	std::map<const Transition*, ReachableTransition*> reachable_transitions_;
-};
-
-
-/**
- * Clas which takes care of propagating reachable facts from transitions which have been proven to be possible.
- */
-class DTGPropagator
-{
-public:
-	DTGPropagator(DTGReachability& dtg_reachability, EquivalentObjectGroupManager& equivalent_object_manager, const DomainTransitionGraph& dtg_graph);
-
-	void propagateReachableNodes();
-	
-private:
-	
-	void mapPossibleFacts(std::vector<const ReachableNode*>& results, const std::vector<const ReachableFact*>* cached_reachable_facts[], const DomainTransitionGraphNode& dtg_node, const std::map<const std::vector<const Object*>*, const EquivalentObjectGroup*>& mappings, const std::vector<const ReachableFact*>& assignments);
-	
-	DTGReachability* dtg_reachability_;
-	
-	EquivalentObjectGroupManager* equivalent_object_manager_;
-	
-	const DomainTransitionGraph* dtg_graph_;
-	
-	std::set<std::pair<const DomainTransitionGraphNode*, const ReachableNode*> > dtg_graph_closed_list_;
-	std::set<std::pair<const Transition*, const ReachableNode*> > closed_list_;
 };
 
 };

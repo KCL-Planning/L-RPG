@@ -13,14 +13,14 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-///define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 #define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
 	
 namespace SAS_Plus {
 
 ReachableFact::ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager)
-	: bounded_atom_(&bounded_atom), bindings_(&bindings)
+	: bounded_atom_(&bounded_atom), bindings_(&bindings), removed_flag_(false)
 {
 	term_domain_mapping_ = new EquivalentObjectGroup*[bounded_atom.getAtom().getArity()];
 	
@@ -43,7 +43,7 @@ ReachableFact::ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bi
 }
 
 ReachableFact::ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, EquivalentObjectGroup** term_domain_mapping)
-	: bounded_atom_(&bounded_atom), bindings_(&bindings), term_domain_mapping_(term_domain_mapping)
+	: bounded_atom_(&bounded_atom), bindings_(&bindings), term_domain_mapping_(term_domain_mapping), removed_flag_(false)
 {
 	for (unsigned int i = 0; i < bounded_atom.getAtom().getArity(); i++)
 	{
@@ -51,49 +51,22 @@ ReachableFact::ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bi
 	}
 }
 
-bool ReachableFact::conflictsWith(const std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>& mapping) const
+bool ReachableFact::updateTermsToRoot()
 {
-	for (std::vector<const Term*>::const_iterator ci = bounded_atom_->getAtom().getTerms().begin(); ci != bounded_atom_->getAtom().getTerms().end(); ci++)
-	{
-		unsigned int index = std::distance(bounded_atom_->getAtom().getTerms().begin(), ci);
-		const std::vector<const Object*>& variable_domain = (*ci)->getDomain(bounded_atom_->getId(), *bindings_);
-		
-		 std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>::const_iterator ci = mapping.find(&variable_domain);
-		 if (ci == mapping.end()) continue;
-		 
-		 if ((*ci).second != term_domain_mapping_[index]) return false;
-	}
-	return true;
-}
-	
-void ReachableFact::updateMappings(std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>& mapping) const
-{
-	for (std::vector<const Term*>::const_iterator ci = bounded_atom_->getAtom().getTerms().begin(); ci != bounded_atom_->getAtom().getTerms().end(); ci++)
-	{
-		unsigned int index = std::distance(bounded_atom_->getAtom().getTerms().begin(), ci);
-		const std::vector<const Object*>& variable_domain = (*ci)->getDomain(bounded_atom_->getId(), *bindings_);
-		
-		 std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>::const_iterator ci = mapping.find(&variable_domain);
-		 assert (ci != mapping.end());
-		 
-		 term_domain_mapping_[index] = (*ci).second;
-		 assert (term_domain_mapping_[index] != NULL);
-	}
-	
+	bool updated_domain = false;
 	for (unsigned int i = 0; i < bounded_atom_->getAtom().getArity(); i++)
 	{
-		assert (term_domain_mapping_[i] != NULL);
-	}
-}
-
-bool ReachableFact::containsNonRootEOG() const
-{
-	for (unsigned int i = 0; i < bounded_atom_->getAtom().getArity(); i++)
-	{
-		if (!term_domain_mapping_[i]->isRootNode()) return true;
+		EquivalentObjectGroup& root_node = term_domain_mapping_[i]->getRootNode();
+		if (&root_node != term_domain_mapping_[i])
+		{
+			term_domain_mapping_[i] = &root_node;
+			updated_domain = true;
+		}
 	}
 	
-	return false;
+	// assert(updated_domain);
+	
+	return updated_domain;
 }
 
 bool ReachableFact::isEquivalentTo(const ReachableFact& other) const
@@ -136,7 +109,12 @@ bool ReachableFact::isEquivalentTo(const ReachableFact& other) const
 	
 	for (unsigned int i = 0; i < bounded_atom_->getAtom().getArity(); i++)
 	{
-		if (((0x1 << i) & combined_mask) != 0) continue;
+		if (((0x1 << i) & combined_mask) != 0)
+		{
+			// Make sure the types match up.
+			if (!term_domain_mapping_[i]->hasSameFingerPrint(*other.term_domain_mapping_[i])) return false;
+			continue;
+		}
 
 		if (!term_domain_mapping_[i]->isIdenticalTo(*other.term_domain_mapping_[i]))
 		{
@@ -322,7 +300,7 @@ void ReachableSet::initialiseInitialFacts(const std::vector< ReachableFact* >& i
 	 * processNewReachableFact to do the actual work for us.
 	 */
 	unsigned int index = 0;
-	std::vector<std::vector<const ReachableFact*>*> local_reachable_set(reachable_set_);
+	std::vector<std::vector<ReachableFact*>*> local_reachable_set(reachable_set_);
 	for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = facts_set_.begin(); ci != facts_set_.end(); ci++)
 	{
 		const ResolvedBoundedAtom* resolved_atom = *ci;
@@ -330,7 +308,7 @@ void ReachableSet::initialiseInitialFacts(const std::vector< ReachableFact* >& i
 		// Check which initial facts can merge with the given atom.
 		for (std::vector< ReachableFact* >::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
 		{
-			const ReachableFact* reachable_fact = *ci;
+			ReachableFact* reachable_fact = *ci;
 			
 			// The predicate of the fact in this set should be more general than the one we try to 'merge' with.
 			if (!resolved_atom->getAtom().getPredicate().canSubstitute(reachable_fact->getBoundedAtom().getAtom().getPredicate()))
@@ -350,10 +328,10 @@ void ReachableSet::initialiseInitialFacts(const std::vector< ReachableFact* >& i
 	 * the fact at index 0. So this allows us to efficiently create all the sets.
 	 */
 	index = 0;
-	for (std::vector<std::vector<const ReachableFact*>*>::const_iterator ci = local_reachable_set.begin(); ci != local_reachable_set.end(); ci++)
+	for (std::vector<std::vector<ReachableFact*>*>::const_iterator ci = local_reachable_set.begin(); ci != local_reachable_set.end(); ci++)
 	{
-		std::vector<const ReachableFact*>* reachable_set = *ci;
-		for (std::vector<const ReachableFact*>::const_iterator ci = reachable_set->begin(); ci != reachable_set->end(); ci++)
+		std::vector<ReachableFact*>* reachable_set = *ci;
+		for (std::vector<ReachableFact*>::const_iterator ci = reachable_set->begin(); ci != reachable_set->end(); ci++)
 		{
 			processNewReachableFact(**ci, index);
 		}
@@ -366,7 +344,7 @@ void ReachableSet::addBoundedAtom(const MyPOP::SAS_Plus::BoundedAtom& bounded_at
 {
 	ResolvedBoundedAtom* new_resolved_bounded_atom = new ResolvedBoundedAtom(bounded_atom, bindings);
 	facts_set_.push_back(new_resolved_bounded_atom);
-	reachable_set_.push_back(new std::vector<const ReachableFact*>());
+	reachable_set_.push_back(new std::vector<ReachableFact*>());
 	
 	// Generate the constraints sets.
 	std::vector<std::pair<unsigned int, unsigned int> >** new_constraints_sets = new std::vector<std::pair<unsigned int, unsigned int> >*[bounded_atom.getAtom().getArity()];
@@ -393,7 +371,7 @@ void ReachableSet::addBoundedAtom(const MyPOP::SAS_Plus::BoundedAtom& bounded_at
 	}
 }
 
-bool ReachableSet::canSatisfyConstraints(const ReachableFact& reachable_fact, std::vector<const ReachableFact*>& reachable_set) const
+bool ReachableSet::canSatisfyConstraints(const ReachableFact& reachable_fact, std::vector<ReachableFact*>& reachable_set) const
 {
 	unsigned int index = reachable_set.size();
 	std::vector<std::pair<unsigned int, unsigned int> >** constraints = constraints_set_[index];
@@ -416,12 +394,12 @@ bool ReachableSet::canSatisfyConstraints(const ReachableFact& reachable_fact, st
 	return true;
 }
 
-void ReachableSet::processNewReachableFact(const ReachableFact& reachable_fact, unsigned int index)
+void ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsigned int index)
 {
 	// Add the fact to the reachable set, but make sure it isn't already part of it!
-	std::vector<const ReachableFact*>* reachable_set = reachable_set_[index];
+	std::vector<ReachableFact*>* reachable_set = reachable_set_[index];
 	
-	for (std::vector<const ReachableFact*>::const_iterator ci = reachable_set->begin(); ci != reachable_set->end(); ci++)
+	for (std::vector<ReachableFact*>::const_iterator ci = reachable_set->begin(); ci != reachable_set->end(); ci++)
 	{
 		if (reachable_fact.isIdenticalTo(**ci)) return;
 	}
@@ -431,7 +409,7 @@ void ReachableSet::processNewReachableFact(const ReachableFact& reachable_fact, 
 	// If the index is 0, it means it is the start of a new 'root'.
 	if (index == 0)
 	{
-		std::vector<const ReachableFact*>* new_reachable_set = new std::vector<const ReachableFact*>();
+		std::vector<ReachableFact*>* new_reachable_set = new std::vector<ReachableFact*>();
 		new_reachable_set->push_back(&reachable_fact);
 		fully_reachable_sets_.push_back(new_reachable_set);
 		
@@ -440,16 +418,16 @@ void ReachableSet::processNewReachableFact(const ReachableFact& reachable_fact, 
 	// Otherwise, we need to search for all sets the new node can be a part of and process these.
 	else
 	{
-		for (std::vector<std::vector<const ReachableFact*>* >::const_iterator ci = fully_reachable_sets_.begin(); ci != fully_reachable_sets_.end(); ci++)
+		for (std::vector<std::vector<ReachableFact*>* >::const_iterator ci = fully_reachable_sets_.begin(); ci != fully_reachable_sets_.end(); ci++)
 		{
-			std::vector<const ReachableFact*>* reachable_set = *ci;
+			std::vector<ReachableFact*>* reachable_set = *ci;
 			if (reachable_set->size() != index) continue;
 			
 			// Check if the newly reachable fact satisfies all the constraints of the previous assignments.
 			if (!canSatisfyConstraints(reachable_fact, *reachable_set)) continue;
 			
 			// If the constraints are satisfied, add the facts and search for new facts to add.
-			std::vector<const ReachableFact*>* new_reachable_set = new std::vector<const ReachableFact*>();
+			std::vector<ReachableFact*>* new_reachable_set = new std::vector<ReachableFact*>();
 			new_reachable_set->push_back(&reachable_fact);
 			
 			generateNewReachableSets(*new_reachable_set);
@@ -463,7 +441,7 @@ void ReachableSet::processNewReachableFact(const ReachableFact& reachable_fact, 
 	}
 }
 
-void ReachableSet::generateNewReachableSets(std::vector<const ReachableFact*>& reachable_sets_to_process)
+void ReachableSet::generateNewReachableSets(std::vector<ReachableFact*>& reachable_sets_to_process)
 {
 	unsigned int index = reachable_sets_to_process.size();
 	
@@ -471,14 +449,14 @@ void ReachableSet::generateNewReachableSets(std::vector<const ReachableFact*>& r
 	if (index == facts_set_.size()) return;
 	
 	// Try all possible facts which we have proven to be reachable for the 'index'th index.
-	for (std::vector<const ReachableFact*>::const_iterator ci = reachable_set_[index]->begin(); ci != reachable_set_[index]->end(); ci++)
+	for (std::vector<ReachableFact*>::const_iterator ci = reachable_set_[index]->begin(); ci != reachable_set_[index]->end(); ci++)
 	{
-		const ReachableFact* reachable_fact = *ci;
+		ReachableFact* reachable_fact = *ci;
 		
 		if (!canSatisfyConstraints(*reachable_fact, *reachable_set_[index])) continue;
 		
 		// If the constraints are satisfied, add the facts and search for new facts to add.
-		std::vector<const ReachableFact*>* new_reachable_set = new std::vector<const ReachableFact*>();
+		std::vector<ReachableFact*>* new_reachable_set = new std::vector<ReachableFact*>();
 		new_reachable_set->push_back(reachable_fact);
 		
 		generateNewReachableSets(*new_reachable_set);

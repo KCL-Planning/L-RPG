@@ -32,7 +32,7 @@ public:
 	
 	EquivalentObjectGroup& getEquivalentObjectGroup() const { return *equivalent_group_; }
 	
-	void addInitialFact(const ReachableFact& reachable_fact);
+	void addInitialFact(ReachableFact& reachable_fact);
 	
 	const std::vector<const ReachableFact*>& getInitialFacts() const { return initial_facts_; }
 	
@@ -40,7 +40,7 @@ public:
 	
 	const Object& getObject() const { return *object_; }
 	
-	bool isInitialStateReachable(const std::vector<const ReachableFact*>& reachable_facts) const;
+	bool isInitialStateReachable(const std::vector<ReachableFact*>& reachable_facts) const;
 
 private:
 	
@@ -78,7 +78,7 @@ public:
 
 	void addEquivalentObject(EquivalentObject& eo);
 	
-	void addReachableFact(const ReachableFact& reachable_fact);
+	void addReachableFact(ReachableFact& reachable_fact);
 	
 	bool isRootNode() const;
 	
@@ -90,15 +90,16 @@ public:
 	
 	const std::vector<EquivalentObject*>& getEquivalentObjects() const { return equivalent_objects_; }
 	
+	bool hasSameFingerPrint(const EquivalentObjectGroup& other) const;
+	
 	/**
 	 * Try to merge the given objectGroup with this group. If the merge can take place, the other object place is merged with
 	 * this one. We can merge two groups if the initial DTG node of this group is reachable from the initial DTG node of the other
 	 * group and visa versa, and - in addition - if the types of the objects are the same.
 	 * @param objectGroup The object group which we try to merge with this node.
-	 * @param reachable_nodes Reachability mapping from all DTG nodes.
 	 * @return True if the groups could be merged, false otherwise.
 	 */
-	bool tryToMergeWith(EquivalentObjectGroup& object_group, const std::vector<ReachableFact*>& reachable_nodes);
+	bool tryToMergeWith(EquivalentObjectGroup& object_group);
 	
 	bool operator==(const EquivalentObjectGroup& other) const;
 	bool operator!=(const EquivalentObjectGroup& other) const;
@@ -128,7 +129,7 @@ private:
 	EquivalentObjectGroup* link_;
 	
 	// For the group of objects, we keep a list of reachable facts which can be achieved and contain the equivalent objects.
-	std::vector<const ReachableFact*> reachable_facts_;
+	std::vector<ReachableFact*> reachable_facts_;
 	
 	/**
 	 * Every equivalent object group has a finger print which correlates to the terms of the facts in the DTG nodes
@@ -140,6 +141,11 @@ private:
 	 * Merge the given group with this group.
 	 */
 	void merge(EquivalentObjectGroup& other_group);
+	
+	/**
+	 * Remove all the reachable facts which have been marked for removal.
+	 */
+	void deleteRemovedFacts();
 	
 	bool* finger_print_;
 	unsigned int finger_print_size_;
@@ -172,8 +178,6 @@ public:
 	void printAll(std::ostream& os) const;
 	
 private:
-	
-	void deleteMergedEquivalenceGroups();
 	
 	/**
 	 * Merge two equivalent groups and declare them identical.

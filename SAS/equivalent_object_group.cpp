@@ -13,6 +13,8 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
+#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+
 namespace MyPOP {
 	
 namespace SAS_Plus {
@@ -26,14 +28,15 @@ EquivalentObject::EquivalentObject(const Object& object, EquivalentObjectGroup& 
 	
 }
 	
-void EquivalentObject::addInitialFact(const ReachableFact& reachable_fact)
+void EquivalentObject::addInitialFact(ReachableFact& reachable_fact)
 {
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 	std::cout << "Add " << reachable_fact << " to " << *this << std::endl;
 #endif
 	if (std::find(initial_facts_.begin(), initial_facts_.end(), &reachable_fact) == initial_facts_.end())
 	{
 		initial_facts_.push_back(&reachable_fact);
+		equivalent_group_->addReachableFact(reachable_fact);
 	}
 }
 
@@ -75,20 +78,22 @@ bool EquivalentObject::areEquivalent(const EquivalentObject& other) const
 	return true;
 }
 
-bool EquivalentObject::isInitialStateReachable(const std::vector<const ReachableFact*>& reachable_facts) const
+bool EquivalentObject::isInitialStateReachable(const std::vector<ReachableFact*>& reachable_facts) const
 {
-	
 	// Check if these initial facts are reachable by the facts reachable by this group of objects.
 	for (std::vector<const ReachableFact*>::const_iterator ci = initial_facts_.begin(); ci != initial_facts_.end(); ci++)
 	{
 		const ReachableFact* initial_fact = *ci;
 		bool is_initial_fact_reachable = false;
-		for (std::vector<const ReachableFact*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
+		for (std::vector<ReachableFact*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
 		{
 			const ReachableFact* reachable_fact = *ci;
 			
 			if (initial_fact->isEquivalentTo(*reachable_fact))
 			{
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+				std::cout << *initial_fact << " is equivalent to " << *reachable_fact << std::endl;
+#endif
 				is_initial_fact_reachable = true;
 				break;
 			}
@@ -146,6 +151,11 @@ bool EquivalentObjectGroup::isIdenticalTo(EquivalentObjectGroup& other)
 {
 	return getRootNode() == other.getRootNode();
 }
+
+bool EquivalentObjectGroup::hasSameFingerPrint(const EquivalentObjectGroup& other) const
+{
+	return memcmp(finger_print_, other.finger_print_, finger_print_size_ * sizeof(bool)) == 0;
+}
 	
 void EquivalentObjectGroup::initialiseFingerPrint(const DomainTransitionGraph& dtg_graph, const Object& object)
 {
@@ -190,12 +200,12 @@ void EquivalentObjectGroup::addEquivalentObject(EquivalentObject& eo)
 	equivalent_objects_.push_back(&eo);
 }
 
-void EquivalentObjectGroup::addReachableFact(const ReachableFact& reachable_fact)
+void EquivalentObjectGroup::addReachableFact(ReachableFact& reachable_fact)
 {
 	reachable_facts_.push_back(&reachable_fact);
 }
 
-bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group, const std::vector<ReachableFact*>& reachable_nodes)
+bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group)
 {
 	// If the object has been grounded it cannot be merged!
 	if (is_grounded_ || other_group.is_grounded_)
@@ -214,11 +224,11 @@ bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group, c
 	// Make sure to only call this method with the root nodes.
 	if (link_ != NULL)
 	{
-		return this_root_node.tryToMergeWith(other_root_node, reachable_nodes);
+		return this_root_node.tryToMergeWith(other_root_node);
 	}
 	else if (other_group.link_ != NULL)
 	{
-		return tryToMergeWith(other_root_node, reachable_nodes);
+		return tryToMergeWith(other_root_node);
 	}
 
 	// Only allow to merge two equivalent object groups if the fingerprints are equal!
@@ -228,7 +238,7 @@ bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group, c
 		return false;
 	}
 	
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 	std::cout << "Try to merge: " << *this << " with " << other_group << "." << std::endl;
 #endif
 
@@ -301,17 +311,83 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group)
 {
 	assert (other_group.link_ == NULL);
 	
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 	std::cout << "Merging " << *this << " with " << other_group << "." << std::endl;
 #endif
 	
 	equivalent_objects_.insert(equivalent_objects_.begin(), other_group.equivalent_objects_.begin(), other_group.equivalent_objects_.end());
+	
+	// TODO: Need to make sure we do not end up with multiple reachable facts which are identical!
+	std::vector<EquivalentObjectGroup*> affected_groups;
+	std::vector<ReachableFact*> updated_facts;
+	
 	reachable_facts_.insert(reachable_facts_.end(), other_group.reachable_facts_.begin(), other_group.reachable_facts_.end());
-//	reachable_properties_.insert(other_group.reachable_properties_.begin(), other_group.reachable_properties_.end());
+	
+	for (std::vector<ReachableFact*>::reverse_iterator ri = reachable_facts_.rbegin(); ri != reachable_facts_.rend(); ri++)
+	{
+		ReachableFact* reachable_fact = *ri;
+		
+		// If the reachable fact contains a EOG which is not a root node, it means that a merge has taken place and we need to delete this node and
+		// replace it with a reachable fact containing only root nodes.
+		if (reachable_fact->updateTermsToRoot())
+		{
+			bool already_present = false;
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+			std::cout << "Updated the reachable fact: " << *reachable_fact << std::endl;
+#endif
+			for (std::vector<ReachableFact*>::const_iterator ci = updated_facts.begin(); ci != updated_facts.end(); ci++)
+			{
+				if ((*ci)->isIdenticalTo(*reachable_fact))
+				{
+					already_present = true;
+					break;
+				}
+			}
+			
+			if (already_present)
+			{
+				reachable_facts_.erase(ri.base() - 1);
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+				std::cout << "Remove: " << *reachable_fact << "." << std::endl;
+#endif
+				reachable_fact->markForRemoval();
+				
+				for (unsigned int i = 0; i < reachable_fact->getBoundedAtom().getAtom().getArity(); i++)
+				{
+					EquivalentObjectGroup& eog = reachable_fact->getTermDomain(i);
+					
+					if (&eog != this && std::find(affected_groups.begin(), affected_groups.end(), &eog) == affected_groups.end())
+					{
+						affected_groups.push_back(&eog);
+					}
+				}
+				
+				continue;
+			}
+			
+			updated_facts.push_back(reachable_fact);
+		}
+	}
+	
+	// Clean up all the groups which have been affected by removing all the reachable facts which have been marked for removal.
+	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = affected_groups.begin(); ci != affected_groups.end(); ci++)
+	{
+		EquivalentObjectGroup* eog = *ci;
+		eog->deleteRemovedFacts();
+	}
+	
 	other_group.link_ = this;
-	
-//	std::cout << "Result " << *this << "." << std::endl;
-	
+}
+
+void EquivalentObjectGroup::deleteRemovedFacts()
+{
+	for (std::vector<ReachableFact*>::reverse_iterator ri = reachable_facts_.rbegin(); ri != reachable_facts_.rend(); ri++)
+	{
+		if ((*ri)->isMarkedForRemoval())
+		{
+			reachable_facts_.erase(ri.base() - 1);
+		}
+	}
 }
 
 EquivalentObjectGroup& EquivalentObjectGroup::getRootNode()
@@ -343,7 +419,7 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group)
 	os << " }" << std::endl;
 
 	std::cout << "Reachable facts: " << std::endl;
-	for (std::vector<const ReachableFact*>::const_iterator ci = group.reachable_facts_.begin(); ci != group.reachable_facts_.end(); ci++)
+	for (std::vector<ReachableFact*>::const_iterator ci = group.reachable_facts_.begin(); ci != group.reachable_facts_.end(); ci++)
 	{
 		std::cout << "- " << **ci << std::endl;
 	}
@@ -370,7 +446,7 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const DomainTransitio
 	zero_arity_equivalent_object_group_ = new EquivalentObjectGroup(dtg_graph, NULL, true);
 	equivalent_groups_.push_back(zero_arity_equivalent_object_group_);
 	
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 	std::cout << "Done initialising data structures." << std::endl;
 #endif
 }
@@ -380,7 +456,7 @@ void EquivalentObjectGroupManager::initialise(const std::vector<ReachableFact*>&
 	// Record the set of initial facts every object is part of.
 	for (std::vector<ReachableFact*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
 	{
-		const ReachableFact* initial_reachable_fact = *ci;
+		ReachableFact* initial_reachable_fact = *ci;
 		
 		for (unsigned int i = 0; i < initial_reachable_fact->getBoundedAtom().getAtom().getArity(); i++)
 		{
@@ -415,8 +491,11 @@ void EquivalentObjectGroupManager::initialise(const std::vector<ReachableFact*>&
 				++index2;
 				continue;
 			}
-			if (eog1->tryToMergeWith(*eog2, initial_facts))
+			if (eog1->tryToMergeWith(*eog2))
 			{
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+				std::cout << "Merged: " << *eog1 << "." << std::endl;
+#endif
 				merge_mask[index2] = true;
 			}
 			++index2;
@@ -433,9 +512,7 @@ void EquivalentObjectGroupManager::initialise(const std::vector<ReachableFact*>&
 		}
 	}
 	
-	deleteMergedEquivalenceGroups();
-	
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 	std::cout << "Merge together equivalent groups if their initial states match - Done!" << std::endl;
 	std::cout << "EOG manager Ready for use!" << std::endl;
 	print(std::cout);
@@ -443,15 +520,9 @@ void EquivalentObjectGroupManager::initialise(const std::vector<ReachableFact*>&
 #endif
 }
 
-void EquivalentObjectGroupManager::deleteMergedEquivalenceGroups()
+void EquivalentObjectGroupManager::updateEquivalences(std::vector<const ReachableFact*>& reachable_facts)
 {
-	// TODO: Implement.
-	assert (false);
-}
-
-void EquivalentObjectGroupManager::updateEquivalences(std::vector<const ReachableFact*>& reachable_nodes)
-{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 	std::cout << "[EquivalentObjectGroupManager::updateEquivalences]" << std::endl;
 #endif
 	// TODO: Implement.

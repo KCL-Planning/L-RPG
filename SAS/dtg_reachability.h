@@ -45,14 +45,31 @@ public:
 	
 	ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, EquivalentObjectGroup** term_domain_mapping);
 	
-	bool conflictsWith(const std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>&) const;
+	/**
+	 * This method is called everytime a merge has taken place which involves a Equivalent Object Group 
+	 * which is part of this reachable fact. In such an occasion we end up with at least one term in this
+	 * reachable fact which is no longer a root node (and thus yields incomplete information).
+	 * 
+	 * In order to fix this problem this method updates all the equivalent object group points so they link
+	 * to the proper root node.
+	 * 
+	 * @return True if a Equivalent Object Group had to be updated, false otherwise.
+	 * @note This function should always return true, we only want to call it if an update is due!
+	 */
+	bool updateTermsToRoot();
 	
-	void updateMappings(std::map<const std::vector<const Object*>*, EquivalentObjectGroup*>&) const;
-	
-	bool containsNonRootEOG() const;
-	
+	/**
+	 * Two reachable facts are equivalent iff:
+	 * 1) All the objects have the same signature.
+	 * 2) Those variables which have been labeled as unballanced must be identical.
+	 */
 	bool isEquivalentTo(const ReachableFact& other) const;
 	
+	/**
+	 * Two reachable facts are identical iff:
+	 * 1) All the objects have the same signature.
+	 * 2) All variables are identical.
+	 */
 	bool isIdenticalTo(const ReachableFact& other) const;
 	
 	void printGrounded(std::ostream& os) const;
@@ -85,12 +102,34 @@ public:
 	
 	const Bindings& getBindings() const { return *bindings_; }
 	
+	// Seee removed_flag_;
+	void markForRemoval() { removed_flag_ = true; }
+	
+	bool isMarkedForRemoval() const { return removed_flag_; }
+	
 private:
 	
 	const BoundedAtom* bounded_atom_;
 	const Bindings* bindings_;
 	
 	EquivalentObjectGroup** term_domain_mapping_;
+	
+	// During the construction of the reachability graph terms can be merged and because of that some reachable facts are
+	// removed because they have become identical to others. E.g. consider the following two reachable facts:
+	//
+	// * (at truck1 s1)
+	// * (at truck2 s1)
+	//
+	// Suppose that truck1 and truck2 become equivalent, then we remove one of the two and update the other to:
+	// * (at {truck1, truck2} s1)
+	//
+	// Reachable facts can be shared among multiple objects, so in this case the EOG linked to s1 will contain the following 
+	// reachable facts:
+	// * (at truck1 s1)
+	// * (at {truck1, truck2} s1)
+	//
+	// By marking the former for removal we can remove the remaining reachable fact.
+	bool removed_flag_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact);
 };
@@ -160,7 +199,7 @@ protected:
 	 * @param reachable_fact A new fact which is proven to be reachable.
 	 * @param index The index of the set this fact can unify with.
 	 */
-	void processNewReachableFact(const ReachableFact& reachable_fact, unsigned int index);
+	void processNewReachableFact(ReachableFact& reachable_fact, unsigned int index);
 	
 private:
 	
@@ -170,7 +209,7 @@ private:
 	 * @param reachable_sets_to_process A set to which the new fact has been added and needs to be expended
 	 * with all possible other facts which match all the constraints.
 	 */
-	void generateNewReachableSets(std::vector<const ReachableFact*>& reachable_sets_to_process);
+	void generateNewReachableSets(std::vector<ReachableFact*>& reachable_sets_to_process);
 	
 	/**
 	 * When we try to generate new sets of reachable facts we need to make sure that every set is consistent.
@@ -180,7 +219,7 @@ private:
 	 * @param reachble_set All the assignments made thus far, reachable fact is the ||reachable_set||th fact to be added.
 	 * @return True if the constraints are consistent, false otherwise.
 	 */
-	bool canSatisfyConstraints(const ReachableFact& reachable_fact, std::vector<const ReachableFact*>& reachable_set) const;
+	bool canSatisfyConstraints(const ReachableFact& reachable_fact, std::vector<ReachableFact*>& reachable_set) const;
 	
 	// This is the set of bounded atoms which is either part of a Lifted Transition or is part of a
 	// node of the Lifted Transition Graph.
@@ -188,10 +227,10 @@ private:
 	
 	// For every bounded atom in this set, we store a list of reachable facts which can unify with
 	// that bounded atom.
-	std::vector<std::vector<const ReachableFact*>*> reachable_set_;
+	std::vector<std::vector<ReachableFact*>*> reachable_set_;
 	
 	// All sets which are completely unitable are stored in the fully_reachable_sets.
-	std::vector<std::vector<const ReachableFact*>* > fully_reachable_sets_;
+	std::vector<std::vector<ReachableFact*>* > fully_reachable_sets_;
 	
 	// When generating the reachable sets we need to make sure the constraints are satisfied, so for 
 	// every atom in the fact set we record for every index which other indexes of other facts must

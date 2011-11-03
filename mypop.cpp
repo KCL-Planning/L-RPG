@@ -205,8 +205,8 @@ int main(int argc,char * argv[])
 		double time_spend_preparing = end_time_prepare_reachability.tv_sec - start_time_prepare_reachability.tv_sec + (end_time_prepare_reachability.tv_usec - start_time_prepare_reachability.tv_usec) / 1000000.0;
 		std::cerr << "Prepare reachability analysis: " << time_spend_preparing << " seconds" << std::endl;
 		
-		struct timeval start_time_reachability;
-		gettimeofday(&start_time_reachability, NULL);
+		struct timeval start_convert_time;
+		gettimeofday(&start_convert_time, NULL);
 		
 		std::vector<const SAS_Plus::BoundedAtom*> bounded_initial_facts;
 		for (std::vector<const Atom*>::const_iterator ci = initial_facts->begin(); ci != initial_facts->end(); ci++)
@@ -228,6 +228,16 @@ int main(int argc,char * argv[])
 			}
 		}
 		std::vector<const SAS_Plus::ReachableFact*> result;
+		struct timeval end_convert_time;
+		gettimeofday(&end_convert_time, NULL);	
+
+		double time_spend_converting = end_convert_time.tv_sec - start_convert_time.tv_sec + (end_convert_time.tv_usec - start_convert_time.tv_usec) / 1000000.0;
+		std::cerr << "Converting initial facts: " << time_spend_converting << " seconds" << std::endl;
+
+		std::cerr << " -= Start actual reachability!!!  =- " << std::endl;
+
+		struct timeval start_time_reachability;
+		gettimeofday(&start_time_reachability, NULL);
 
 		analyst.performReachabilityAnalsysis(result, bounded_initial_facts, combined_graph.getBindings());
 		struct timeval end_time_reachability;

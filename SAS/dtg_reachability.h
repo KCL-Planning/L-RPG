@@ -145,13 +145,19 @@ class ResolvedBoundedAtom
 {
 public:
 	
+	ResolvedBoundedAtom(StepID id, const Atom& atom, const Bindings& bindings);
+	
 	ResolvedBoundedAtom(const BoundedAtom& bounded_atom, const Bindings& bindings);
+	
+	const StepID getId() const { return id_; }
 	
 	const Atom& getAtom() const { return *atom_; }
 	
 	const std::vector<const Object*>& getVariableDomain(unsigned int index) const;
 	
 private:
+	
+	StepID id_;
 	
 	const Atom* atom_;
 	
@@ -176,6 +182,14 @@ public:
 	 * Default constructor.
 	 */
 	ReachableSet(const EquivalentObjectGroupManager& eog_manager);
+
+	/**
+	 * Return all the sets of reachable facts which satisfy all the constraints and have a reachable fact 
+	 * for every fact in the fact set.
+	 */
+	const std::vector<std::vector<ReachableFact*>* >& getReachableSets() const { return fully_reachable_sets_; }
+	
+	const std::vector<const ResolvedBoundedAtom*>& getFactsSet() const { return facts_set_; }
 	
 protected:
 	const EquivalentObjectGroupManager* eog_manager_;
@@ -200,7 +214,7 @@ protected:
 	 * @param index The index of the set this fact can unify with.
 	 */
 	void processNewReachableFact(ReachableFact& reachable_fact, unsigned int index);
-	
+
 private:
 	
 	/**
@@ -257,6 +271,8 @@ public:
 	
 	void addReachableTransition(ReachableTransition& reachable_transition);
 	
+	bool propagateReachableFacts();
+	
 private:
 	
 	const DomainTransitionGraphNode* dtg_node_;
@@ -289,12 +305,21 @@ public:
 	 * not part of the from node.
 	 */
 	void initialise(const std::vector<ReachableFact*>& initial_facts);
+	
+	const Transition& getTransition() const { return *transition_; }
 private:
 	
 	const ReachableNode* from_node_;
 	const ReachableNode* to_node_;
 	
 	const Transition* transition_;
+	
+	// To speed up the process we resolve all the variable domains of all the effects.
+	std::vector<ResolvedBoundedAtom*> effects_;
+	
+	// Mapping from a variable to a reachable set containing its possible values.
+	// The reachable set is accessed as: <fact index, term index>.
+	std::map<const std::vector<const Object*>*, std::pair<unsigned int, unsigned int> > variable_to_values_mapping_;
 };
 
 /**

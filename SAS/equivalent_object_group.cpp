@@ -13,7 +13,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+//#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 
 namespace MyPOP {
 	
@@ -316,17 +316,22 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group)
 #endif
 	
 	equivalent_objects_.insert(equivalent_objects_.begin(), other_group.equivalent_objects_.begin(), other_group.equivalent_objects_.end());
+	other_group.link_ = this;
 	
 	// TODO: Need to make sure we do not end up with multiple reachable facts which are identical!
 	std::vector<EquivalentObjectGroup*> affected_groups;
-	std::vector<ReachableFact*> updated_facts;
+	std::vector<ReachableFact*> updated_facts(reachable_facts_);
 	
 	reachable_facts_.insert(reachable_facts_.end(), other_group.reachable_facts_.begin(), other_group.reachable_facts_.end());
 	
-	for (std::vector<ReachableFact*>::reverse_iterator ri = reachable_facts_.rbegin(); ri != reachable_facts_.rend(); ri++)
+	// We only need to update the reachable facts which have been added by other_group. The ones which were all 
+	// ready part of this EOG are updated already! :)
+	for (std::vector<ReachableFact*>::reverse_iterator ri = reachable_facts_.rbegin(); ri != reachable_facts_.rend() -  other_group.equivalent_objects_.size(); ri++)
 	{
 		ReachableFact* reachable_fact = *ri;
-		
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+		std::cout << "Check if " << *reachable_fact << " needs to be updated!" << std::endl;
+#endif
 		// If the reachable fact contains a EOG which is not a root node, it means that a merge has taken place and we need to delete this node and
 		// replace it with a reachable fact containing only root nodes.
 		if (reachable_fact->updateTermsToRoot())
@@ -337,6 +342,9 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group)
 #endif
 			for (std::vector<ReachableFact*>::const_iterator ci = updated_facts.begin(); ci != updated_facts.end(); ci++)
 			{
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+				std::cout << "Check if " << **ci << " and " << *reachable_fact << " are identical!" << std::endl;
+#endif
 				if ((*ci)->isIdenticalTo(*reachable_fact))
 				{
 					already_present = true;
@@ -370,13 +378,13 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group)
 	}
 	
 	// Clean up all the groups which have been affected by removing all the reachable facts which have been marked for removal.
+	// NOTE: This can be done later after the whole merging is done! But this is just an optimisation we can perform
+	// later too.
 	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = affected_groups.begin(); ci != affected_groups.end(); ci++)
 	{
 		EquivalentObjectGroup* eog = *ci;
 		eog->deleteRemovedFacts();
 	}
-	
-	other_group.link_ = this;
 }
 
 void EquivalentObjectGroup::deleteRemovedFacts()

@@ -13,10 +13,10 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+//#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 #define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
-	
+
 namespace SAS_Plus {
 
 ReachableFact::ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager)
@@ -269,8 +269,17 @@ std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact)
 /**
  * ResolvedBoundedAtom.
  */
+ResolvedBoundedAtom::ResolvedBoundedAtom(StepID id, const Atom& atom, const Bindings& bindings)
+	: id_(id), atom_(&atom)
+{
+	for (unsigned int i = 0; i < atom.getArity(); i++)
+	{
+		variable_domains_.push_back(&atom.getTerms()[i]->getDomain(id, bindings));
+	}
+}
+
 ResolvedBoundedAtom::ResolvedBoundedAtom(const BoundedAtom& bounded_atom, const Bindings& bindings)
-	 : atom_(&bounded_atom.getAtom())
+	 : id_(bounded_atom.getId()), atom_(&bounded_atom.getAtom())
 {
 	for (unsigned int i = 0; i < bounded_atom.getAtom().getArity(); i++)
 	{
@@ -479,7 +488,6 @@ void ReachableNode::initialise(const std::vector<ReachableFact*>& initial_facts)
 	for (std::vector<ReachableTransition*>::const_iterator ci = reachable_transitions_.begin(); ci != reachable_transitions_.end(); ci++)
 	{
 		ReachableTransition* reachable_transition = *ci;
-		
 		reachable_transition->initialise(initial_facts);
 	}
 }
@@ -487,6 +495,30 @@ void ReachableNode::initialise(const std::vector<ReachableFact*>& initial_facts)
 void ReachableNode::addReachableTransition(ReachableTransition& reachable_transition)
 {
 	reachable_transitions_.push_back(&reachable_transition);
+}
+
+bool ReachableNode::propagateReachableFacts()
+{
+	const std::vector<std::vector<ReachableFact*>* >& full_reachable_sets = getReachableSets();
+	if (full_reachable_sets.empty()) return false;
+	
+	// Find all those reachable transitions which also have fully reachable sets.
+	bool could_propagate = false;
+	for (std::vector<ReachableTransition*>::const_iterator ci = reachable_transitions_.begin(); ci != reachable_transitions_.end(); ci++)
+	{
+		ReachableTransition* reachable_transition = *ci;
+		const std::vector<std::vector<ReachableFact*>* >& full_reachable_transition_sets = reachable_transition->getReachableSets();
+		
+		if (full_reachable_transition_sets.empty()) continue;
+		
+		// By coupling both reachable sets we can generate all the reachable facts which are now reachable :).
+		
+		// TODO: Continue here tomorrow :).
+		
+		could_propagate = true;
+	}
+	
+	return could_propagate;
 }
 
 std::ostream& operator<<(std::ostream& os, const ReachableNode& reachable_node)
@@ -525,24 +557,56 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 	// Find out which preconditions are not part of the from node.
 	const std::vector<std::pair<const Atom*, InvariableIndex> >& all_preconditions = transition.getAllPreconditions();
 	const Bindings& bindings = transition.getFromNode().getDTG().getBindings();
-			
+	
+	std::vector<const std::vector<const Object*>* > transition_variable_domains;
+	for (std::vector<const Variable*>::const_iterator ci = transition.getStep()->getAction().getVariables().begin(); ci != transition.getStep()->getAction().getVariables().end(); ci++)
+	{
+		const Variable* variable = *ci;
+		const std::vector<const Object*>& variable_domain = variable->getDomain(transition.getStep()->getStepId(), bindings);
+		transition_variable_domains.push_back(&variable_domain);
+	}
+	bool processed_variable_domains[transition.getStep()->getAction().getVariables().size()];
+	memset(&processed_variable_domains[0], false, sizeof(bool) * transition.getStep()->getAction().getVariables().size());
+
+	// Find out how the variables are linked to the facts in the from node and those in the set of preconditions which are not part of the 
+	// from node.
 	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = all_preconditions.begin(); ci != all_preconditions.end(); ci++)
 	{
 		const Atom* precondition = (*ci).first;
 		bool precondition_part_of_from_node = false;
 		
-		for (std::vector<BoundedAtom*>::const_iterator ci = transition.getFromNode().getAtoms().begin(); ci != transition.getFromNode().getAtoms().end(); ci++)
+		for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = from_node.getFactsSet().begin(); ci != from_node.getFactsSet().end(); ci++)
 		{
-			const BoundedAtom* from_fact = *ci;
-			if (bindings.areIdentical(from_fact->getAtom(), from_fact->getId(), *precondition, transition.getStep()->getStepId()))
+			unsigned int from_node_fact_index = std::distance(from_node.getFactsSet().begin(), ci);
+			const ResolvedBoundedAtom* resolved_bounded_atom = *ci;
+			if (bindings.areIdentical(resolved_bounded_atom->getAtom(), resolved_bounded_atom->getId(), *precondition, transition.getStep()->getStepId()))
 			{
 				precondition_part_of_from_node = true;
+				
+				// Compare all the variables of the precondition and see if they are linked to a variable of the action and link them accordingly.
+				for (unsigned int i = 0; i < transition.getStep()->getAction().getVariables().size(); i++)
+				{
+					if (processed_variable_domains[i]) continue;
+					
+					const std::vector<const Object*>* variable_domain = transition_variable_domains[i];
+					
+					for (unsigned int j = 0; j < resolved_bounded_atom->getAtom().getArity(); j++)
+					{
+						if (&resolved_bounded_atom->getVariableDomain(j) == variable_domain)
+						{
+							variable_to_values_mapping_[variable_domain] = std::make_pair(from_node_fact_index, j);
+							processed_variable_domains[i] = true;
+							break;
+						}
+					}
+				}
+				
 				break;
 			}
 		}
 		
 		if (precondition_part_of_from_node) continue;
-		
+
 		// Convert the precondition into a bounded atom.
 		std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
 		transition.getFromNode().getDTG().getDTGManager().getDTGNodes(found_nodes, transition.getStep()->getStepId(), *precondition, transition.getFromNode().getDTG().getBindings());
@@ -563,22 +627,40 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 		assert (precondition_properties->size() != 0);
 		
 		BoundedAtom* bounded_precondition = new BoundedAtom(transition.getStep()->getStepId(), *precondition, *precondition_properties);
+
+		addBoundedAtom(*bounded_precondition, bindings);
 		
-		// For all those not part of the from node, add them to a list.
-		EquivalentObjectGroup* grounded_object_group = NULL;
-		for (std::vector<const Term*>::const_iterator ci = precondition->getTerms().begin(); ci != precondition->getTerms().end(); ci++)
+		// Check for the other facts are connected to the variables.
+		for (unsigned int i = 0; i < transition.getStep()->getAction().getVariables().size(); i++)
 		{
-			const Term* precondition_term = *ci;
-			const std::vector<const Object*>& precondition_domain = precondition_term->getDomain(transition.getStep()->getStepId(), bindings);
-			if (grounded_variables.count(&precondition_domain) != 0)
+			if (processed_variable_domains[i]) continue;
+			
+			const std::vector<const Object*>* variable_domain = transition_variable_domains[i];
+			
+			unsigned int precondition_index = getFactsSet().size();
+			for (unsigned int j = 0; j < bounded_precondition->getAtom().getArity(); j++)
 			{
-				grounded_object_group = &eog_manager.getEquivalentObject(*precondition_domain[0]).getEquivalentObjectGroup();
-				assert (grounded_object_group->isGrounded());
-				break;
+				if (&bounded_precondition->getVariableDomain(j, bindings) == variable_domain)
+				{
+					variable_to_values_mapping_[variable_domain] = std::make_pair(precondition_index, j);
+					processed_variable_domains[i] = true;
+					break;
+				}
 			}
 		}
-		
-		addBoundedAtom(*bounded_precondition, bindings);
+	}
+	
+	// At the end all variables should be bounded.
+	for (unsigned int i = 0; i < transition.getStep()->getAction().getVariables().size(); i++)
+	{
+		assert (processed_variable_domains[i]);
+	}
+	
+	// Process the effects.
+	const std::vector<std::pair<const Atom*, InvariableIndex> >& effects = transition_->getEffects();
+	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = effects.begin(); ci != effects.end(); ci++)
+	{
+		effects_.push_back(new ResolvedBoundedAtom(transition.getStep()->getStepId(), *(*ci).first, bindings));
 	}
 }
 
@@ -646,8 +728,17 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const ReachableFa
 		ReachableFact* initial_reachable_fact = new ReachableFact(**ci, bindings, *equivalent_object_manager_);
 		established_reachable_facts_.push_back(initial_reachable_fact);
 	}
+
+	struct timeval start_time_eog;
+	gettimeofday(&start_time_eog, NULL);
 	
 	equivalent_object_manager_->initialise(established_reachable_facts_);
+
+	struct timeval end_time_eog;
+	gettimeofday(&end_time_eog, NULL);
+
+	double time_spend_eog = end_time_eog.tv_sec - start_time_eog.tv_sec + (end_time_eog.tv_usec - start_time_eog.tv_usec) / 1000000.0;
+	std::cerr << "Initialise EOGs: " << time_spend_eog << " seconds" << std::endl;
 	
 	struct timeval start_time_init;
 	gettimeofday(&start_time_init, NULL);
@@ -661,6 +752,29 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const ReachableFa
 		reachable_node->initialise(established_reachable_facts_);
 	}
 
+	struct timeval end_time_init;
+	gettimeofday(&end_time_init, NULL);
+
+	double time_spend_initial = end_time_init.tv_sec - start_time_init.tv_sec + (end_time_init.tv_usec - start_time_init.tv_usec) / 1000000.0;
+	std::cerr << "Converting initial facts for " << reachable_nodes_.size() << " nodes: " << time_spend_initial << " seconds. Average = " << (time_spend_initial / reachable_nodes_.size()) << std::endl;
+	
+	// Now for every LTG node for which we have found a full set we check if their reachable transitions have the same property and we
+	// can generate new reachable facts from these.
+	bool done = false;
+	while (!done)
+	{
+		done = true;
+		for (std::vector<ReachableNode*>::const_iterator ci = reachable_nodes_.begin(); ci != reachable_nodes_.end(); ci++)
+		{
+			if ((*ci)->propagateReachableFacts())
+			{
+				done = false;
+			}
+		}
+		
+		// TODO: Update equivalent relationships.
+		//equivalent_object_manager_->updateEquivalences();
+	}
 }
 
 ReachableTransition& DTGReachability::getReachableTransition(const Transition& transition) const

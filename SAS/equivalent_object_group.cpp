@@ -13,7 +13,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-//#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 
 namespace MyPOP {
 	
@@ -360,7 +360,7 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group)
 #endif
 				reachable_fact->markForRemoval();
 				
-				for (unsigned int i = 0; i < reachable_fact->getBoundedAtom().getAtom().getArity(); i++)
+				for (unsigned int i = 0; i < reachable_fact->getAtom().getArity(); i++)
 				{
 					EquivalentObjectGroup& eog = reachable_fact->getTermDomain(i);
 					
@@ -466,7 +466,7 @@ void EquivalentObjectGroupManager::initialise(const std::vector<ReachableFact*>&
 	{
 		ReachableFact* initial_reachable_fact = *ci;
 		
-		for (unsigned int i = 0; i < initial_reachable_fact->getBoundedAtom().getAtom().getArity(); i++)
+		for (unsigned int i = 0; i < initial_reachable_fact->getAtom().getArity(); i++)
 		{
 			EquivalentObjectGroup& eog = initial_reachable_fact->getTermDomain(i);
 			for (std::vector<EquivalentObject*>::const_iterator ci = eog.getEquivalentObjects().begin(); ci != eog.getEquivalentObjects().end(); ci++)

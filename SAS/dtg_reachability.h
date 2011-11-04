@@ -45,6 +45,8 @@ public:
 	
 	ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, EquivalentObjectGroup** term_domain_mapping);
 	
+	ReachableFact(const Atom& atom, EquivalentObjectGroup** term_domain_mapping);
+	
 	/**
 	 * This method is called everytime a merge has taken place which involves a Equivalent Object Group 
 	 * which is part of this reachable fact. In such an occasion we end up with at least one term in this
@@ -78,29 +80,15 @@ public:
 	
 	EquivalentObjectGroup& getTermDomain(unsigned int index) const
 	{
-		assert (index < bounded_atom_->getAtom().getArity());
+		assert (index < atom_->getArity());
 		EquivalentObjectGroup* eog = term_domain_mapping_[index];
 		assert (eog != NULL);
 		return *eog;
 	}
 	
-	void sanityCheck() const
-	{
-		assert (bounded_atom_ != NULL);
-		bounded_atom_->print(std::cout, *bindings_);
-		std::cout << std::endl;
-		for (unsigned int i = 0; i < bounded_atom_->getAtom().getArity(); i++)
-		{
-			EquivalentObjectGroup* eog = term_domain_mapping_[i];
-			assert (eog != NULL);
-		}
-	}
-	
 	EquivalentObjectGroup** getTermDomains() const { return term_domain_mapping_; }
 	
-	const BoundedAtom& getBoundedAtom() const { return *bounded_atom_; }
-	
-	const Bindings& getBindings() const { return *bindings_; }
+	const Atom& getAtom() const { return *atom_; }
 	
 	// Seee removed_flag_;
 	void markForRemoval() { removed_flag_ = true; }
@@ -109,8 +97,10 @@ public:
 	
 private:
 	
-	const BoundedAtom* bounded_atom_;
-	const Bindings* bindings_;
+	//const BoundedAtom* bounded_atom_;
+	const Atom* atom_;
+	
+//	const Bindings* bindings_;
 	
 	EquivalentObjectGroup** term_domain_mapping_;
 	
@@ -130,6 +120,8 @@ private:
 	//
 	// By marking the former for removal we can remove the remaining reachable fact.
 	bool removed_flag_;
+
+	char mask_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact);
 };
@@ -191,6 +183,8 @@ public:
 	
 	const std::vector<const ResolvedBoundedAtom*>& getFactsSet() const { return facts_set_; }
 	
+	virtual void print(std::ostream& os) const = 0;
+	
 protected:
 	const EquivalentObjectGroupManager* eog_manager_;
 	
@@ -243,6 +237,9 @@ private:
 	// that bounded atom.
 	std::vector<std::vector<ReachableFact*>*> reachable_set_;
 	
+	// Sets which are not fully constructed yet.
+	std::vector<std::vector<ReachableFact*>* > wip_sets_;
+	
 	// All sets which are completely unitable are stored in the fully_reachable_sets.
 	std::vector<std::vector<ReachableFact*>* > fully_reachable_sets_;
 	
@@ -273,6 +270,8 @@ public:
 	
 	bool propagateReachableFacts();
 	
+	void print(std::ostream& os) const;
+	
 private:
 	
 	const DomainTransitionGraphNode* dtg_node_;
@@ -286,6 +285,24 @@ private:
 std::ostream& operator<<(std::ostream& os, const ReachableNode& reachable_node);
 
 /**
+ * Used to map the variable of an action to the facts in either a reachable transition or a reachable node. We record
+ * the indexes of the fact and the term which defines the value of the variable domain. The boolean value is there to
+ * distinguish between variables which are defined by the transition(true) or node(false).
+ */
+struct VariableToValues
+{
+	VariableToValues(unsigned int fact_index, unsigned int term_index, bool is_transition)
+		: fact_index_(fact_index), term_index_(term_index), is_transition_(is_transition)
+	{
+			
+	}
+	
+	unsigned int fact_index_;
+	unsigned int term_index_;
+	bool is_transition_;
+};
+
+/**
  * When a transition is reachable we state that the transition is reachable for all possible mappings of the from node
  * of that transition. However, we need to keep track of all the domains of variables which are not present in the from node.
  * for example:
@@ -295,7 +312,7 @@ std::ostream& operator<<(std::ostream& os, const ReachableNode& reachable_node);
  * we need to know the value of driver which - in this case - is bounded by the precondition (at driver loc). Since loc is 
  * grounded we only need to lookup all the values of driver at that location and insert it.
  */
-struct ReachableTransition : public ReachableSet
+class ReachableTransition : public ReachableSet
 {
 public:
 	ReachableTransition(const Transition& transition, const ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager);
@@ -306,7 +323,15 @@ public:
 	 */
 	void initialise(const std::vector<ReachableFact*>& initial_facts);
 	
+	/**
+	 * Generate all the possible new reachable facts by combining the full sets of this reachable transition with those
+	 * of its from node.
+	 */
+	void generateReachableFacts(std::vector<const ReachableFact*>& results);
+	
 	const Transition& getTransition() const { return *transition_; }
+	
+	void print(std::ostream& os) const;
 private:
 	
 	const ReachableNode* from_node_;
@@ -319,8 +344,12 @@ private:
 	
 	// Mapping from a variable to a reachable set containing its possible values.
 	// The reachable set is accessed as: <fact index, term index>.
-	std::map<const std::vector<const Object*>*, std::pair<unsigned int, unsigned int> > variable_to_values_mapping_;
+	std::map<const std::vector<const Object*>*, VariableToValues* > variable_to_values_mapping_;
+	
+	friend std::ostream& operator<<(std::ostream& os, const ReachableTransition& reachable_transition);
 };
+
+std::ostream& operator<<(std::ostream& os, const ReachableTransition& reachable_transition);
 
 /**
  * Utility class to perform relaxed reachability analysis on a given DTG.

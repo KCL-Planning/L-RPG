@@ -258,6 +258,8 @@ public:
 	
 	void resolveProperties();
 	
+	void setDTG(DomainTransitionGraph& dtg_graph) { dtg_ = &dtg_graph; }
+	
 private:
 	
 	/**

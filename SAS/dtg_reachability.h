@@ -137,15 +137,19 @@ class ResolvedBoundedAtom
 {
 public:
 	
-	ResolvedBoundedAtom(StepID id, const Atom& atom, const Bindings& bindings);
+	ResolvedBoundedAtom(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
 	
-	ResolvedBoundedAtom(const BoundedAtom& bounded_atom, const Bindings& bindings);
+	ResolvedBoundedAtom(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
 	
 	const StepID getId() const { return id_; }
 	
 	const Atom& getAtom() const { return *atom_; }
 	
 	const std::vector<const Object*>& getVariableDomain(unsigned int index) const;
+	
+	bool isGrounded(unsigned int index) const;
+	
+	bool canUnifyWith(const ResolvedBoundedAtom& other) const;
 	
 private:
 	
@@ -154,6 +158,8 @@ private:
 	const Atom* atom_;
 	
 	std::vector<const std::vector<const Object*>* > variable_domains_;
+	
+	bool* is_grounded_;
 	
 };
 
@@ -183,6 +189,14 @@ public:
 	
 	const std::vector<const ResolvedBoundedAtom*>& getFactsSet() const { return facts_set_; }
 	
+	/**
+	 * A new reachable fact has been proven to be reachable. This function should only ever be
+	 * called if that fact is actually relevant to this node.
+	 * @param reachable_fact A new fact which is proven to be reachable.
+	 * @param index The index of the set this fact can unify with.
+	 */
+	void processNewReachableFact(ReachableFact& reachable_fact, unsigned int index);
+	
 	virtual void print(std::ostream& os) const = 0;
 	
 protected:
@@ -201,14 +215,6 @@ protected:
 	 */
 	void addBoundedAtom(const BoundedAtom& bounded_atom, const Bindings& bindings);
 	
-	/**
-	 * A new reachable fact has been proven to be reachable. This function should only ever be
-	 * called if that fact is actually relevant to this node.
-	 * @param reachable_fact A new fact which is proven to be reachable.
-	 * @param index The index of the set this fact can unify with.
-	 */
-	void processNewReachableFact(ReachableFact& reachable_fact, unsigned int index);
-
 private:
 	
 	/**
@@ -223,8 +229,10 @@ private:
 	 * When we try to generate new sets of reachable facts we need to make sure that every set is consistent.
 	 * For every set of facts, some variable domains are equal and if this is the case than the same relationship
 	 * needs to hold for the assigned reachable facts. This method tests this relationship.
-	 * @param reachable_fact The reachable facts which needs to be checked.
-	 * @param reachble_set All the assignments made thus far, reachable fact is the ||reachable_set||th fact to be added.
+	 * @param reachable_fact The reachable facts which needs to be checked. It is not part yet of reachable_set so
+	 * we test if it can be the ||reachable_set||th member by checking the constraints imposed on the facts which
+	 * are already part of @ref reachable_set.
+	 * @param reachable_set All the assignments made thus far, reachable fact is the ||reachable_set||th fact to be added.
 	 * @return True if the constraints are consistent, false otherwise.
 	 */
 	bool canSatisfyConstraints(const ReachableFact& reachable_fact, std::vector<ReachableFact*>& reachable_set) const;
@@ -318,6 +326,12 @@ public:
 	ReachableTransition(const Transition& transition, const ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager);
 	
 	/**
+	 * After all the reachable nodes and reachable transitions have been created we do one more post analysis and
+	 * determine for every effect that can be generated which preconditions are satisfied by that.
+	 */
+	void finalise(const std::vector<ReachableSet*>& all_reachable_sets);
+	
+	/**
 	 * Inititialise the structure by matching all the facts true in the initial state with the set of preconditions which are
 	 * not part of the from node.
 	 */
@@ -345,6 +359,10 @@ private:
 	// Mapping from a variable to a reachable set containing its possible values.
 	// The reachable set is accessed as: <fact index, term index>.
 	std::map<const std::vector<const Object*>*, VariableToValues* > variable_to_values_mapping_;
+	
+	// For every effect we register all the ReachableSets for which the function processNewReachableFact must be called
+	// when the effect is reached.
+	std::vector<std::vector<std::pair<ReachableSet*, unsigned int> >* > effect_propagation_listeners_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const ReachableTransition& reachable_transition);
 };

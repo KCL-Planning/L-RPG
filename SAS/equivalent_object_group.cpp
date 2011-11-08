@@ -546,6 +546,38 @@ EquivalentObject& EquivalentObjectGroupManager::getEquivalentObject(const Object
 	return *(*ci).second;
 }
 
+void EquivalentObjectGroupManager::getAllReachableFacts(std::vector<const ReachableFact*>& result) const
+{
+	std::set<const EquivalentObjectGroup*> closed_list;
+	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
+	{
+		EquivalentObjectGroup* eog = *ci;
+		const std::vector<ReachableFact*>& reachable_fact = eog->getReachableFacts();
+		
+		for (std::vector<ReachableFact*>::const_iterator ci = reachable_fact.begin(); ci != reachable_fact.end(); ci++)
+		{
+			// Make sure it hasn't been processed yet.
+			ReachableFact* reachable_fact = *ci;
+			bool has_been_processed = false;
+			
+			for (unsigned int i = 0; i < reachable_fact->getAtom().getArity(); i++)
+			{
+				if (closed_list.count(&reachable_fact->getTermDomain(i)) != 0)
+				{
+					has_been_processed = true;
+					break;
+				}
+			}
+			
+			if (has_been_processed) continue;
+			
+			result.push_back(reachable_fact);
+		}
+		
+		closed_list.insert(eog);
+	}
+}
+
 void EquivalentObjectGroupManager::print(std::ostream& os) const
 {
 	os << "All equivalence groups:" << std::endl;

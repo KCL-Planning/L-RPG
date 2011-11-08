@@ -92,6 +92,8 @@ public:
 	
 	bool hasSameFingerPrint(const EquivalentObjectGroup& other) const;
 	
+	const std::vector<ReachableFact*>& getReachableFacts() const { return reachable_facts_; }
+	
 	/**
 	 * Try to merge the given objectGroup with this group. If the merge can take place, the other object place is merged with
 	 * this one. We can merge two groups if the initial DTG node of this group is reachable from the initial DTG node of the other
@@ -171,6 +173,8 @@ public:
 	void updateEquivalences(std::vector<const ReachableFact*>& reachable_nodes);
 	
 	EquivalentObject& getEquivalentObject(const Object& object) const;
+	
+	void getAllReachableFacts(std::vector<const ReachableFact*>& result) const;
 	
 	// Output methods.
 	void print(std::ostream& os) const;

@@ -163,6 +163,8 @@ private:
 	
 };
 
+std::ostream& operator<<(std::ostream& os, const ResolvedBoundedAtom& resolved_bounded_atom);
+
 /**
  * During the reachability algorithm we try to find all the sets of reachable facts which can unify with
  * either the set of preconditions of a reachable transition or with the set of preconditions in a node.
@@ -189,13 +191,16 @@ public:
 	
 	const std::vector<const ResolvedBoundedAtom*>& getFactsSet() const { return facts_set_; }
 	
+	const std::vector<std::vector<ReachableFact*>* >& getWIPSets() const { return wip_sets_; }
+	
 	/**
 	 * A new reachable fact has been proven to be reachable. This function should only ever be
 	 * called if that fact is actually relevant to this node.
 	 * @param reachable_fact A new fact which is proven to be reachable.
 	 * @param index The index of the set this fact can unify with.
+	 * @return True if a new reachable fact could be added, false if it was already part of the set.
 	 */
-	void processNewReachableFact(ReachableFact& reachable_fact, unsigned int index);
+	bool processNewReachableFact(ReachableFact& reachable_fact, unsigned int index);
 	
 	virtual void print(std::ostream& os) const = 0;
 	
@@ -222,6 +227,7 @@ private:
 	 * new sets of reachable facts.
 	 * @param reachable_sets_to_process A set to which the new fact has been added and needs to be expended
 	 * with all possible other facts which match all the constraints.
+	 * @return True if new reachable facts could be created, false otherwise.
 	 */
 	void generateNewReachableSets(std::vector<ReachableFact*>& reachable_sets_to_process);
 	
@@ -341,12 +347,14 @@ public:
 	 * Generate all the possible new reachable facts by combining the full sets of this reachable transition with those
 	 * of its from node.
 	 */
-	void generateReachableFacts(std::vector<const ReachableFact*>& results);
+	bool generateReachableFacts();
 	
 	const Transition& getTransition() const { return *transition_; }
 	
 	void print(std::ostream& os) const;
 private:
+	
+	bool createNewReachableFact(const ResolvedBoundedAtom& effect, unsigned int effect_index, const std::vector<ReachableFact*>& from_node_reachable_set, const std::vector<ReachableFact*>& transition_reachable_set);
 	
 	const ReachableNode* from_node_;
 	const ReachableNode* to_node_;
@@ -390,8 +398,6 @@ private:
 	
 	// The set of nodes we are working on.
 	std::vector<ReachableNode*> reachable_nodes_;
-	
-	std::vector<ReachableFact*> established_reachable_facts_;
 	
 	/**
 	 * Propagator.

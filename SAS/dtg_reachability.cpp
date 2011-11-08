@@ -13,8 +13,8 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+///#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+///#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 #define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
 
@@ -353,6 +353,24 @@ bool ResolvedBoundedAtom::canUnifyWith(const ResolvedBoundedAtom& other) const
 	return true;
 }
 
+std::ostream& operator<<(std::ostream& os, const ResolvedBoundedAtom& resolved_bounded_atom)
+{
+	os << "(" << resolved_bounded_atom.getAtom().getPredicate().getName();
+	for (unsigned int i = 0; i < resolved_bounded_atom.getAtom().getArity(); i++)
+	{
+		const std::vector<const Object*>& domain = resolved_bounded_atom.getVariableDomain(i);
+		os << " { ";
+		for (std::vector<const Object*>::const_iterator ci = domain.begin(); ci != domain.end(); ci++)
+		{
+			os << **ci;
+			os << " ";
+		}
+		os << " } ";
+	}
+	os << " )";
+	return os;
+}
+
 /**
  * ReachableSet.
  */
@@ -465,6 +483,9 @@ void ReachableSet::addBoundedAtom(const MyPOP::SAS_Plus::BoundedAtom& bounded_at
 				if (&previous_resolved_bounded_atom->getVariableDomain(k) == &new_resolved_bounded_atom->getVariableDomain(j))
 				{
 					new_constraints_sets[j]->push_back(std::make_pair(i, k));
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+					std::cout << "The " << j << "th term of " << *new_resolved_bounded_atom << " must match up with the " << k << "th term of " << *previous_resolved_bounded_atom << "." << std::endl;
+#endif
 				}
 			}
 		}
@@ -475,6 +496,20 @@ void ReachableSet::addBoundedAtom(const MyPOP::SAS_Plus::BoundedAtom& bounded_at
 
 bool ReachableSet::canSatisfyConstraints(const ReachableFact& reachable_fact, std::vector<ReachableFact*>& reachable_set) const
 {
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+	std::cout << "[ReachableSet::canSatisfyConstraints] Add: " << reachable_fact << " to the set: " << std::endl;
+	for (std::vector<ReachableFact*>::const_iterator ci = reachable_set.begin(); ci != reachable_set.end(); ci++)
+	{
+		ReachableFact* reachable_fact = *ci;
+		std::cout << "* " << *reachable_fact << "." << std::endl;
+	}
+#endif
+
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+	assert (reachable_fact.getAtom().getPredicate().canSubstitute(facts_set_[reachable_set.size()]->getAtom().getPredicate()));
+	assert (reachable_fact.getAtom().getArity() == facts_set_[reachable_set.size()]->getAtom().getArity());
+#endif
+	
 	unsigned int index = reachable_set.size();
 	std::vector<std::pair<unsigned int, unsigned int> >** constraints = constraints_set_[index];
 	for (unsigned int i = 0; i < reachable_fact.getAtom().getArity(); i++)
@@ -488,6 +523,9 @@ bool ReachableSet::canSatisfyConstraints(const ReachableFact& reachable_fact, st
 			// Check if the relationship holds.
 			if (reachable_fact.getTermDomain(i) != reachable_set[fact_index]->getTermDomain(variable_index))
 			{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+				std::cout << "The " << i << "th term of : " << reachable_fact << " should match up with the " << variable_index << "th term of " << *reachable_set[fact_index] << ", but it doesn't!" << std::endl;
+#endif
 				return false;
 			}
 		}
@@ -503,6 +541,7 @@ bool ReachableSet::canSatisfyConstraints(const ReachableFact& reachable_fact, st
 			)
 		)
 		{
+			std::cout << "The " << i << "th term of : " << reachable_fact << " should match up with the " << i << "th term of " << *facts_set_[index] << ", but it doesn't!" << std::endl;
 			return false;
 		}
 	}
@@ -510,14 +549,8 @@ bool ReachableSet::canSatisfyConstraints(const ReachableFact& reachable_fact, st
 	return true;
 }
 
-void ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsigned int index)
+bool ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsigned int index)
 {
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-//	std::cout << "[ReachableSet::processNewReachableFact] " << reachable_fact << "[index=" << index << "] for " << std::endl;
-//	print(std::cout);
-//	std::cout << std::endl;
-#endif
-	
 	// Make sure the fact to be added can be unified with the fact at the given index.
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 	assert (facts_set_.size() > index);
@@ -534,17 +567,23 @@ void ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsign
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 //			std::cout << "[ReachableSet::processNewReachableFact] Already part of this set, move on!" << std::endl;
 #endif
-			return;
+			return false;
 		}
 	}
-	
+
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+	std::cout << "[ReachableSet::processNewReachableFact] " << reachable_fact << "[index=" << index << "] for " << std::endl;
+	print(std::cout);
+	std::cout << std::endl;
+#endif
+
 	reachable_set_[index]->push_back(&reachable_fact);
 	
 	// If the index is 0, it means it is the start of a new 'root'.
 	if (index == 0)
 	{
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-//		std::cout << "[ReachableSet::processNewReachableFact] Start a new root node!" << std::endl;
+		std::cout << "[ReachableSet::processNewReachableFact] Start a new root node!" << std::endl;
 #endif
 		std::vector<ReachableFact*>* new_reachable_set = new std::vector<ReachableFact*>();
 		new_reachable_set->push_back(&reachable_fact);
@@ -565,12 +604,12 @@ void ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsign
 			// If the constraints are satisfied, add the facts and search for new facts to add.
 			std::vector<ReachableFact*>* new_reachable_set = new std::vector<ReachableFact*>(*reachable_set);
 			new_reachable_set->push_back(&reachable_fact);
-			
-			generateNewReachableSets(*new_reachable_set);
-			
+
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-//			std::cout << "[ReachableSet::processNewReachableFact] Add to existing set!" << std::endl;
+			std::cout << "[ReachableSet::processNewReachableFact] Add to existing set!" << std::endl;
 #endif
+
+			generateNewReachableSets(*new_reachable_set);
 		}
 	}
 	
@@ -579,14 +618,23 @@ void ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsign
 	{
 		reachable_fact.getTermDomain(i).addReachableFact(reachable_fact);
 	}
+	
+	return true;
 }
 
 void ReachableSet::generateNewReachableSets(std::vector<ReachableFact*>& reachable_sets_to_process)
 {
 	unsigned int index = reachable_sets_to_process.size();
+	
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-//	std::cout << "[ReachableSet::generateNewReachableSets] Full set: " << facts_set_.size() << " v.s. index: " << index << "." << std::endl;
+		std::cout << "[ReachableSet::generateNewReachableSets] Process new reachable set, size=" << index << "." << std::endl;
+		for (std::vector<ReachableFact*>::const_iterator ci = reachable_sets_to_process.begin(); ci != reachable_sets_to_process.end(); ci++)
+		{
+			ReachableFact* reachable_fact = *ci;
+			std::cout << " * " << *reachable_fact << "." << std::endl;
+		}
 #endif
+	
 	
 	// Check if we are done.
 	if (index == facts_set_.size())
@@ -604,8 +652,15 @@ void ReachableSet::generateNewReachableSets(std::vector<ReachableFact*>& reachab
 	for (std::vector<ReachableFact*>::const_iterator ci = reachable_set_[index]->begin(); ci != reachable_set_[index]->end(); ci++)
 	{
 		ReachableFact* reachable_fact = *ci;
+
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+		std::cout << "Possible candidate for the index: " << index << " -> " << *reachable_fact << std::endl;
+#endif
 		
-		if (!canSatisfyConstraints(*reachable_fact, *reachable_set_[index])) continue;
+		if (!canSatisfyConstraints(*reachable_fact, reachable_sets_to_process))
+		{
+			continue;
+		}
 		
 		// If the constraints are satisfied, add the facts and search for new facts to add.
 		std::vector<ReachableFact*>* new_reachable_set = new std::vector<ReachableFact*>(reachable_sets_to_process);
@@ -649,34 +704,20 @@ void ReachableNode::addReachableTransition(ReachableTransition& reachable_transi
 }
 
 bool ReachableNode::propagateReachableFacts()
-{
-//	const std::vector<std::vector<ReachableFact*>* >& full_reachable_sets = getReachableSets();
-//	if (full_reachable_sets.empty()) return false;
-	
+{	
 	// Find all those reachable transitions which also have fully reachable sets.
 	bool could_propagate = false;
 	for (std::vector<ReachableTransition*>::const_iterator ci = reachable_transitions_.begin(); ci != reachable_transitions_.end(); ci++)
 	{
 		ReachableTransition* reachable_transition = *ci;
 		
-		std::vector<const ReachableFact*> results;
-		
-		reachable_transition->generateReachableFacts(results);
-		
-		//const std::vector<std::vector<ReachableFact*>* >& full_reachable_transition_sets = reachable_transition->getReachableSets();
-		
-		//if (full_reachable_transition_sets.empty()) continue;
-		
-		// By coupling both reachable sets we can generate all the reachable facts which are now reachable :).
-		
-		
-		
-		
-		could_propagate = true;
+		if (reachable_transition->generateReachableFacts())
+		{
+			could_propagate = true;
+		}
 	}
 	
-	//return could_propagate;
-	return false;
+	return could_propagate;
 }
 
 void ReachableNode::print(std::ostream& os) const
@@ -704,6 +745,20 @@ void ReachableNode::print(std::ostream& os) const
 			}
 			std::cout << "}" << std::endl;
 		}
+	}
+	
+	os << " -= WIP: " << std::endl;
+	for (std::vector<std::vector<ReachableFact*>* >::const_iterator ci =getWIPSets().begin(); ci != getWIPSets().end(); ci++)
+	{
+		os << " === Start set === " << std::endl;
+		std::vector<ReachableFact*>* wip_set = *ci;
+		
+		for (std::vector<ReachableFact*>::const_iterator ci = wip_set->begin(); ci != wip_set->end(); ci++)
+		{
+			ReachableFact* fact = *ci;
+			os << " * " << *fact << std::endl;
+		}
+		os << " === END set === " << std::endl;
 	}
 }
 
@@ -887,38 +942,37 @@ void ReachableTransition::initialise(const std::vector<ReachableFact*>& initial_
 	initialiseInitialFacts(initial_facts);
 }
 
-void ReachableTransition::generateReachableFacts(std::vector<const ReachableFact*>& results)
+bool ReachableTransition::generateReachableFacts()
 {
 	const std::vector<std::vector<ReachableFact*>* >& from_node_reachable_sets = from_node_->getReachableSets();
 	if (from_node_reachable_sets.size() == 0)
 	{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-//		std::cout << "No reachable sets in the from node! :((" << std::endl;
-#endif
-		return;
+		return false;
 	}
 	
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-		std::cout << "Found reachable sets in the from node! :)" << std::endl;
+//		std::cout << "Found reachable sets in the from node! :)" << std::endl;
 #endif
 	
 	// Special case if all the preconditions are part of the from node.
 	const std::vector<std::vector<ReachableFact*>* >& transition_reachable_sets = getReachableSets();
 	if (this->getFactsSet().size() > 0 && transition_reachable_sets.size() == 0)
 	{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-//		std::cout << "No reachable sets in the transition! :((" << std::endl;
-#endif
-		return;
+		return false;
 	}
 	
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-		std::cout << "Found reachable sets in the transition! :D" << std::endl;
+//		std::cout << "Found reachable sets in the transition! :D" << std::endl;
 #endif
 
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "Process the transition " << *this << std::endl;
 #endif
+	
+	bool new_facts_reached = false;
+	
+	std::vector<std::vector<ReachableFact*>* > from_node_reachable_sets_copy(from_node_reachable_sets);
+	std::vector<std::vector<ReachableFact*>* > transition_reachable_sets_copy(transition_reachable_sets);
 
 	// Generate the || from_node_reachable_sets || * || transition_reachable_sets || effects.
 	for (std::vector<ResolvedBoundedAtom*>::const_iterator ci = effects_.begin(); ci != effects_.end(); ci++)
@@ -926,14 +980,18 @@ void ReachableTransition::generateReachableFacts(std::vector<const ReachableFact
 		unsigned int effect_index = std::distance(static_cast<std::vector<ResolvedBoundedAtom*>::const_iterator>(effects_.begin()), ci);
 		const ResolvedBoundedAtom* effect = *ci;
 		
-		for (std::vector<std::vector<ReachableFact*>* >::const_iterator ci = from_node_reachable_sets.begin(); ci != from_node_reachable_sets.end(); ci++)
+		for (std::vector<std::vector<ReachableFact*>* >::const_iterator ci = from_node_reachable_sets_copy.begin(); ci != from_node_reachable_sets_copy.end(); ci++)
 		{
 			const std::vector<ReachableFact*>* from_node_reachable_set = *ci;
 			
-			for (std::vector<std::vector<ReachableFact*>* >::const_iterator ci = transition_reachable_sets.begin(); ci != transition_reachable_sets.end(); ci++)
+			for (std::vector<std::vector<ReachableFact*>* >::const_iterator ci = transition_reachable_sets_copy.begin(); ci != transition_reachable_sets_copy.end(); ci++)
 			{
 				const std::vector<ReachableFact*>* transition_reachable_set = *ci;
-				
+				if (createNewReachableFact(*effect, effect_index, *from_node_reachable_set, *transition_reachable_set))
+				{
+					new_facts_reached = true;
+				}
+/*
 				// For every pari of from node sets and transition sets we can construct the reachable facts.
 				EquivalentObjectGroup** effect_domains = new EquivalentObjectGroup*[effect->getAtom().getArity()];
 				
@@ -968,19 +1026,37 @@ void ReachableTransition::generateReachableFacts(std::vector<const ReachableFact
 				std::vector<std::pair<ReachableSet*, unsigned int> >* listeners = effect_propagation_listeners_[effect_index];
 				for (std::vector<std::pair<ReachableSet*, unsigned int> >::const_iterator ci = listeners->begin(); ci != listeners->end(); ci++)
 				{
-					(*ci).first->processNewReachableFact(*new_reachable_fact, (*ci).second);
+					if ((*ci).first->processNewReachableFact(*new_reachable_fact, (*ci).second))
+					{
+						new_facts_reached = true;
+					}
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+//					std::cout << "- Propagate to: ";
+//					(*ci).first->print(std::cout);
+//					std::cout << "[" << (*ci).second << "]." << std::endl;
+#endif
 				}
+*/
 			}
 			
 			// Sometimes all the variables are defined by the from node.
 			if (transition_reachable_sets.empty())
 			{
+				const std::vector<ReachableFact*> transition_reachable_set;
+				if (createNewReachableFact(*effect, effect_index, *from_node_reachable_set, transition_reachable_set))
+				{
+					new_facts_reached = true;
+				}
+/*
 				EquivalentObjectGroup** effect_domains = new EquivalentObjectGroup*[effect->getAtom().getArity()];
 				for (unsigned int i = 0; i < effect->getAtom().getArity(); i++)
 				{
 					VariableToValues* values = variable_to_values_mapping_[&effect->getVariableDomain(i)];
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 					assert (!values->is_transition_);
+					assert (from_node_reachable_set->size() > values->fact_index_);
+					assert ((*from_node_reachable_set)[values->fact_index_] != NULL);
+					assert ((*from_node_reachable_set)[values->fact_index_]->getAtom().getArity() > values->term_index_);
 #endif
 					effect_domains[i] = &(*from_node_reachable_set)[values->fact_index_]->getTermDomain(values->term_index_);
 				}
@@ -993,11 +1069,72 @@ void ReachableTransition::generateReachableFacts(std::vector<const ReachableFact
 				std::vector<std::pair<ReachableSet*, unsigned int> >* listeners = effect_propagation_listeners_[effect_index];
 				for (std::vector<std::pair<ReachableSet*, unsigned int> >::const_iterator ci = listeners->begin(); ci != listeners->end(); ci++)
 				{
-					(*ci).first->processNewReachableFact(*new_reachable_fact, (*ci).second);
+					if ((*ci).first->processNewReachableFact(*new_reachable_fact, (*ci).second))
+					{
+						new_facts_reached = true;
+					}
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+//					std::cout << "- Propagate to: ";
+//					(*ci).first->print(std::cout);
+//					std::cout << "[" << (*ci).second << "]." << std::endl;
+#endif
 				}
+*/
 			}
 		}
 	}
+	
+	return new_facts_reached;
+}
+
+bool ReachableTransition::createNewReachableFact(const ResolvedBoundedAtom& effect, unsigned int effect_index, const std::vector<ReachableFact*>& from_node_reachable_set, const std::vector<ReachableFact*>& transition_reachable_set)
+{
+	EquivalentObjectGroup** effect_domains = new EquivalentObjectGroup*[effect.getAtom().getArity()];
+	bool new_facts_reached = false;
+	
+	for (unsigned int i = 0; i < effect.getAtom().getArity(); i++)
+	{
+		VariableToValues* values = variable_to_values_mapping_[&effect.getVariableDomain(i)];
+		if (values->is_transition_)
+		{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+			assert (transition_reachable_set->size() > values->fact_index_);
+			assert ((*transition_reachable_set)[values->fact_index_]->getAtom().getArity() > values->term_index_);
+#endif
+			effect_domains[i] = &(transition_reachable_set)[values->fact_index_]->getTermDomain(values->term_index_);
+		}
+		else
+		{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+			assert (from_node_reachable_set->size() > values->fact_index_);
+			assert ((*from_node_reachable_set)[values->fact_index_]->getAtom().getArity() > values->term_index_);
+#endif
+			effect_domains[i] = &(from_node_reachable_set)[values->fact_index_]->getTermDomain(values->term_index_);
+		}
+	}
+	
+	// Create a new reachable fact!
+	ReachableFact* new_reachable_fact = new ReachableFact(effect.getAtom(), effect_domains);
+	
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+	std::cout << "New reachable fact: " << *new_reachable_fact << std::endl;
+#endif
+	
+	std::vector<std::pair<ReachableSet*, unsigned int> >* listeners = effect_propagation_listeners_[effect_index];
+	for (std::vector<std::pair<ReachableSet*, unsigned int> >::const_iterator ci = listeners->begin(); ci != listeners->end(); ci++)
+	{
+		if ((*ci).first->processNewReachableFact(*new_reachable_fact, (*ci).second))
+		{
+			new_facts_reached = true;
+		}
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+//					std::cout << "- Propagate to: ";
+//					(*ci).first->print(std::cout);
+//					std::cout << "[" << (*ci).second << "]." << std::endl;
+#endif
+	}
+	
+ 	return new_facts_reached;
 }
 
 void ReachableTransition::print(std::ostream& os) const
@@ -1081,16 +1218,17 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const ReachableFa
 
 	// Transform the set of initial facts into reachable facts, which means we drop the variable domains
 	// and work solely with equivalent object groups.
+	std::vector<ReachableFact*> established_reachable_facts;
 	for (std::vector<const BoundedAtom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
 	{
 		ReachableFact* initial_reachable_fact = new ReachableFact(**ci, bindings, *equivalent_object_manager_);
-		established_reachable_facts_.push_back(initial_reachable_fact);
+		established_reachable_facts.push_back(initial_reachable_fact);
 	}
 
 	struct timeval start_time_eog;
 	gettimeofday(&start_time_eog, NULL);
 	
-	equivalent_object_manager_->initialise(established_reachable_facts_);
+	equivalent_object_manager_->initialise(established_reachable_facts);
 
 	struct timeval end_time_eog;
 	gettimeofday(&end_time_eog, NULL);
@@ -1107,7 +1245,7 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const ReachableFa
 	for (std::vector<ReachableNode*>::const_iterator ci = reachable_nodes_.begin(); ci != reachable_nodes_.end(); ci++)
 	{
 		ReachableNode* reachable_node = *ci;
-		reachable_node->initialise(established_reachable_facts_);
+		reachable_node->initialise(established_reachable_facts);
 	}
 
 	struct timeval end_time_init;
@@ -1146,11 +1284,22 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const ReachableFa
 			}
 		}
 		
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+		std::cout << "End of the " << iteration << "th iteration. Results so far: " << std::endl;
+		for (std::vector<ReachableNode*>::const_iterator ci = reachable_nodes_.begin(); ci != reachable_nodes_.end(); ci++)
+		{
+			(*ci)->print(std::cout);
+			std::cout << std::endl;
+		}
+#endif
+		
 		// TODO: Update equivalent relationships.
 		//equivalent_object_manager_->updateEquivalences();
 		
 		++iteration;
 	}
+	
+	equivalent_object_manager_->getAllReachableFacts(result);
 }
 
 ReachableTransition& DTGReachability::getReachableTransition(const Transition& transition) const

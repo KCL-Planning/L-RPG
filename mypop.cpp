@@ -27,6 +27,7 @@
 #include "SAS/dtg_graph.h"
 #include "SAS/dtg_reachability.h"
 #include "relaxed_planning_graph.h"
+#include "SAS/equivalent_object_group.h"
 
 ///#define MYPOP_COMMENTS
 
@@ -194,7 +195,7 @@ int main(int argc,char * argv[])
 	// Do the reachability analysis.
 	struct timeval start_time_prepare_reachability;
 	gettimeofday(&start_time_prepare_reachability, NULL);
-	
+	std::vector<const SAS_Plus::ReachableFact*> lifted_reachable_facts;
 	{
 
 		SAS_Plus::DTGReachability analyst(dtg_manager, combined_graph, term_manager);
@@ -227,7 +228,7 @@ int main(int argc,char * argv[])
 				}
 			}
 		}
-		std::vector<const SAS_Plus::ReachableFact*> result;
+
 		struct timeval end_convert_time;
 		gettimeofday(&end_convert_time, NULL);	
 
@@ -239,7 +240,7 @@ int main(int argc,char * argv[])
 		struct timeval start_time_reachability;
 		gettimeofday(&start_time_reachability, NULL);
 
-		analyst.performReachabilityAnalsysis(result, bounded_initial_facts, combined_graph.getBindings());
+		analyst.performReachabilityAnalsysis(lifted_reachable_facts, bounded_initial_facts, combined_graph.getBindings());
 		struct timeval end_time_reachability;
 		gettimeofday(&end_time_reachability, NULL);	
 
@@ -258,7 +259,7 @@ int main(int argc,char * argv[])
 */
 	
 
-/*
+
 	// Validate the result.
 	RPG::RelaxedPlanningGraph rpg(action_manager, *plan);
 	//std::cout << rpg << std::endl;
@@ -273,11 +274,29 @@ int main(int argc,char * argv[])
 		const SAS_Plus::BoundedAtom* rpg_bounded_atom = *ci;
 		if (rpg_bounded_atom->getAtom().isNegative()) continue;
 		bool reached = false;
-		for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
+		for (std::vector<const SAS_Plus::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
 		{
-			const SAS_Plus::BoundedAtom* lifted_bounded_atom = *ci;
+			const SAS_Plus::ReachableFact* lifted_bounded_atom = *ci;
 			
-			if (rpg_bounded_atom->isEquivalentTo(*lifted_bounded_atom, rpg.getBindings(), &combined_graph.getBindings()))
+			if (lifted_bounded_atom->getAtom().getPredicate().getName() != rpg_bounded_atom->getAtom().getPredicate().getName()) continue;
+		
+			if (lifted_bounded_atom->getAtom().getArity() != rpg_bounded_atom->getAtom().getArity()) continue;
+			
+			bool is_equivalent = true;
+			for (unsigned int i = 0; i < lifted_bounded_atom->getAtom().getArity(); i++)
+			{
+				const Object* grounded_object = rpg_bounded_atom->getVariableDomain(i, rpg.getBindings())[0];
+				
+				const SAS_Plus::EquivalentObjectGroup& eog = lifted_bounded_atom->getTermDomain(i);
+				
+				if (!eog.contains(*grounded_object))
+				{
+					is_equivalent = false;
+					break;
+				}
+			}
+			
+			if (is_equivalent)
 			{
 				reached = true;
 				break;
@@ -294,15 +313,33 @@ int main(int argc,char * argv[])
 	}
 	
 	
-	for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
+	for (std::vector<const SAS_Plus::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
 	{
-		const SAS_Plus::BoundedAtom* lifted_bounded_atom = *ci;
+		const SAS_Plus::ReachableFact* lifted_bounded_atom = *ci;
 		bool reached = false;
 		for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
 		{
 			const SAS_Plus::BoundedAtom* rpg_bounded_atom = *ci;
 			
-			if (rpg_bounded_atom->isEquivalentTo(*lifted_bounded_atom, rpg.getBindings(), &combined_graph.getBindings()))
+			if (lifted_bounded_atom->getAtom().getPredicate().getName() != rpg_bounded_atom->getAtom().getPredicate().getName()) continue;
+		
+			if (lifted_bounded_atom->getAtom().getArity() != rpg_bounded_atom->getAtom().getArity()) continue;
+			
+			bool is_equivalent = true;
+			for (unsigned int i = 0; i < lifted_bounded_atom->getAtom().getArity(); i++)
+			{
+				const Object* grounded_object = rpg_bounded_atom->getVariableDomain(i, rpg.getBindings())[0];
+				
+				const SAS_Plus::EquivalentObjectGroup& eog = lifted_bounded_atom->getTermDomain(i);
+				
+				if (!eog.contains(*grounded_object))
+				{
+					is_equivalent = false;
+					break;
+				}
+			}
+			
+			if (is_equivalent)
 			{
 				reached = true;
 				break;
@@ -311,15 +348,12 @@ int main(int argc,char * argv[])
 		
 		if (!reached)
 		{
-			std::cerr << "Fact reachable by the lifted implementation but not by the RPG: ";
-			lifted_bounded_atom->print(std::cerr, combined_graph.getBindings());
-			std::cerr << "." << std::endl;
+			std::cerr << "Fact reachable by the lifted implementation but not by the RPG: " << *lifted_bounded_atom << "." << std::endl;
 			all_clear = false;
 		}
 	}
 	
 	assert (all_clear);
-	*/
 	exit(0);
 	
 	Graphviz::printToDot(dtg_manager);

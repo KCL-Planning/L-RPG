@@ -143,7 +143,9 @@ public:
 	
 	const StepID getId() const { return id_; }
 	
-	const Atom& getAtom() const { return *atom_; }
+	const Atom& getOriginalAtom() const { return *atom_; }
+	
+	const Atom& getCorrectedAtom() const { return *corrected_atom_; }
 	
 	const std::vector<const Object*>& getVariableDomain(unsigned int index) const;
 	
@@ -151,19 +153,47 @@ public:
 	
 	bool canUnifyWith(const ResolvedBoundedAtom& other) const;
 	
-private:
+protected:
+	
+	void init(const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
 	
 	StepID id_;
 	
 	const Atom* atom_;
 	
+	const Atom* corrected_atom_;
+	
 	std::vector<const std::vector<const Object*>* > variable_domains_;
 	
 	bool* is_grounded_;
-	
 };
 
 std::ostream& operator<<(std::ostream& os, const ResolvedBoundedAtom& resolved_bounded_atom);
+
+/**
+ * 
+ */
+class ResolvedEffect : public ResolvedBoundedAtom
+{
+public:
+	ResolvedEffect(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, bool free_variables[]);
+	
+	bool isFreeVariable(unsigned int index) const;
+	
+	void createReachableFacts(std::vector<ReachableFact*>& results, EquivalentObjectGroup** effect_domains) const;
+	
+private:
+	
+	const EquivalentObjectGroupManager* eog_manager_;
+	
+	bool* is_free_variable_;
+	
+	std::vector<const Term*> free_variables_;
+	
+	int* index_to_variable_;
+};
+
+std::ostream& operator<<(std::ostream& os, const ResolvedEffect& resolved_bounded_atom);
 
 /**
  * During the reachability algorithm we try to find all the sets of reachable facts which can unify with
@@ -354,15 +384,13 @@ public:
 	void print(std::ostream& os) const;
 private:
 	
-	bool createNewReachableFact(const ResolvedBoundedAtom& effect, unsigned int effect_index, const std::vector<ReachableFact*>& from_node_reachable_set, const std::vector<ReachableFact*>& transition_reachable_set);
-	
 	const ReachableNode* from_node_;
 	const ReachableNode* to_node_;
 	
 	const Transition* transition_;
 	
 	// To speed up the process we resolve all the variable domains of all the effects.
-	std::vector<ResolvedBoundedAtom*> effects_;
+	std::vector<ResolvedEffect*> effects_;
 	
 	// Mapping from a variable to a reachable set containing its possible values.
 	// The reachable set is accessed as: <fact index, term index>.
@@ -371,6 +399,23 @@ private:
 	// For every effect we register all the ReachableSets for which the function processNewReachableFact must be called
 	// when the effect is reached.
 	std::vector<std::vector<std::pair<ReachableSet*, unsigned int> >* > effect_propagation_listeners_;
+	
+	/**
+	 * Called by the generateReachableFacts method. Once we have two complete sets of facts, one containing a mapping to all 
+	 * facts in the from node and one containing all the facts which are hold by the reachable transition we combine the 
+	 * assignments made to the variables to construct the set of effects.
+	 * @param effect The effect we try to construct.
+	 * @param effect_index The index of the effect of the original transition.
+	 * @param from_node_reachable_set The full set of assignments to the facts in the from node.
+	 * @param transition_reachable_set The full set of assignments to the facts in the transition.
+	 * @return True if a new effect could be created (i.e. it wasn't already created previously), false otherwise.
+	 */
+	bool createNewReachableFact(const ResolvedEffect& effect, unsigned int effect_index, const std::vector<ReachableFact*>& from_node_reachable_set, const std::vector<ReachableFact*>& transition_reachable_set);
+	
+	// To speed up the createNewReachableFact method we keep track of all the combinations of sets we have already combined 
+	// in the past so we don't redo the same thing.
+	unsigned int latest_processed_from_node_set_;
+	unsigned int latest_processed_transition_set_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const ReachableTransition& reachable_transition);
 };

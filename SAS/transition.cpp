@@ -2326,7 +2326,7 @@ std::ostream& operator<<(std::ostream& os, const Transition& transition)
 	os << std::endl;
 //	os << "[" << transition.getStep()->getAction() << "]" << std::endl;
 	transition.getStep()->getAction().print(os, transition.getFromNode().getDTG().getBindings(), transition.getStep()->getStepId());
-/*
+
 	std::vector<std::pair<const Atom*, InvariableIndex> > all_preconditions = transition.getAllPreconditions();
 	os << "All preconditions: " << std::endl;
 	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = all_preconditions.begin(); ci != all_preconditions.end(); ci++)
@@ -2343,6 +2343,13 @@ std::ostream& operator<<(std::ostream& os, const Transition& transition)
 		os << " (" << (*ci).second << ") Ox" << (*ci).first << "." << std::endl;
 	}
 	
+	os << "The preconditions in the LTG node: " << std::endl;
+	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = transition.getPreconditions().begin(); ci != transition.getPreconditions().end(); ci++)
+	{
+		(*ci).first->print(os, transition.getToNode().getDTG().getBindings(), transition.getStep()->getStepId());
+		os << std::endl;
+	}
+/*
 	std::vector<std::pair<const Atom*, InvariableIndex> > persistent_facts = transition.getAllPersistentPreconditions();
 	os << "All persistent preconditions: " << std::endl;
 	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = persistent_facts.begin(); ci != persistent_facts.end(); ci++)

@@ -100,8 +100,8 @@ void Atom::print(std::ostream& os, const Bindings& bindings, StepID step_id, boo
 	for (std::vector<const Term*>::const_iterator ci = terms_->begin(); ci != terms_->end(); ci++)
 	{
 		const Term* term = *ci;
-		///os << *term;
 		term->print(os, bindings, step_id);
+		os << "[ADDR=" << term << "]";
 		
 		if (verbal)
 		{

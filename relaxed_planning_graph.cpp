@@ -5,6 +5,7 @@
 #include "plan_bindings.h"
 #include "parser_utils.h"
 #include "formula.h"
+#include "predicate_manager.h"
 #include "SAS/dtg_manager.h"
 #include "SAS/equivalent_object_group.h"
 #include "SAS/dtg_reachability.h"
@@ -53,23 +54,57 @@ FactLayer::FactLayer()
 FactLayer::FactLayer(const FactLayer& fact_layer)
 {
 	facts_.insert(facts_.begin(), fact_layer.facts_.begin(), fact_layer.facts_.end());
+	mapped_facts_.insert(fact_layer.mapped_facts_.begin(), fact_layer.mapped_facts_.end());
 }
 
 bool FactLayer::addFact(const SAS_Plus::ResolvedBoundedAtom& bounded_atom)
 {
 	// Check if any of the existing facts can be unified with the given bounded atom. If this is the case
 	// this atom will not be added.
-	for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator ci = facts_.begin(); ci != facts_.end(); ci++)
+	std::string unique_name = getUniqueName(bounded_atom);
+	
+	std::map<std::string, std::vector<const SAS_Plus::ResolvedBoundedAtom*>* >::iterator i = mapped_facts_.find(unique_name);
+	std::vector<const SAS_Plus::ResolvedBoundedAtom*>* mapping = NULL;
+	if (i == mapped_facts_.end())
 	{
-		if (bounded_atom.getOriginalAtom().isNegative() == (*ci)->getOriginalAtom().isNegative() &&
-		    bounded_atom.canUnifyWith(**ci))
+		mapping = new std::vector<const SAS_Plus::ResolvedBoundedAtom*>();
+		mapped_facts_[getUniqueName(bounded_atom)] = mapping;
+	}
+	else
+	{
+		mapping = (*i).second;
+		
+		for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator ci = mapping->begin(); ci != mapping->end(); ci++)
 		{
-			return false;
+			if (bounded_atom.getOriginalAtom().isNegative() == (*ci)->getOriginalAtom().isNegative() &&
+			    bounded_atom.canUnifyWith(**ci))
+			{
+				return false;
+			}
 		}
 	}
+	
 	facts_.push_back(&bounded_atom);
+	mapping->push_back(&bounded_atom);
+	
 	return true;
 }
+
+const std::vector<const SAS_Plus::ResolvedBoundedAtom*>* FactLayer::getFacts(const SAS_Plus::ResolvedBoundedAtom& precondition) const
+{
+	std::map<std::string, std::vector<const SAS_Plus::ResolvedBoundedAtom*>* >::const_iterator i = mapped_facts_.find(getUniqueName(precondition));
+	if (i == mapped_facts_.end())
+	{
+		return NULL;
+	}
+	return (*i).second;
+}
+
+std::string FactLayer::getUniqueName(const SAS_Plus::ResolvedBoundedAtom& atom) const
+{
+	return atom.getOriginalAtom().getPredicate().getName();
+}
+
 
 RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, const Plan& initial_plan, const SAS_Plus::EquivalentObjectGroupManager& eog_manager)
 	: bindings_(new Bindings(initial_plan.getBindings()))
@@ -119,8 +154,17 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 			{
 				const SAS_Plus::ResolvedBoundedAtom* precondition = *precondition_ci;
 				bool precondition_satisfied = false;
-
-				for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator layer_ci = current_fact_layer->getFacts().begin(); layer_ci != current_fact_layer->getFacts().end(); layer_ci++)
+				
+				const std::vector<const SAS_Plus::ResolvedBoundedAtom*>* supporting_facts = current_fact_layer->getFacts(*precondition);
+				
+				if (supporting_facts == NULL)
+				{
+					preconditions_are_satisfied = false;
+					break;
+				}
+				
+				for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator layer_ci = supporting_facts->begin(); layer_ci != supporting_facts->end(); layer_ci++)
+				//for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator layer_ci = current_fact_layer->getFacts().begin(); layer_ci != current_fact_layer->getFacts().end(); layer_ci++)
 				{
 					if (precondition->getOriginalAtom().isNegative() == (*layer_ci)->getOriginalAtom().isNegative() && 
 					    precondition->canUnifyWith(**layer_ci))

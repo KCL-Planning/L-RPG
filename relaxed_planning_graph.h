@@ -80,10 +80,17 @@ public:
 	 * Return all the facts stored in this fact layer.
 	 */
 	const std::vector<const SAS_Plus::ResolvedBoundedAtom*>& getFacts() const { return facts_; }
+	
+	const std::vector<const SAS_Plus::ResolvedBoundedAtom*>* getFacts(const SAS_Plus::ResolvedBoundedAtom& precondition) const;
 
 private:
+	
+	std::string getUniqueName(const SAS_Plus::ResolvedBoundedAtom& atom) const;
+	
 	// All the facts stored in this fact layer.
 	std::vector<const SAS_Plus::ResolvedBoundedAtom*> facts_;
+	
+	std::map<std::string, std::vector<const SAS_Plus::ResolvedBoundedAtom*>* > mapped_facts_;
 };
 
 /**

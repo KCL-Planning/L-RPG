@@ -179,10 +179,6 @@ public:
 	 * @return true if at least one grounded node was produced, false otherwise.
 	 */
 	bool groundTerm(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const Term& term_to_ground, StepID term_id) const;
-
-	bool groundTerms(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const std::vector<std::pair<const Term*, StepID> >& terms_to_ground);
-	
-//	bool groundTerms(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const std::vector<const std::vector<const Object*>* >& variable_domains_to_ground);
 	
 	bool groundTerms(std::vector<std::pair<DomainTransitionGraphNode*, std::map<const std::vector<const Object*>*, const Object*>* > >& grounded_nodes, const std::vector<const std::vector<const Object*>* >& variable_domains_to_ground);
 

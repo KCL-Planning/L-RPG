@@ -18,11 +18,40 @@ class Step;
 
 namespace SAS_Plus {
 	class BoundedAtom;
+	class ResolvedBoundedAtom;
+	class EquivalentObjectGroupManager;
 };
 
 namespace RPG {
 
 //typedef std::pair<StepID, const Atom*> BoundedAtom;
+
+class ResolvedAction
+{
+public:
+	ResolvedAction(const Action& action, StepID step_id, const Bindings& bindings, const SAS_Plus::EquivalentObjectGroupManager& eog_manager);
+	
+	const std::vector<const SAS_Plus::ResolvedBoundedAtom*>& getPreconditions() const { return preconditions_; }
+	
+	const std::vector<const SAS_Plus::ResolvedBoundedAtom*>& getEffects() const { return effects_; }
+	
+	const StepID getStepID() const { return step_id_; }
+	
+	const Action& getAction() const { return *action_; }
+	
+	const Bindings& getBindings() const { return *bindings_; }
+	
+private:
+	
+	const StepID step_id_;
+	const Action* action_;
+	const Bindings* bindings_;
+	
+	std::vector<const SAS_Plus::ResolvedBoundedAtom*> preconditions_;
+	std::vector<const SAS_Plus::ResolvedBoundedAtom*> effects_;
+};
+
+std::ostream& operator<<(std::ostream& os, const ResolvedAction& resolved_action);
 
 /**
  * Because we allow no duplicate facts in a layer we first check if the atom can be bounded to an existing
@@ -34,7 +63,7 @@ public:
 	/**
 	 * Create a new empty fact layer.
 	 */
-	FactLayer(const Bindings& bindings);
+	FactLayer();
 
 	/**
 	 * Copy constructor.
@@ -45,19 +74,16 @@ public:
 	 * Add a fact to this fact layer, this method only succeeds if the bounded atom cannot be unified
 	 * with any atoms already present in this fact layer.
 	 */
-	bool addFact(const SAS_Plus::BoundedAtom& bounded_atom);
+	bool addFact(const SAS_Plus::ResolvedBoundedAtom& bounded_atom);
 
 	/**
 	 * Return all the facts stored in this fact layer.
 	 */
-	const std::vector<const SAS_Plus::BoundedAtom*>& getFacts() const { return facts_; }
+	const std::vector<const SAS_Plus::ResolvedBoundedAtom*>& getFacts() const { return facts_; }
 
 private:
 	// All the facts stored in this fact layer.
-	std::vector<const SAS_Plus::BoundedAtom*> facts_;
-
-	// The bindings of all the facts in this layer.
-	const Bindings* bindings_;
+	std::vector<const SAS_Plus::ResolvedBoundedAtom*> facts_;
 };
 
 /**
@@ -71,20 +97,21 @@ public:
 	 * Create a relaxed planning graph from the intial state to the goal state. These can be found in the
 	 * initial plan. The relaxed planning graph is only allowed to make use of the lifted actions.
 	 */
-    RelaxedPlanningGraph(const ActionManager& action_manager, const Plan& initial_plan);
+    RelaxedPlanningGraph(const ActionManager& action_manager, const Plan& initial_plan, const SAS_Plus::EquivalentObjectGroupManager& eog_manager);
 
     ~RelaxedPlanningGraph();
 
-	const std::vector<std::vector<const Step*>* >& getActionLayers() const { return action_layers_; }
+	const std::vector<std::vector<const ResolvedAction*>* >& getActionLayers() const { return action_layers_; }
 
 	const std::vector<FactLayer* >& getFactLayers() const { return fact_layers_; }
 
-	const Bindings& getBindings() const { return *bindings_; }
+//	const Bindings& getBindings() const { return *bindings_; }
 
 private:
 
 	// The action layers.
-	std::vector<std::vector<const Step*>* > action_layers_;
+	//std::vector<std::vector<const Step*>* > action_layers_;
+	std::vector<std::vector<const ResolvedAction*>* > action_layers_;
 
 	// The fact layers.
 	std::vector<FactLayer* > fact_layers_;

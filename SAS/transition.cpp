@@ -11,7 +11,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+///#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 ///#define ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 
 namespace MyPOP {
@@ -522,10 +522,6 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 		const BoundedAtom* from_node_fact = *ci;
 		bool found_precondition = false;
 		
-		std::cout << "Try to find a precondition matching: ";
-		from_node_fact->print(std::cout, bindings);
-		std::cout << "." << std::endl;
-		
 		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 		{
 			const Atom* precondition = *ci;
@@ -533,10 +529,6 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 			if (from_node_fact->getAtom().getPredicate().getName() != precondition->getPredicate().getName()) continue;
 			
 			if (from_node_fact->getAtom().getArity() != precondition->getArity()) continue;
-			
-			std::cout << "Compare to: ";
-			precondition->print(std::cout, bindings, action_step->getStepId());
-			std::cout << "." << std::endl;
 			
 			bool terms_matches = true;
 			for (unsigned int i = 0; i < precondition->getArity(); i++)
@@ -551,8 +543,6 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 			if (!terms_matches) continue;
 			
 			assert (!found_precondition);
-			
-			std::cout << "Found a match!" << std::endl;
 			
 			found_precondition = true;
 			preconditions_in_from_node->push_back(precondition);
@@ -1520,12 +1510,12 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 					std::cout << std::endl;
 #endif
 					is_added = true;
-					if (std::find(add_effects_mapping_to_to_node->begin(), add_effects_mapping_to_to_node->end(), std::make_pair(effect, linked_property->getIndex())) == add_effects_mapping_to_to_node->end())
+///					if (std::find(add_effects_mapping_to_to_node->begin(), add_effects_mapping_to_to_node->end(), std::make_pair(effect, linked_property->getIndex())) == add_effects_mapping_to_to_node->end())
 					{
 						add_effects_mapping_to_to_node->push_back(std::make_pair(effect, linked_property->getIndex()));
 					}
 
-					if (std::find(add_effects_to_to_node_bindings->begin(), add_effects_to_to_node_bindings->end(), std::make_pair(effect, added_fact)) == add_effects_to_to_node_bindings->end())
+///					if (std::find(add_effects_to_to_node_bindings->begin(), add_effects_to_to_node_bindings->end(), std::make_pair(effect, added_fact)) == add_effects_to_to_node_bindings->end())
 					{
 						add_effects_to_to_node_bindings->push_back(std::make_pair(effect, added_fact));
 					}
@@ -1600,12 +1590,12 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 					std::cout << std::endl;
 #endif
 					
-					if (std::find(precondition_mapping_to_from_node->begin(), precondition_mapping_to_from_node->end(), std::make_pair(precondition, linked_property->getIndex())) == precondition_mapping_to_from_node->end())
+///					if (std::find(precondition_mapping_to_from_node->begin(), precondition_mapping_to_from_node->end(), std::make_pair(precondition, linked_property->getIndex())) == precondition_mapping_to_from_node->end())
 					{
 						precondition_mapping_to_from_node->push_back(std::make_pair(precondition, linked_property->getIndex()));
 					}
 					
-					if (std::find(precondition_to_from_node_bindings->begin(), precondition_to_from_node_bindings->end(), std::make_pair(precondition, removed_fact)) == precondition_to_from_node_bindings->end())
+///					if (std::find(precondition_to_from_node_bindings->begin(), precondition_to_from_node_bindings->end(), std::make_pair(precondition, removed_fact)) == precondition_to_from_node_bindings->end())
 					{
 						precondition_to_from_node_bindings->push_back(std::make_pair(precondition, removed_fact));
 					}
@@ -1637,7 +1627,7 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 					effect->print(std::cout, bindings, action_step_id);
 					std::cout << std::endl;
 #endif
-					if (std::find(remove_effects_mapping_to_to_node->begin(), remove_effects_mapping_to_to_node->end(), std::make_pair(effect, linked_property->getIndex())) == remove_effects_mapping_to_to_node->end())
+///					if (std::find(remove_effects_mapping_to_to_node->begin(), remove_effects_mapping_to_to_node->end(), std::make_pair(effect, linked_property->getIndex())) == remove_effects_mapping_to_to_node->end())
 					{
 						remove_effects_mapping_to_to_node->push_back(std::make_pair(effect, linked_property->getIndex()));
 					}
@@ -1869,7 +1859,7 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 			// Merge the terms together.
 			bindings.unify(from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId(), to_node_persistent_fact->getAtom(), to_node_persistent_fact->getId());
 		}
-		
+
 		// Also unify the from node persistent fact with the matching precondition.
 		bool found_matching_precondition = false;
 		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
@@ -1944,11 +1934,11 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 		{
 			const Atom* precondition = *ci;
 			
-	#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 			std::cout << "Process: ";
 			precondition->print(std::cout, bindings, action_step->getStepId());
 			std::cout << std::endl;
-	#endif
+#endif
 			
 			for (std::vector<const Term*>::const_iterator precondition_terms_ci = precondition->getTerms().begin(); precondition_terms_ci != precondition->getTerms().end(); precondition_terms_ci++)
 			{
@@ -2079,10 +2069,6 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 		const BoundedAtom* from_node_fact = *ci;
 		bool found_precondition = false;
 		
-		std::cout << "Try to find a precondition matching: ";
-		from_node_fact->print(std::cout, bindings);
-		std::cout << "." << std::endl;
-		
 		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 		{
 			const Atom* precondition = *ci;
@@ -2090,10 +2076,6 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 			if (from_node_fact->getAtom().getPredicate().getName() != precondition->getPredicate().getName()) continue;
 			
 			if (from_node_fact->getAtom().getArity() != precondition->getArity()) continue;
-			
-			std::cout << "Compare to: ";
-			precondition->print(std::cout, bindings, action_step->getStepId());
-			std::cout << "." << std::endl;
 			
 			bool terms_matches = true;
 			for (unsigned int i = 0; i < precondition->getArity(); i++)
@@ -2108,8 +2090,6 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 			if (!terms_matches) continue;
 			
 			assert (!found_precondition);
-			
-			std::cout << "Found a match!" << std::endl;
 			
 			found_precondition = true;
 			preconditions_in_from_node->push_back(precondition);
@@ -2339,9 +2319,9 @@ Transition* Transition::migrateTransition(const std::vector<const Atom*>& initia
 		const BoundedAtom* from_node_fact = *ci;
 		bool found_precondition = false;
 		
-		std::cout << "[Migrate]Try to find a precondition matching: ";
-		from_node_fact->print(std::cout, bindings);
-		std::cout << "." << std::endl;
+//		std::cout << "Find the precondition candidate for the from node: ";
+//		from_node_fact->print(std::cout, bindings);
+//		std::cout << "." << std::endl;
 		
 		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 		{
@@ -2351,14 +2331,14 @@ Transition* Transition::migrateTransition(const std::vector<const Atom*>& initia
 			
 			if (from_node_fact->getAtom().getArity() != precondition->getArity()) continue;
 			
-			std::cout << "Compare to: ";
-			precondition->print(std::cout, bindings, step_->getStepId());
-			std::cout << "." << std::endl;
+//			std::cout << "Possible candidate: ";
+//			precondition->print(std::cout, bindings, new_id);
+//			std::cout << "." << std::endl;
 			
 			bool terms_matches = true;
 			for (unsigned int i = 0; i < precondition->getArity(); i++)
 			{
-				if (&from_node_fact->getAtom().getTerms()[i]->getDomain(from_node_fact->getId(), bindings) != &precondition->getTerms()[i]->getDomain(step_->getStepId(), bindings))
+				if (&from_node_fact->getAtom().getTerms()[i]->getDomain(from_node_fact->getId(), bindings) != &precondition->getTerms()[i]->getDomain(new_id, bindings))
 				{
 					terms_matches = false;
 					break;
@@ -2369,11 +2349,11 @@ Transition* Transition::migrateTransition(const std::vector<const Atom*>& initia
 			
 			assert (!found_precondition);
 			
-			std::cout << "Found a match!" << std::endl;
-			
 			found_precondition = true;
 			preconditions_in_from_node->push_back(precondition);
 		}
+		
+		assert (found_precondition);
 	}
 	
 	

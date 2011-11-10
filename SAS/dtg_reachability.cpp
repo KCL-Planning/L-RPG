@@ -13,8 +13,8 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+//#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+//#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 #define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
 
@@ -306,7 +306,8 @@ void ResolvedBoundedAtom::init(const Bindings& bindings, const EquivalentObjectG
 	{
 		const std::vector<const Object*>& variable_domain = atom_->getTerms()[i]->getDomain(id_, bindings);
 		variable_domains_.push_back(&variable_domain);
-		if (eog_manager.getEquivalentObject(*variable_domain[0]).getEquivalentObjectGroup().isGrounded())
+		if (variable_domain.size() == 1 && 
+		    eog_manager.getEquivalentObject(*variable_domain[0]).getEquivalentObjectGroup().isGrounded())
 		{
 			is_grounded_[i] = true;
 		}
@@ -344,9 +345,11 @@ void ResolvedBoundedAtom::init(const Bindings& bindings, const EquivalentObjectG
 	}
 	
 	Predicate* new_predicate = new Predicate(atom_->getPredicate().getName(), *best_types, atom_->getPredicate().isStatic());
-	
-	
 	corrected_atom_ = new Atom(*new_predicate, *new_variables, atom_->isNegative());
+	
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+	std::cout << "Created a resolved atom: " << *this << std::endl;
+#endif
 }
 	
 const std::vector<const Object*>& ResolvedBoundedAtom::getVariableDomain(unsigned int index) const
@@ -367,16 +370,40 @@ bool ResolvedBoundedAtom::isGrounded(unsigned int index) const
 
 bool ResolvedBoundedAtom::canUnifyWith(const ResolvedBoundedAtom& other) const
 {
-	if (!corrected_atom_->getPredicate().canSubstitute(other.getCorrectedAtom().getPredicate())) return false;
+//	if (!corrected_atom_->getPredicate().canSubstitute(other.getCorrectedAtom().getPredicate())) return false;
 //	if (!other.atom_->getPredicate().canSubstitute(getAtom().getPredicate())) return false;
+	
+	if (atom_->getPredicate().getName() != other.atom_->getPredicate().getName()) return false;
+	if (atom_->getArity() != other.atom_->getArity()) return false;
 	
 	for (unsigned int i = 0; i < atom_->getArity(); i++)
 	{
-		if (isGrounded(i) &&
+		// Check if the variable domains overlap.
+		bool variable_domains_overlap = false;
+		
+		for (std::vector<const Object*>::const_iterator ci = variable_domains_[i]->begin(); ci != variable_domains_[i]->end(); ci++)
+		{
+			const Object* object1 = *ci;
+			for (std::vector<const Object*>::const_iterator ci = other.variable_domains_[i]->begin(); ci != other.variable_domains_[i]->end(); ci++)
+			{
+				const Object* object2 = *ci;
+				
+				if (object1 == object2)
+				{
+					variable_domains_overlap = true;
+					break;
+				}	
+			}
+			
+			if (variable_domains_overlap) break;
+		}
+/*		if (isGrounded(i) &&
 			(
 				!other.isGrounded(i) ||
 				getVariableDomain(i)[0] != other.getVariableDomain(i)[0]
-			))
+			))*/
+
+		if (!variable_domains_overlap)
 		{
 			return false;
 		}
@@ -397,6 +424,9 @@ std::ostream& operator<<(std::ostream& os, const ResolvedBoundedAtom& resolved_b
 			os << " ";
 		}
 		os << " } ";
+		
+		if (resolved_bounded_atom.isGrounded(i))
+			os << "[GROUNDED]";
 	}
 	os << " )";
 	return os;
@@ -822,7 +852,9 @@ bool ReachableSet::canSatisfyConstraints(const ReachableFact& reachable_fact, st
 			)
 		)
 		{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 			std::cout << "The " << i << "th term of : " << reachable_fact << " should match up with the " << i << "th term of " << *facts_set_[index] << ", but it doesn't!" << std::endl;
+#endif
 			return false;
 		}
 	}
@@ -867,6 +899,9 @@ bool ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsign
 		std::cout << "[ReachableSet::processNewReachableFact] Start a new root node!" << std::endl;
 #endif
 		std::vector<ReachableFact*>* new_reachable_set = new std::vector<ReachableFact*>();
+		
+		if (!canSatisfyConstraints(reachable_fact, *new_reachable_set)) return false;
+		
 		new_reachable_set->push_back(&reachable_fact);
 		wip_sets_.push_back(new_reachable_set);
 		generateNewReachableSets(*new_reachable_set);
@@ -874,6 +909,7 @@ bool ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsign
 	// Otherwise, we need to search for all sets the new node can be a part of and process these.
 	else
 	{
+		bool fact_could_be_added = false;
 		for (std::vector<std::vector<ReachableFact*>* >::const_iterator ci = wip_sets_.begin(); ci != wip_sets_.end(); ci++)
 		{
 			std::vector<ReachableFact*>* reachable_set = *ci;
@@ -891,7 +927,10 @@ bool ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsign
 #endif
 
 			generateNewReachableSets(*new_reachable_set);
+			fact_could_be_added = true;
 		}
+		
+		if (!fact_could_be_added) return false;
 	}
 	
 	// Update the relevant equivalent object groups.
@@ -1232,34 +1271,8 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 #endif
 
 		// Convert the precondition into a bounded atom.
-//		std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
-//		transition.getFromNode().getDTG().getDTGManager().getDTGNodes(found_nodes, transition.getStep()->getStepId(), *precondition, transition.getFromNode().getDTG().getBindings());
-		
 		std::vector<const Property*>* precondition_properties = new std::vector<const Property*>();
-/*		for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ci++)
-		{
-			const BoundedAtom* bounded_atom = (*ci).second;
-			
-			for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
-			{
-				const Property* property = *ci;
-				if (std::find(precondition_properties->begin(), precondition_properties->end(), property) != precondition_properties->end()) continue;
-				precondition_properties->push_back(property);
-			}
-		}
-
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
-		if (precondition_properties->size() == 0)
-		{
-			std::cout << "No properties found for the precondition: ";
-			precondition->print(std::cout, transition.getFromNode().getDTG().getBindings(), transition.getStep()->getStepId());
-			std::cout << "." << std::endl;
-			assert (false);
-		}
-#endif
-*/
 		BoundedAtom* bounded_precondition = new BoundedAtom(transition.getStep()->getStepId(), *precondition, *precondition_properties);
-
 		addBoundedAtom(*bounded_precondition, bindings);
 		
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
@@ -1404,10 +1417,15 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 
 void ReachableTransition::finalise(const std::vector<ReachableSet*>& all_reachable_sets)
 {
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+	std::cout << "Link all the effects of " << *this << " to all the sets which can be unified with them." << std::endl;
+#endif
 	for (std::vector<ResolvedEffect*>::const_iterator ci = effects_.begin(); ci != effects_.end(); ci++)
 	{
 		const ResolvedEffect* effect = *ci;
-		
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+		std::cout << "Process the effect: " << *effect << std::endl;
+#endif
 		std::vector<std::pair<ReachableSet*, unsigned int> >* preconditions_reached_by_effect_ = new std::vector<std::pair<ReachableSet*, unsigned int> >();
 		effect_propagation_listeners_.push_back(preconditions_reached_by_effect_);
 		
@@ -1421,10 +1439,24 @@ void ReachableTransition::finalise(const std::vector<ReachableSet*>& all_reachab
 			for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 			{
 				const ResolvedBoundedAtom* precondition = *ci;
+				
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+				std::cout << "Potential candidate: " << *precondition << "." << std::endl;
+#endif
+				
 				if (precondition->canUnifyWith(*effect))
 				{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+					std::cout << "Accepted! :D" << std::endl;
+#endif
 					preconditions_reached_by_effect_->push_back(std::make_pair(reachable_set, std::distance(preconditions.begin(), ci)));
 				}
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+				else
+				{
+					std::cout << "Declined :((" << std::endl;
+				}
+#endif
 			}
 		}
 	}

@@ -246,6 +246,101 @@ int main(int argc,char * argv[])
 
 		double time_spend = end_time_reachability.tv_sec - start_time_reachability.tv_sec + (end_time_reachability.tv_usec - start_time_reachability.tv_usec) / 1000000.0;
 		std::cerr << "Reachability analysis: " << time_spend << " seconds" << std::endl;
+		
+		
+
+		// Validate the result.
+		RPG::RelaxedPlanningGraph rpg(action_manager, *plan, analyst.getEquivalentObjectGroupManager());
+		//std::cout << rpg << std::endl;
+		
+		const std::vector<RPG::FactLayer*>& fact_layers = rpg.getFactLayers();
+		const RPG::FactLayer* last_layer = fact_layers[fact_layers.size() - 1];
+		const std::vector<const SAS_Plus::ResolvedBoundedAtom*>& reachable_facts = last_layer->getFacts();
+		
+		bool all_clear = true;
+		for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
+		{
+			const SAS_Plus::ResolvedBoundedAtom* rpg_bounded_atom = *ci;
+			if (rpg_bounded_atom->getOriginalAtom().isNegative()) continue;
+			bool reached = false;
+			for (std::vector<const SAS_Plus::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
+			{
+				const SAS_Plus::ReachableFact* lifted_bounded_atom = *ci;
+				
+				if (lifted_bounded_atom->getAtom().getPredicate().getName() != rpg_bounded_atom->getOriginalAtom().getPredicate().getName()) continue;
+			
+				if (lifted_bounded_atom->getAtom().getArity() != rpg_bounded_atom->getOriginalAtom().getArity()) continue;
+				
+				bool is_equivalent = true;
+				for (unsigned int i = 0; i < lifted_bounded_atom->getAtom().getArity(); i++)
+				{
+					const Object* grounded_object = rpg_bounded_atom->getVariableDomain(i)[0];
+					
+					const SAS_Plus::EquivalentObjectGroup& eog = lifted_bounded_atom->getTermDomain(i);
+					
+					if (!eog.contains(*grounded_object))
+					{
+						is_equivalent = false;
+						break;
+					}
+				}
+				
+				if (is_equivalent)
+				{
+					reached = true;
+					break;
+				}
+			}
+			
+			if (!reached)
+			{
+				std::cerr << "Fact reachable by the RPG but not by the lifted implementation: " << *rpg_bounded_atom << "." << std::endl;
+				all_clear = false;
+			}
+		}
+		
+		
+		for (std::vector<const SAS_Plus::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
+		{
+			const SAS_Plus::ReachableFact* lifted_bounded_atom = *ci;
+			bool reached = false;
+			for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
+			{
+				const SAS_Plus::ResolvedBoundedAtom* rpg_bounded_atom = *ci;
+				
+				if (lifted_bounded_atom->getAtom().getPredicate().getName() != rpg_bounded_atom->getOriginalAtom().getPredicate().getName()) continue;
+			
+				if (lifted_bounded_atom->getAtom().getArity() != rpg_bounded_atom->getOriginalAtom().getArity()) continue;
+				
+				bool is_equivalent = true;
+				for (unsigned int i = 0; i < lifted_bounded_atom->getAtom().getArity(); i++)
+				{
+					const Object* grounded_object = rpg_bounded_atom->getVariableDomain(i)[0];
+					
+					const SAS_Plus::EquivalentObjectGroup& eog = lifted_bounded_atom->getTermDomain(i);
+					
+					if (!eog.contains(*grounded_object))
+					{
+						is_equivalent = false;
+						break;
+					}
+				}
+				
+				if (is_equivalent)
+				{
+					reached = true;
+					break;
+				}
+			}
+			
+			if (!reached)
+			{
+				std::cerr << "Fact reachable by the lifted implementation but not by the RPG: " << *lifted_bounded_atom << "." << std::endl;
+				all_clear = false;
+			}
+		}
+		
+		assert (all_clear);
 	}
 	
 /*
@@ -260,100 +355,6 @@ int main(int argc,char * argv[])
 	
 
 
-	// Validate the result.
-	RPG::RelaxedPlanningGraph rpg(action_manager, *plan);
-	//std::cout << rpg << std::endl;
-	
-	const std::vector<RPG::FactLayer*>& fact_layers = rpg.getFactLayers();
-	const RPG::FactLayer* last_layer = fact_layers[fact_layers.size() - 1];
-	const std::vector<const SAS_Plus::BoundedAtom*>& reachable_facts = last_layer->getFacts();
-	
-	bool all_clear = true;
-	for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
-	{
-		const SAS_Plus::BoundedAtom* rpg_bounded_atom = *ci;
-		if (rpg_bounded_atom->getAtom().isNegative()) continue;
-		bool reached = false;
-		for (std::vector<const SAS_Plus::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
-		{
-			const SAS_Plus::ReachableFact* lifted_bounded_atom = *ci;
-			
-			if (lifted_bounded_atom->getAtom().getPredicate().getName() != rpg_bounded_atom->getAtom().getPredicate().getName()) continue;
-		
-			if (lifted_bounded_atom->getAtom().getArity() != rpg_bounded_atom->getAtom().getArity()) continue;
-			
-			bool is_equivalent = true;
-			for (unsigned int i = 0; i < lifted_bounded_atom->getAtom().getArity(); i++)
-			{
-				const Object* grounded_object = rpg_bounded_atom->getVariableDomain(i, rpg.getBindings())[0];
-				
-				const SAS_Plus::EquivalentObjectGroup& eog = lifted_bounded_atom->getTermDomain(i);
-				
-				if (!eog.contains(*grounded_object))
-				{
-					is_equivalent = false;
-					break;
-				}
-			}
-			
-			if (is_equivalent)
-			{
-				reached = true;
-				break;
-			}
-		}
-		
-		if (!reached)
-		{
-			std::cerr << "Fact reachable by the RPG but not by the lifted implementation: ";
-			rpg_bounded_atom->print(std::cerr, rpg.getBindings());
-			std::cerr << "." << std::endl;
-			all_clear = false;
-		}
-	}
-	
-	
-	for (std::vector<const SAS_Plus::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
-	{
-		const SAS_Plus::ReachableFact* lifted_bounded_atom = *ci;
-		bool reached = false;
-		for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
-		{
-			const SAS_Plus::BoundedAtom* rpg_bounded_atom = *ci;
-			
-			if (lifted_bounded_atom->getAtom().getPredicate().getName() != rpg_bounded_atom->getAtom().getPredicate().getName()) continue;
-		
-			if (lifted_bounded_atom->getAtom().getArity() != rpg_bounded_atom->getAtom().getArity()) continue;
-			
-			bool is_equivalent = true;
-			for (unsigned int i = 0; i < lifted_bounded_atom->getAtom().getArity(); i++)
-			{
-				const Object* grounded_object = rpg_bounded_atom->getVariableDomain(i, rpg.getBindings())[0];
-				
-				const SAS_Plus::EquivalentObjectGroup& eog = lifted_bounded_atom->getTermDomain(i);
-				
-				if (!eog.contains(*grounded_object))
-				{
-					is_equivalent = false;
-					break;
-				}
-			}
-			
-			if (is_equivalent)
-			{
-				reached = true;
-				break;
-			}
-		}
-		
-		if (!reached)
-		{
-			std::cerr << "Fact reachable by the lifted implementation but not by the RPG: " << *lifted_bounded_atom << "." << std::endl;
-			all_clear = false;
-		}
-	}
-	
-	assert (all_clear);
 	exit(0);
 	
 	Graphviz::printToDot(dtg_manager);

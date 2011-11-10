@@ -439,6 +439,8 @@ public:
 
 	ReachableTransition& getReachableTransition(const Transition& transition) const;
 	
+	const EquivalentObjectGroupManager& getEquivalentObjectGroupManager() const { return *equivalent_object_manager_; }
+	
 private:
 
 	const TermManager* term_manager_;

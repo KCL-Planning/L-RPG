@@ -2204,13 +2204,24 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 							
 							// Try to establish the original transitions.
 							// TODO: WAY TO SLOWWW!!! - called too often!
-							//const Transition* new_transition = transition->migrateTransition(*initial_facts_, *from_dtg_node, *to_dtg_node);
-							const Transition* new_transition = Transition::createTransition(transition->getStep()->getAction(), *from_dtg_node, *to_dtg_node, *initial_facts_);
+//#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+							const Transition* new_transition = transition->migrateTransition(*initial_facts_, *from_dtg_node, *to_dtg_node);
+//#endif
+//							const Transition* new_transition = Transition::createTransition(transition->getStep()->getAction(), *from_dtg_node, *to_dtg_node, *initial_facts_);
 							
 							if (new_transition == NULL)
 							{
+//#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+//								assert (transition_new_transition == NULL);
+//#endif
 								continue;
 							}
+//#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+//							else
+//							{
+//								assert (transition_new_transition != NULL);
+//							}
+//#endif
 							from_dtg_node->addTransition(*new_transition, false);
 								
 							dtg_nodes_to_add.push_back(to_dtg_node);

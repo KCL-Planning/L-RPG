@@ -908,12 +908,12 @@ void ReachableSet::generateNewReachableSets(std::vector<ReachableFact*>& reachab
 	unsigned int index = reachable_sets_to_process.size();
 	
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-		std::cout << "[ReachableSet::generateNewReachableSets] Process new reachable set, size=" << index << "." << std::endl;
-		for (std::vector<ReachableFact*>::const_iterator ci = reachable_sets_to_process.begin(); ci != reachable_sets_to_process.end(); ci++)
-		{
-			ReachableFact* reachable_fact = *ci;
-			std::cout << " * " << *reachable_fact << "." << std::endl;
-		}
+	std::cout << "[ReachableSet::generateNewReachableSets] Process new reachable set, size=" << index << "." << std::endl;
+	for (std::vector<ReachableFact*>::const_iterator ci = reachable_sets_to_process.begin(); ci != reachable_sets_to_process.end(); ci++)
+	{
+		ReachableFact* reachable_fact = *ci;
+		std::cout << " * " << *reachable_fact << "." << std::endl;
+	}
 #endif
 	
 	
@@ -925,9 +925,22 @@ void ReachableSet::generateNewReachableSets(std::vector<ReachableFact*>& reachab
 		std::cout << "[ReachableSet::generateNewReachableSets] Found a full set for ";
 		print(std::cout);
 		std::cout << "!" << std::endl;
+		
+		for (std::vector<ReachableFact*>::const_iterator ci = reachable_sets_to_process.begin(); ci != reachable_sets_to_process.end(); ci++)
+		{
+			std::cout << "* " << **ci << std::endl;
+		}
 #endif
 		
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+
+		std::cout << "Check if the full reachable set can be unified with the from facts: " << std::endl;
+		for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = getFactsSet().begin(); ci != getFactsSet().end(); ci++)
+		{
+			const ResolvedBoundedAtom* resolved_bounded_atom = *ci;
+			std::cout << "! " << *resolved_bounded_atom << "." << std::endl;
+		}
+		
 		for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = getFactsSet().begin(); ci != getFactsSet().end(); ci++)
 		{
 			const ResolvedBoundedAtom* resolved_bounded_atom = *ci;
@@ -1286,7 +1299,7 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 		if (!processed_variable_domains[i])
 		{
 			std::cout << "The " << i << "th variable of the transition " << transition << " is a free variable!" << std::endl;
-			assert (false);
+//			assert (false);
 		}
 	}
 #endif

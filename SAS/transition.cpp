@@ -11,7 +11,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-///#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 ///#define ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 
 namespace MyPOP {
@@ -1868,6 +1868,43 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 		{
 			// Merge the terms together.
 			bindings.unify(from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId(), to_node_persistent_fact->getAtom(), to_node_persistent_fact->getId());
+		}
+		
+		// Also unify the from node persistent fact with the matching precondition.
+		bool found_matching_precondition = false;
+		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
+		{
+			const Atom* precondition = *ci;
+			
+			bool is_balanced = false;
+			// Make sure this precondition isn't part of any ballanced set.
+			for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = precondition_mapping_to_from_node->begin(); ci != precondition_mapping_to_from_node->end(); ci++)
+			{
+				const Atom* balanced_precondition  = (*ci).first;
+				if (balanced_precondition == precondition)
+				{
+					is_balanced = true;
+					break;
+				}
+			}
+			
+			if (is_balanced) continue;
+			
+			if (from_node_persistent_fact->getAtom().isNegative() == precondition->isNegative() &&
+			    bindings.canUnify(from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId(), *precondition, action_step_id))
+			{
+				assert (!found_matching_precondition);
+				bindings.unify(from_node_persistent_fact->getAtom(), from_node_persistent_fact->getId(), *precondition, action_step_id);
+				found_matching_precondition = true;
+			}
+		}
+		
+		if (!found_matching_precondition)
+		{
+			std::cout << "Could not find a matching precondition for the persistent from node fact: ";
+			from_node_persistent_fact->print(std::cout, bindings);
+			std::cout << "." << std::endl;
+			assert (false);
 		}
 	}
 

@@ -190,6 +190,8 @@ private:
 	
 	std::vector<const Term*> free_variables_;
 	
+	std::vector<std::vector<EquivalentObjectGroup*>* > free_variable_domains_;
+	
 	int* index_to_variable_;
 };
 

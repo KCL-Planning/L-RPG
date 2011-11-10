@@ -541,7 +541,11 @@ void EquivalentObjectGroupManager::updateEquivalences(std::vector<const Reachabl
 EquivalentObject& EquivalentObjectGroupManager::getEquivalentObject(const Object& object) const
 {
 	std::map<const Object*, EquivalentObject*>::const_iterator ci = object_to_equivalent_object_mapping_.find(&object);
-	assert (ci != object_to_equivalent_object_mapping_.end());
+	if (ci == object_to_equivalent_object_mapping_.end())
+	{
+		std::cout << "Could not find the Equivalent Object for the object: " << object << std::endl;
+		assert (false);
+	}
 	
 	return *(*ci).second;
 }

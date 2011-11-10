@@ -408,6 +408,12 @@ std::ostream& operator<<(std::ostream& os, const ResolvedBoundedAtom& resolved_b
 ResolvedEffect::ResolvedEffect(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, bool free_variables[])
 	: ResolvedBoundedAtom(id, atom, bindings, eog_manager), eog_manager_(&eog_manager)
 {
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+	std::cout << "Process the resolved effect: ";
+	atom.print(std::cout, bindings, id);
+	std::cout << "." << std::endl;
+#endif
+	
 	is_free_variable_ = new bool[atom.getArity()];
 	memcpy(&is_free_variable_[0], &free_variables[0], sizeof(bool) * atom.getArity());
 	
@@ -418,8 +424,10 @@ ResolvedEffect::ResolvedEffect(StepID id, const Atom& atom, const Bindings& bind
 	for (unsigned int i = 0; i < atom.getArity(); i++)
 	{
 		if (!is_free_variable_[i]) continue;
-
-		std::cout << "THE " << i << "th VARIABLE IS FREE!!!" << std::endl;
+		
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+		std::cout << "The " << i << "th term is free: " << std::endl;
+#endif
 		
 		bool already_recorded = false;
 		for (std::vector<const Term*>::const_iterator ci = free_variables_.begin(); ci != free_variables_.end(); ci++)
@@ -429,6 +437,9 @@ ResolvedEffect::ResolvedEffect(StepID id, const Atom& atom, const Bindings& bind
 			{
 				already_recorded = true;
 				index_to_variable_[i] = term_index;
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+				std::cout << "Variable already recorded..." << std::endl;
+#endif
 				break;
 			}
 		}
@@ -437,6 +448,21 @@ ResolvedEffect::ResolvedEffect(StepID id, const Atom& atom, const Bindings& bind
 		
 		index_to_variable_[i] = free_variables_.size();
 		free_variables_.push_back(atom.getTerms()[i]);
+		
+		std::vector<EquivalentObjectGroup*>* possible_eogs = new std::vector<EquivalentObjectGroup*>();
+		const std::vector<const Object*>& variable_domain = atom.getTerms()[i]->getDomain(id, bindings);
+		
+		for (std::vector<const Object*>::const_iterator ci = variable_domain.begin(); ci != variable_domain.end(); ci++)
+		{
+			EquivalentObjectGroup& eog = eog_manager.getEquivalentObject(**ci).getEquivalentObjectGroup();
+			
+			if (std::find(possible_eogs->begin(), possible_eogs->end(), &eog) != possible_eogs->end()) continue;
+			possible_eogs->push_back(&eog);
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+			std::cout << "- " << eog << std::endl;
+#endif
+		}
+		free_variable_domains_.push_back(possible_eogs);
 	}
 	
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
@@ -468,40 +494,70 @@ void ResolvedEffect::createReachableFacts(std::vector<ReachableFact*>& results, 
 		return;
 	}
 	
-	assert (false);
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+	std::cout <<  "Create a reachable fact based on an effect with free variables!" << *this << std::endl;
+#endif
 	
 	// Initialise the counter.
 	unsigned int counter[free_variables_.size()];
 	memset(&counter[0], 0, sizeof(unsigned int) * free_variables_.size());
 	
 	unsigned int max_values[free_variables_.size()];
-	for (unsigned int i = 0; i < free_variables_.size(); i++)
+	for (unsigned int i = 0; i < free_variable_domains_.size(); i++)
 	{
-		max_values[i] = variable_domains_[i]->size();
+		max_values[i] = free_variable_domains_[i]->size();
 	}
 	
 	// TODO: This can be improved as objects are put in the same Equivalent Object Group we do not need to generate as many reachable facts.
 	bool done = false;
 	while (!done)
 	{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+		std::cout << "Create a new reachable fact!" << std::endl;
+#endif
 		EquivalentObjectGroup** new_effect_domains = new EquivalentObjectGroup*[atom_->getArity()];
 		memcpy(new_effect_domains, effect_domains, sizeof(EquivalentObjectGroup*) * atom_->getArity());
 		
+		unsigned int processed_free_variables = 0;
+		
 		for (unsigned int i = 0; i < atom_->getArity(); i++)
 		{
-			if (!is_free_variable_[i]) continue;
+			if (!is_free_variable_[i])
+			{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+				std::cout << "The " << i << "th term isn't free!" << std::endl;
+#endif
+				continue;
+			}
 			
-			const std::vector<const Object*>* variable_domain = variable_domains_[index_to_variable_[i]];
-			new_effect_domains[i] = &eog_manager_->getEquivalentObject(*(*variable_domain)[counter[i]]).getEquivalentObjectGroup();
+			std::vector<EquivalentObjectGroup*>* possible_values = free_variable_domains_[index_to_variable_[i]];
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+			std::cout << "The " << i << "th term is linked to the " << index_to_variable_[i] << "th variable!" << std::endl;
+			for (std::vector<EquivalentObjectGroup*>::const_iterator ci = possible_values->begin(); ci != possible_values->end(); ci++)
+			{
+				std::cout << " * " << **ci << std::endl;
+			}
+#endif
+			new_effect_domains[i] = (*possible_values)[counter[processed_free_variables]];
+			
+			++processed_free_variables;
 		}
 		
-		results.push_back(new ReachableFact(getCorrectedAtom(), new_effect_domains));
+		ReachableFact* new_reachable_fact = new ReachableFact(getCorrectedAtom(), new_effect_domains);
+		
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+		std::cout << "New reachable fact with free variables: " << *new_reachable_fact << "." << std::endl;
+#endif
+		
+		results.push_back(new_reachable_fact);
 		
 		// Update the counter.
 		done = true;
-		for (unsigned int i = 0; i < free_variables_.size(); i++)
+		for (unsigned int i = 0; i < free_variable_domains_.size(); i++)
 		{
-			if (!is_free_variable_[i]) continue;
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+			std::cout << "Update the " << i << "th counter!" << std::endl;
+#endif
 			
 			if (++counter[i] == max_values[i])
 			{
@@ -509,11 +565,34 @@ void ResolvedEffect::createReachableFacts(std::vector<ReachableFact*>& results, 
 			}
 			else
 			{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+				std::cout << "Counter updated, continue!" << std::endl;
+#endif
 				done = false;
 				break;
 			}
 		}
+		
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+		std::cout << "New counter: ";
+		for (unsigned int i = 0; i < free_variable_domains_.size(); i++)
+		{
+			std::cout << counter[i] << ", ";
+		}
+		std::cout << "." << std::endl;
+		
+		std::cout << "Max: ";
+		for (unsigned int i = 0; i < free_variable_domains_.size(); i++)
+		{
+			std::cout << max_values[i] << ", ";
+		}
+		std::cout << "." << std::endl;
+#endif
 	}
+	
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+	std::cout << "DONE!!!" << std::endl;
+#endif
 }
 
 std::ostream& operator<<(std::ostream& os, const ResolvedEffect& resolved_effect)
@@ -1062,13 +1141,50 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 		std::cout << "." << std::endl;
 #endif
 		
-		for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = from_node.getFactsSet().begin(); ci != from_node.getFactsSet().end(); ci++)
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+		if (transition.getFromNodePreconditions().size() != from_node.getFactsSet().size())
 		{
-			unsigned int from_node_fact_index = std::distance(from_node.getFactsSet().begin(), ci);
-			const ResolvedBoundedAtom* resolved_bounded_atom = *ci;
+			std::cout << "Preconditions recorded by the transition: " << std::endl;
+			for (std::vector<const Atom*>::const_iterator ci = transition.getFromNodePreconditions().begin(); ci != transition.getFromNodePreconditions().end(); ci++)
+			{
+				std::cout << "* ";
+				(*ci)->print(std::cout, bindings, transition.getStep()->getStepId());
+				std::cout << "." << std::endl;
+			}
+			
+			std::cout << "Preconditions recorded by the from node: " << std::endl;
+			for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = from_node.getFactsSet().begin(); ci != from_node.getFactsSet().end(); ci++)
+			{
+				std::cout << "* " << **ci << "." << std::endl;
+			}
+			assert (false);
+		}
+#endif
+		
+		for (std::vector<const Atom*>::const_iterator ci = transition.getFromNodePreconditions().begin(); ci != transition.getFromNodePreconditions().end(); ci++)
+		{
+			unsigned int from_node_fact_index = std::distance(transition.getFromNodePreconditions().begin(), ci);
+			const Atom* from_node_precondition = *ci;
+			const ResolvedBoundedAtom* resolved_bounded_atom = from_node.getFactsSet()[from_node_fact_index];
+			
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+			if (!bindings.canUnify(resolved_bounded_atom->getOriginalAtom(), resolved_bounded_atom->getId(), *from_node_precondition, transition.getStep()->getStepId()))
+			{
+				std::cout << "Cannot unify: " << *resolved_bounded_atom << " with ";
+				from_node_precondition->print(std::cout, bindings, transition.getStep()->getStepId());
+				std::cout << "." << std::endl;
+			}
+#endif
+			
 			if (bindings.areIdentical(resolved_bounded_atom->getOriginalAtom(), resolved_bounded_atom->getId(), *precondition, transition.getStep()->getStepId()))
 			{
 				precondition_part_of_from_node = true;
+				
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+				std::cout << "Process the from node precondition: ";
+				from_node_precondition->print(std::cout, bindings, transition.getStep()->getStepId());
+				std::cout << "." << std::endl;
+#endif
 				
 				// Compare all the variables of the precondition and see if they are linked to a variable of the action and link them accordingly.
 				for (unsigned int i = 0; i < transition.getStep()->getAction().getVariables().size(); i++)
@@ -1080,7 +1196,7 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 					for (unsigned int j = 0; j < resolved_bounded_atom->getCorrectedAtom().getArity(); j++)
 					{
 //						if (&resolved_bounded_atom->getVariableDomain(j) == variable_domain)
-						if (resolved_bounded_atom->getOriginalAtom().getTerms()[j] == transition.getStep()->getAction().getVariables()[i])
+						if (from_node_precondition->getTerms()[j] == transition.getStep()->getAction().getVariables()[i])
 						{
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 							std::cout << "The " << i << "th variable is linked to the " << j << "th term of the " <<  from_node_fact_index << "th fact!" << std::endl;
@@ -1103,11 +1219,11 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 #endif
 
 		// Convert the precondition into a bounded atom.
-		std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
-		transition.getFromNode().getDTG().getDTGManager().getDTGNodes(found_nodes, transition.getStep()->getStepId(), *precondition, transition.getFromNode().getDTG().getBindings());
+//		std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
+//		transition.getFromNode().getDTG().getDTGManager().getDTGNodes(found_nodes, transition.getStep()->getStepId(), *precondition, transition.getFromNode().getDTG().getBindings());
 		
 		std::vector<const Property*>* precondition_properties = new std::vector<const Property*>();
-		for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ci++)
+/*		for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ci++)
 		{
 			const BoundedAtom* bounded_atom = (*ci).second;
 			
@@ -1118,14 +1234,26 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 				precondition_properties->push_back(property);
 			}
 		}
-		
+
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
-		assert (precondition_properties->size() != 0);
+		if (precondition_properties->size() == 0)
+		{
+			std::cout << "No properties found for the precondition: ";
+			precondition->print(std::cout, transition.getFromNode().getDTG().getBindings(), transition.getStep()->getStepId());
+			std::cout << "." << std::endl;
+			assert (false);
+		}
 #endif
-		
+*/
 		BoundedAtom* bounded_precondition = new BoundedAtom(transition.getStep()->getStepId(), *precondition, *precondition_properties);
 
 		addBoundedAtom(*bounded_precondition, bindings);
+		
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+		std::cout << "Process the precondition: ";
+		bounded_precondition->print(std::cout, bindings, transition.getStep()->getStepId());
+		std::cout << "." << std::endl;
+#endif
 		
 		// Check for the other facts are connected to the variables.
 		for (unsigned int i = 0; i < transition.getStep()->getAction().getVariables().size(); i++)
@@ -1158,6 +1286,7 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 		if (!processed_variable_domains[i])
 		{
 			std::cout << "The " << i << "th variable of the transition " << transition << " is a free variable!" << std::endl;
+			assert (false);
 		}
 	}
 #endif
@@ -1379,13 +1508,13 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 	if (getFactsSet().empty()) assert (transition_reachable_set.empty());
 #endif
 	
-	bool contains_free_variables = false;
+//	bool contains_free_variables = false;
 	for (unsigned int i = 0; i < effect.getCorrectedAtom().getArity(); i++)
 	{
 		
 		if (effect.isFreeVariable(i))
 		{
-			contains_free_variables = true;
+//			contains_free_variables = true;
 			continue;
 		}
 		
@@ -1414,18 +1543,6 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 	
 	std::vector<ReachableFact*> new_reachable_facts;
 	effect.createReachableFacts(new_reachable_facts, effect_domains);
-	
-/*	if (!contains_free_variables)
-	{
-		// Create a new reachable fact!
-		ReachableFact* new_reachable_fact = new ReachableFact(effect.getCorrectedAtom(), effect_domains);
-		new_reachable_facts.push_back(new_reachable_fact);
-	}
-	else
-	{
-		
-	}
-*/
 
 	for (std::vector<ReachableFact*>::const_iterator ci = new_reachable_facts.begin(); ci != new_reachable_facts.end(); ci++)
 	{

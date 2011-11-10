@@ -514,6 +514,51 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 		}
 	}
 	
+
+	// Link all the preconditions to the facts in the from node.
+	std::vector<const Atom*>* preconditions_in_from_node = new std::vector<const Atom*>();
+	for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
+	{
+		const BoundedAtom* from_node_fact = *ci;
+		bool found_precondition = false;
+		
+		std::cout << "Try to find a precondition matching: ";
+		from_node_fact->print(std::cout, bindings);
+		std::cout << "." << std::endl;
+		
+		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
+		{
+			const Atom* precondition = *ci;
+			
+			if (from_node_fact->getAtom().getPredicate().getName() != precondition->getPredicate().getName()) continue;
+			
+			if (from_node_fact->getAtom().getArity() != precondition->getArity()) continue;
+			
+			std::cout << "Compare to: ";
+			precondition->print(std::cout, bindings, action_step->getStepId());
+			std::cout << "." << std::endl;
+			
+			bool terms_matches = true;
+			for (unsigned int i = 0; i < precondition->getArity(); i++)
+			{
+				if (&from_node_fact->getAtom().getTerms()[i]->getDomain(from_node_fact->getId(), bindings) != &precondition->getTerms()[i]->getDomain(action_step->getStepId(), bindings))
+				{
+					terms_matches = false;
+					break;
+				}
+			}
+			
+			if (!terms_matches) continue;
+			
+			assert (!found_precondition);
+			
+			std::cout << "Found a match!" << std::endl;
+			
+			found_precondition = true;
+			preconditions_in_from_node->push_back(precondition);
+		}
+	}
+	
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 	std::cout << "Success!" << std::endl;
 	std::cout << "Created a transition from " << std::endl;
@@ -527,7 +572,7 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 
 	std::map<const PropertySpace*, const Variable*>* property_space_action_invariables = new std::map<const PropertySpace*, const Variable*>();
 	
-	return new Transition(action_step, from_node, to_node, *precondition_mapping_to_from_node, *add_effects_mapping_to_to_node, *remove_effects_mapping_to_to_node, *persistent_preconditions, *property_space_action_invariables, *all_precondition_mappings, *free_variables);
+	return new Transition(action_step, from_node, to_node, *preconditions_in_from_node, *precondition_mapping_to_from_node, *add_effects_mapping_to_to_node, *remove_effects_mapping_to_to_node, *persistent_preconditions, *property_space_action_invariables, *all_precondition_mappings, *free_variables);
 }
 
 Transition* Transition::createTransition(const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts, bool check_variable_domains)
@@ -1475,8 +1520,15 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 					std::cout << std::endl;
 #endif
 					is_added = true;
-					add_effects_mapping_to_to_node->push_back(std::make_pair(effect, linked_property->getIndex()));
-					add_effects_to_to_node_bindings->push_back(std::make_pair(effect, added_fact));
+					if (std::find(add_effects_mapping_to_to_node->begin(), add_effects_mapping_to_to_node->end(), std::make_pair(effect, linked_property->getIndex())) == add_effects_mapping_to_to_node->end())
+					{
+						add_effects_mapping_to_to_node->push_back(std::make_pair(effect, linked_property->getIndex()));
+					}
+
+					if (std::find(add_effects_to_to_node_bindings->begin(), add_effects_to_to_node_bindings->end(), std::make_pair(effect, added_fact)) == add_effects_to_to_node_bindings->end())
+					{
+						add_effects_to_to_node_bindings->push_back(std::make_pair(effect, added_fact));
+					}
 					break;
 				}
 			}
@@ -1547,8 +1599,16 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 					precondition->print(std::cout, bindings, action_step_id);
 					std::cout << std::endl;
 #endif
-					precondition_mapping_to_from_node->push_back(std::make_pair(precondition, linked_property->getIndex()));
-					precondition_to_from_node_bindings->push_back(std::make_pair(precondition, removed_fact));
+					
+					if (std::find(precondition_mapping_to_from_node->begin(), precondition_mapping_to_from_node->end(), std::make_pair(precondition, linked_property->getIndex())) == precondition_mapping_to_from_node->end())
+					{
+						precondition_mapping_to_from_node->push_back(std::make_pair(precondition, linked_property->getIndex()));
+					}
+					
+					if (std::find(precondition_to_from_node_bindings->begin(), precondition_to_from_node_bindings->end(), std::make_pair(precondition, removed_fact)) == precondition_to_from_node_bindings->end())
+					{
+						precondition_to_from_node_bindings->push_back(std::make_pair(precondition, removed_fact));
+					}
 					is_a_precondition = true;
 					break;
 				}
@@ -1577,7 +1637,10 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 					effect->print(std::cout, bindings, action_step_id);
 					std::cout << std::endl;
 #endif
-					remove_effects_mapping_to_to_node->push_back(std::make_pair(effect, linked_property->getIndex()));
+					if (std::find(remove_effects_mapping_to_to_node->begin(), remove_effects_mapping_to_to_node->end(), std::make_pair(effect, linked_property->getIndex())) == remove_effects_mapping_to_to_node->end())
+					{
+						remove_effects_mapping_to_to_node->push_back(std::make_pair(effect, linked_property->getIndex()));
+					}
 					is_removed = true;
 					break;
 				}
@@ -1972,6 +2035,50 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 		}
 	}
 	
+	// Link all the preconditions to the facts in the from node.
+	std::vector<const Atom*>* preconditions_in_from_node = new std::vector<const Atom*>();
+	for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
+	{
+		const BoundedAtom* from_node_fact = *ci;
+		bool found_precondition = false;
+		
+		std::cout << "Try to find a precondition matching: ";
+		from_node_fact->print(std::cout, bindings);
+		std::cout << "." << std::endl;
+		
+		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
+		{
+			const Atom* precondition = *ci;
+			
+			if (from_node_fact->getAtom().getPredicate().getName() != precondition->getPredicate().getName()) continue;
+			
+			if (from_node_fact->getAtom().getArity() != precondition->getArity()) continue;
+			
+			std::cout << "Compare to: ";
+			precondition->print(std::cout, bindings, action_step->getStepId());
+			std::cout << "." << std::endl;
+			
+			bool terms_matches = true;
+			for (unsigned int i = 0; i < precondition->getArity(); i++)
+			{
+				if (&from_node_fact->getAtom().getTerms()[i]->getDomain(from_node_fact->getId(), bindings) != &precondition->getTerms()[i]->getDomain(action_step->getStepId(), bindings))
+				{
+					terms_matches = false;
+					break;
+				}
+			}
+			
+			if (!terms_matches) continue;
+			
+			assert (!found_precondition);
+			
+			std::cout << "Found a match!" << std::endl;
+			
+			found_precondition = true;
+			preconditions_in_from_node->push_back(precondition);
+		}
+	}
+	
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 	std::cout << "Success!" << std::endl;
 	std::cout << "Created a transition from " << std::endl;
@@ -1982,7 +2089,7 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 	action_step->getAction().print(std::cout, from_node.getDTG().getBindings(), action_step->getStepId());
 	std::cout << std::endl;
 #endif
-	return new Transition(action_step, from_node, to_node, *precondition_mapping_to_from_node, *add_effects_mapping_to_to_node, *remove_effects_mapping_to_to_node, *persistent_preconditions, *property_space_action_invariables, *all_precondition_mappings, *free_variables);
+	return new Transition(action_step, from_node, to_node, *preconditions_in_from_node, *precondition_mapping_to_from_node, *add_effects_mapping_to_to_node, *remove_effects_mapping_to_to_node, *persistent_preconditions, *property_space_action_invariables, *all_precondition_mappings, *free_variables);
 }
 
 bool Transition::unifyDTGAtomsWithAction(const std::vector<const BoundedAtom*>& facts_to_unify, const DomainTransitionGraphNode& dtg_node, const std::vector<const Atom*>& action_atoms, StepID action_step_id, const Action& action, Bindings& bindings, const std::vector<const Object*>& invariable_domain)
@@ -2056,9 +2163,20 @@ bool Transition::unifyDTGAtomsWithAction(const std::vector<const BoundedAtom*>& 
 	return true;
 }
 
-Transition::Transition(MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map<const PropertySpace*, const Variable*>& action_invariables, const std::vector<std::pair<const Atom*, InvariableIndex> >& all_precondition_mappings, const std::set<const Term*>& free_variables)
-	: step_(step), from_node_(&from_node), to_node_(&to_node), preconditions_(&preconditions), effects_(&effects), affected_(&affected), persistent_preconditions_(&persistent_preconditions), action_invariables_(&action_invariables), all_precondition_mappings_(&all_precondition_mappings), free_variables_(&free_variables)
+Transition::Transition(MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& from_node_preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map<const PropertySpace*, const Variable*>& action_invariables, const std::vector<std::pair<const Atom*, InvariableIndex> >& all_precondition_mappings, const std::set<const Term*>& free_variables)
+	: step_(step), from_node_(&from_node), to_node_(&to_node), from_node_preconditions_(&from_node_preconditions), preconditions_(&preconditions), effects_(&effects), affected_(&affected), persistent_preconditions_(&persistent_preconditions), action_invariables_(&action_invariables), all_precondition_mappings_(&all_precondition_mappings), free_variables_(&free_variables)
 {
+	if (from_node.getAtoms().size() != from_node_preconditions.size())
+	{
+		std::cout << "FUCKED UP " << from_node.getAtoms().size() << " v.s. " << from_node_preconditions.size() << "..." << *this << std::endl;
+		std::cout << "From node: " << from_node << std::endl;
+		assert (false);
+	}
+	
+	for (unsigned int i = 0; i < from_node.getAtoms().size(); i++)
+	{
+		assert (from_node.getDTG().getBindings().canUnify(from_node.getAtoms()[i]->getAtom(), from_node.getAtoms()[i]->getId(), *from_node_preconditions[i], step_->getStepId()));
+	}
 /*	std::cout << "New transition: " << step->getAction() << std::endl;
 	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 	{
@@ -2070,7 +2188,8 @@ Transition::Transition(MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGra
 
 Transition* Transition::migrateTransition(const std::vector<const Atom*>& initial_facts, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node) const
 {
-	StepID new_id = from_node.getDTG().getBindings().createVariableDomains(step_->getAction());
+	Bindings& bindings = from_node.getDTG().getBindings();
+	StepID new_id = bindings.createVariableDomains(step_->getAction());
 	StepPtr new_step(new Step(new_id, step_->getAction()));
 	
 //	std::cout << "Migrate: " << *this << "." << std::endl;
@@ -2082,7 +2201,7 @@ Transition* Transition::migrateTransition(const std::vector<const Atom*>& initia
 		
 //		std::cout << "Handle the " << action_variable_index << "th action variable!" << std::endl;
 		
-		const std::vector<const Object*>& org_action_variable_domain = (*ci)->getDomain(step_->getStepId(), from_node_->getDTG().getBindings());
+		const std::vector<const Object*>& org_action_variable_domain = (*ci)->getDomain(step_->getStepId(), bindings);
 		bool found_matching_from_variable = false;
 		for (unsigned int i = 0; i < from_node_->getAtoms().size(); i++)
 		{
@@ -2091,11 +2210,11 @@ Transition* Transition::migrateTransition(const std::vector<const Atom*>& initia
 			for (unsigned int j = 0; j < org_from_fact->getAtom().getArity(); j++)
 			{
 				const Term* org_term = org_from_fact->getAtom().getTerms()[j];
-				const std::vector<const Object*>& org_term_domain = org_term->getDomain(org_from_fact->getId(), from_node_->getDTG().getBindings());
+				const std::vector<const Object*>& org_term_domain = org_term->getDomain(org_from_fact->getId(), bindings);
 				
 				if (&org_action_variable_domain == &org_term_domain)
 				{
-					if (new_step->getAction().getVariables()[action_variable_index]->unify(new_step->getStepId(), *from_node.getAtoms()[i]->getAtom().getTerms()[j], from_node.getAtoms()[i]->getId(), from_node.getDTG().getBindings()))
+					if (new_step->getAction().getVariables()[action_variable_index]->unify(new_step->getStepId(), *from_node.getAtoms()[i]->getAtom().getTerms()[j], from_node.getAtoms()[i]->getId(), bindings))
 					{
 //						std::cout << "The " << i << "th atom and " << j << "th term match in the from node!" << std::endl;
 						found_matching_from_variable = true;
@@ -2148,7 +2267,7 @@ Transition* Transition::migrateTransition(const std::vector<const Atom*>& initia
 	// Check if the newly constructed transition is actually viable!
 	for (std::vector<const Variable*>::const_iterator ci = new_step->getAction().getVariables().begin(); ci != new_step->getAction().getVariables().end(); ci++)
 	{
-		const std::vector<const Object*>& new_action_variable_domain = (*ci)->getDomain(new_step->getStepId(), from_node.getDTG().getBindings());
+		const std::vector<const Object*>& new_action_variable_domain = (*ci)->getDomain(new_step->getStepId(), bindings);
 		if (new_action_variable_domain.empty()) return NULL;
 	}
 	
@@ -2166,7 +2285,7 @@ Transition* Transition::migrateTransition(const std::vector<const Atom*>& initia
 		{
 			const Atom* initial_fact = *ci;
 			if (!initial_fact->getPredicate().isStatic()) continue;
-			if (from_node.getDTG().getBindings().canUnify(*precondition, new_step->getStepId(), *initial_fact, Step::INITIAL_STEP))
+			if (bindings.canUnify(*precondition, new_step->getStepId(), *initial_fact, Step::INITIAL_STEP))
 			{
 				is_supported = true;
 				break;
@@ -2176,8 +2295,53 @@ Transition* Transition::migrateTransition(const std::vector<const Atom*>& initia
 		if (!is_supported) return NULL;
 	}
 	
+	// Link all the preconditions to the facts in the from node.
+	std::vector<const Atom*>* preconditions_in_from_node = new std::vector<const Atom*>();
+	for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
+	{
+		const BoundedAtom* from_node_fact = *ci;
+		bool found_precondition = false;
+		
+		std::cout << "[Migrate]Try to find a precondition matching: ";
+		from_node_fact->print(std::cout, bindings);
+		std::cout << "." << std::endl;
+		
+		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
+		{
+			const Atom* precondition = *ci;
+			
+			if (from_node_fact->getAtom().getPredicate().getName() != precondition->getPredicate().getName()) continue;
+			
+			if (from_node_fact->getAtom().getArity() != precondition->getArity()) continue;
+			
+			std::cout << "Compare to: ";
+			precondition->print(std::cout, bindings, step_->getStepId());
+			std::cout << "." << std::endl;
+			
+			bool terms_matches = true;
+			for (unsigned int i = 0; i < precondition->getArity(); i++)
+			{
+				if (&from_node_fact->getAtom().getTerms()[i]->getDomain(from_node_fact->getId(), bindings) != &precondition->getTerms()[i]->getDomain(step_->getStepId(), bindings))
+				{
+					terms_matches = false;
+					break;
+				}
+			}
+			
+			if (!terms_matches) continue;
+			
+			assert (!found_precondition);
+			
+			std::cout << "Found a match!" << std::endl;
+			
+			found_precondition = true;
+			preconditions_in_from_node->push_back(precondition);
+		}
+	}
+	
+	
 	// After the transition is made and possible, update the bindings! :)
-	return new Transition(new_step, from_node, to_node, *preconditions_, *effects_, *affected_, *persistent_preconditions_, *action_invariables_, *all_precondition_mappings_, *free_variables_);
+	return new Transition(new_step, from_node, to_node, *preconditions_in_from_node, *preconditions_, *effects_, *affected_, *persistent_preconditions_, *action_invariables_, *all_precondition_mappings_, *free_variables_);
 }
 
 Transition* Transition::cloneWithNodes(const std::vector<const Atom*>& initial_facts) const

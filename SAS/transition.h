@@ -138,6 +138,8 @@ public:
 	 */
 	const std::vector<std::pair<const Atom*, InvariableIndex> >& getAffected() const { return *affected_; }
 
+	const std::vector<const Atom*>& getFromNodePreconditions() const { return *from_node_preconditions_; }
+	
 	/**
 	 * The preconditions which are present in from_node_.
 	 */
@@ -195,7 +197,7 @@ private:
 	bool shareVariableDomains(const BoundedAtom& bounded_atom, const Atom& atom) const;
 
 	// A transition is not to be created manualy.
-	Transition(MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map< const MyPOP::SAS_Plus::PropertySpace*, const MyPOP::Variable* >& action_invariables, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& all_precondition_mappings, const std::set<const Term*>& free_variables);
+	Transition(MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& from_node_preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& preconditions, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& effects, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& affected, const std::vector<std::pair<const Atom*, InvariableIndex> >& persistent_preconditions, const std::map< const MyPOP::SAS_Plus::PropertySpace*, const MyPOP::Variable* >& action_invariables, const std::vector< std::pair< const MyPOP::Atom*, InvariableIndex > >& all_precondition_mappings, const std::set<const Term*>& free_variables);
 
 	// The step contains:
 	// 1) The action which needs to be executed to make the transition happen and,
@@ -205,6 +207,8 @@ private:
 	// The node the transition is going from and to.
 	DomainTransitionGraphNode* from_node_;
 	DomainTransitionGraphNode* to_node_;
+
+	const std::vector<const Atom*>* from_node_preconditions_;
 
 	// pair <atom of the Transition, bounded atom of the DTG node it is connected to>.
 	// The preconditions which are linked to from_node_.

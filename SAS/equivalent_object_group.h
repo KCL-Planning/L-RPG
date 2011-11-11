@@ -170,11 +170,13 @@ public:
 	
 	void initialise(const std::vector<ReachableFact*>& initial_facts);
 	
-	void updateEquivalences(std::vector<const ReachableFact*>& reachable_nodes);
+	void updateEquivalences();
 	
 	EquivalentObject& getEquivalentObject(const Object& object) const;
 	
 	void getAllReachableFacts(std::vector<const ReachableFact*>& result) const;
+	
+	unsigned int getNumberOfEquivalentGroups() const { return equivalent_groups_.size(); }
 	
 	// Output methods.
 	void print(std::ostream& os) const;

@@ -252,6 +252,12 @@ protected:
 	 */
 	void addBoundedAtom(const BoundedAtom& bounded_atom, const Bindings& bindings);
 	
+	/**
+	 * Called every time the equivalence relationships have been updated. All the ReachableFacts which 
+	 * have been marked for removal need to be deleted.
+	 */
+	void equivalencesUpdated();
+	
 private:
 	
 	/**
@@ -315,6 +321,8 @@ public:
 	void addReachableTransition(ReachableTransition& reachable_transition);
 	
 	bool propagateReachableFacts();
+	
+	void handleUpdatedEquivalences();
 	
 	void print(std::ostream& os) const;
 	
@@ -380,6 +388,8 @@ public:
 	 * of its from node.
 	 */
 	bool generateReachableFacts();
+	
+	void handleUpdatedEquivalences();
 	
 	const Transition& getTransition() const { return *transition_; }
 	

@@ -698,6 +698,7 @@ void ReachableSet::initialiseInitialFacts(const std::vector< ReachableFact* >& i
 		for (std::vector< ReachableFact* >::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
 		{
 			ReachableFact* reachable_fact = *ci;
+			if (reachable_fact->isMarkedForRemoval()) continue;
 			
 			// The predicate of the fact in this set should be more general than the one we try to 'merge' with.
 			if (!resolved_atom->getCorrectedAtom().getPredicate().canSubstitute(reachable_fact->getAtom().getPredicate()))
@@ -780,16 +781,6 @@ void ReachableSet::initialiseInitialFacts(const std::vector< ReachableFact* >& i
 
 		++index;
 	}
-
-/*	for (std::vector< ReachableFact* >::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
-	{
-		ReachableFact* initial_fact = *ci;
-		// Update the relevant equivalent object groups.
-		for (unsigned int i = 0; i < initial_fact->getAtom().getArity(); i++)
-		{
-			initial_fact->getTermDomain(i).addReachableFact(*initial_fact);
-		}
-	}*/
 }
 
 void ReachableSet::addBoundedAtom(const MyPOP::SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings)
@@ -1111,7 +1102,8 @@ bool ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsign
 			return false;
 		}
 	}
-	
+
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 	// Add the fact to the reachable set, but make sure it isn't already part of it!
 	std::vector<ReachableFact*>* reachable_set = reachable_set_[index];
 	
@@ -1119,13 +1111,11 @@ bool ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsign
 	{
 		if (reachable_fact.isIdenticalTo(**ci))
 		{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 			std::cout << "[ReachableSet::processNewReachableFact] Already part of this set, move on!" << std::endl;
-#endif
-			
-			return false;
+			assert (false);
 		}
 	}
+#endif
 
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 //	std::cout << "[ReachableSet::processNewReachableFact] " << reachable_fact << "[index=" << index << "] for " << std::endl;
@@ -1863,6 +1853,7 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 	for (std::vector<ReachableFact*>::const_iterator ci = new_reachable_facts.begin(); ci != new_reachable_facts.end(); ci++)
 	{
 		ReachableFact* new_reachable_fact = *ci;
+		bool fact_added = false;
 	
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 		std::cout << "New reachable fact: " << *new_reachable_fact << std::endl;
@@ -1878,10 +1869,38 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 			std::cout << " * " << **ci << std::endl;
 		}
 #endif
+
+		// Make sure the fact hasn't been reached before!
+		const EquivalentObjectGroup* best_eog = NULL;
+		for (unsigned int i = 0; i < new_reachable_fact->getAtom().getArity(); i++)
+		{
+			const EquivalentObjectGroup& eog = new_reachable_fact->getTermDomain(i);
+			if (best_eog == NULL)
+			{
+				best_eog = &eog;
+				continue;
+			}
+			
+			if (best_eog->getReachableFacts().size() > eog.getReachableFacts().size())
+			{
+				best_eog = &eog;
+			}
+		}
+		
+		assert (best_eog != NULL);
+		
+		bool already_reached = false;
+		for (std::vector<ReachableFact*>::const_iterator ci = best_eog->getReachableFacts().begin(); ci != best_eog->getReachableFacts().end(); ci++)
+		{
+			if ((*ci)->isIdenticalTo(*new_reachable_fact))
+			{
+				already_reached = true;
+				break;
+			}
+		}
+		if (already_reached) continue;
 	
 		std::vector<std::pair<ReachableSet*, unsigned int> >* listeners = effect_propagation_listeners_[effect_index];
-		bool init = false;
-		bool achieved_at_least_once = false;
 		
 		std::set<ReachableSet*> processed;
 		
@@ -1896,72 +1915,16 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 			assert (processed.count((*ci).first) == 0);
 			processed.insert((*ci).first);
 			
+			// 1.00
 			if ((*ci).first->processNewReachableFact(*new_reachable_fact, (*ci).second))
 			{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-				std::cout << "Success!" << std::endl;
-#endif
-				if (!init)
-				{
-					init = true;
-					achieved_at_least_once = true;
-				}
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
-/*				else
-				{
-					std::cout << "We were unable to add to: ";
-					for (std::vector<std::pair<ReachableSet*, unsigned int> >::const_iterator ci2 = listeners->begin(); ci2 != ci - 1; ci2++)
-					{
-						std::cout << "* ";
-						(*ci2).first->print(std::cout);
-						std::cout << "." << std::endl;
-					}
-					
-					std::cout << "But able to add to: ";
-					(*ci).first->print(std::cout);
-					std::cout << "." << std::endl;
-//					assert (achieved_at_least_once);
-				}*/
-#endif
+				fact_added = true;
 				new_facts_reached = true;
 			}
-			else
-			{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-				std::cout << "Fail!" << std::endl;
-#endif
-				if (!init)
-				{
-					init = true;
-					achieved_at_least_once = false;
-				}
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
-/*				else
-				{
-					std::cout << "We were to add to: ";
-					for (std::vector<std::pair<ReachableSet*, unsigned int> >::const_iterator ci2 = listeners->begin(); ci2 != ci - 1; ci2++)
-					{
-						std::cout << "* ";
-						(*ci2).first->print(std::cout);
-						std::cout << "." << std::endl;
-					}
-					
-					std::cout << "But unable able to add to: ";
-					(*ci).first->print(std::cout);
-					std::cout << "." << std::endl;
-//					assert (!achieved_at_least_once);
-				}*/
-#endif
-			}
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-//			std::cout << "- Propagate to: ";
-//			(*ci).first->print(std::cout);
-//			std::cout << "[" << (*ci).second << "]." << std::endl;
-#endif
 		}
 		
 		// Update the relevant equivalent object groups.
-		if (achieved_at_least_once)
+		if (fact_added)
 		{
 			for (unsigned int i = 0; i < new_reachable_fact->getAtom().getArity(); i++)
 			{

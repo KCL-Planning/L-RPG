@@ -90,10 +90,14 @@ public:
 	
 	const Atom& getAtom() const { return *atom_; }
 	
-	// Seee removed_flag_;
-	void markForRemoval() { removed_flag_ = true; }
+	// See removed_flag_;
+//	void markForRemoval() { removed_flag_ = true; }
+	void replaceBy(ReachableFact& replacement);
 	
-	bool isMarkedForRemoval() const { return removed_flag_; }
+	//bool isMarkedForRemoval() const { return removed_flag_; }
+	bool isMarkedForRemoval() const;
+	
+	ReachableFact& getReplacement();
 	
 private:
 	
@@ -119,7 +123,8 @@ private:
 	// * (at {truck1, truck2} s1)
 	//
 	// By marking the former for removal we can remove the remaining reachable fact.
-	bool removed_flag_;
+	ReachableFact* replaced_by_;
+//	bool removed_flag_;
 
 	char mask_;
 	
@@ -219,7 +224,9 @@ public:
 	 * Return all the sets of reachable facts which satisfy all the constraints and have a reachable fact 
 	 * for every fact in the fact set.
 	 */
-	const std::vector<std::vector<ReachableFact*>* >& getReachableSets() const { return fully_reachable_sets_; }
+	const std::vector<std::vector<ReachableFact*>* >& getFullyReachableSets() const { return fully_reachable_sets_; }
+	
+	const std::vector<std::vector<ReachableFact*>* >& getReachableSets() const { return reachable_set_; }
 	
 	const std::vector<const ResolvedBoundedAtom*>& getFactsSet() const { return facts_set_; }
 	

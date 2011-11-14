@@ -13,7 +13,8 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+//#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+//#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_DEBUG
 
 namespace MyPOP {
 	
@@ -87,7 +88,7 @@ bool EquivalentObject::isInitialStateReachable(const std::vector<ReachableFact*>
 		const ReachableFact* initial_fact = *ci;
 
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-		std::cout << "Compare: " << *initial_fact << "." << std::endl;
+//		std::cout << "Compare: " << *initial_fact << "." << std::endl;
 #endif
 		
 		bool is_initial_fact_reachable = false;
@@ -96,13 +97,13 @@ bool EquivalentObject::isInitialStateReachable(const std::vector<ReachableFact*>
 			const ReachableFact* reachable_fact = *ci;
 			
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-		std::cout << " with: " << *reachable_fact<< "." << std::endl;
+//		std::cout << " with: " << *reachable_fact<< "." << std::endl;
 #endif
 			
 			if (initial_fact->isEquivalentTo(*reachable_fact))
 			{
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-				std::cout << *initial_fact << " is equivalent to " << *reachable_fact << std::endl;
+//				std::cout << *initial_fact << " is equivalent to " << *reachable_fact << std::endl;
 #endif
 				is_initial_fact_reachable = true;
 				break;
@@ -212,6 +213,27 @@ void EquivalentObjectGroup::addEquivalentObject(EquivalentObject& eo)
 
 void EquivalentObjectGroup::addReachableFact(ReachableFact& reachable_fact)
 {
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_DEBUG
+	// Make sure we do not add any double instances!
+	for (std::vector<ReachableFact*>::const_iterator ci = reachable_facts_.begin(); ci != reachable_facts_.end(); ci++)
+	{
+		const ReachableFact* existing_reachable_fact = *ci;
+		if (existing_reachable_fact->isIdenticalTo(reachable_fact))
+		{
+			std::cout << "Trying to add: " << reachable_fact << " to the following set: " << std::endl;
+			
+			for (std::vector<ReachableFact*>::const_iterator ci = reachable_facts_.begin(); ci != reachable_facts_.end(); ci++)
+			{
+				const ReachableFact* existing_reachable_factz = *ci;
+				std::cout << "* " << *existing_reachable_factz << std::endl;
+			}
+			
+			std::cout << "However it is identical to: " << *existing_reachable_fact << std::endl;
+
+			assert (false);
+		}
+	}
+#endif
 	reachable_facts_.push_back(&reachable_fact);
 }
 
@@ -249,7 +271,7 @@ bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group)
 	}
 	
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-	std::cout << "Try to merge: " << *this << " with " << other_group << "." << std::endl;
+//	std::cout << "Try to merge: " << *this << " with " << other_group << "." << std::endl;
 #endif
 
 	// TODO: This implementation isn't fast at all...
@@ -260,7 +282,7 @@ bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group)
 		if (other_equivalent_object->isInitialStateReachable(reachable_facts_))
 		{
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-			std::cout << other_group << " can reach initial state of " << *this << std::endl;
+//			std::cout << other_group << " can reach initial state of " << *this << std::endl;
 #endif
 			can_merge = true;
 			break;
@@ -275,7 +297,7 @@ bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group)
 		if (equivalent_object->isInitialStateReachable(other_group.reachable_facts_))
 		{
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-			std::cout << *this << " can reach initial state of " << other_group << std::endl;
+//			std::cout << *this << " can reach initial state of " << other_group << std::endl;
 #endif
 			can_merge = true;
 			break;
@@ -353,7 +375,7 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group)
 		}
 		
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-		std::cout << "Check if " << *reachable_fact << " needs to be updated!" << std::endl;
+//		std::cout << "Check if " << *reachable_fact << " needs to be updated!" << std::endl;
 #endif
 		// If the reachable fact contains a EOG which is not a root node, it means that a merge has taken place and we need to delete this node and
 		// replace it with a reachable fact containing only root nodes.
@@ -361,21 +383,20 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group)
 		{
 			bool already_present = false;
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-			std::cout << "Updated the reachable fact: " << *reachable_fact << std::endl;
-			ReachableFact* identical_fact = NULL;
+//			std::cout << "Updated the reachable fact: " << *reachable_fact << std::endl;
 #endif
+			
+			ReachableFact* identical_fact = NULL;
 			for (std::vector<ReachableFact*>::const_iterator ci = updated_facts.begin(); ci != updated_facts.end(); ci++)
 			{
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-				std::cout << "Check if " << **ci << " and " << *reachable_fact << " are identical!" << std::endl;
+//				std::cout << "Check if " << **ci << " and " << *reachable_fact << " are identical!" << std::endl;
 #endif
 				if ((*ci)->isIdenticalTo(*reachable_fact))
 				{
 					assert (*ci != reachable_fact);
 					assert (!(*ci)->isMarkedForRemoval());
-#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 					identical_fact = *ci;
-#endif
 					already_present = true;
 					break;
 				}
@@ -387,7 +408,8 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group)
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 				std::cout << "Remove: " << *reachable_fact << " because it is identical to the fact: " << *identical_fact << "." << std::endl;
 #endif
-				reachable_fact->markForRemoval();
+				//reachable_fact->markForRemoval();
+				reachable_fact->replaceBy(*identical_fact);
 				
 				for (unsigned int i = 0; i < reachable_fact->getAtom().getArity(); i++)
 				{

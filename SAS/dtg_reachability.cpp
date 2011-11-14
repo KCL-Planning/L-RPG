@@ -1996,7 +1996,7 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 				unsigned int index = std::distance(reachable_transition->getFactsSet().begin(), ci);
 				const ResolvedBoundedAtom* transition_fact = *ci;
 				const std::string& predicate_name = transition_fact->getCorrectedAtom().getPredicate().getName();
-				std::map<std::string, std::vector<std::pair<ReachableSet*, unsigned int> >* >::const_iterator found_mapping = predicate_to_reachable_set_mapping_.find((*ci)->getCorrectedAtom().getPredicate().getName());
+				std::map<std::string, std::vector<std::pair<ReachableSet*, unsigned int> >* >::const_iterator found_mapping = predicate_to_reachable_set_mapping_.find(predicate_name);
 				std::vector<std::pair<ReachableSet*, unsigned int> >* mapping = NULL;
 				if (found_mapping == predicate_to_reachable_set_mapping_.end())
 				{
@@ -2141,13 +2141,18 @@ ReachableTransition& DTGReachability::getReachableTransition(const Transition& t
 
 void DTGReachability::mapInitialFactsToReachableSets(const std::vector<ReachableFact*>& initial_facts)
 {
-	for (std::vector<ReachableFact*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
+/*	for (std::vector<ReachableFact*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
 	{
 		ReachableFact* initial_fact = *ci;
 		
 		if (initial_fact->isMarkedForRemoval()) continue;
 		
+		std::map<std::string, std::vector<std::pair<ReachableSet*, unsigned int> >* >::const_iterator found_mapping = predicate_to_reachable_set_mapping_.find(initial_fact->getAtom().getPredicate().getName());
+		assert (found_mapping != predicate_to_reachable_set_mapping_.end());
+		
 		std::vector<std::pair<ReachableSet*, unsigned int> >* reachable_sets = predicate_to_reachable_set_mapping_[initial_fact->getAtom().getPredicate().getName()];
+		
+		assert (reachable_sets != NULL);
 		
 		for (std::vector<std::pair<ReachableSet*, unsigned int> >::const_iterator ci = reachable_sets->begin(); ci != reachable_sets->end(); ci++)
 		{
@@ -2160,15 +2165,19 @@ void DTGReachability::mapInitialFactsToReachableSets(const std::vector<Reachable
 				continue;
 			}
 			
+			std::cout << "Process: ";
+			reachable_set->print(std::cout);
+			std::cout << "." << std::endl;
+			
 			reachable_set->processNewReachableFact(*initial_fact, fact_index);
 		}
-	}
+	}*/
 	
-	//for (std::vector<ReachableNode*>::const_iterator ci = reachable_nodes_.begin(); ci != reachable_nodes_.end(); ci++)
-	//{
-	//	ReachableNode* reachable_node = *ci;
-	//	reachable_node->initialise(established_reachable_facts);
-	//}
+	for (std::vector<ReachableNode*>::const_iterator ci = reachable_nodes_.begin(); ci != reachable_nodes_.end(); ci++)
+	{
+		ReachableNode* reachable_node = *ci;
+		reachable_node->initialise(initial_facts);
+	}
 }
 
 

@@ -459,26 +459,21 @@ public:
 	const EquivalentObjectGroupManager& getEquivalentObjectGroupManager() const { return *equivalent_object_manager_; }
 	
 private:
+	
+	void mapInitialFactsToReachableSets(const std::vector<ReachableFact*>& initial_facts);
+	
 
 	const TermManager* term_manager_;
 	
 	// The set of nodes we are working on.
 	std::vector<ReachableNode*> reachable_nodes_;
 	
+	std::map<std::string, std::vector<std::pair<ReachableSet*, unsigned int> >* > predicate_to_reachable_set_mapping_;
+	
 	/**
 	 * Propagator.
 	 */
 	DTGPropagator* dtg_propagator_;
-	
-	/**
-	 * Record for every DTG node which facts support it.
-	 */
-	//std::map<const DomainTransitionGraphNode*, std::vector<std::vector<const BoundedAtom*>* >* > supported_facts_;
-	
-	/**
-	 * Per node we record which nodes are reachable from it.
-	 */
-	//std::map<const DomainTransitionGraphNode*, std::vector<const DomainTransitionGraphNode*>* > reachable_nodes_;
 	
 	EquivalentObjectGroupManager* equivalent_object_manager_;
 	

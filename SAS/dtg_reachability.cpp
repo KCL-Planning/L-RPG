@@ -1953,6 +1953,25 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 		reachable_nodes_.push_back(reachable_node);
 		node_mapping[dtg_node] = reachable_node;
 		all_reachable_sets.push_back(reachable_node);
+		
+		for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = reachable_node->getFactsSet().begin(); ci != reachable_node->getFactsSet().end(); ci++)
+		{
+			unsigned int index = std::distance(reachable_node->getFactsSet().begin(), ci);
+			const ResolvedBoundedAtom* node_fact = *ci;
+			const std::string& predicate_name = node_fact->getCorrectedAtom().getPredicate().getName();
+			std::map<std::string, std::vector<std::pair<ReachableSet*, unsigned int> >* >::const_iterator found_mapping = predicate_to_reachable_set_mapping_.find((*ci)->getCorrectedAtom().getPredicate().getName());
+			std::vector<std::pair<ReachableSet*, unsigned int> >* mapping = NULL;
+			if (found_mapping == predicate_to_reachable_set_mapping_.end())
+			{
+				mapping = new std::vector<std::pair<ReachableSet*, unsigned int> >();
+				predicate_to_reachable_set_mapping_[predicate_name] = mapping;
+			}
+			else
+			{
+				mapping = (*found_mapping).second;
+			}
+			mapping->push_back(std::make_pair(reachable_node, index));
+		}
 	}
 	
 	for (std::map<const DomainTransitionGraphNode*, ReachableNode*>::const_iterator ci = node_mapping.begin(); ci != node_mapping.end(); ci++)
@@ -1970,6 +1989,26 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 			reachable_from_node->addReachableTransition(*reachable_transition);
 			all_reachable_sets.push_back(reachable_transition);
 			all_reachable_transitions.push_back(reachable_transition);
+			
+			
+			for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = reachable_transition->getFactsSet().begin(); ci != reachable_transition->getFactsSet().end(); ci++)
+			{
+				unsigned int index = std::distance(reachable_transition->getFactsSet().begin(), ci);
+				const ResolvedBoundedAtom* transition_fact = *ci;
+				const std::string& predicate_name = transition_fact->getCorrectedAtom().getPredicate().getName();
+				std::map<std::string, std::vector<std::pair<ReachableSet*, unsigned int> >* >::const_iterator found_mapping = predicate_to_reachable_set_mapping_.find((*ci)->getCorrectedAtom().getPredicate().getName());
+				std::vector<std::pair<ReachableSet*, unsigned int> >* mapping = NULL;
+				if (found_mapping == predicate_to_reachable_set_mapping_.end())
+				{
+					mapping = new std::vector<std::pair<ReachableSet*, unsigned int> >();
+					predicate_to_reachable_set_mapping_[predicate_name] = mapping;
+				}
+				else
+				{
+					mapping = (*found_mapping).second;
+				}
+				mapping->push_back(std::make_pair(reachable_transition, index));
+			}
 		}
 	}
 	
@@ -2016,13 +2055,9 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const ReachableFa
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "Find initial supported DTG nodes." << std::endl;
 #endif
-	// 0.87.
-	for (std::vector<ReachableNode*>::const_iterator ci = reachable_nodes_.begin(); ci != reachable_nodes_.end(); ci++)
-	{
-		ReachableNode* reachable_node = *ci;
-		reachable_node->initialise(established_reachable_facts);
-	}
-
+	
+	mapInitialFactsToReachableSets(established_reachable_facts);
+	
 	struct timeval end_time_init;
 	gettimeofday(&end_time_init, NULL);
 
@@ -2102,6 +2137,38 @@ ReachableTransition& DTGReachability::getReachableTransition(const Transition& t
 	assert (ci != reachable_transitions_.end());
 #endif
 	return *(*ci).second;
+}
+
+void DTGReachability::mapInitialFactsToReachableSets(const std::vector<ReachableFact*>& initial_facts)
+{
+	for (std::vector<ReachableFact*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
+	{
+		ReachableFact* initial_fact = *ci;
+		
+		if (initial_fact->isMarkedForRemoval()) continue;
+		
+		std::vector<std::pair<ReachableSet*, unsigned int> >* reachable_sets = predicate_to_reachable_set_mapping_[initial_fact->getAtom().getPredicate().getName()];
+		
+		for (std::vector<std::pair<ReachableSet*, unsigned int> >::const_iterator ci = reachable_sets->begin(); ci != reachable_sets->end(); ci++)
+		{
+			ReachableSet* reachable_set = (*ci).first;
+			unsigned int fact_index = (*ci).second;
+			
+			// The predicate of the fact in this set should be more general than the one we try to 'merge' with.
+			if (!reachable_set->getFactsSet()[fact_index]->getCorrectedAtom().getPredicate().canSubstitute(initial_fact->getAtom().getPredicate()))
+			{
+				continue;
+			}
+			
+			reachable_set->processNewReachableFact(*initial_fact, fact_index);
+		}
+	}
+	
+	//for (std::vector<ReachableNode*>::const_iterator ci = reachable_nodes_.begin(); ci != reachable_nodes_.end(); ci++)
+	//{
+	//	ReachableNode* reachable_node = *ci;
+	//	reachable_node->initialise(established_reachable_facts);
+	//}
 }
 
 

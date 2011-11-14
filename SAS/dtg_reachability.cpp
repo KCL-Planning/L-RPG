@@ -13,7 +13,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-//#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 #define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 #define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
@@ -1005,7 +1005,41 @@ bool ReachableSet::canSatisfyConstraints(const ReachableFact& reachable_fact, st
 		}
 	}
 	
-	// Check if the grounded constraints are satisfied too.
+/*	// Check if the grounded constraints are satisfied too.
+	for (unsigned int i = 0; i < reachable_fact.getAtom().getArity(); i++)
+	{
+		if (facts_set_[index]->isGrounded(i) && 
+			(
+				!reachable_fact.getTermDomain(i).isGrounded() ||
+				&reachable_fact.getTermDomain(i).getEquivalentObjects()[0]->getObject() != facts_set_[index]->getVariableDomain(i)[0]
+			)
+		)
+		{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+			std::cout << "The " << i << "th term of : " << reachable_fact << " should match up with the " << i << "th term of " << *facts_set_[index] << ", but it doesn't!" << std::endl;
+#endif
+			return false;
+		}
+	}*/
+	
+	return true;
+}
+
+bool ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsigned int index)
+{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+	std::cout << "[ReachableSet::processNewReachableFact] Add " << reachable_fact << "[index=" << index << "]" << std::endl;
+	std::cout << "[ReachableSet::processNewReachableFact] To: ";
+	print(std::cout);
+	std::cout << std::endl;
+#endif
+	// Make sure the fact to be added can be unified with the fact at the given index.
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+	assert (facts_set_.size() > index);
+	assert (facts_set_[index]->getCorrectedAtom().getPredicate().canSubstitute(reachable_fact.getAtom().getPredicate()));
+#endif
+
+	// Check if the grounded constraints are satisfied.
 	for (unsigned int i = 0; i < reachable_fact.getAtom().getArity(); i++)
 	{
 		if (facts_set_[index]->isGrounded(i) && 
@@ -1022,17 +1056,6 @@ bool ReachableSet::canSatisfyConstraints(const ReachableFact& reachable_fact, st
 		}
 	}
 	
-	return true;
-}
-
-bool ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsigned int index)
-{
-	// Make sure the fact to be added can be unified with the fact at the given index.
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
-	assert (facts_set_.size() > index);
-	assert (facts_set_[index]->getCorrectedAtom().getPredicate().canSubstitute(reachable_fact.getAtom().getPredicate()));
-#endif
-
 	// Add the fact to the reachable set, but make sure it isn't already part of it!
 	std::vector<ReachableFact*>* reachable_set = reachable_set_[index];
 	
@@ -1043,6 +1066,7 @@ bool ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsign
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 			std::cout << "[ReachableSet::processNewReachableFact] Already part of this set, move on!" << std::endl;
 #endif
+			
 			return false;
 		}
 	}
@@ -1809,7 +1833,18 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 				else
 				{
-					assert (achieved_at_least_once);
+					std::cout << "We were unable to add to: ";
+					for (std::vector<std::pair<ReachableSet*, unsigned int> >::const_iterator ci2 = listeners->begin(); ci2 != ci - 1; ci2++)
+					{
+						std::cout << "* ";
+						(*ci2).first->print(std::cout);
+						std::cout << "." << std::endl;
+					}
+					
+					std::cout << "But able to add to: ";
+					(*ci).first->print(std::cout);
+					std::cout << "." << std::endl;
+//					assert (achieved_at_least_once);
 				}
 #endif
 				new_facts_reached = true;
@@ -1827,7 +1862,18 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 				else
 				{
-					assert (!achieved_at_least_once);
+					std::cout << "We were to add to: ";
+					for (std::vector<std::pair<ReachableSet*, unsigned int> >::const_iterator ci2 = listeners->begin(); ci2 != ci - 1; ci2++)
+					{
+						std::cout << "* ";
+						(*ci2).first->print(std::cout);
+						std::cout << "." << std::endl;
+					}
+					
+					std::cout << "But unable able to add to: ";
+					(*ci).first->print(std::cout);
+					std::cout << "." << std::endl;
+//					assert (!achieved_at_least_once);
 				}
 #endif
 			}

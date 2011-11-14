@@ -13,7 +13,7 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-///#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 
 namespace MyPOP {
 	
@@ -362,8 +362,8 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group)
 			bool already_present = false;
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 			std::cout << "Updated the reachable fact: " << *reachable_fact << std::endl;
-#endif
 			ReachableFact* identical_fact = NULL;
+#endif
 			for (std::vector<ReachableFact*>::const_iterator ci = updated_facts.begin(); ci != updated_facts.end(); ci++)
 			{
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
@@ -373,7 +373,9 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group)
 				{
 					assert (*ci != reachable_fact);
 					assert (!(*ci)->isMarkedForRemoval());
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 					identical_fact = *ci;
+#endif
 					already_present = true;
 					break;
 				}

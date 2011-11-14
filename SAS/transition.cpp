@@ -823,10 +823,12 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 				
 				(*i).second->addProperty(*to_persistent_atom);
 				(*i).second->removeProperty(*from_persistent_atom);
-				
+
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 				std::cout << "(" << variable_domain << ")  -> ";
 				to_persistent_atom->print(std::cout, bindings);
 				std::cout << "." << std::endl;
+#endif
 			}
 			
 			for (std::vector<const Property*>::const_iterator ci = from_persistent_atom->getProperties().begin(); ci != from_persistent_atom->getProperties().end(); ci++)

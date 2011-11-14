@@ -212,21 +212,7 @@ int main(int argc,char * argv[])
 		std::vector<const SAS_Plus::BoundedAtom*> bounded_initial_facts;
 		for (std::vector<const Atom*>::const_iterator ci = initial_facts->begin(); ci != initial_facts->end(); ci++)
 		{
-			SAS_Plus::BoundedAtom* bounded_atom = new SAS_Plus::BoundedAtom(Step::INITIAL_STEP, **ci);
-			bounded_initial_facts.push_back(bounded_atom);
-			
-			std::vector<std::pair<const SAS_Plus::DomainTransitionGraphNode*, const SAS_Plus::BoundedAtom*> > found_nodes;
-			dtg_manager.getDTGNodes(found_nodes, Step::INITIAL_STEP, **ci, combined_graph.getBindings());
-			
-			for (std::vector<std::pair<const SAS_Plus::DomainTransitionGraphNode*, const SAS_Plus::BoundedAtom*> >::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ci++)
-			{
-				const SAS_Plus::BoundedAtom* found_atom = (*ci).second;
-				
-				for (std::vector<const SAS_Plus::Property*>::const_iterator ci = found_atom->getProperties().begin(); ci != found_atom->getProperties().end(); ci++)
-				{
-					bounded_atom->addProperty(**ci);
-				}
-			}
+			bounded_initial_facts.push_back(new SAS_Plus::BoundedAtom(Step::INITIAL_STEP, **ci));
 		}
 
 		struct timeval end_convert_time;

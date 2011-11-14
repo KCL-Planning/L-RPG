@@ -684,12 +684,6 @@ void ReachableSet::initialiseInitialFacts(const std::vector< ReachableFact* >& i
 	 */
 	unsigned int index = 0;
 	
-	std::vector<std::vector<ReachableFact*>*> local_reachable_set;
-	for (unsigned int i = 0; i < reachable_set_.size(); i++)
-	{
-		local_reachable_set.push_back(new std::vector<ReachableFact*>());
-	}
-	
 	for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = facts_set_.begin(); ci != facts_set_.end(); ci++)
 	{
 		const ResolvedBoundedAtom* resolved_atom = *ci;
@@ -697,88 +691,18 @@ void ReachableSet::initialiseInitialFacts(const std::vector< ReachableFact* >& i
 		// Check which initial facts can merge with the given atom.
 		for (std::vector< ReachableFact* >::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
 		{
-			ReachableFact* reachable_fact = *ci;
-			if (reachable_fact->isMarkedForRemoval()) continue;
+			ReachableFact* initial_fact = *ci;
+			if (initial_fact->isMarkedForRemoval()) continue;
 			
 			// The predicate of the fact in this set should be more general than the one we try to 'merge' with.
-			if (!resolved_atom->getCorrectedAtom().getPredicate().canSubstitute(reachable_fact->getAtom().getPredicate()))
+			if (!resolved_atom->getCorrectedAtom().getPredicate().canSubstitute(initial_fact->getAtom().getPredicate()))
 			{
 				continue;
 			}
 			
-			// Make sure the grounded variables correspond.
-			bool grounded_variables_are_equal_ = true;
-			for (unsigned int i = 0; i < resolved_atom->getCorrectedAtom().getArity(); i++)
-			{
-				if (resolved_atom->isGrounded(i) &&
-					(
-						!reachable_fact->getTermDomain(i).isGrounded() ||
-						resolved_atom->getVariableDomain(i)[0] != &reachable_fact->getTermDomain(i).getEquivalentObjects()[0]->getObject()
-					)
-				)
-				{
-					grounded_variables_are_equal_ = false;
-					break;
-				}
-			}
-			
-			if (!grounded_variables_are_equal_) continue;
-			
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
-			for (unsigned int i = 0; i < reachable_fact->getAtom().getArity(); i++)
-			{
-				const EquivalentObjectGroup& eog = reachable_fact->getTermDomain(i);
-				
-				for (std::vector<EquivalentObject*>::const_iterator ci = eog.getEquivalentObjects().begin(); ci != eog.getEquivalentObjects().end(); ci++)
-				{
-					const EquivalentObject* eo = *ci;
-					bool found = false;
-					
-					const std::vector<const Object*>& variable_domain = resolved_atom->getVariableDomain(i);
-					
-					for (std::vector<const Object*>::const_iterator ci = variable_domain.begin(); ci != variable_domain.end(); ci++)
-					{
-						if (*ci == &eo->getObject())
-						{
-							found = true;
-							break;
-						}
-					}
-					
-					if (!found)
-					{
-						for (unsigned int i = 0; i < reachable_fact->getAtom().getArity(); i++)
-						{
-							std::cout << "Type: " << *reachable_fact->getAtom().getPredicate().getTypes()[i] << " v.s. " << *resolved_atom->getCorrectedAtom().getPredicate().getTypes()[i] << "." << std::endl;
-						}
-						std::cout << "Try to bind the initial fact: " << *reachable_fact << " with the fact " << *resolved_atom << "." << std::endl;
-						assert (false);
-					}
-				}
-			}
-#endif
-			
-			local_reachable_set[index]->push_back(reachable_fact);
-		}
-		
-		++index;
-	}
-	
-	/**
-	 * After all initial facts are mapped, we will try to combine them as good as possible. The way the DTG nodes are created mean
-	 * that the facts at index `i` shares at least one variable domain with any of the facts at index {0, 1, ..., i - 1} - except for
-	 * the fact at index 0. So this allows us to efficiently create all the sets.
-	 */
-	index = 0;
-	for (std::vector<std::vector<ReachableFact*>*>::const_iterator ci = local_reachable_set.begin(); ci != local_reachable_set.end(); ci++)
-	{
-		std::vector<ReachableFact*>* reachable_set = *ci;
-		for (std::vector<ReachableFact*>::const_iterator ci = reachable_set->begin(); ci != reachable_set->end(); ci++)
-		{
-			ReachableFact* initial_fact = *ci;
 			processNewReachableFact(*initial_fact, index);
 		}
-
+		
 		++index;
 	}
 }
@@ -1915,7 +1839,7 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 			assert (processed.count((*ci).first) == 0);
 			processed.insert((*ci).first);
 			
-			// 1.00
+			// 0.18
 			if ((*ci).first->processNewReachableFact(*new_reachable_fact, (*ci).second))
 			{
 				fact_added = true;
@@ -2066,6 +1990,9 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const ReachableFa
 	std::cout << "Start performing reachability analysis." << std::endl;
 #endif
 
+	struct timeval start_time_eog;
+	gettimeofday(&start_time_eog, NULL);
+	
 	// Transform the set of initial facts into reachable facts, which means we drop the variable domains
 	// and work solely with equivalent object groups.
 	std::vector<ReachableFact*> established_reachable_facts;
@@ -2075,9 +2002,6 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const ReachableFa
 		established_reachable_facts.push_back(initial_reachable_fact);
 	}
 
-	struct timeval start_time_eog;
-	gettimeofday(&start_time_eog, NULL);
-	
 	equivalent_object_manager_->initialise(established_reachable_facts);
 
 	struct timeval end_time_eog;
@@ -2092,6 +2016,7 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const ReachableFa
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "Find initial supported DTG nodes." << std::endl;
 #endif
+	// 0.87.
 	for (std::vector<ReachableNode*>::const_iterator ci = reachable_nodes_.begin(); ci != reachable_nodes_.end(); ci++)
 	{
 		ReachableNode* reachable_node = *ci;
@@ -2124,6 +2049,8 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const ReachableFa
 	unsigned int iteration = 0;
 	while (!done)
 	{
+		struct timeval start_time_iteration;
+		gettimeofday(&start_time_iteration, NULL);
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 		std::cout << "Start propagating reachable facts iteration: " <<iteration << "." << std::endl;
 #endif
@@ -2152,7 +2079,12 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const ReachableFa
 		}
 
 		++iteration;
-		std::cerr << iteration << "th iteration. Number of EOGs: " << equivalent_object_manager_->getNumberOfEquivalentGroups() << "." << std::endl;
+		
+		struct timeval end_time_iteration;
+		gettimeofday(&end_time_iteration, NULL);
+
+		double time_spend_on_iteration = end_time_iteration.tv_sec - start_time_iteration.tv_sec + (end_time_iteration.tv_usec - start_time_iteration.tv_usec) / 1000000.0;
+		std::cerr << iteration << "th iteration. Number of EOGs: " << equivalent_object_manager_->getNumberOfEquivalentGroups() << ". Time spend: " << time_spend_on_iteration << "." << std::endl;
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 		std::cout << "Equivalent objects after the " << iteration << "th iteration: ";
 		equivalent_object_manager_->print(std::cout);

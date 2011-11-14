@@ -35,7 +35,7 @@ bool Predicate::canSubstitute(const Predicate& predicate) const
 {
 	if (predicate.getName() != name_)
 		return false;
-	
+
 	if (predicate.getArity() != getArity())
 		return false;
 

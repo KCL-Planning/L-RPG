@@ -520,7 +520,7 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 	for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
 	{
 		const BoundedAtom* from_node_fact = *ci;
-		bool found_precondition = false;
+//		bool found_precondition = false;
 		
 		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 		{
@@ -542,9 +542,9 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 			
 			if (!terms_matches) continue;
 			
-			assert (!found_precondition);
+//			assert (!found_precondition);
 			
-			found_precondition = true;
+//			found_precondition = true;
 			preconditions_in_from_node->push_back(precondition);
 		}
 	}
@@ -2069,7 +2069,7 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 	for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
 	{
 		const BoundedAtom* from_node_fact = *ci;
-		bool found_precondition = false;
+//		bool found_precondition = false;
 		
 		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 		{
@@ -2091,9 +2091,9 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 			
 			if (!terms_matches) continue;
 			
-			assert (!found_precondition);
+//			assert (!found_precondition);
 			
-			found_precondition = true;
+//			found_precondition = true;
 			preconditions_in_from_node->push_back(precondition);
 		}
 	}
@@ -2319,7 +2319,7 @@ Transition* Transition::migrateTransition(const std::vector<const Atom*>& initia
 	for (std::vector<BoundedAtom*>::const_iterator ci = from_node.getAtoms().begin(); ci != from_node.getAtoms().end(); ci++)
 	{
 		const BoundedAtom* from_node_fact = *ci;
-		bool found_precondition = false;
+//		bool found_precondition = false;
 		
 //		std::cout << "Find the precondition candidate for the from node: ";
 //		from_node_fact->print(std::cout, bindings);
@@ -2349,9 +2349,9 @@ Transition* Transition::migrateTransition(const std::vector<const Atom*>& initia
 			
 			if (!terms_matches) continue;
 			
-			assert (!found_precondition);
+//			assert (!found_precondition);
 			
-			found_precondition = true;
+//			found_precondition = true;
 			preconditions_in_from_node->push_back(precondition);
 		}
 		

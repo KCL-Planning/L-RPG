@@ -42,6 +42,7 @@ const Formula* Utility::convertGoal(const TermManager& term_manager, const Predi
 	std::cout << "Unsupported goal detected, quiting!" << std::endl;
 	precondition->write(std::cout);
 	assert (false);
+	exit(1);
 }
 
 Formula* Utility::convertPrecondition(const TermManager& term_manager, const PredicateManager& predicate_manager, const VAL::proposition& prop, bool make_negative)

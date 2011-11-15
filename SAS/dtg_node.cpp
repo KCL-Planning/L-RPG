@@ -311,7 +311,11 @@ bool DomainTransitionGraphNode::addAtom(BoundedAtom* bounded_atom, InvariableInd
 				//			bounded_atom->print(std::cout, dtg_->getBindings());
 				//			std::cout << "(" << index << ")" << std::endl;
 
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_DEBUG
 							assert (reference_term->unify(reference_bounded_atom->getId(), *domain_term, bounded_atom->getId(), dtg_->getBindings()));
+#else
+							reference_term->unify(reference_bounded_atom->getId(), *domain_term, bounded_atom->getId(), dtg_->getBindings());
+#endif
 						}
 						assert (reference_term->isTheSameAs(reference_bounded_atom->getId(), *domain_term, bounded_atom->getId(), dtg_->getBindings()));
 					}

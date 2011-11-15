@@ -519,6 +519,43 @@ ResolvedEffect::ResolvedEffect(StepID id, const Atom& atom, const Bindings& bind
 #endif
 }
 
+void ResolvedEffect::updateVariableDomains()
+{
+	unsigned int counter = 0;
+	unsigned int amount = 0;
+	for (std::vector<std::vector<EquivalentObjectGroup*>* >::const_iterator ci = free_variable_domains_.begin(); ci != free_variable_domains_.end(); ci++)
+	{
+		std::vector<EquivalentObjectGroup*>* free_variable_domain = *ci;
+
+//		std::vector<EquivalentObjectGroup*> updated_variable_domains;
+
+		for (std::vector<EquivalentObjectGroup*>::reverse_iterator ri = free_variable_domain->rbegin(); ri != free_variable_domain->rend(); ri++)
+		{
+			EquivalentObjectGroup* eog = *ri;
+			
+			++amount;
+			
+			if (!eog->isRootNode())
+			{
+//				EquivalentObjectGroup& root_eog = eog->getRootNode();
+				
+//				if (std::find(updated_variable_domains.begin(), updated_variable_domains.end(), &root_eog) == updated_variable_domains.end())
+//				{
+//					*ri = &root_eog;
+//					updated_variable_domains.push_back(&root_eog);
+//				}
+//				else
+//				{
+					free_variable_domain->erase(ri.base() - 1);
+//				}
+				++counter;
+			}
+		}
+	}
+	
+	std::cerr << "Removed: " << counter << " free variables out of " << amount << "!" << std::endl;
+}
+
 
 bool ResolvedEffect::isFreeVariable(unsigned int index) const
 {
@@ -1724,6 +1761,11 @@ bool ReachableTransition::generateReachableFacts()
 void ReachableTransition::handleUpdatedEquivalences()
 {
 	equivalencesUpdated();
+	
+	for (std::vector<ResolvedEffect*>::const_iterator ci = effects_.begin(); ci != effects_.end(); ci++)
+	{
+		(*ci)->updateVariableDomains();
+	}
 }
 
 bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, unsigned int effect_index, const std::vector<ReachableFact*>& from_node_reachable_set, const std::vector<ReachableFact*>& transition_reachable_set)

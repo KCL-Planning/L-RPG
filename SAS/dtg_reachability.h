@@ -183,6 +183,8 @@ class ResolvedEffect : public ResolvedBoundedAtom
 public:
 	ResolvedEffect(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, bool free_variables[]);
 	
+	void updateVariableDomains();
+	
 	bool isFreeVariable(unsigned int index) const;
 	
 	void createReachableFacts(std::vector<ReachableFact*>& results, EquivalentObjectGroup** effect_domains) const;

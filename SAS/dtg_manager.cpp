@@ -85,7 +85,7 @@ const Atom& BoundedAtom::getAtom() const
 	return *atom_;
 }
 
-InvariableIndex BoundedAtom::getIndex(StepID id, const Term& term, const Bindings& bindings) const
+/*InvariableIndex BoundedAtom::getIndex(StepID id, const Term& term, const Bindings& bindings) const
 {
 	for (InvariableIndex i = 0; i < atom_->getArity(); i++)
 	{
@@ -98,7 +98,7 @@ InvariableIndex BoundedAtom::getIndex(StepID id, const Term& term, const Binding
 	}
 	
 	assert (false);
-}
+}*/
 
 /*const Property* BoundedAtom::getProperty() const
 {
@@ -2244,7 +2244,12 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 				
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_nodes_to_add.begin(); ci != dtg_nodes_to_add.end(); ci++)
 		{
-			assert (dtg->addNode(**ci));
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+			bool added = dtg->addNode(**ci);
+			assert (added);
+#else
+			dtg->addNode(**ci);
+#endif
 		}
 		
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT

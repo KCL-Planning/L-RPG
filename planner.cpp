@@ -97,12 +97,12 @@ const Plan* Planner::getSolution()
 		delete current_plan;
 
 		// Add all the new refinements into the queue.
-		int size = plans_.size();
+//		int size = plans_.size();
 		for (std::vector<const Plan*>::const_iterator ci = refinements.begin(); ci != refinements.end(); ci++)
 		{
 			plans_.push(*ci);
 		}
-		assert (plans_.size() == size + refinements.size());
+//		assert (plans_.size() == size + refinements.size());
 
 		if (plans_visited_ % 1000 == 5)
 		{

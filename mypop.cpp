@@ -232,6 +232,7 @@ int main(int argc,char * argv[])
 
 		double time_spend = end_time_reachability.tv_sec - start_time_reachability.tv_sec + (end_time_reachability.tv_usec - start_time_reachability.tv_usec) / 1000000.0;
 		std::cerr << "Reachability analysis: " << time_spend << " seconds" << std::endl;
+		exit(0);
 
 		// Validate the result.
 		RPG::RelaxedPlanningGraph rpg(action_manager, *plan, analyst.getEquivalentObjectGroupManager());
@@ -324,7 +325,10 @@ int main(int argc,char * argv[])
 			}
 		}
 		
-		assert (all_clear);
+		if (!all_clear)
+		{
+			exit(1);
+		}
 	}
 	
 /*

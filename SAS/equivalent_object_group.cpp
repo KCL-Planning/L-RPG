@@ -13,8 +13,8 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-//#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-//#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_DEBUG
+#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_DEBUG
 
 namespace MyPOP {
 	
@@ -534,14 +534,14 @@ void EquivalentObjectGroupManager::initialise(const std::vector<ReachableFact*>&
 	}
 	
 	// Try to merge those eogs which are equivalent.
-	updateEquivalences();
+	//updateEquivalences();
 	
-#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-	std::cout << "Merge together equivalent groups if their initial states match - Done!" << std::endl;
-	std::cout << "EOG manager Ready for use!" << std::endl;
-	print(std::cout);
-	printAll(std::cout);
-#endif
+//#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+//	std::cout << "Merge together equivalent groups if their initial states match - Done!" << std::endl;
+//	std::cout << "EOG manager Ready for use!" << std::endl;
+//	print(std::cout);
+//	printAll(std::cout);
+//#endif
 }
 
 void EquivalentObjectGroupManager::updateEquivalences()

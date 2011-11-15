@@ -30,11 +30,10 @@ mypop_SOURCES = VALfiles/DebugWriteController.cpp VALfiles/FastEnvironment.cpp \
 	plan.cpp plan_bindings.cpp plan_flaws.cpp plan_orderings.cpp planner.cpp \
 	predicate_manager.cpp relaxed_planning_graph.cpp simple_flaw_selector.cpp term_manager.cpp \
 	type_manager.cpp
-##SAS/relaxed_reachability_analyst.cpp \
 	
 
 mypop_LDADD = @LIBOBJS@
-mypop_CXXFLAGS = -Wall -Werror
+mypop_CXXFLAGS = -Wall -Werror -O3 -DNDEBUG
 
 YFLAGS = -d
 noinst_HEADERS = exceptions.h flaw_selector.h manager.h planner.h \

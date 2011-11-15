@@ -1375,7 +1375,7 @@ std::ostream& operator<<(std::ostream& os, const DomainTransitionGraphNode& node
 //		(*ci)->getAtom().print(os, node.getDTG().getBindings(), (*ci)->getId());
 		os << "(" << node.getIndex(**ci) << ")" << std::endl;
 		
-		const BoundedAtom* bounded_atom = *ci;
+/*		const BoundedAtom* bounded_atom = *ci;
 		for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
 		{
 			const Term* term = *ci;
@@ -1389,7 +1389,8 @@ std::ostream& operator<<(std::ostream& os, const DomainTransitionGraphNode& node
 			}
 		}
 		os << std::endl;
-		
+*/
+
 /*		if ((*ci)->getProperty() != NULL)
 		{
 			os << "[ps=" << &(*ci)->getProperty()->getPropertyState().getPropertySpace() << "]";

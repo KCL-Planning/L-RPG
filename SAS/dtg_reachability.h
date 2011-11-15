@@ -125,8 +125,6 @@ private:
 	// By marking the former for removal we can remove the remaining reachable fact.
 	ReachableFact* replaced_by_;
 //	bool removed_flag_;
-
-	char mask_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact);
 };

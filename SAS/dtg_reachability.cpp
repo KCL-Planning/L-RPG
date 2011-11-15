@@ -39,18 +39,6 @@ ReachableFact::ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bi
 		assert (term_domain_mapping_[std::distance(bounded_atom.getAtom().getTerms().begin(), ci)] != NULL);
 #endif
 	}
-	
-	for (std::vector<const Property*>::const_iterator ci = bounded_atom.getProperties().begin(); ci != bounded_atom.getProperties().end(); ci++)
-	{
-		const Property* property = *ci;
-		if (property->getIndex() == NO_INVARIABLE_INDEX) continue;
-		
-		// Except when it has been grounded!
-		if (term_domain_mapping_[property->getIndex()]->isGrounded()) continue;
-		
-		mask_ |= 0x1 << property->getIndex();
-	}
-	
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 	for (unsigned int i = 0; i < bounded_atom.getAtom().getArity(); i++)
 	{
@@ -62,17 +50,6 @@ ReachableFact::ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bi
 ReachableFact::ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, EquivalentObjectGroup** term_domain_mapping)
 	: atom_(&bounded_atom.getAtom()), term_domain_mapping_(term_domain_mapping), replaced_by_(NULL)
 {
-	for (std::vector<const Property*>::const_iterator ci = bounded_atom.getProperties().begin(); ci != bounded_atom.getProperties().end(); ci++)
-	{
-		const Property* property = *ci;
-		if (property->getIndex() == NO_INVARIABLE_INDEX) continue;
-		
-		// Except when it has been grounded!
-		if (term_domain_mapping_[property->getIndex()]->isGrounded()) continue;
-		
-		mask_ |= 0x1 << property->getIndex();
-	}
-	
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 	for (unsigned int i = 0; i < bounded_atom.getAtom().getArity(); i++)
 	{
@@ -82,7 +59,7 @@ ReachableFact::ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bi
 }
 
 ReachableFact::ReachableFact(const Atom& atom, EquivalentObjectGroup** term_domain_mapping)
-	: atom_(&atom), term_domain_mapping_(term_domain_mapping), replaced_by_(NULL), mask_(0)
+	: atom_(&atom), term_domain_mapping_(term_domain_mapping), replaced_by_(NULL)
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 	for (unsigned int i = 0; i < atom.getArity(); i++)
@@ -1307,6 +1284,9 @@ ReachableNode::ReachableNode(const DomainTransitionGraphNode& dtg_node, const Eq
 
 void ReachableNode::initialise(const std::vector<ReachableFact*>& initial_facts)
 {
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+	assert (reachable_transitions_.size() > 0);
+#endif
 	initialiseInitialFacts(initial_facts);
 	
 	for (std::vector<ReachableTransition*>::const_iterator ci = reachable_transitions_.begin(); ci != reachable_transitions_.end(); ci++)
@@ -1323,6 +1303,9 @@ void ReachableNode::addReachableTransition(ReachableTransition& reachable_transi
 
 bool ReachableNode::propagateReachableFacts()
 {	
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+	assert (reachable_transitions_.size() > 0);
+#endif
 	// Find all those reachable transitions which also have fully reachable sets.
 	bool could_propagate = false;
 	for (std::vector<ReachableTransition*>::const_iterator ci = reachable_transitions_.begin(); ci != reachable_transitions_.end(); ci++)
@@ -1340,6 +1323,9 @@ bool ReachableNode::propagateReachableFacts()
 
 void ReachableNode::handleUpdatedEquivalences()
 {
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+	assert (reachable_transitions_.size() > 0);
+#endif
 	equivalencesUpdated();
 	for (std::vector<ReachableTransition*>::const_iterator ci = reachable_transitions_.begin(); ci != reachable_transitions_.end(); ci++)
 	{
@@ -1889,7 +1875,7 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 	for (std::vector<ReachableFact*>::const_iterator ci = new_reachable_facts.begin(); ci != new_reachable_facts.end(); ci++)
 	{
 		ReachableFact* new_reachable_fact = *ci;
-		bool fact_added = false;
+//		bool fact_added = false;
 	
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 		std::cout << "New reachable fact: " << *new_reachable_fact << std::endl;
@@ -1943,7 +1929,8 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 			}
 		}
 		if (already_reached) continue;
-	
+
+		assert (effect_propagation_listeners_.size() > effect_index);
 		std::vector<std::pair<ReachableSet*, unsigned int> >* listeners = effect_propagation_listeners_[effect_index];
 		
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
@@ -1966,18 +1953,14 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 			// 0.18
 			if ((*ci).first->processNewReachableFact(*new_reachable_fact, (*ci).second))
 			{
-				fact_added = true;
 				new_facts_reached = true;
 			}
 		}
 		
 		// Update the relevant equivalent object groups.
-		if (fact_added)
+		for (unsigned int i = 0; i < new_reachable_fact->getAtom().getArity(); i++)
 		{
-			for (unsigned int i = 0; i < new_reachable_fact->getAtom().getArity(); i++)
-			{
-				new_reachable_fact->getTermDomain(i).addReachableFact(*new_reachable_fact);
-			}
+			new_reachable_fact->getTermDomain(i).addReachableFact(*new_reachable_fact);
 		}
 	}
 	
@@ -2068,17 +2051,22 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph.getNodes().begin(); ci != dtg_graph.getNodes().end(); ci++)
 	{
 		DomainTransitionGraphNode* dtg_node = *ci;
+		
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 		std::cout << *dtg_node << std::endl;
 		dtg_node->print(std::cout);
 #endif
 		
 		ReachableNode* reachable_node = new ReachableNode(*dtg_node, *equivalent_object_manager_);
-		reachable_nodes_.push_back(reachable_node);
-		node_mapping[dtg_node] = reachable_node;
-		all_reachable_sets.push_back(reachable_node);
 		
-		for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = reachable_node->getFactsSet().begin(); ci != reachable_node->getFactsSet().end(); ci++)
+		node_mapping[dtg_node] = reachable_node;
+		if (dtg_node->getTransitions().size() > 0)
+		{
+			all_reachable_sets.push_back(reachable_node);
+			reachable_nodes_.push_back(reachable_node);
+		}
+		
+/*		for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = reachable_node->getFactsSet().begin(); ci != reachable_node->getFactsSet().end(); ci++)
 		{
 			unsigned int index = std::distance(reachable_node->getFactsSet().begin(), ci);
 			const ResolvedBoundedAtom* node_fact = *ci;
@@ -2095,7 +2083,7 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 				mapping = (*found_mapping).second;
 			}
 			mapping->push_back(std::make_pair(reachable_node, index));
-		}
+		}*/
 	}
 	
 	for (std::map<const DomainTransitionGraphNode*, ReachableNode*>::const_iterator ci = node_mapping.begin(); ci != node_mapping.end(); ci++)
@@ -2111,9 +2099,12 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 			reachable_transitions_[*ci] = reachable_transition;
 			 
 			reachable_from_node->addReachableTransition(*reachable_transition);
-			all_reachable_sets.push_back(reachable_transition);
-			all_reachable_transitions.push_back(reachable_transition);
 			
+			if (transition->getToNode().getTransitions().size() > 0)
+			{
+				all_reachable_sets.push_back(reachable_transition);
+			}
+			all_reachable_transitions.push_back(reachable_transition);
 			
 			for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = reachable_transition->getFactsSet().begin(); ci != reachable_transition->getFactsSet().end(); ci++)
 			{

@@ -578,8 +578,6 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 			
 //			assert (!found_precondition);
 			
-			std::cout << "Found!" << std::endl;
-			
 //			found_precondition = true;
 			preconditions_in_from_node->push_back(precondition);
 			break;

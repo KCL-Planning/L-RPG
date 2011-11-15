@@ -13,8 +13,8 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+//#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+//#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 #define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
 
@@ -585,8 +585,8 @@ void ResolvedEffect::updateVariableDomains()
 				assert (!eog->isIdenticalTo(*eog2));
 			}
 		}
-	}
 #endif
+	}
 	
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 //	std::cerr << "Removed: " << counter << " free variables out of " << amount << "!" << std::endl;

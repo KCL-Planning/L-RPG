@@ -13,8 +13,8 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_DEBUG
+//#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+//#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_DEBUG
 
 namespace MyPOP {
 	

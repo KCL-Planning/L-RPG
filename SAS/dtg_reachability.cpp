@@ -2233,7 +2233,7 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const ReachableFa
 		gettimeofday(&start_time_iteration, NULL);
 #endif
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-		std::cout << "Start propagating reachable facts iteration: " <<iteration << "." << std::endl;
+		std::cout << "Start propagating reachable facts." << std::endl;
 #endif
 		done = true;
 		for (std::vector<ReachableNode*>::const_iterator ci = reachable_nodes_.begin(); ci != reachable_nodes_.end(); ci++)
@@ -2245,7 +2245,7 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const ReachableFa
 		}
 		
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-		std::cout << "End of the " << iteration << "th iteration. Results so far: " << std::endl;
+		std::cout << "End of the iteration. Results so far: " << std::endl;
 		for (std::vector<ReachableNode*>::const_iterator ci = reachable_nodes_.begin(); ci != reachable_nodes_.end(); ci++)
 		{
 			(*ci)->print(std::cout);

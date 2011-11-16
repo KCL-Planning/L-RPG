@@ -239,7 +239,7 @@ void ReachableFact::replaceBy(ReachableFact& replacement)
 }
 
 //bool isMarkedForRemoval() const { return removed_flag_; }
-bool ReachableFact::isMarkedForRemoval() const { return replaced_by_ != NULL; }
+//inline bool ReachableFact::isMarkedForRemoval() const { return replaced_by_ != NULL; }
 
 ReachableFact& ReachableFact::getReplacement()
 {
@@ -2106,7 +2106,7 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 			
 			// DTG nodes which have no transitions, we do not care what facts can be made true for them so we do not need to map any mappings to them.
 			// TODO: Satellite fails if this is not commented - why!?
-			if (transition->getToNode().getTransitions().size() > 0)
+			//if (transition->getToNode().getTransitions().size() > 0)
 			{
 				all_reachable_sets.push_back(reachable_transition);
 			}

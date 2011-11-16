@@ -101,7 +101,7 @@ public:
 	 * @param objectGroup The object group which we try to merge with this node.
 	 * @return True if the groups could be merged, false otherwise.
 	 */
-	bool tryToMergeWith(EquivalentObjectGroup& object_group);
+	bool tryToMergeWith(EquivalentObjectGroup& object_group, std::vector<EquivalentObjectGroup*>& affected_groups);
 	
 	bool operator==(const EquivalentObjectGroup& other) const;
 	bool operator!=(const EquivalentObjectGroup& other) const;
@@ -117,6 +117,11 @@ public:
 	 * @return The root node of this EOG.
 	 */
 	EquivalentObjectGroup& getRootNode();
+	
+	/**
+	 * Remove all the reachable facts which have been marked for removal.
+	 */
+	void deleteRemovedFacts();
 
 private:
 	
@@ -142,18 +147,18 @@ private:
 	/**
 	 * Merge the given group with this group.
 	 */
-	void merge(EquivalentObjectGroup& other_group);
-	
-	/**
-	 * Remove all the reachable facts which have been marked for removal.
-	 */
-	void deleteRemovedFacts();
+	void merge(EquivalentObjectGroup& other_group, std::vector<EquivalentObjectGroup*>& affected_groups);
 	
 	bool* finger_print_;
 	unsigned int finger_print_size_;
 
 	friend std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group);
 };
+
+inline bool EquivalentObjectGroup::isRootNode() const
+{
+	return link_ == NULL;
+}
 
 std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group);
 

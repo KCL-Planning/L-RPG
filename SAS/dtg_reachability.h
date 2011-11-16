@@ -130,6 +130,8 @@ private:
 	friend std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact);
 };
 
+inline bool ReachableFact::isMarkedForRemoval() const { return replaced_by_ != NULL; }
+
 std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact);
 
 /**

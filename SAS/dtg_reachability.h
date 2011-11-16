@@ -33,7 +33,6 @@ class DomainTransitionGraphNode;
 class DTGReachability;
 class Transition;
 
-class DTGPropagator;
 class EquivalentObjectGroup;
 class EquivalentObjectGroupManager;
 
@@ -471,16 +470,10 @@ private:
 	// The set of nodes we are working on.
 	std::vector<ReachableNode*> reachable_nodes_;
 	
-	std::map<std::string, std::vector<std::pair<ReachableSet*, unsigned int> >* > predicate_to_reachable_set_mapping_;
-	
-	/**
-	 * Propagator.
-	 */
-	DTGPropagator* dtg_propagator_;
-	
+	//std::map<std::string, std::vector<std::pair<ReachableSet*, unsigned int> >* > predicate_to_reachable_set_mapping_;
+	std::vector<std::pair<ReachableSet*, unsigned int> >** predicate_id_to_reachable_sets_mapping_;
+
 	EquivalentObjectGroupManager* equivalent_object_manager_;
-	
-	std::vector<const ReachableFact*> static_facts_;
 	
 	std::map<const Transition*, ReachableTransition*> reachable_transitions_;
 };

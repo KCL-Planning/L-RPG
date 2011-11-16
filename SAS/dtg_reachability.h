@@ -141,9 +141,9 @@ class ResolvedBoundedAtom
 {
 public:
 	
-	ResolvedBoundedAtom(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
+	ResolvedBoundedAtom(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
 	
-	ResolvedBoundedAtom(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
+	ResolvedBoundedAtom(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
 	
 	const StepID getId() const { return id_; }
 	
@@ -159,7 +159,7 @@ public:
 	
 protected:
 	
-	void init(const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
+	void init(const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
 	
 	StepID id_;
 	
@@ -180,7 +180,7 @@ std::ostream& operator<<(std::ostream& os, const ResolvedBoundedAtom& resolved_b
 class ResolvedEffect : public ResolvedBoundedAtom
 {
 public:
-	ResolvedEffect(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, bool free_variables[]);
+	ResolvedEffect(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, bool free_variables[], PredicateManager& predicate_manager);
 	
 	void updateVariableDomains();
 	
@@ -258,7 +258,7 @@ protected:
 	 * All subclasses can add a set of bounded atoms which are the set or preconditions
 	 * which are part of their set.
 	 */
-	void addBoundedAtom(const BoundedAtom& bounded_atom, const Bindings& bindings);
+	void addBoundedAtom(const BoundedAtom& bounded_atom, const Bindings& bindings, PredicateManager& predicate_manager);
 	
 	/**
 	 * Called every time the equivalence relationships have been updated. All the ReachableFacts which 
@@ -316,7 +316,7 @@ private:
 class ReachableNode : public ReachableSet
 {
 public:
-	ReachableNode(const DomainTransitionGraphNode& dtg_node, const EquivalentObjectGroupManager& eog_manager);
+	ReachableNode(const DomainTransitionGraphNode& dtg_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
 
 	/**
 	 * Inititialise the structure by matching all the facts true in the initial state with both the set of nodes
@@ -377,7 +377,7 @@ struct VariableToValues
 class ReachableTransition : public ReachableSet
 {
 public:
-	ReachableTransition(const Transition& transition, const ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager);
+	ReachableTransition(const Transition& transition, const ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
 	
 	/**
 	 * After all the reachable nodes and reachable transitions have been created we do one more post analysis and
@@ -451,7 +451,7 @@ public:
 	/**
 	 * Constructor.
 	 */
-	DTGReachability(const DomainTransitionGraphManager& dtg_manager, const DomainTransitionGraph& dtg_graph, const TermManager& term_manager, const PredicateManager& predicate_manager);
+	DTGReachability(const DomainTransitionGraphManager& dtg_manager, const DomainTransitionGraph& dtg_graph, const TermManager& term_manager, PredicateManager& predicate_manager);
 	
 	void performReachabilityAnalsysis(std::vector<const ReachableFact*>& result, const std::vector<const BoundedAtom*>& initial_facts, const Bindings& bindings);
 

@@ -591,7 +591,9 @@ void EquivalentObjectGroupManager::updateEquivalences()
 			equivalent_groups_.erase(ri.base() - 1);
 		}
 	}
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 	std::cerr << "[EquivalentObjectGroupManager::updateEquivalences] Merged: " << removed_instances << " EOGs!" << std::endl;
+#endif
 }
 
 

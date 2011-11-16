@@ -9,6 +9,7 @@
 
 namespace MyPOP {
 
+class PredicateManager;
 class BindingsPropagator;
 class ActionManager;
 class Plan;
@@ -29,7 +30,7 @@ namespace RPG {
 class ResolvedAction
 {
 public:
-	ResolvedAction(const Action& action, StepID step_id, const Bindings& bindings, const SAS_Plus::EquivalentObjectGroupManager& eog_manager);
+	ResolvedAction(const Action& action, StepID step_id, const Bindings& bindings, const SAS_Plus::EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
 	
 	const std::vector<const SAS_Plus::ResolvedBoundedAtom*>& getPreconditions() const { return preconditions_; }
 	
@@ -98,13 +99,14 @@ private:
  * all actions which can be applied will be added to the next fact layer and its effects (minus the delete effects) will be added
  * to the next fact layer in addition to the facts already present (no-ops).
  */
-class RelaxedPlanningGraph{
+class RelaxedPlanningGraph
+{
 public:
 	/**
 	 * Create a relaxed planning graph from the intial state to the goal state. These can be found in the
 	 * initial plan. The relaxed planning graph is only allowed to make use of the lifted actions.
 	 */
-    RelaxedPlanningGraph(const ActionManager& action_manager, const Plan& initial_plan, const SAS_Plus::EquivalentObjectGroupManager& eog_manager);
+    RelaxedPlanningGraph(const ActionManager& action_manager, const Plan& initial_plan, const SAS_Plus::EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
 
     ~RelaxedPlanningGraph();
 

@@ -228,14 +228,14 @@ int main(int argc,char * argv[])
 
 		analyst.performReachabilityAnalsysis(lifted_reachable_facts, bounded_initial_facts, combined_graph.getBindings());
 		struct timeval end_time_reachability;
-		gettimeofday(&end_time_reachability, NULL);	
+		gettimeofday(&end_time_reachability, NULL);
 
 		double time_spend = end_time_reachability.tv_sec - start_time_reachability.tv_sec + (end_time_reachability.tv_usec - start_time_reachability.tv_usec) / 1000000.0;
 		std::cerr << "Reachability analysis: " << time_spend << " seconds" << std::endl;
-		exit(0);
+//		exit(0);
 
 		// Validate the result.
-		RPG::RelaxedPlanningGraph rpg(action_manager, *plan, analyst.getEquivalentObjectGroupManager());
+		RPG::RelaxedPlanningGraph rpg(action_manager, *plan, analyst.getEquivalentObjectGroupManager(), predicate_manager);
 		//std::cout << rpg << std::endl;
 		
 		const std::vector<RPG::FactLayer*>& fact_layers = rpg.getFactLayers();

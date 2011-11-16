@@ -17,7 +17,7 @@ namespace MyPOP {
 namespace RPG {
 
 	
-ResolvedAction::ResolvedAction(const Action& action, StepID step_id, const Bindings& bindings, const SAS_Plus::EquivalentObjectGroupManager& eog_manager)
+ResolvedAction::ResolvedAction(const Action& action, StepID step_id, const Bindings& bindings, const SAS_Plus::EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager)
 	: step_id_(step_id), action_(&action), bindings_(&bindings)
 {
 	const Formula& precondition_formula = action.getPrecondition();
@@ -27,13 +27,13 @@ ResolvedAction::ResolvedAction(const Action& action, StepID step_id, const Bindi
 	for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 	{
 		const Atom* precondition = *ci;
-		SAS_Plus::ResolvedBoundedAtom* resolved_precondition = new SAS_Plus::ResolvedBoundedAtom(step_id, *precondition, bindings, eog_manager);
+		SAS_Plus::ResolvedBoundedAtom* resolved_precondition = new SAS_Plus::ResolvedBoundedAtom(step_id, *precondition, bindings, eog_manager, predicate_manager);
 		preconditions_.push_back(resolved_precondition);
 	}
 	
 	for (std::vector<const Atom*>::const_iterator ci = action.getEffects().begin(); ci != action.getEffects().end(); ci++)
 	{
-		SAS_Plus::ResolvedBoundedAtom* resolved_effect = new SAS_Plus::ResolvedBoundedAtom(step_id, **ci, bindings, eog_manager);
+		SAS_Plus::ResolvedBoundedAtom* resolved_effect = new SAS_Plus::ResolvedBoundedAtom(step_id, **ci, bindings, eog_manager, predicate_manager);
 		effects_.push_back(resolved_effect);
 	}
 }
@@ -106,7 +106,7 @@ std::string FactLayer::getUniqueName(const SAS_Plus::ResolvedBoundedAtom& atom) 
 }
 
 
-RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, const Plan& initial_plan, const SAS_Plus::EquivalentObjectGroupManager& eog_manager)
+RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, const Plan& initial_plan, const SAS_Plus::EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager)
 	: bindings_(new Bindings(initial_plan.getBindings()))
 {
 	const Action& initial_state_action = initial_plan.getSteps()[0]->getAction();
@@ -115,7 +115,7 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 	for (std::vector<const Atom*>::const_iterator ci = initial_state_action.getEffects().begin(); ci != initial_state_action.getEffects().end(); ci++)
 	{
 		SAS_Plus::BoundedAtom* new_bounded_atom = new SAS_Plus::BoundedAtom(Step::INITIAL_STEP, **ci);
-		SAS_Plus::ResolvedBoundedAtom* resolved_bounded_atom = new SAS_Plus::ResolvedBoundedAtom(*new_bounded_atom, *bindings_, eog_manager);
+		SAS_Plus::ResolvedBoundedAtom* resolved_bounded_atom = new SAS_Plus::ResolvedBoundedAtom(*new_bounded_atom, *bindings_, eog_manager, predicate_manager);
 		current_fact_layer->addFact(*resolved_bounded_atom);
 	}
 	FactLayer* next_fact_layer = new FactLayer(*current_fact_layer);
@@ -134,7 +134,7 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 		for (std::vector<const Step*>::const_iterator ci = grounded_actions.begin(); ci != grounded_actions.end(); ci++)
 		{
 			const Step* action_step = *ci;
-			all_grounded_actions.push_back(new ResolvedAction(action_step->getAction(), action_step->getStepId(), *bindings_, eog_manager));
+			all_grounded_actions.push_back(new ResolvedAction(action_step->getAction(), action_step->getStepId(), *bindings_, eog_manager, predicate_manager));
 		}
 	}
 	std::cerr << "#" << all_grounded_actions.size() << std::endl;

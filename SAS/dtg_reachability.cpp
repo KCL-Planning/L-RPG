@@ -572,6 +572,11 @@ void ResolvedEffect::updateVariableDomains()
 #endif
 }
 
+bool ResolvedEffect::containsFreeVariables() const
+{
+	return free_variables_.size() == 0;
+}
+
 bool ResolvedEffect::isFreeVariable(unsigned int index) const
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
@@ -1873,6 +1878,36 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 #endif
 			effect_domains[i] = &(from_node_reachable_set)[values->fact_index_]->getTermDomain(values->term_index_);
 		}
+	}
+	
+	if (effect.containsFreeVariables())
+	{
+		bool already_processed = false;
+		for (std::vector<EquivalentObjectGroup**>::const_iterator ci = processed_groups_.begin(); ci != processed_groups_.end(); ci++)
+		{
+			EquivalentObjectGroup** processed_group = *ci;
+			bool is_equivalent = true;
+			for (unsigned int i = 0; i < effect.getCorrectedAtom().getArity(); i++)
+			{
+				if (effect.isFreeVariable(i)) continue;
+				
+				if (&processed_group[i]->getRootNode() != &effect_domains[i]->getRootNode())
+				{
+					is_equivalent = false;
+					break;
+				}
+			}
+			
+			if (is_equivalent)
+			{
+				already_processed = true;
+				break;
+			}
+		}
+		
+		if (already_processed) return false;
+		
+		processed_groups_.push_back(effect_domains);
 	}
 	
 	std::vector<ReachableFact*> new_reachable_facts;

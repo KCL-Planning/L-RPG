@@ -187,6 +187,8 @@ public:
 	
 	bool isFreeVariable(unsigned int index) const;
 	
+	bool containsFreeVariables() const;
+	
 	void createReachableFacts(std::vector<ReachableFact*>& results, EquivalentObjectGroup** effect_domains) const;
 	
 private:
@@ -420,6 +422,8 @@ private:
 	// For every effect we register all the ReachableSets for which the function processNewReachableFact must be called
 	// when the effect is reached.
 	std::vector<std::vector<std::pair<ReachableSet*, unsigned int> >* > effect_propagation_listeners_;
+	
+	std::vector<EquivalentObjectGroup**> processed_groups_;
 	
 	/**
 	 * Called by the generateReachableFacts method. Once we have two complete sets of facts, one containing a mapping to all 

@@ -12,7 +12,7 @@ namespace MyPOP {
 
 //Predicate::Predicate(const std::string& name)
 Predicate::Predicate(const std::string& name, const std::vector<const Type*>& types, bool is_static)
-	: name_(name), types_(&types), is_static_(is_static)
+	: name_(name), types_(&types), is_static_(is_static), can_substitute_(NULL)
 {
 	
 }
@@ -33,24 +33,31 @@ void Predicate::makeStatic(bool make_static)
 
 bool Predicate::canSubstitute(const Predicate& predicate) const
 {
-	if (predicate.getName() != name_)
-		return false;
-
-	if (predicate.getArity() != getArity())
-		return false;
-
-	// Check if the types match up.
-	for (unsigned int i = 0; i < getArity(); i++)
+	if (can_substitute_ == NULL)
 	{
-		const Type* this_type = (*types_)[i];
-		const Type* other_type = (*predicate.types_)[i];
-		
-		if (this_type != other_type && !this_type->isSupertypeOf(*other_type))
-		{
+		if (predicate.getName() != name_)
 			return false;
+
+		if (predicate.getArity() != getArity())
+			return false;
+
+		// Check if the types match up.
+		for (unsigned int i = 0; i < getArity(); i++)
+		{
+			const Type* this_type = (*types_)[i];
+			const Type* other_type = (*predicate.types_)[i];
+			
+			if (this_type != other_type && !this_type->isSupertypeOf(*other_type))
+			{
+				return false;
+			}
 		}
+		return true;
 	}
-	return true;
+	else
+	{
+		return can_substitute_[predicate.getId()];
+	}
 }
 
 bool Predicate::operator==(const Predicate& predicate) const
@@ -77,6 +84,20 @@ bool Predicate::operator==(const Predicate& predicate) const
 bool Predicate::operator!=(const Predicate& predicate) const
 {
 	return !(predicate == *this);
+}
+
+void Predicate::initCache(const std::vector<Predicate*>& all_predicates)
+{
+	bool* can_substitute_tmp = new bool[all_predicates.size()];
+	memset(can_substitute_tmp, false, sizeof(bool) * all_predicates.size());
+	
+	for (std::vector<Predicate*>::const_iterator ci = all_predicates.begin(); ci != all_predicates.end(); ci++)
+	{
+		unsigned int index = std::distance(all_predicates.begin(), ci);
+		can_substitute_tmp[index] = canSubstitute(**ci);
+	}
+	
+	can_substitute_ = can_substitute_tmp;
 }
 
 std::ostream& operator<<(std::ostream& os, const Predicate& predicate)

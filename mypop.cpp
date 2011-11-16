@@ -198,7 +198,7 @@ int main(int argc,char * argv[])
 	std::vector<const SAS_Plus::ReachableFact*> lifted_reachable_facts;
 	{
 
-		SAS_Plus::DTGReachability analyst(dtg_manager, combined_graph, term_manager);
+		SAS_Plus::DTGReachability analyst(dtg_manager, combined_graph, term_manager, predicate_manager);
 		
 		struct timeval end_time_prepare_reachability;
 		gettimeofday(&end_time_prepare_reachability, NULL);	

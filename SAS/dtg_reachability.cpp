@@ -2035,7 +2035,7 @@ std::ostream& operator<<(std::ostream& os, const ReachableTransition& reachable_
  * DTGReachability
 *******************************/
 
-DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, const MyPOP::SAS_Plus::DomainTransitionGraph& dtg_graph, const MyPOP::TermManager& term_manager)
+DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, const MyPOP::SAS_Plus::DomainTransitionGraph& dtg_graph, const MyPOP::TermManager& term_manager, const PredicateManager& predicate_manager)
 	: term_manager_(&term_manager)
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
@@ -2060,6 +2060,8 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 		ReachableNode* reachable_node = new ReachableNode(*dtg_node, *equivalent_object_manager_);
 		
 		node_mapping[dtg_node] = reachable_node;
+		
+		// DTG nodes which have no transitions, we do not care what facts can be made true for them.
 		if (dtg_node->getTransitions().size() > 0)
 		{
 			all_reachable_sets.push_back(reachable_node);
@@ -2100,10 +2102,14 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 			 
 			reachable_from_node->addReachableTransition(*reachable_transition);
 			
+			// DTG nodes which have no transitions, we do not care what facts can be made true for them so we do not need to map any mappings to them.
 			if (transition->getToNode().getTransitions().size() > 0)
 			{
 				all_reachable_sets.push_back(reachable_transition);
 			}
+			
+			// For transitions which have a to node with no transitions we still need to create a mapping from its effects to other nodes (with transitions!) 
+			// which have these effects as preconditions.
 			all_reachable_transitions.push_back(reachable_transition);
 			
 			for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = reachable_transition->getFactsSet().begin(); ci != reachable_transition->getFactsSet().end(); ci++)
@@ -2130,6 +2136,40 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 	for (std::vector<ReachableTransition*>::const_iterator ci = all_reachable_transitions.begin(); ci != all_reachable_transitions.end(); ci++)
 	{
 		(*ci)->finalise(all_reachable_sets);
+	}
+	
+	// Test - Cache predicates.
+	unsigned int predicate_number = 0;
+	std::vector<Predicate*> all_predicates;
+	for (std::vector<ReachableNode*>::const_iterator ci = reachable_nodes_.begin(); ci != reachable_nodes_.end(); ci++)
+	{
+		const ReachableNode* reachable_node = *ci;
+		
+		for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = reachable_node->getFactsSet().begin(); ci != reachable_node->getFactsSet().end(); ci++)
+		{
+			const ResolvedBoundedAtom* resolved_bounded_atom = *ci;
+			assert (resolved_bounded_atom->getCorrectedAtom().getPredicate().getId() == INVALID_INDEX_ID);
+			if (resolved_bounded_atom->getCorrectedAtom().getPredicate().getId() == INVALID_INDEX_ID)
+			{
+				const_cast<Predicate&>(resolved_bounded_atom->getCorrectedAtom().getPredicate()).setId(predicate_number++);
+			}
+			
+			all_predicates.push_back(&const_cast<Predicate&>(resolved_bounded_atom->getCorrectedAtom().getPredicate()));
+		}
+	}
+	
+	for (std::vector<Predicate*>::const_iterator ci = predicate_manager.getManagableObjects().begin(); ci != predicate_manager.getManagableObjects().end(); ci++)
+	{
+		Predicate* predicate = *ci;
+		assert (predicate->getId() == INVALID_INDEX_ID);
+		predicate->setId(predicate_number++);
+		all_predicates.push_back(predicate);
+	}
+	
+	// All predicate should have number at this point. Next we record which predicate can substitute other predicates.
+	for (std::vector<Predicate*>::const_iterator ci = all_predicates.begin(); ci != all_predicates.end(); ci++)
+	{
+		(*ci)->initCache(all_predicates);
 	}
 }
 

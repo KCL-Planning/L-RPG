@@ -20,6 +20,7 @@ class Bindings;
 class Object;
 class Predicate;
 class TermManager;
+class PredicateManager;
 	
 namespace SAS_Plus {
 
@@ -450,7 +451,7 @@ public:
 	/**
 	 * Constructor.
 	 */
-	DTGReachability(const DomainTransitionGraphManager& dtg_manager, const DomainTransitionGraph& dtg_graph, const TermManager& term_manager);
+	DTGReachability(const DomainTransitionGraphManager& dtg_manager, const DomainTransitionGraph& dtg_graph, const TermManager& term_manager, const PredicateManager& predicate_manager);
 	
 	void performReachabilityAnalsysis(std::vector<const ReachableFact*>& result, const std::vector<const BoundedAtom*>& initial_facts, const Bindings& bindings);
 

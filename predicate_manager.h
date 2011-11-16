@@ -80,6 +80,8 @@ public:
 	 * - The types must be exactly the same.
 	 */
 	bool operator!=(const Predicate& predicate) const;
+	
+	void initCache(const std::vector<Predicate*>& all_predicates);
 
 	friend std::ostream& operator<<(std::ostream&, const Predicate& predicate);
 private:
@@ -91,6 +93,9 @@ private:
 
 	// Is this predicate static?
 	bool is_static_;
+	
+	// Test.
+	bool* can_substitute_;
 };
 
 std::ostream& operator<<(std::ostream&, const Predicate& predicate);

@@ -411,7 +411,7 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group, std::vecto
 				if ((*ci)->isIdenticalTo(*reachable_fact))
 				{
 					assert (*ci != reachable_fact);
-					assert (!(*ci)->isMarkedForRemoval());
+//					assert (!(*ci)->isMarkedForRemoval());
 					identical_fact = *ci;
 					already_present = true;
 					break;

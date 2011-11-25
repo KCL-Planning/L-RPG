@@ -63,7 +63,7 @@ public:
 	/**
 	 * Two reachable facts are equivalent iff:
 	 * 1) All the objects have the same signature.
-	 * 2) Those variables which have been labeled as unballanced must be identical.
+	 * 2) Those variables which have been labeled as unbalanced must be identical.
 	 */
 	bool isEquivalentTo(const ReachableFact& other) const;
 	

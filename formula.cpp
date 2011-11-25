@@ -120,7 +120,7 @@ void Atom::print(std::ostream& os, const Bindings& bindings, StepID step_id, boo
 	}
 }
 
-unsigned int Atom::constainsVariableDomain(StepID step_id, const std::vector<const Object*>& domain, const Bindings& bindings) const
+unsigned int Atom::containsVariableDomain(StepID step_id, const std::vector<const Object*>& domain, const Bindings& bindings) const
 {
 	for (std::vector<const Term*>::const_iterator ci = terms_->begin(); ci != terms_->end(); ci++)
 	{

@@ -86,7 +86,7 @@ public:
 	 * @param term The term domain to search for.
 	 * @return The index of the first term which matches, or std::numeric_limits< unsigned int>::max() if none do.
 	 */
-	unsigned int constainsVariableDomain(const std::vector<const Object*>& variable_domain, const Bindings& bindings) const;
+	unsigned int containsVariableDomain(const std::vector<const Object*>& variable_domain, const Bindings& bindings) const;
 	
 	/**
 	 * Add a property this bounded atom is part of.
@@ -94,6 +94,14 @@ public:
 	 * @return True if the property was added, false otherwise; The latter indicates that property was already part of this bounded atom.
 	 */
 	bool addProperty(const Property& property);
+	
+	/**
+	 * Check if the term at the given index is balanced. This is done by checking if any property's index matches
+	 * the given @ref term_index.
+	 * @param term_index The index to check if the term there is considered to be balanced.
+	 * @return True if the term at the index is balanced, false otherwise.
+	 */
+	bool isBalanced(unsigned int term_index) const;
 	
 	/**
 	 * Check if this bounded atom is mutex with another bounded atom. This is only the case if there is an overlap in the property's 
@@ -229,6 +237,11 @@ public:
 
 private:
 	
+	void resolveAllProperties();
+	
+	void resolveAllProperties(BoundedAtom& bounded_atom, const Bindings& bindings);
+
+	
 	/**
 	 * As a preprocessing process, split the DTGs up into point to point transitions. For every transition we create a new
 	 * to and from node and connect them with the same transition. This stucture is later processed and put together again.
@@ -255,7 +268,7 @@ private:
 	const TermManager* term_manager_;
 
 	// The SAS+ representation of all operators is contained in the SAS::FunctionStructure.
-	SAS::FunctionStructure function_structure_;
+	//SAS::FunctionStructure function_structure_;
 	
 	// The facts which are true in the initial state.
 	const std::vector<const Atom*>* initial_facts_;
@@ -263,8 +276,6 @@ private:
 	std::set<const Object*> grounded_objects_;
 	
 	void getProperties(std::vector<std::pair<const Predicate*, unsigned int> >& predicates, const TIM::PropertyState& property_state) const;
-	
-	void addFactsToNode(const std::vector<std::pair<BoundedAtom*, InvariableIndex> >& facts_to_add, DomainTransitionGraphNode& dtg_node);
 
 	bool removeDTG(const DomainTransitionGraph& dtg);
 };

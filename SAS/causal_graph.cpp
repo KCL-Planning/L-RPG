@@ -97,7 +97,7 @@ CausalGraph::CausalGraph(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dt
 			for (std::vector<const Transition*>::const_iterator transition_ci = dtg_node->getTransitions().begin(); transition_ci != dtg_node->getTransitions().end(); transition_ci++)
 			{
 				Transition* transition = const_cast<Transition*>(*transition_ci);
-				const Action& action = transition->getStep()->getAction();
+				const Action& action = transition->getAction();
 				std::vector<const Atom*> preconditions;
 				MyPOP::Utility::convertFormula(preconditions, &action.getPrecondition());
 				
@@ -111,7 +111,7 @@ CausalGraph::CausalGraph(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dt
 					//InvariableDTGIndex invariable_index = dtg_node->getIndex(transition->getStep()->getStepId(), *precondition);
 					
 					std::vector<const DomainTransitionGraph*> precondition_dtgs;
-					dtg_manager.getDTGs(precondition_dtgs, transition->getStep()->getStepId(), *precondition, dtg->getBindings()); //, invariable_index);
+					dtg_manager.getDTGs(precondition_dtgs, transition->getStepId(), *precondition, dtg->getBindings()); //, invariable_index);
 					
 					// If this precondition is not part of the same DTG add an edge.
 					for (std::vector<const DomainTransitionGraph*>::const_iterator precondition_dtg_ci = precondition_dtgs.begin(); precondition_dtg_ci != precondition_dtgs.end(); precondition_dtg_ci++)

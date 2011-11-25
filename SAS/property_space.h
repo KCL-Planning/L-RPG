@@ -28,6 +28,8 @@ public:
 	
 	PropertyState(const PropertySpace& property_space, const std::vector<std::pair<const Predicate*, InvariableIndex> >& properties);
 	
+	~PropertyState();
+	
 	bool contains(InvariableIndex index, const Predicate& predicate) const;
 	
 	const std::vector<const Property*>& getProperties() const;
@@ -78,6 +80,8 @@ class PropertySpace
 {
 public:
 	PropertySpace();
+	
+	~PropertySpace();
 	
 	void addPropertyState(const PropertyState& property_state);
 	

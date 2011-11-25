@@ -124,10 +124,14 @@ PredicateManager::PredicateManager(const TypeManager& type_manager)
 
 PredicateManager::~PredicateManager()
 {
-	for (std::map<std::pair<std::string, std::vector<const Type*> >, Predicate*>::iterator i = predicate_map_.begin(); i != predicate_map_.end(); i++)
+/*	for (std::map<std::string, std::vector<const Type*>* >::iterator i = general_predicates_.begin(); i != general_predicates_.end(); i++)
 	{
-		delete (*i).second;
-	}
+		std::string name = (*i).first;
+		if (getGeneralPredicate(name) != NULL)
+		{
+			delete (*i).second;
+		}
+	}*/
 }
 
 void PredicateManager::processPredicates(const VAL::pred_decl_list& predicates)
@@ -284,6 +288,11 @@ void PredicateManager::processPredicates(const VAL::pred_decl_list& predicates)
 			assert (predicate_map_.count(std::make_pair(name, *(*ci).second)) == 0);
 			Predicate* predicate = new Predicate(name, *(*ci).second, false);
 			predicate_map_[std::make_pair(name, *(*ci).second)] = predicate;
+			addManagableObject(predicate);
+		}
+		else
+		{
+			Predicate* predicate = new Predicate(name, *(*ci).second, false);
 			addManagableObject(predicate);
 		}
 	}

@@ -28,6 +28,14 @@ PropertyState::PropertyState(const PropertySpace& property_space, const std::vec
 	}
 }
 
+PropertyState::~PropertyState()
+{
+	for (std::vector<const Property*>::const_iterator ci = property_.begin(); ci != property_.end(); ci++)
+	{
+		delete *ci;
+	}
+}
+
 bool PropertyState::contains(InvariableIndex index, const Predicate& predicate) const
 {
 	for (std::vector<const Property*>::const_iterator ci = property_.begin(); ci != property_.end(); ci++)
@@ -181,6 +189,14 @@ void Property::addProperty(const MyPOP::SAS_Plus::Property& property)
 PropertySpace::PropertySpace()
 {
 
+}
+
+PropertySpace::~PropertySpace()
+{
+	for (std::vector<const PropertyState*>::const_iterator ci = property_states_.begin(); ci != property_states_.end(); ci++)
+	{
+		delete *ci;
+	}
 }
 
 bool PropertySpace::contains(InvariableIndex index, const Predicate& predicate) const

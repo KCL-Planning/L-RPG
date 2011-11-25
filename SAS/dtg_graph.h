@@ -196,11 +196,6 @@ public:
 	bool removeUnsupportedTransitions();
 
 	/**
-	 * Try all possible transitions on the set of nodes in this DTG and add those that are possible.
-	 */
-	void reestablishTransitions();
-	
-	/**
 	 * Should only be called the first time transitions are to be established.
 	 */
 	void establishTransitions();

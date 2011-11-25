@@ -117,27 +117,6 @@ int main(int argc,char * argv[])
 
 	predicate_manager.checkStaticPredicates(action_manager);
 
-//	ActionGraph action_graph(action_manager);
-//	Graphviz::printToDot(action_graph);
-	
-	// Test grounding actions.
-	/*std::cout << "All grounded actions:" << std::endl;
-	for (std::vector<Action*>::const_iterator ci = action_manager.getManagableObjects().begin(); ci != action_manager.getManagableObjects().end(); ci++)
-	{
-		const Action* action = *ci;
-		std::vector<const Step*> grounded_actions;
-		SimpleBindingsPropagator propagator;
-		Bindings binding(term_manager, propagator);
-		action_manager.ground(binding, grounded_actions, *action);
-		
-		// Print all the grounded actions:
-		for (std::vector<const Step*>::const_iterator ga_ci = grounded_actions.begin(); ga_ci != grounded_actions.end(); ga_ci++)
-		{
-			(*ga_ci)->getAction().print(std::cout, binding, (*ga_ci)->getStepId());
-			std::cout << std::endl;
-		}
-	}*/
-
 	// Propagator.
 	SimpleBindingsPropagator* propagator = new SimpleBindingsPropagator();
 	
@@ -191,6 +170,18 @@ int main(int argc,char * argv[])
 
 	// New style, working directly on the TIM structure.
 	const SAS_Plus::DomainTransitionGraph& combined_graph = dtg_manager.generateDomainTransitionGraphsTIM(*the_domain->types, plan->getBindings());
+
+	unsigned int nr_transitions = 0;
+	for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = combined_graph.getNodes().begin(); ci != combined_graph.getNodes().end(); ci++)
+	{
+		const SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
+		for (std::vector<const SAS_Plus::Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
+		{
+			++nr_transitions;
+		}
+	}
+	
+	std::cerr << "Total number of transitions: " << nr_transitions << "." << std::endl;
 	
 	// Do the reachability analysis.
 	struct timeval start_time_prepare_reachability;
@@ -232,8 +223,9 @@ int main(int argc,char * argv[])
 
 		double time_spend = end_time_reachability.tv_sec - start_time_reachability.tv_sec + (end_time_reachability.tv_usec - start_time_reachability.tv_usec) / 1000000.0;
 		std::cerr << "Reachability analysis: " << time_spend << " seconds" << std::endl;
-//		exit(0);
 
+//		exit(0);
+		
 		// Validate the result.
 		RPG::RelaxedPlanningGraph rpg(action_manager, *plan, analyst.getEquivalentObjectGroupManager(), predicate_manager);
 		//std::cout << rpg << std::endl;
@@ -330,22 +322,8 @@ int main(int argc,char * argv[])
 			exit(1);
 		}
 	}
-	
-/*
-	for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
-	{
-		(*ci)->print(std::cerr, combined_graph.getBindings());
-		std::cerr << std::endl;
-	}
-	
-	exit(0);
-*/
-	
 
-
-	exit(0);
-	
-	Graphviz::printToDot(dtg_manager);
+//	Graphviz::printToDot(dtg_manager);
 //	for (std::vector<SAS_Plus::DomainTransitionGraph*>::const_iterator ci = dtg_manager.getManagableObjects().begin(); ci != dtg_manager.getManagableObjects().end(); ci++)
 //	{
 //		std::cout << " == Start DTG == " << std::endl;
@@ -361,13 +339,11 @@ int main(int argc,char * argv[])
 //	Graphviz::printToDot(cg);
 //	std::cout << " === DONE! Creating the CGs === " << std::endl;
 
-	getitimer(ITIMER_PROF, &timer);
-	
-	exit (0);
+//	getitimer(ITIMER_PROF, &timer);
 
 	// Planning time.
-	double t = 1000000.9 - (timer.it_value.tv_sec + timer.it_value.tv_usec * 1e-6);
-	std::cerr << "Time: " << std::max(0, int(1000.0 * t + 0.5)) << std::endl;
+//	double t = 1000000.9 - (timer.it_value.tv_sec + timer.it_value.tv_usec * 1e-6);
+//	std::cerr << "Time: " << std::max(0, int(1000.0 * t + 0.5)) << std::endl;
 
 	
 	/*	std::cout << " === Creating the Landmarks === " << std::endl;
@@ -378,16 +354,16 @@ int main(int argc,char * argv[])
 */
 
 	// Start the planning process!
-	SimpleFlawSelectionStrategy* sfss = new SimpleFlawSelectionStrategy();
-	Planner planner(*plan, action_manager, term_manager, type_manager, *sfss);
-	const Plan* solution_plan = planner.getSolution();
+//	SimpleFlawSelectionStrategy* sfss = new SimpleFlawSelectionStrategy();
+//	Planner planner(*plan, action_manager, term_manager, type_manager, *sfss);
+//	const Plan* solution_plan = planner.getSolution();
 
-	if (solution_plan == NULL)
-		std::cout << "No solution found :(" << std::endl;
-	else
-		std::cout << "Solution! " << *solution_plan << std::endl;
+//	if (solution_plan == NULL)
+//		std::cout << "No solution found :(" << std::endl;
+//	else
+//		std::cout << "Solution! " << *solution_plan << std::endl;
 
-	getitimer(ITIMER_PROF, &timer);
+//	getitimer(ITIMER_PROF, &timer);
 
 	// Planning time.
 //	double t = 1000000.9 - (timer.it_value.tv_sec + timer.it_value.tv_usec * 1e-6);
@@ -398,10 +374,12 @@ int main(int argc,char * argv[])
 //	std::cout << "Dead ends encountered: " << planner.getDeadEnds() << std::endl;
 
 	// Don't leave any mess!
+	delete plan;
+	delete &combined_graph;
 	delete propagator;
-	delete sfss;
+//	delete sfss;
 	delete initial_action;
 	delete goal_action;
-	delete solution_plan;
+//	delete solution_plan;
 	delete VAL::current_analysis;
 }

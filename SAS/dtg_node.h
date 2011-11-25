@@ -36,14 +36,14 @@ class DomainTransitionGraphNode;
 class DomainTransitionGraphNode
 {
 public:
-	DomainTransitionGraphNode(DomainTransitionGraph& dtg, unsigned int unique_id, bool attribute_space = false);
+	DomainTransitionGraphNode(DomainTransitionGraph& dtg, unsigned int unique_id);
 
 	/**
 	 * Make a copy of an existing DTG node. We inherrit the same domain for the variables and atom,
 	 * but it is in no way linked to the node it is copied from. All the transitions from the given
 	 * node are copied as are all transitions to the other node.
 	 */
-	DomainTransitionGraphNode(const DomainTransitionGraphNode& dtg_node, bool outbound_transitions = true, bool inbound_transitions = true);
+	DomainTransitionGraphNode(const DomainTransitionGraphNode& dtg_node);
 	
 	/**
 	 * Make a copy of an existing DTG node. We inherrit the same domain for the variables and atom,
@@ -60,7 +60,7 @@ public:
 	 * @param index The index which is considered to be invariable (depricated!).
 	 * @return True if the atom was added, false if the atom was already part of this node.
 	 */
-	bool addAtom(BoundedAtom* bounded_atom, InvariableIndex index);
+	bool addAtom(BoundedAtom& bounded_atom, InvariableIndex index);
 	
 	/**
 	 * Test if the given atom is present in this DTG.
@@ -103,22 +103,6 @@ public:
 	bool canMap(const std::vector<const BoundedAtom*>& mapping) const;
 	
 	/**
-	 * Get all transitions in which a grounded term in the from node is contained in the to node
-	 * and is part of a different balanced set. These transitions signify that an external dependency
-	 * which controls the grounded term might be in play and needs to be looked at.
-	 *
-	 * An example is the transition 
-	 * from: (in package truck) AND (at truck loc)
-	 * to: (at package loc) AND (at truck loc)
-	 *
-	 * The position of the truck influences the final location of the package, but the balanced set
-	 * of package has no control over the location of truck. To get a package in a truck to a specific
-	 * location we need to check what locations that truck can be at.
-	 * @param transitions The list all transitions which have external dependencies will be added to.
-	 */
-	void getExternalDependendTransitions(std::map<const Transition*, std::vector<const std::vector<const Object*>* >* >& external_dependend_transitions) const;
-
-	/**
 	 * Add a transition from this node to to_node, without checking for static preconditions.
 	 */
 	bool addTransition(const Action& action, DomainTransitionGraphNode& to_node);
@@ -126,7 +110,7 @@ public:
 	/**
 	 * Add a transition to this node.
 	 */
-	bool addTransition(const Transition& transition, bool update_possible_transitions);
+	bool addTransition(const Transition& transition);
 
 	/**
 	 * Get the atoms linked to this node.
@@ -160,7 +144,7 @@ public:
 	 * all applicable operators, because new ones might be applicable to this node. If this parameter is 
 	 * true the cached actions are cleared and a new cache can be build up.
 	 */
-	void removeTransitions(bool reset_cached_actions);
+	void removeTransitions();
 
 	/**
 	 * Two DTG nodes are equal if they have the same atoms and both atoms their variable domains contain the
@@ -194,14 +178,6 @@ public:
 	void print(std::ostream& os) const;
 	
 	bool isSupported(unsigned int id, const Atom& atom, const Bindings& bindings) const;
-
-	/**
-	 * Merge with the given DTG node. The atoms of the other node will be copied over and the predicates
-	 * associated with the DTG will be altered accordingly.
-	 * @param other The DTG node which will be merged with this one.
-	 * @return true if new atoms were added to this node, false otherwise.
-	 */
-	void getPossibleActions(std::vector< const MyPOP::Action* >& possible_actions, const MyPOP::SAS_Plus::DomainTransitionGraphNode& dtg_node) const;
 
 	/**
 	 * Utility function, used to evaluate which objects are part of the invariable term's domain. First of all the term_mappings
@@ -250,8 +226,6 @@ public:
 	
 	bool canUnifyWith(const DomainTransitionGraphNode& other) const;
 	
-	bool isAttributeSpace() const { return attribute_space_; }
-	
 	void resolveProperties();
 	
 	void setDTG(DomainTransitionGraph& dtg_graph) { dtg_ = &dtg_graph; }
@@ -273,9 +247,6 @@ private:
 	
 	// The DTG this node is part of.
 	DomainTransitionGraph* dtg_;
-	
-	// Check if this node is an attribute space.
-	bool attribute_space_;
 
 	// The value of this node.
 	std::vector<BoundedAtom*> atoms_;
@@ -293,7 +264,6 @@ private:
 	std::map<const BoundedAtom*, InvariableIndex> indexes_;
 	
 	std::vector<unsigned int> unique_ids_;
-	std::multimap<unsigned int, const Action*> possible_actions_;
 	
 	// The set of terms which are grounded.
 	std::set<const Term*> grounded_terms_;
@@ -301,6 +271,10 @@ private:
 	// All proper sub sets of this DTG nodes. A sub set should contain no other facts than those in this node
 	// and they should be identical.
 	std::vector<const DomainTransitionGraphNode*> sub_sets_;
+	
+	// When copying DTG nodes we create new variables to create new Atoms. These are not registered with 
+	// the term manager and thus needs to be removed manually.
+	bool delete_terms_;
 };
 
 std::ostream& operator<<(std::ostream&, const DomainTransitionGraphNode& node);

@@ -88,7 +88,7 @@ public:
 	 * @param term The term to search for.
 	 * @return The index of the (first) term which has the given domain, std::numeric_limits< unsigned int>::max() if none do.
 	 */
-	unsigned int constainsVariableDomain(StepID step_id, const std::vector<const Object*>& domain, const Bindings& bindings) const;
+	unsigned int containsVariableDomain(StepID step_id, const std::vector<const Object*>& domain, const Bindings& bindings) const;
 
 protected:
 	// The predicate of this atom.

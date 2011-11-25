@@ -20,7 +20,7 @@
 #include "../bindings_propagator.h"
 #include "../plan.h"
 
-///#define MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+//#define MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 
 namespace MyPOP {
 
@@ -93,64 +93,26 @@ DomainTransitionGraph::~DomainTransitionGraph()
 	{
 		delete *i;
 	}
+	
+	for (std::vector<const PropertySpace*>::const_iterator ci = property_spaces_.begin(); ci != property_spaces_.end(); ci++)
+	{
+		delete *ci;
+	}
 
-	delete bindings_;
+//	delete bindings_;
 	delete dtg_term_manager_;
 }
 
 bool DomainTransitionGraph::addNode(DomainTransitionGraphNode& dtg_node, std::vector<DomainTransitionGraphNode*>* added_nodes)
 {
-/*	assert (&dtg_node.getDTG() == this);
-	// Make sure we don't add a node twice to a DTG!
-	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
-	{
-		if (*ci == &dtg_node)
-		{
-			std::cout << "[ERROR] Trying to add the node: " << dtg_node << " but it already exists!" << *this << std::endl;
-			assert(false);
-		}
-	}
-	
-	// Check if a node already exists in the DTG who's variable domains overlap with dtg_node. If this is the case, for
-	// example consider the following DTG:
-	// (at { truck1, truck2 } {s1, s2} ) and the DTG node to add: (at { truck1 } { s1, s3 } ) we can see that two nodes
-	// can now describe the assignment (at truck1 s1) which is not desirable. If we find such a situation we redeem it 
-	// by splitting the domains in such a case that no such situation can occur.
-	std::vector<DomainTransitionGraphNode*> nodes_to_unify;
-	nodes_to_unify.push_back(&dtg_node);
-	
-	std::vector<DomainTransitionGraphNode*> nodes_copy = nodes_;
-	bool could_unify = false;
-	while (nodes_to_unify.size() > 0)
-	{
-		DomainTransitionGraphNode* node_to_unify = nodes_to_unify.back();
-		nodes_to_unify.erase(nodes_to_unify.end() - 1);
-		for (std::vector<DomainTransitionGraphNode*>::iterator i = nodes_copy.begin(); i != nodes_copy.end(); i++)
-		{
-			DomainTransitionGraphNode* existing_dtg_node = *i;
-
-			// If all the atoms overlap with an existing node, merge!
-			if (bindings_->canUnifyDTGNodes(*existing_dtg_node, *node_to_unify))
-			{
-				could_unify = true;
-				break;
-			}
-		}
-	}
-
-	if (!could_unify)
-*/
 	assert (&dtg_node.getDTG() == this);
+
+	nodes_.push_back(&dtg_node);
+	if (added_nodes != NULL)
 	{
-		nodes_.push_back(&dtg_node);
-		if (added_nodes != NULL)
-		{
-			added_nodes->push_back(&dtg_node);
-		}
-		return true;
+		added_nodes->push_back(&dtg_node);
 	}
-//	std::cout << "[DomainTransitionGraph::addNode] Result: " << *this << std::endl;
-	return false;
+	return true;
 }
 
 // Get all nodes which have the given predicate.
@@ -364,12 +326,16 @@ void DomainTransitionGraph::addBalancedSet(const PropertySpace& property_space, 
 				else
 				{
 					BoundedAtom& bounded_atom = BoundedAtom::createBoundedAtom(*atom, *property, *bindings_);
-					dtg_node->addAtom(&bounded_atom, index);
+					dtg_node->addAtom(bounded_atom, index);
 //					StepID unique_nr = bindings_->createVariableDomains(*atom);
 //					dtg_node->addAtom(new BoundedAtom(unique_nr, *atom, property), index);
 				}
 			}
-			addNode(*dtg_node);
+			
+			if (!addNode(*dtg_node))
+			{
+				delete dtg_node;
+			}
 		}
 	}
 }
@@ -447,6 +413,7 @@ void DomainTransitionGraph::addObjects()
 		 * Keep track not only of the possible objects for the invariable term but also for all the other related terms.
 		 */
 		std::map<const std::vector<const Object*>*, std::vector<const Object*>* > term_mappings;
+		std::vector<std::vector<const Object*>* > to_remove;
 		for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
 		{
 			const BoundedAtom* bounded_atom = *ci;
@@ -461,6 +428,7 @@ void DomainTransitionGraph::addObjects()
 				if (term_mappings.count(&domain) == 0)
 				{
 					std::vector<const Object*>* term_domain = new std::vector<const Object*>();
+					to_remove.push_back(term_domain);
 					term_domain->insert(term_domain->end(), domain.begin(), domain.end());
 					term_mappings[&domain] = term_domain;
 				}
@@ -483,6 +451,7 @@ void DomainTransitionGraph::addObjects()
 					const std::vector<const Object*>& invariable_domain = invariable_bounded_atom->getAtom().getTerms()[i]->getDomain(invariable_bounded_atom->getId(), *bindings_);
 					std::vector<const Object*>* mapping = new_term_mappings[&invariable_domain];
 					std::vector<const Object*>* new_mapping = new std::vector<const Object*>(*mapping);
+					to_remove.push_back(new_mapping);
 					const std::vector<const Object*>& initial_fact_domain = initial_fact->getTerms()[i]->getDomain(Step::INITIAL_STEP, *bindings_);
 					new_mapping->clear();
 					new_mapping->insert(new_mapping->end(), initial_fact_domain.begin(), initial_fact_domain.end());
@@ -515,6 +484,11 @@ void DomainTransitionGraph::addObjects()
 					}
 				}
 			}
+		}
+		
+		for (std::vector<std::vector<const Object*>* >::const_iterator ci = to_remove.begin(); ci != to_remove.end(); ci++)
+		{
+			delete *ci;
 		}
 	}
 }
@@ -558,7 +532,7 @@ DomainTransitionGraphNode* DomainTransitionGraph::createDTGNode(const Atom& atom
 	else
 		new_bounded_atom = &BoundedAtom::createBoundedAtom(atom, *property, *bindings_);
 	
-	dtg_node->addAtom(new_bounded_atom, index);
+	dtg_node->addAtom(*new_bounded_atom, index);
 	return dtg_node;
 }
 
@@ -581,6 +555,7 @@ void DomainTransitionGraph::removeNode(const DomainTransitionGraphNode& dtg_node
 	if (node_to_remove != nodes_.end())
 	{
 		nodes_.erase(node_to_remove);
+		delete &dtg_node;
 	}
 }
 
@@ -668,10 +643,11 @@ void DomainTransitionGraph::getNodes(std::vector<const DomainTransitionGraphNode
 
 void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*>& subgraphs) const
 {
+/*
 	struct timeval start_time;
 	gettimeofday(&start_time, NULL);
 	
-	/**
+	**
 	 * The process of identifying subgraphs is as follows:
 	 * For all nodes:
 	 * - Mark all end points of the transitions starting at that node.
@@ -680,7 +656,7 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 	 * 
 	 * Put all nodes in the same DTG if the set of reachable nodes (including
 	 * the node itself) is equal.
-	 */
+	 *
 	boost::dynamic_bitset<>* reachable_set[nodes_.size()];
 	for (unsigned int i = 0; i < nodes_.size(); i++)
 	{
@@ -701,9 +677,9 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 	std::vector<boost::dynamic_bitset<>*> linked_by_transitions[nodes_.size()];
 	for (unsigned int i = 0; i < nodes_.size(); i++)
 	{
-		/**
+		**
 		 * Mark all nodes directly reachable through the transition.
-		 */
+		 *
 		const DomainTransitionGraphNode* dtg_node = nodes_[i];
 		for (std::vector<const Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
 		{
@@ -722,9 +698,9 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 			}
 		}
 		
-		/**
+		**
 		 * Including itself.
-		 */
+		 *
 		(*reachable_set[i])[i] = true;
 		
 //		std::cout << "[" << i << "] " << *reachable_set[i] << std::endl;
@@ -735,9 +711,9 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 
 	gettimeofday(&start_time, NULL);
 	
-	/**
+	**
 	 * Propagate this information.
-	 */
+	 *
 //	std::cout << "Start propagating! " << std::endl;
 	bool set_changed = true;
 	while (set_changed)
@@ -752,9 +728,9 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 //			std::cout << *reachable_set[i] << std::endl;
 			boost::dynamic_bitset<>* reachable_nodes = reachable_set[i];
 
-			/**
-			* Mark all nodes reachable who are also reachable by the nodes reachable through the transitions.
-			*/
+			**
+			 * Mark all nodes reachable who are also reachable by the nodes reachable through the transitions.
+			 *
 			for (std::vector<boost::dynamic_bitset<>* >::const_iterator ci = linked_by_transitions[i].begin(); ci != linked_by_transitions[i].end(); ci++)
 			{
 				const boost::dynamic_bitset<>* to_node_reachables = *ci;
@@ -776,9 +752,9 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 	gettimeofday(&start_time, NULL);
 //	std::cout << "Update link transitions: " << std::endl;
 	
-	/**
+	**
 	 * Group nodes who share the same reachability set.
-	 */
+	 *
 	std::map<boost::dynamic_bitset<>, std::vector<DomainTransitionGraphNode*>* > grouped_dtg_nodes;
 	for (unsigned int i = 0; i < nodes_.size(); i++)
 	{
@@ -816,9 +792,9 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 	double time_spend_dtg_nodes = 0;
 	double time_spend_transitions = 0;
 	
-	/**
+	**
 	 * Construct the DTGs.
-	 */
+	 *
 	for (std::map<boost::dynamic_bitset<>, std::vector<DomainTransitionGraphNode*>* >::const_iterator ci = grouped_dtg_nodes.begin(); ci != grouped_dtg_nodes.end(); ci++)
 	{
 		std::vector<DomainTransitionGraphNode*>* grouped_dtg_nodes = (*ci).second;
@@ -831,9 +807,9 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 		gettimeofday(&dtg_construct_end, NULL);
 		time_spend_dtgs += dtg_construct_end.tv_sec - dtg_construct_start.tv_sec + (dtg_construct_end.tv_usec - dtg_construct_start.tv_usec) / 1000000.0;
 		
-		/**
+		**
 		 * Copy all aspects of this DTG, except for the DTG nodes.
-		 */
+		 *
 		new_dtg->objects_ = objects_;
 		new_dtg->predicates_ = predicates_;
 		new_dtg->type_ = type_;
@@ -871,41 +847,7 @@ void DomainTransitionGraph::identifySubGraphs(std::vector<DomainTransitionGraph*
 	std::cerr << " ** DTG constructor: " << time_spend_dtgs << " seconds" << std::endl;
 	std::cerr << " ** DTG Node constructor: " << time_spend_dtg_nodes << " seconds" << std::endl;
 	std::cerr << " ** Transitions: " << time_spend_transitions << " seconds" << std::endl;
-}
-
-void DomainTransitionGraph::reestablishTransitions()
-{
-#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
-	std::cout << "=== ReestablishTransitions: === (" << bindings_->getNr() << ") " << std::endl << *this << std::endl;
-#endif
-	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
-	{
-		DomainTransitionGraphNode* from_node = *ci;
-		from_node->removeTransitions(false);
-		
-		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
-		{
-			DomainTransitionGraphNode* to_node = *ci;
-			
-			// Find all possible transitions between these two.
-			std::vector<const Action*> possible_transitions;
-			from_node->getPossibleActions(possible_transitions, *to_node);
-
-			// Otherwise try all these transitiosn.
-			for (std::vector<const Action*>::const_iterator ci = possible_transitions.begin(); ci != possible_transitions.end(); ci++)
-			{
-				const Action* action = *ci;
-				Transition* transition = Transition::createTransition(*action, *from_node, *to_node, *initial_facts_);
-				if (transition != NULL)
-				{
-					from_node->addTransition(*transition, false);
-				}
-			}
-		}
-	}
-#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
-	std::cout << "=== Result: === (" << bindings_->getNr() << ") " << std::endl << *this << std::endl;
-#endif
+*/
 }
 
 void DomainTransitionGraph::establishTransitions()
@@ -913,10 +855,13 @@ void DomainTransitionGraph::establishTransitions()
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 	std::cout << "Establish transitions for: (" << bindings_->getNr() << ") " << *this << std::endl;
 #endif
-	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
+	
+/*	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 	{
+		
+		assert ((*ci)->getTransitions().empty);
 		(*ci)->removeTransitions(true);
-	}
+	}*/
 	
 	std::vector<DomainTransitionGraphNode*> new_nodes;
 	
@@ -929,26 +874,35 @@ void DomainTransitionGraph::establishTransitions()
 		{
 			DomainTransitionGraphNode* from_node = *ci;
 			
-			DomainTransitionGraphNode* new_from_node = new DomainTransitionGraphNode(*from_node, false, false);
-
 			for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 			{
 				DomainTransitionGraphNode* to_node = *ci;
 				
-				DomainTransitionGraphNode* new_to_node = new DomainTransitionGraphNode(*to_node, false, false);
+				DomainTransitionGraphNode* new_from_node = new DomainTransitionGraphNode(*from_node);
+				DomainTransitionGraphNode* new_to_node = new DomainTransitionGraphNode(*to_node);
 				
-				Transition* new_transition = Transition::createTransition(*action, *new_from_node, *new_to_node, *initial_facts_);
+				Transition* new_transition = Transition::createTransition(*action, *new_from_node, *new_to_node);
 				
 				if (new_transition != NULL)
 				{
-					new_from_node->addTransition(*new_transition, true);
+					new_from_node->addTransition(*new_transition);
 					new_nodes.push_back(new_from_node);
 					new_nodes.push_back(new_to_node);
+				}
+				else
+				{
+					delete new_from_node;
+					delete new_to_node;
 				}
 			}
 		}
 	}
 	
+	// Free up the memory as we create new nodes for the transitions so these are no longer necessary.
+	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
+	{
+		delete *ci;
+	}
 	nodes_.clear();
 
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = new_nodes.begin(); ci != new_nodes.end(); ci++)
@@ -963,6 +917,8 @@ void DomainTransitionGraph::establishTransitions()
 
 bool DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* >& split_graphs)
 {
+	return false;
+/*
 	bool affected = false;
 //	std::cout << "[DomainTransitionGraph::splitNodes] Process DTG: " << *this << std::endl;
 	for (std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* >::const_iterator ci = split_graphs.begin(); ci != split_graphs.end(); ci++)
@@ -980,22 +936,22 @@ bool DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, st
 		std::vector<DomainTransitionGraphNode*> nodes_to_add;
 		std::vector<DomainTransitionGraphNode*> nodes_to_remove;
 		
-		/**
+		**
 		 * Propagate the effects of the splitted DTG to all nodes contained in this DTG.
-		 */
+		 *
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 		{
 			DomainTransitionGraphNode* dtg_node = *ci;
 			
-			/**
+			**
 			 * Store which variables are affected. Stored as: VariableDomain -> { <#atom, #variable> }.
-			 */
+			 *
 			std::map<std::pair<const Term*, StepID>, std::vector<std::pair<InvariableIndex, InvariableIndex> >* > affected_variables;
 			
-			/**
+			**
 			 * Only those nodes need to be modified if they are somehow dependend on the values of the splitted graph. With other words,
 			 * unless there exists a transition with a precondition linked to the splitted graph, we need not split.
-			 */
+			 *
 			for (std::vector<const Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
 			{
 				const Transition* transition = *ci;
@@ -1008,11 +964,11 @@ bool DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, st
 				{
 					const Atom* precondition = (*ci).first;
 
-					/**
-					* Ignore the precondition if it is part of the DTG node. We are only interested preconditions held
-					* in other DTG nodes, because we cannot split a DTG node because of a value it contains.
-					* TODO: Check correctness...
-					*/
+					**
+				 	 * Ignore the precondition if it is part of the DTG node. We are only interested preconditions held
+					 * in other DTG nodes, because we cannot split a DTG node because of a value it contains.
+					 * TODO: Check correctness...
+					 *
 					bool precondition_is_contained_by_dtg_node = false;
 					for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = transition->getPreconditions().begin(); ci != transition->getPreconditions().end(); ci++)
 					{
@@ -1028,23 +984,23 @@ bool DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, st
 						continue;
 					}
 					
-					/**
+					**
 					 * Check if this precondition is captured by the given splitted DTG.
-					 */
+					 *
 					std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > matched_dtg_nodes;
 					splitted_dtg->getNodes(matched_dtg_nodes, transition->getStep()->getStepId(), *precondition, *bindings_);
 					
-					/**
+					**
 					 * If no nodes were found, than the splitted node has no effect on this node.
-					 */
+					 *
 					if (matched_dtg_nodes.size() == 0)
 					{
 						continue;
 					}
 					
-					/**
+					**
 					 * If a node was found, then we need to update the variable which corresponds to the splitted DTG's invariable.
-					 */
+					 *
 					const Term* affected_term = NULL;
 					for (std::vector<BoundedAtom*>::const_iterator ci = matched_dtg_nodes[0].first->getAtoms().begin(); ci != matched_dtg_nodes[0].first->getAtoms().end(); ci++)
 					{
@@ -1056,9 +1012,9 @@ bool DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, st
 						}
 					}
 					
-					/**
+					**
 					 * Store the affected variables, but only if it hasn't been processed yet.
-					 */
+					 *
 					if (affected_term != NULL && affected_variables.count(std::make_pair(affected_term, transition->getStep()->getStepId())))
 					{
 						std::vector<std::pair<InvariableIndex, InvariableIndex> >* affected_properties = new std::vector<std::pair<InvariableIndex, InvariableIndex> >();
@@ -1101,11 +1057,11 @@ bool DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, st
 			
 			nodes_to_remove.push_back(dtg_node);
 			
-			/**
+			**
 			 * Start splitting the nodes! :)
 			 * We have X variables which are affected with their respective domains. The result_of_split contains all the
 			 * new domains for these variables. We explore all possible assignments add these as new nodes.
-			 */
+			 *
 			unsigned int counter[affected_variables.size()];
 			memset(&counter[0], 0, sizeof(unsigned int) * affected_variables.size());
 			unsigned int active_counter = 0;
@@ -1139,10 +1095,10 @@ bool DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, st
 				//addNode(*new_node);
 				nodes_to_add.push_back(new_node);
 				
-				/**
+				**
 				 * Update counter.
 				 * Check if we have reached the maximum of the current counter.
-				 */
+				 *
 				if (counter[active_counter] == results_of_split->size() - 1)
 				{
 					// Reset all counters and carry the bit over.
@@ -1180,10 +1136,12 @@ bool DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, st
 	}
 	
 	return affected;
+*/
 }
 
 void DomainTransitionGraph::solveSubsets()
 {
+/*
 	// Find a pairing of nodes of which one is a subset of the other.
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 	{
@@ -1191,7 +1149,7 @@ void DomainTransitionGraph::solveSubsets()
 		std::vector<DomainTransitionGraphNode*> subset_dtg_nodes;
 		dtg_node->getSubsets(subset_dtg_nodes, nodes_);
 		
-		/**
+		**
 		 * There are 3 types of subset relationships;
 		 * 1) The nodes are identical - in this case we can ignore the subset as it means the node is exactly the same. If this is not the
 		 * case than that is a bug, because those nodes should have been merged when we created the combined DTG.
@@ -1199,7 +1157,7 @@ void DomainTransitionGraph::solveSubsets()
 		 * to this node.
 		 * 3) The subset might have the same number of facts, but some of them are grounded. In this case we need to ground the superset and 
 		 * apply the transitions to the subset and remove the superset.
-		 */
+		 *
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 		std::cout << "The subsets of : " << *dtg_node << " are: " << std::endl;
 #endif
@@ -1469,7 +1427,7 @@ void DomainTransitionGraph::solveSubsets()
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 						std::cout << "Create a transition from: " << *sub_set_dtg_node << " to " << *new_to_node << std::endl;
 #endif
-						Transition* new_transition = Transition::createTransition(transition->getStep()->getAction(), *sub_set_dtg_node, *new_to_node, *initial_facts_);
+						Transition* new_transition = Transition::createTransition(transition->getAction(), *sub_set_dtg_node, *new_to_node, *initial_facts_);
 						assert (new_transition != NULL);
 						sub_set_dtg_node->addTransition(*new_transition, false);
 					}
@@ -1478,7 +1436,7 @@ void DomainTransitionGraph::solveSubsets()
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 						std::cout << "Create a transition from: " << *sub_set_dtg_node << " to " << *existing_to_dtg_node << std::endl;
 #endif
-						Transition* new_transition = Transition::createTransition(transition->getStep()->getAction(), *sub_set_dtg_node, *existing_to_dtg_node, *initial_facts_);
+						Transition* new_transition = Transition::createTransition(transition->getAction(), *sub_set_dtg_node, *existing_to_dtg_node, *initial_facts_);
 						assert (new_transition != NULL);
 						sub_set_dtg_node->addTransition(*new_transition, false);
 					}
@@ -1486,6 +1444,7 @@ void DomainTransitionGraph::solveSubsets()
 			}
 		}
 	}
+*/
 }
 
 void DomainTransitionGraph::splitSelfReferencingNodes()
@@ -1494,7 +1453,7 @@ void DomainTransitionGraph::splitSelfReferencingNodes()
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator nodes_ci = nodes_.begin(); nodes_ci != nodes_.end(); nodes_ci++)
 	{
 		DomainTransitionGraphNode* dtg_node = *nodes_ci;
-		if (dtg_node->isAttributeSpace()) continue;
+//		if (dtg_node->isAttributeSpace()) continue;
 		
 		std::vector<std::pair<const Action*, DomainTransitionGraphNode*> > transitions_to_add;
 		
@@ -1511,8 +1470,8 @@ void DomainTransitionGraph::splitSelfReferencingNodes()
 			// If a transition references to the same DTG we need to split it into two!
 			DomainTransitionGraphNode* clone_node = new DomainTransitionGraphNode(*dtg_node, *this);
 			
-			transitions_to_add.push_back(std::make_pair(&transition->getStep()->getAction(), clone_node));
-			if (!clone_node->addTransition(transition->getStep()->getAction(), *dtg_node))
+			transitions_to_add.push_back(std::make_pair(&transition->getAction(), clone_node));
+			if (!clone_node->addTransition(transition->getAction(), *dtg_node))
 			{
 				std::cout << "Could not create a transition from: " << *clone_node << " to " << *dtg_node << std::endl;
 				std::cout << "Original transition: " << *transition << std::endl;
@@ -1715,7 +1674,7 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 			transition->getFromNode().print(std::cout);
 			std::cout << std::endl << " to " << std::endl;
 			transition->getToNode().print(std::cout);
-			std::cout << std::endl << "[" << transition->getStep()->getAction() << "]" << std::endl;
+			std::cout << std::endl << "[" << transition->getAction() << "]" << std::endl;
 #endif
 
 			const std::vector<std::pair<const Atom*, InvariableIndex> >& preconditions = transition->getAllPreconditions();
@@ -1728,7 +1687,7 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 				std::cout << " * * Process the precondition: ";
-				precondition->print(std::cout, *bindings_, transition->getStep()->getStepId());
+				precondition->print(std::cout, *bindings_, transition->getStepId());
 				std::cout << "(" << invariable << ")" << std::endl;
 #endif
 
@@ -1745,7 +1704,7 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 #endif
 					// Check if the precondition is invariable in their respective DTG(s).
 					std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > matching_dtg_nodes;
-					dtg_manager_->getDTGNodes(matching_dtg_nodes, transition->getStep()->getStepId(), *precondition, *bindings_);
+					dtg_manager_->getDTGNodes(matching_dtg_nodes, transition->getStepId(), *precondition, *bindings_);
 					
 					///InvariableIndex precondition_invariable = NO_INVARIABLE_INDEX;
 					///const Property* precondition_property = NULL;
@@ -1766,7 +1725,7 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 						for (std::vector<BoundedAtom*>::const_iterator ci = matching_dtg_node->getAtoms().begin(); ci != matching_dtg_node->getAtoms().end(); ci++)
 						{
 							const BoundedAtom* bounded_atom = *ci;
-							if (bindings_->canUnify(*precondition, transition->getStep()->getStepId(), bounded_atom->getAtom(), bounded_atom->getId(), &matching_dtg_node->getDTG().getBindings()))
+							if (bindings_->canUnify(*precondition, transition->getStepId(), bounded_atom->getAtom(), bounded_atom->getId(), &matching_dtg_node->getDTG().getBindings()))
 							{
 								InvariableIndex matching_invariable_index = matching_dtg_node->getIndex(*bounded_atom);
 
@@ -1875,12 +1834,12 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 							{
 								const Term* term = *ci;
 								
-								if (term->isTheSameAs(bounded_atom->getId(), *precondition->getTerms()[precondition_invariable], transition->getStep()->getStepId(), *bindings_))
+								if (term->isTheSameAs(bounded_atom->getId(), *precondition->getTerms()[precondition_invariable], transition->getStepId(), *bindings_))
 								{
 									need_to_merge = true;
 								}
 								
-								if (from_dtg_node->getDTG().getBindings().canUnify(bounded_atom->getAtom(), bounded_atom->getId(), *precondition, transition->getStep()->getStepId(), bindings_))
+								if (from_dtg_node->getDTG().getBindings().canUnify(bounded_atom->getAtom(), bounded_atom->getId(), *precondition, transition->getStepId(), bindings_))
 								{
 									already_exists = true;
 									break;
@@ -1895,7 +1854,7 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 						{
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 							std::cout << " * * * Need to merge external invariable: ";
-							precondition->print(std::cout, *bindings_, transition->getStep()->getStepId());
+							precondition->print(std::cout, *bindings_, transition->getStepId());
 							std::cout << "(" << precondition_invariable << ") property space: " << &precondition_property->getPropertyState().getPropertySpace() << std::endl;
 #endif
 							assert (counter == 0);
@@ -1905,7 +1864,7 @@ void DomainTransitionGraph::mergeInvariableDTGs()
 							
 							BoundedAtom& new_bounded_atom = BoundedAtom::createBoundedAtom(*precondition, *precondition_property, *bindings_);
 							
-							from_dtg_node->addAtom(&new_bounded_atom, precondition_invariable);
+							from_dtg_node->addAtom(new_bounded_atom, precondition_invariable);
 //							from_dtg_node->addAtom(new BoundedAtom(external_invariable_id, *precondition, precondition_property), precondition_invariable);
 						}
 					}

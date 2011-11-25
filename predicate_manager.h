@@ -106,7 +106,7 @@ public:
     //PredicateManager(const TermManager& term_manager);
 	PredicateManager(const TypeManager& type_manager);
 
-	~PredicateManager();
+	virtual ~PredicateManager();
 
 	// Process all predicate names.
 	void processPredicates(const VAL::pred_decl_list& predicates);

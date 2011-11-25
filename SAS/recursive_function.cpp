@@ -22,13 +22,13 @@ RecursiveFunction::RecursiveFunction(const MyPOP::Action& action, const TermMana
 
 void RecursiveFunction::addTerminationClause(const Atom& atom, InvariableIndex parameter_index, const Transition& transition)
 {
-	const Atom* new_atom = mapAtomTerms(atom, transition.getStep()->getStepId(), transition.getFromNode().getDTG().getBindings());
+	const Atom* new_atom = mapAtomTerms(atom, transition.getStepId(), transition.getFromNode().getDTG().getBindings());
 	termination_clause.push_back(std::make_pair(new_atom, parameter_index));
 }
 	
 void RecursiveFunction::addRecursiveClause(const Atom& atom, InvariableIndex parameter_index, InvariableIndex new_parameter_index, const Transition& transition)
 {
-	const Atom* new_atom = mapAtomTerms(atom, transition.getStep()->getStepId(), transition.getFromNode().getDTG().getBindings());
+	const Atom* new_atom = mapAtomTerms(atom, transition.getStepId(), transition.getFromNode().getDTG().getBindings());
 	recursive_clause.push_back(std::make_pair(new_atom, std::make_pair(parameter_index, new_parameter_index)));
 }
 

@@ -144,6 +144,8 @@ public:
 	void separateObjects(const RecursiveFunctionManager& recursive_function_manager);
 	
 	void removeUnconnectedNodes();
+	
+	void solveSubsets();
 
 	friend std::ostream& operator<<(std::ostream& os, const DomainTransitionGraph& dtg);
 private:

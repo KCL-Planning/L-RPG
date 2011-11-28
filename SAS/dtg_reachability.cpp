@@ -1559,7 +1559,6 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 			unsigned int precondition_index = getFactsSet().size() - 1;
 			for (unsigned int j = 0; j < bounded_precondition->getAtom().getArity(); j++)
 			{
-//				if (&bounded_precondition->getVariableDomain(j, bindings) == variable_domain)
 				if (bounded_precondition->getAtom().getTerms()[j] == transition.getAction().getVariables()[i])
 				{
 					variable_to_values_mapping_[variable_domain] = new VariableToValues(precondition_index, j, true);

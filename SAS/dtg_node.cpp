@@ -714,6 +714,7 @@ bool DomainTransitionGraphNode::addTransition(const Action& action, DomainTransi
 
 bool DomainTransitionGraphNode::addTransition(const Transition& transition)
 {
+	assert (&transition != NULL);
 //	std::cout << "[DomainTransitionGraphNode::addTransition] " << transition.getStep()->getAction() << std::endl;
 	assert (&transition.getFromNode().getDTG() == &transition.getToNode().getDTG());
 

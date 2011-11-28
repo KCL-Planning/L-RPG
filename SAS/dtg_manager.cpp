@@ -26,8 +26,8 @@
 #include "recursive_function.h"
 #include "dtg_reachability.h"
 
-///#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-///#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
+//#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+//#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 ///#define MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
 
 namespace MyPOP {
@@ -675,49 +675,48 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 #endif
 		
 		// 1) The predicate is static.
-		DomainTransitionGraph* new_dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, *predicate_manager_, bindings, *initial_facts_);
-//		unsupported_predicates_dtg.insert(new_dtg);
+		DomainTransitionGraph* new_unprocessed_dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, *predicate_manager_, bindings, *initial_facts_);
 		std::vector<std::pair<const Predicate*, unsigned int> >* predicates_to_add = new std::vector<std::pair<const Predicate*, unsigned int> >();
 		predicates_to_add->push_back(std::make_pair(predicate, NO_INVARIABLE_INDEX));
 		
-		DomainTransitionGraphNode* possitive_new_dtg_node = new DomainTransitionGraphNode(*new_dtg, NO_INVARIABLE_INDEX);
+		DomainTransitionGraphNode* possitive_new_unprocessed_dtg = new DomainTransitionGraphNode(*new_unprocessed_dtg, NO_INVARIABLE_INDEX);
 		
-		StepID possitive_atom_id = new_dtg->getBindings().createVariableDomains(*possitive_atom);
+		StepID possitive_atom_id = new_unprocessed_dtg->getBindings().createVariableDomains(*possitive_atom);
 		
 		/// TEST
 		PropertySpace* property_space = new PropertySpace();
 		PropertyState* property_state = new PropertyState(*property_space, *predicates_to_add);
 		BoundedAtom* fact = new BoundedAtom(possitive_atom_id, *possitive_atom, property_state->getProperties());
-		possitive_new_dtg_node->addAtom(*fact, NO_INVARIABLE_INDEX);
+		possitive_new_unprocessed_dtg->addAtom(*fact, NO_INVARIABLE_INDEX);
 		
-		new_dtg->addNode(*possitive_new_dtg_node);
+		new_unprocessed_dtg->addNode(*possitive_new_unprocessed_dtg);
 
-		addManagableObject(new_dtg);
+		addManagableObject(new_unprocessed_dtg);
 		
 		// 2) The predicate is not static.
 		if (!predicate->isStatic())
 		{
 			// Add all preconditions which share a term with the unsupported predicate.
-			DomainTransitionGraphNode* negative_new_dtg_node = new DomainTransitionGraphNode(*new_dtg, NO_INVARIABLE_INDEX);
+			DomainTransitionGraphNode* negative_new_unprocessed_dtg = new DomainTransitionGraphNode(*new_unprocessed_dtg, NO_INVARIABLE_INDEX);
 			Atom* negative_atom = new Atom(*predicate, possitive_atom->getTerms(), true);
-			StepID negative_atom_id = new_dtg->getBindings().createVariableDomains(*possitive_atom);
+			StepID negative_atom_id = new_unprocessed_dtg->getBindings().createVariableDomains(*possitive_atom);
 			BoundedAtom* bounded_negative_atom = new BoundedAtom(negative_atom_id, *negative_atom, property_state->getProperties());
 			
 			std::vector<const BoundedAtom*> atoms_add_to_from_node;
 			atoms_add_to_from_node.push_back(bounded_negative_atom);
 			
-			new_dtg->addNode(*negative_new_dtg_node);
+			new_unprocessed_dtg->addNode(*negative_new_unprocessed_dtg);
 			
 			for (std::vector<const Term*>::const_iterator ci = negative_atom->getTerms().begin(); ci != negative_atom->getTerms().end(); ci++)
 			{
 				const Term* from_node_term = *ci;
 				const Term* to_node_term = possitive_atom->getTerms()[std::distance(negative_atom->getTerms().begin(), ci)];
 				
-				from_node_term->unify(negative_atom_id, *to_node_term, possitive_atom_id, new_dtg->getBindings());
+				from_node_term->unify(negative_atom_id, *to_node_term, possitive_atom_id, new_unprocessed_dtg->getBindings());
 			}
 			
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-			std::cout << "Simple DTG : " << *new_dtg << std::endl;
+			std::cout << "Simple DTG : " << *new_unprocessed_dtg << std::endl;
 #endif
 			
 			// Find all transitions which can make this predicate true and false and add them as transitions.
@@ -731,7 +730,7 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 				StepPtr new_step(new Step(new_action_step_id, *achieving_action));
 				
 				// Create a transition between the two nodes.
-				Transition* transition = Transition::createSimpleTransition(new_step, *negative_new_dtg_node, *possitive_new_dtg_node);
+				Transition* transition = Transition::createSimpleTransition(new_step, *negative_new_unprocessed_dtg, *possitive_new_unprocessed_dtg);
 				
 				assert (transition != NULL);
 				
@@ -766,11 +765,11 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 								{
 									const Term* from_node_atom_term = *ci;
 
-									if (precondition_term->isTheSameAs(transition->getStepId(), *from_node_atom_term, from_node_atom->getId(), new_dtg->getBindings()))
+									if (precondition_term->isTheSameAs(transition->getStepId(), *from_node_atom_term, from_node_atom->getId(), new_unprocessed_dtg->getBindings()))
 									{
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 										std::cout << "Add the precondition: ";
-										precondition->print(std::cout, new_dtg->getBindings(), transition->getStepId());
+										precondition->print(std::cout, new_unprocessed_dtg->getBindings(), transition->getStepId());
 										std::cout << std::endl;
 #endif
 										closed_list.insert(precondition);
@@ -796,7 +795,7 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 											assert (!properties->empty());
 										}
 										BoundedAtom* atom_to_add = new BoundedAtom(transition->getStepId(), *precondition, *properties);
-										if (negative_new_dtg_node->addAtom(*atom_to_add, NO_INVARIABLE_INDEX))
+										if (negative_new_unprocessed_dtg->addAtom(*atom_to_add, NO_INVARIABLE_INDEX))
 										{
 											atoms_add_to_from_node.push_back(atom_to_add);
 											transition->addedFromNodePrecondition(*precondition);
@@ -818,7 +817,7 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 										
 										if (!is_removed)
 										{
-											if (possitive_new_dtg_node->addAtom(*atom_to_add, NO_INVARIABLE_INDEX))
+											if (possitive_new_unprocessed_dtg->addAtom(*atom_to_add, NO_INVARIABLE_INDEX))
 											{
 												transition->addedToNodeFact(*precondition);
 											}
@@ -841,11 +840,184 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 						}
 					}
 				}
-				negative_new_dtg_node->addTransition(*transition);
+				negative_new_unprocessed_dtg->addTransition(*transition);
+			}
+			
+			
+			// Do some grounding...
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+			std::cout << "Created the LTG for the attribute space: " << *new_unprocessed_dtg << std::endl;
+#endif
+			std::vector<const DomainTransitionGraphNode*> dtg_nodes_to_remove;
+			std::vector<DomainTransitionGraphNode*> dtg_nodes_to_add;
+
+			// Determine which varaible domains should be grounded.
+			std::vector<const std::vector<const Object*>* > variable_domains_to_ground;
+			for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = new_unprocessed_dtg->getNodes().begin(); ci != new_unprocessed_dtg->getNodes().end(); ci++)
+			{
+				const DomainTransitionGraphNode* dtg_node = *ci;
+				
+				for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
+				{
+					BoundedAtom* bounded_atom = *ci;
+					
+					for (unsigned int i = 0; i < bounded_atom->getAtom().getArity(); i++)
+					{
+						const std::vector<const Object*>& variable_domain = bounded_atom->getVariableDomain(i, bindings);
+						
+						for (std::vector<const Object*>::const_iterator ci = variable_domain.begin(); ci != variable_domain.end(); ci++)
+						{
+//							if (isObjectGrounded(**ci))
+							{
+								if (std::find(variable_domains_to_ground.begin(), variable_domains_to_ground.end(), &variable_domain) == variable_domains_to_ground.end())
+								{
+									variable_domains_to_ground.push_back(&variable_domain);
+								}
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = new_unprocessed_dtg->getNodes().begin(); ci != new_unprocessed_dtg->getNodes().end(); ci++)
+			{
+				DomainTransitionGraphNode* dtg_node = *ci;
+				
+				for (std::vector<const Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
+				{
+					const Transition* org_transition = *ci;
+					
+					assert (org_transition != NULL);
+					
+					DomainTransitionGraphNode* from_dtg_node_clone = new DomainTransitionGraphNode(*dtg_node);
+					DomainTransitionGraphNode* to_dtg_node_clone = new DomainTransitionGraphNode(org_transition->getToNode());
+				
+					assert (&from_dtg_node_clone->getDTG() == &dtg_node->getDTG());
+					assert (&to_dtg_node_clone->getDTG() == &dtg_node->getDTG());
+					
+					// Migrate the original transition to the cloned nodes.
+					Transition* transition = org_transition->migrateTransition(*from_dtg_node_clone, *to_dtg_node_clone);
+					
+					assert (transition != NULL);
+					
+					// Ground all the terms which need to be grounded and add the result to the final DTG.
+					std::vector<std::pair<DomainTransitionGraphNode*, std::map<const std::vector<const Object*>*, const Object*>* > > from_grounded_nodes;
+					bool grounded_from_nodes = from_dtg_node_clone->groundTerms(from_grounded_nodes, variable_domains_to_ground);
+					
+					if (grounded_from_nodes)
+					{
+						dtg_node->removeTransitions();
+						dtg_nodes_to_remove.push_back(dtg_node);
+					}
+					
+					std::vector<std::pair<DomainTransitionGraphNode*, std::map<const std::vector<const Object*>*, const Object*>* > > to_grounded_nodes;
+					bool grounded_to_nodes = to_dtg_node_clone->groundTerms(to_grounded_nodes, variable_domains_to_ground);
+					if (grounded_to_nodes)
+					{
+						to_dtg_node_clone->removeTransitions();
+						dtg_nodes_to_remove.push_back(&transition->getToNode());
+					}
+
+					if (grounded_from_nodes || grounded_to_nodes)
+					{
+						for (std::vector<std::pair<DomainTransitionGraphNode*, std::map<const std::vector<const Object*>*, const Object*>* > >::const_iterator ci = from_grounded_nodes.begin(); ci != from_grounded_nodes.end(); ci++)
+						{
+							
+							DomainTransitionGraphNode* from_dtg_node = NULL;
+							
+							if (grounded_from_nodes)
+							{
+								from_dtg_node = (*ci).first;
+							}
+							else
+							{
+								from_dtg_node = new DomainTransitionGraphNode(*(*ci).first);
+							}
+							
+							// Ground the to node too, but with respect to the variables already grounded!
+							std::vector<DomainTransitionGraphNode*> selective_to_grounded_nodes;
+							bool grounded_to_nodes = to_dtg_node_clone->groundTerms(selective_to_grounded_nodes, variable_domains_to_ground, *(*ci).second);
+							if (grounded_to_nodes)
+							{
+								to_dtg_node_clone->removeTransitions();
+								dtg_nodes_to_remove.push_back(&transition->getToNode());
+							}
+							
+							//std::cerr << to_grounded_nodes.size() << " v.s. " << selective_to_grounded_nodes.size() << std::endl;
+							
+							
+							//for (std::vector<std::pair<DomainTransitionGraphNode*, std::map<const std::vector<const Object*>*, const Object*>* > >::const_iterator ci = to_grounded_nodes.begin(); ci != to_grounded_nodes.end(); ci++)
+							for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = selective_to_grounded_nodes.begin(); ci != selective_to_grounded_nodes.end(); ci++)
+							{
+								DomainTransitionGraphNode* to_dtg_node = NULL;
+								
+								if (grounded_to_nodes)
+								{
+									to_dtg_node = *ci;
+								}
+								else
+								{
+									to_dtg_node = new DomainTransitionGraphNode(**ci);
+								}
+								
+								// Try to establish the original transitions.
+								Transition* new_transition = transition->migrateTransition(*from_dtg_node, *to_dtg_node);
+								
+								if (new_transition == NULL) continue;
+								if (new_transition->finalise(*initial_facts_))
+								{
+									from_dtg_node->addTransition(*new_transition);
+									dtg_nodes_to_add.push_back(to_dtg_node);
+								}
+								else
+								{
+									delete new_transition;
+								}
+							}
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+							std::cout << " NEW: " << *from_dtg_node << std::endl;
+#endif
+							dtg_nodes_to_add.push_back(from_dtg_node);
+						}
+					}
+					else
+					{
+						if (transition->finalise(*initial_facts_))
+						{
+							from_dtg_node_clone->addTransition(*transition);
+							dtg_nodes_to_add.push_back(from_dtg_node_clone);
+							dtg_nodes_to_add.push_back(to_dtg_node_clone);
+						}
+						else
+						{
+							delete transition;
+						}
+					}
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+					std::cout << "ORG:" << *from_dtg_node_clone << std::endl;
+					std::cout << "to: " << *to_dtg_node_clone << std::endl;
+					std::cout << " -=- ";
+					transition->getAction().print(std::cout, new_unprocessed_dtg->getBindings(), transition->getStepId());
+					std::cout << std::endl << " -+----------+- " << std::endl;
+#endif
+				}
+				
+				dtg_nodes_to_remove.push_back(dtg_node);
+			}
+			
+			for (std::vector<const DomainTransitionGraphNode*>::const_iterator ci = dtg_nodes_to_remove.begin(); ci != dtg_nodes_to_remove.end(); ci++)
+			{
+				new_unprocessed_dtg->removeNode(**ci);
+			}
+
+			for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_nodes_to_add.begin(); ci != dtg_nodes_to_add.end(); ci++)
+			{
+				new_unprocessed_dtg->addNode(**ci);
 			}
 			
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-			std::cout << "Resulting DTG: " << *new_dtg << std::endl;
+			std::cout << "Resulting DTG: " << *new_unprocessed_dtg << std::endl;
 #endif
 		}
 	}
@@ -886,6 +1058,10 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	std::cout << "Combined graph after merging identical DTGs." << std::endl;
 	std::cout << combined_graph << std::endl;
 #endif
+	
+	combined_graph.removeUnconnectedNodes();
+	combined_graph.solveSubsets();
+	combined_graph.removeUnconnectedNodes();
 
 /*
 	std::ofstream ofs;

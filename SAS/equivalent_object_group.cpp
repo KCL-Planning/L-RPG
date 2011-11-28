@@ -542,13 +542,20 @@ void EquivalentObjectGroupManager::initialise(const std::vector<ReachableFact*>&
 	{
 		ReachableFact* initial_reachable_fact = *ci;
 		
-		for (unsigned int i = 0; i < initial_reachable_fact->getAtom().getArity(); i++)
+		if (initial_reachable_fact->getAtom().getArity() > 0)
 		{
-			EquivalentObjectGroup& eog = initial_reachable_fact->getTermDomain(i);
-			for (std::vector<EquivalentObject*>::const_iterator ci = eog.getEquivalentObjects().begin(); ci != eog.getEquivalentObjects().end(); ci++)
+			for (unsigned int i = 0; i < initial_reachable_fact->getAtom().getArity(); i++)
 			{
-				(*ci)->addInitialFact(*initial_reachable_fact);
+				EquivalentObjectGroup& eog = initial_reachable_fact->getTermDomain(i);
+				for (std::vector<EquivalentObject*>::const_iterator ci = eog.getEquivalentObjects().begin(); ci != eog.getEquivalentObjects().end(); ci++)
+				{
+					(*ci)->addInitialFact(*initial_reachable_fact);
+				}
 			}
+		}
+		else
+		{
+			zero_arity_equivalent_object_group_->addReachableFact(*initial_reachable_fact);
 		}
 	}
 	

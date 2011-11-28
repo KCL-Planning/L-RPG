@@ -179,6 +179,8 @@ public:
 	
 	EquivalentObject& getEquivalentObject(const Object& object) const;
 	
+	EquivalentObjectGroup& getZeroArityEOG() const { return *zero_arity_equivalent_object_group_; }
+	
 	void getAllReachableFacts(std::vector<const ReachableFact*>& result) const;
 	
 	unsigned int getNumberOfEquivalentGroups() const { return equivalent_groups_.size(); }

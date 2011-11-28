@@ -1937,18 +1937,26 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 
 		// Make sure the fact hasn't been reached before!
 		const EquivalentObjectGroup* best_eog = NULL;
-		for (unsigned int i = 0; i < new_reachable_fact->getAtom().getArity(); i++)
+		bool zero_arity_reached_fact = new_reachable_fact->getAtom().getArity() == 0;
+		if (!zero_arity_reached_fact)
 		{
-			const EquivalentObjectGroup& eog = new_reachable_fact->getTermDomain(i);
-			if (best_eog == NULL)
+			for (unsigned int i = 0; i < new_reachable_fact->getAtom().getArity(); i++)
 			{
-				best_eog = &eog;
+				const EquivalentObjectGroup& eog = new_reachable_fact->getTermDomain(i);
+				if (best_eog == NULL)
+				{
+					best_eog = &eog;
+				}
+				
+				else if (best_eog->getReachableFacts().size() > eog.getReachableFacts().size())
+				{
+					best_eog = &eog;
+				}
 			}
-			
-			else if (best_eog->getReachableFacts().size() > eog.getReachableFacts().size())
-			{
-				best_eog = &eog;
-			}
+		}
+		else
+		{
+			best_eog = &eog_manager_->getZeroArityEOG();
 		}
 		
 		// TODO: Handle case where the reachable fact has a arity of 0! E.g. (handempty ) in blocksworld.
@@ -1971,6 +1979,12 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 			}
 		}
 		if (already_reached) continue;
+		
+		if (best_eog == &eog_manager_->getZeroArityEOG())
+		{
+			std::cerr << "WRONG!" << std::endl;
+			exit(1);
+		}
 
 		assert (effect_propagation_listeners_.size() > effect_index);
 		std::vector<std::pair<ReachableSet*, unsigned int> >* listeners = effect_propagation_listeners_[effect_index];
@@ -1998,9 +2012,16 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 		new_facts_reached = true;
 		
 		// Update the relevant equivalent object groups.
-		for (unsigned int i = 0; i < new_reachable_fact->getAtom().getArity(); i++)
+		if (!zero_arity_reached_fact)
 		{
-			new_reachable_fact->getTermDomain(i).addReachableFact(*new_reachable_fact);
+			for (unsigned int i = 0; i < new_reachable_fact->getAtom().getArity(); i++)
+			{
+				new_reachable_fact->getTermDomain(i).addReachableFact(*new_reachable_fact);
+			}
+		}
+		else
+		{
+			eog_manager_->getZeroArityEOG().addReachableFact(*new_reachable_fact);
 		}
 	}
 	

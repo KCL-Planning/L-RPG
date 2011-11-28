@@ -393,55 +393,6 @@ bool DomainTransitionGraphNode::canUnifyWith(const DomainTransitionGraphNode& ot
 	return true;
 }
 
-void DomainTransitionGraphNode::resolveProperties()
-{
-	for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
-	{
-		BoundedAtom* bounded_atom = *ci;
-		
-		std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > results;
-		dtg_->getDTGManager().getDTGNodes(results, bounded_atom->getId(), bounded_atom->getAtom(), dtg_->getBindings());
-		
-		
-		for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = results.begin(); ci != results.end(); ci++)
-		{
-			const BoundedAtom* found_fact = (*ci).second;
-			
-			for (std::vector<const Property*>::const_iterator ci = found_fact->getProperties().begin(); ci != found_fact->getProperties().end(); ci++)
-			{
-				bounded_atom->addProperty(**ci);
-			}
-		}
-		
-		for (unsigned int i = 0; i < bounded_atom->getAtom().getArity(); i++)
-		{
-			bool supported = false;
-			for (std::vector<const Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
-			{
-				const Property* property = *ci;
-				if (property->getIndex() == i)
-				{
-					supported = true;
-					break;
-				}
-			}
-			
-			// If not supported, create on ourselves!
-			if (!supported)
-			{
-				PropertySpace* pss = new PropertySpace();
-				std::vector<std::pair<const Predicate*, InvariableIndex> >* new_properties = new std::vector<std::pair<const Predicate*, InvariableIndex> >();
-				new_properties->push_back(std::make_pair(&bounded_atom->getAtom().getPredicate(), NO_INVARIABLE_INDEX));
-				
-				PropertyState* ps = new PropertyState(*pss, *new_properties);
-				
-				
-				bounded_atom->addProperty(*ps->getProperties()[0]);
-			}
-		}
-	}
-}
-
 bool DomainTransitionGraphNode::operator==(const DomainTransitionGraphNode& dtg_node) const
 {
 	if (dtg_node.getAtoms().size() != getAtoms().size())
@@ -867,59 +818,6 @@ bool DomainTransitionGraphNode::containsEmptyVariableDomain() const
 			}
 		}
 	}
-	
-	return false;
-}
-
-bool DomainTransitionGraphNode::removeUnsupportedTransitions()
-{
-	bool transition_removed = false;
-	for (std::vector<const Transition*>::reverse_iterator i = transitions_.rbegin(); i != transitions_.rend(); i++)
-	{
-		const Transition* transition = *i;
-		
-		std::vector<const Atom*> preconditions;
-		Utility::convertFormula(preconditions, &transition->getAction().getPrecondition());
-		
-		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
-		{
-			const Atom* precondition = *ci;
-			if (precondition->getPredicate().isStatic())
-			{
-				continue;
-			}
-			
-			// If the precondition is not static, search for a DTG node which supports it.
-			if (!dtg_->getDTGManager().isSupported(transition->getStepId(), *precondition, dtg_->getBindings()))
-			{
-				std::cout << "!!! ";
-				transition->getAction().print(std::cout, dtg_->getBindings(), transition->getStepId());
-				std::cout << " is not supported!" << std::endl;
-				
-				precondition->print(std::cout, dtg_->getBindings(), transition->getStepId());
-				std::cout << std::endl;
-				removeTransition(**i);
-				transition_removed = true;
-				break;
-			}
-		}
-	}
-	
-	return transition_removed;
-}
-
-bool DomainTransitionGraphNode::isSupported(unsigned int id, const Atom& atom, const Bindings& bindings) const
-{
-	for (std::vector<BoundedAtom*>::const_iterator ci = getAtoms().begin(); ci != getAtoms().end(); ci++)
-	{
-		if (dtg_->getBindings().canUnify((*ci)->getAtom(), (*ci)->getId(), atom, id, &bindings))
-		{
-			return true;
-		}
-	}
-//	std::cout << "The atom: ";
-//	atom.print(std::cout, bindings, id);
-//	std::cout << " is not supported!" << std::endl;
 	
 	return false;
 }

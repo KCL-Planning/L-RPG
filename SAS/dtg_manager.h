@@ -224,11 +224,6 @@ public:
 	void getDTGNodes(std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >& found_dtg_nodes, const std::vector<const Atom*>& initial_facts, const Bindings& bindings) const;
 	
 	/**
-	 * Check if the given atom is supported by any of the DTG nodes.
-	 */
-	bool isSupported(unsigned int id, const MyPOP::Atom& atom, const MyPOP::Bindings& bindings) const;
-	
-	/**
 	 * Get all the facts true in the initial state.
 	 */
 	const std::vector<const Atom*>& getInitialFacts() const { return *initial_facts_; }

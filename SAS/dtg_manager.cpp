@@ -706,7 +706,6 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 			std::vector<const BoundedAtom*> atoms_add_to_from_node;
 			atoms_add_to_from_node.push_back(bounded_negative_atom);
 			
-			///negative_new_dtg_node->addAtom(*bounded_negative_atom, NO_INVARIABLE_INDEX);
 			new_dtg->addNode(*negative_new_dtg_node);
 			
 			for (std::vector<const Term*>::const_iterator ci = negative_atom->getTerms().begin(); ci != negative_atom->getTerms().end(); ci++)
@@ -841,12 +840,9 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 							}
 						}
 					}
-					
-					negative_new_dtg_node->addTransition(*transition);
 				}
+				negative_new_dtg_node->addTransition(*transition);
 			}
-			
-			// negative_new_dtg_node->removeAtom(*bounded_negative_atom);
 			
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 			std::cout << "Resulting DTG: " << *new_dtg << std::endl;
@@ -890,23 +886,6 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	std::cout << "Combined graph after merging identical DTGs." << std::endl;
 	std::cout << combined_graph << std::endl;
 #endif
-
-
-	struct timeval start_time_solve_subsets;
-	gettimeofday(&start_time_solve_subsets, NULL);
-	
-//	combined_graph.removeUnconnectedNodes();
-//	combined_graph.solveSubsets();
-
-#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-	std::cout << "After solving subsets:" << std::endl;
-	std::cout << combined_graph << std::endl;
-#endif
-	
-	struct timeval end_time_solve_subsets;
-	gettimeofday(&end_time_solve_subsets, NULL);
-	time_spend = end_time_solve_subsets.tv_sec - start_time_solve_subsets.tv_sec + (end_time_solve_subsets.tv_usec - start_time_solve_subsets.tv_usec) / 1000000.0;
-	std::cerr << "Solve subsets: " << time_spend << " seconds" << std::endl;
 
 /*
 	std::ofstream ofs;
@@ -2160,19 +2139,6 @@ void DomainTransitionGraphManager::getDTGNodes(std::vector<std::pair<const Domai
 		///found_dtg_nodes.insert(found_dtg_nodes.end(), dtg_nodes.begin(), dtg_nodes.end());
 		(*ci)->getNodes(found_dtg_nodes, initial_facts, bindings);
 	}
-}
-
-bool DomainTransitionGraphManager::isSupported(unsigned int id, const MyPOP::Atom& atom, const MyPOP::Bindings& bindings) const
-{
-	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
-	{
-		DomainTransitionGraph* dtg = *ci;
-		if (dtg->isSupported(id, atom, bindings))
-		{
-			return true;
-		}
-	}
-	return false;
 }
 
 };

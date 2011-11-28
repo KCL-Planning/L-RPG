@@ -63,8 +63,6 @@ public:
 	 */
 	const std::vector<const Property*>& getPredicates() const { return predicates_; }
 	
-	bool containsPropertySpace(const PropertySpace& property_space) const;
-	
 	/**
 	 * Check the initial state for all objects which are part of this DTG and add them.
 	 */
@@ -117,15 +115,6 @@ public:
 	 * Return the DTG manager.
 	 */
 	const DomainTransitionGraphManager& getDTGManager() const { return *dtg_manager_; }
-
-	/**
-	 * Check if the given index of the given predicate is an invariable variable. The predicates will only
-	 * be checked if they have the same name and arity. The types do not need to match exactly, as long
-	 * as the types of the given predicate are more specific or equal to the the types of the DTG's predicate.
-	 * @param predicate The Predicate to search for.
-	 * @param index The index to check.
-	 */
-	bool isValidPredicateIndex(const Predicate& predicate, unsigned int index) const;
 	
 	/**
 	 * Remove a node from the DTG node.
@@ -143,57 +132,6 @@ public:
 	 * is equal to ALL_INVARIABLE_INDEXES this constraint isn't checked.
 	 */
 	void getNodes(std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >& dtg_nodes, MyPOP::StepID step_id, const MyPOP::Atom& atom, const MyPOP::Bindings& bindings, InvariableIndex index = ALL_INVARIABLE_INDEXES) const;
-	
-	/**
-	 * Identify subgraphs within a DTG and split those up into seperate graphs.
-	 * @param subgraphs All identified subgraphs will be inserted into this list.
-	 */
-	void identifySubGraphs(std::vector<DomainTransitionGraph*>& subgraphs) const;
-	
-	/**
-	 * After subgraphs have been detected - every subgraph containing a unique type - propagate this
-	 * information to the other graphs. If - for example - there are two different types of trucks we
-	 * need to check what the impact of this devision has on all transitions which have trucks in their
-	 * preconditions.
-	 *
-	 * The DTG for package: (at package location) <-> (in package truck)
-	 *
-	 * Needs to be modified to account for the different types of trucks in the domain. If there are
-	 * more types of trucks it indicates that the road network (i.e. the connect predicates) do not
-	 * allow a location to be reached from all other locations. By checking the preconditions of
-	 * the transitions we can determine if a node needs to be split. In this case, because (at truck location)
-	 * appears as a precondition in the (unload package truck location) operator we need to split the
-	 * (in package truck) node.
-	 *
-	 * The variable to split is the invariable domain of the splitted node it is compared to. In this
-	 * case this is the variable truck (since that is the invariable in the DTGs for trucks). The node
-	 * is copied for every possible type of truck and the transitions are updated accordingly.
-	 *
-	 * After splitting these nodes, the DomainTransitionGraphManager::generateTransitionGraphs, will
-	 * record these changes and continue iterating over all splitted DTGs until no further changes
-	 * occur.
-	 * @param split_graphs These are all the graphs that have been split, thus the graphs we need to
-	 * compare the preconditions of this DTG with.
-	 * @return True if a node has been split, false otherwise.
-	 */
-	bool splitNodes(const std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* >& split_graphs);
-	
-	/**
-	 * Check if the given @param atom with term bounded with @param id in @param bindings is supported by any node
-	 * in this graph. That is to say, does such a node exists?
-	 * @param id The ID @param atom is bound with.
-	 * @param atom The atom we want to check for membership.
-	 * @param bindings The bindings the atom is bound with.
-	 * @return True if the bounded atom is a member of any of the DTG nodes which are part of this DTG, otherwise 
-	 * false is returned.
-	 */
-	bool isSupported(unsigned int id, const Atom& atom, const Bindings& bindings) const;
-	
-	/**
-	 * Remove all transitions which are not supported.
-	 * @return True if the graph is affected by either removing a transition, a node or both.
-	 */
-	bool removeUnsupportedTransitions();
 
 	/**
 	 * Should only be called the first time transitions are to be established.
@@ -201,25 +139,11 @@ public:
 	void establishTransitions();
 	
 	/**
-	 * NOTE: Preliminary implementation.
-	 * Add the property spaces of the given DTG to this DTG. In the future this function should take care of more properties of the merge.
-	 */
-	void merge(const DomainTransitionGraph& dtg);
-	
-	/**
 	 * Separate the objects into groups based on membership of a set of recursive functions.
 	 */
 	void separateObjects(const RecursiveFunctionManager& recursive_function_manager);
 	
-	void mergeInvariableDTGs();
-	
 	void removeUnconnectedNodes();
-	
-	void solveSubsets();
-	
-	void splitSelfReferencingNodes();
-	
-	void resolveProperties();
 
 	friend std::ostream& operator<<(std::ostream& os, const DomainTransitionGraph& dtg);
 private:
@@ -229,6 +153,8 @@ private:
 	 * @param atom The atom to create the lifted DTG node from.
 	 */
 	DomainTransitionGraphNode* createDTGNode(const Atom& atom, unsigned int index, const Property* property);
+	
+	bool containsPropertySpace(const PropertySpace& property_space) const;
 	
 	const DomainTransitionGraphManager* dtg_manager_;
 	

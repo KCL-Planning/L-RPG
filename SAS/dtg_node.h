@@ -176,8 +176,6 @@ public:
 	bool removeUnsupportedTransitions();
 	
 	void print(std::ostream& os) const;
-	
-	bool isSupported(unsigned int id, const Atom& atom, const Bindings& bindings) const;
 
 	/**
 	 * Utility function, used to evaluate which objects are part of the invariable term's domain. First of all the term_mappings
@@ -225,8 +223,6 @@ public:
 	bool isTermGrounded(const Term& term) const;
 	
 	bool canUnifyWith(const DomainTransitionGraphNode& other) const;
-	
-	void resolveProperties();
 	
 	void setDTG(DomainTransitionGraph& dtg_graph) { dtg_ = &dtg_graph; }
 	

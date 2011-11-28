@@ -917,6 +917,8 @@ void DomainTransitionGraph::establishTransitions()
 
 bool DomainTransitionGraph::splitNodes(const std::map<DomainTransitionGraph*, std::vector<DomainTransitionGraph*>* >& split_graphs)
 {
+	// Check for nodes with are identical - except that one has grounded facts while the other doesn't.
+	//
 	return false;
 /*
 	bool affected = false;

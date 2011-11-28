@@ -797,9 +797,11 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 											assert (!properties->empty());
 										}
 										BoundedAtom* atom_to_add = new BoundedAtom(transition->getStepId(), *precondition, *properties);
-										negative_new_dtg_node->addAtom(*atom_to_add, NO_INVARIABLE_INDEX);
-										atoms_add_to_from_node.push_back(atom_to_add);
-										transition->addedFromNodePrecondition(*precondition);
+										if (negative_new_dtg_node->addAtom(*atom_to_add, NO_INVARIABLE_INDEX))
+										{
+											atoms_add_to_from_node.push_back(atom_to_add);
+											transition->addedFromNodePrecondition(*precondition);
+										}
 										
 										// Check if this precondition is actually removed, if not add it to the to node!
 										bool is_removed = false;
@@ -817,8 +819,10 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 										
 										if (!is_removed)
 										{
-											possitive_new_dtg_node->addAtom(*atom_to_add, NO_INVARIABLE_INDEX);
-											transition->addedToNodeFact(*precondition);
+											if (possitive_new_dtg_node->addAtom(*atom_to_add, NO_INVARIABLE_INDEX))
+											{
+												transition->addedToNodeFact(*precondition);
+											}
 										}
 										
 										break;
@@ -875,7 +879,6 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	struct timeval start_time_merge_dtgs;
 	gettimeofday(&start_time_merge_dtgs, NULL);
 	
-//	Bindings* merged_dtg_bindings = new Bindings(bindings);
 	DomainTransitionGraph& combined_graph = mergeIdenticalDTGs(bindings);
 	
 	struct timeval end_time_merge_dtgs;
@@ -892,7 +895,9 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	struct timeval start_time_solve_subsets;
 	gettimeofday(&start_time_solve_subsets, NULL);
 	
-	combined_graph.solveSubsets();
+//	combined_graph.removeUnconnectedNodes();
+//	combined_graph.solveSubsets();
+
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 	std::cout << "After solving subsets:" << std::endl;
 	std::cout << combined_graph << std::endl;
@@ -1528,7 +1533,16 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 				// Migrate the original transition to the cloned nodes.
 				Transition* transition = org_transition->migrateTransition(*from_dtg_node_clone, *to_dtg_node_clone);
 				
-				assert (transition != NULL);
+				if (transition == NULL)
+				{
+					std::cout << "Could not migrate the transition: " << std::endl;
+					std::cout << *org_transition << std::endl;
+					std::cout << "To the following pair: from: " << std::endl;
+					std::cout << *from_dtg_node_clone << std::endl;
+					std::cout << " TO " << std::endl;
+					std::cout << *to_dtg_node_clone << std::endl;
+					assert (false);
+				}
 
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 				std::cout << "[DomainTransitionGraphManager::createPointToPointTransitions] Original transition: " << *org_transition << std::endl;

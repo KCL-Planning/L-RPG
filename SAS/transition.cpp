@@ -1358,6 +1358,10 @@ Transition::Transition(StepPtr step,
 			break;
 		}
 	}
+
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
+	sanityCheck();
+#endif
 }
 
 Transition::~Transition()
@@ -1367,6 +1371,27 @@ Transition::~Transition()
 	delete all_effects_;
 	delete to_node_effects_;
 	delete free_variables_;
+}
+
+void Transition::sanityCheck() const
+{
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
+	const Bindings& bindings = from_node_->getDTG().getBindings();
+	
+	std::cout << "Check sanity of: " << *this << std::endl;
+	
+	for (std::vector<std::pair<unsigned int, unsigned int> >::const_iterator ci = persistent_sets_->begin(); ci != persistent_sets_->end(); ci++)
+	{
+		unsigned int from_dtg_index = (*ci).first;
+		unsigned int to_dtg_index = (*ci).second;
+		
+		assert (from_node_->getAtoms().size() > from_dtg_index);
+		assert (to_node_->getAtoms().size() > to_dtg_index);
+		
+		assert (from_node_->getAtoms()[from_dtg_index]->getAtom().getPredicate().getName() == to_node_->getAtoms()[to_dtg_index]->getAtom().getPredicate().getName());
+		assert (bindings.canUnify(from_node_->getAtoms()[from_dtg_index]->getAtom(), from_node_->getAtoms()[from_dtg_index]->getId(), to_node_->getAtoms()[to_dtg_index]->getAtom(), to_node_->getAtoms()[to_dtg_index]->getId()));
+	}
+#endif
 }
 
 Transition* Transition::migrateTransition(DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node) const
@@ -1448,6 +1473,8 @@ Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode&
 		org_effect_to_new[(*all_effects_)[i].first] = effects[i];
 	}
 	
+	assert (from_node_preconditions_->size() <= from_node_->getAtoms().size());
+	
 	// Perform the bindings.
 	std::vector< std::pair< const Atom*, InvariableIndex > >* clone_from_node_preconditions = new std::vector< std::pair< const Atom*, InvariableIndex > >(from_node_preconditions_->size());
 	for (unsigned int i = 0; i < from_node_preconditions_->size(); i++)
@@ -1456,14 +1483,34 @@ Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode&
 		
 		unsigned int actual_index = from_fact_ordering[i];
 		
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+		std::cout << "The " << i << "th precondition is actually part of the " << actual_index << "th fact!" << std::endl;
+#endif
+		
 		const Atom* org_precondition = from_node_precondition.first;
 		const Atom* clone_precondition = NULL;
 		if (org_precondition != NULL)
 		{
 			clone_precondition = org_precondition_to_new[org_precondition];
+			
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+			std::cout << "The original precondition: ";
+			org_precondition->print(std::cout, bindings, step_->getStepId());
+			std::cout << " maps to ";
+			clone_precondition->print(std::cout, bindings, step->getStepId());
+			std::cout << std::endl;
+#endif
+			
 			if (!bindings.unify(from_node.getAtoms()[actual_index]->getAtom(), from_node.getAtoms()[actual_index]->getId(), *clone_precondition, step->getStepId()))
 			{
-				assert (false);
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+				std::cout << "[Transition::performBindings]Cannot unify the preconditions: ";
+				from_node.print(std::cout);
+				std::cout << " and ";
+				clone_precondition->print(std::cout, bindings, step->getStepId());
+				std::cout << std::endl;
+#endif
+				return NULL;
 			}
 		}
 		
@@ -1485,7 +1532,14 @@ Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode&
 			clone_effect = org_effect_to_new[org_effect];
 			if (!bindings.unify(to_node.getAtoms()[actual_index]->getAtom(), to_node.getAtoms()[actual_index]->getId(), *clone_effect, step->getStepId()))
 			{
-				assert (false);
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+				std::cout << "[Transition::performBindings]Cannot unify the effects: ";
+				to_node.print(std::cout);
+				std::cout << " and ";
+				clone_effect->print(std::cout, bindings, step->getStepId());
+				std::cout << std::endl;
+#endif
+				return NULL;
 			}
 		}
 		
@@ -1498,8 +1552,6 @@ Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode&
 	std::cout << "[Transition::performBindings] Handle persistent sets: " << std::endl;
 #endif
 	// Bind the persistent nodes.
-	
-	//std::vector<std::pair<unsigned int, unsigned int> >* new_persistent_sets_ = new std::vector<std::pair<unsigned int, unsigned int> >(*persistent_sets_);
 	std::vector<std::pair<unsigned int, unsigned int> >* new_persistent_sets_ = new std::vector<std::pair<unsigned int, unsigned int> >();
 	for (std::vector<std::pair<unsigned int, unsigned int> >::const_iterator ci = persistent_sets_->begin(); ci != persistent_sets_->end(); ci++)
 	{
@@ -1520,7 +1572,14 @@ Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode&
 		
 		if (!bindings.unify(from_node.getAtoms()[actual_from_index]->getAtom(), from_node.getAtoms()[actual_from_index]->getId(), to_node.getAtoms()[actual_to_index]->getAtom(), to_node.getAtoms()[actual_to_index]->getId()))
 		{
-			assert (false);
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+			std::cout << "[Transition::performBindings]Cannot unify the persistent facts: ";
+			from_node.print(std::cout);
+			std::cout << " and ";
+			to_node.print(std::cout);
+			std::cout << std::endl;
+#endif
+			return NULL;
 		}
 		
 		new_persistent_sets_->push_back(std::make_pair(actual_from_index, actual_to_index));
@@ -1558,24 +1617,41 @@ Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode&
 
 void Transition::addedFromNodePrecondition(const Atom& precondition)
 {
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 	// Detect which precondition this is.
+	bool is_a_precondition = false;
 	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = all_preconditions_->begin(); ci != all_preconditions_->end(); ci++)
 	{
 		if (&precondition == (*ci).first)
 		{
-			from_node_preconditions_->push_back(*ci);
-			
-			unsigned int to_node_index = isFactContainedByNode(precondition, *to_node_);
-			if (to_node_index != NO_INVARIABLE_INDEX)
-			{
-				unsigned int from_node_index = std::distance(all_preconditions_->begin(), ci);
-				persistent_sets_->push_back(std::make_pair(from_node_index, to_node_index));
-			}
-			return;
+			is_a_precondition = true;
 		}
 	}
+	assert (is_a_precondition);
+#endif
+
+	InvariableIndex invariable_index = NO_INVARIABLE_INDEX;
+	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = all_preconditions_->begin(); ci != all_preconditions_->end(); ci++)
+	{
+		if (&precondition == (*ci).first)
+		{
+			invariable_index = (*ci).second;
+		}
+	}
+	from_node_preconditions_->push_back(std::make_pair(&precondition, invariable_index));
 	
-	assert (false);
+	assert (from_node_preconditions_->size() <= from_node_->getAtoms().size());
+	
+	unsigned int from_node_index = isFactContainedByNode(precondition, *from_node_);
+	unsigned int to_node_index = isFactContainedByNode(precondition, *to_node_);
+	if (to_node_index != NO_INVARIABLE_INDEX)
+	{
+		persistent_sets_->push_back(std::make_pair(from_node_index, to_node_index));
+	}
+	
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
+	sanityCheck();
+#endif
 }
 
 void Transition::addedToNodeFact(const Atom& fact)
@@ -1614,6 +1690,11 @@ void Transition::addedToNodeFact(const Atom& fact)
 		if (to_node_index == NO_INVARIABLE_INDEX) return;
 		
 		persistent_sets_->push_back(std::make_pair(from_node_index, to_node_index));
+		
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
+		sanityCheck();
+#endif
+		
 		return;
 	}
 	
@@ -1623,12 +1704,20 @@ void Transition::addedToNodeFact(const Atom& fact)
 
 unsigned int Transition::isFactContainedByNode(const Atom& fact, const DomainTransitionGraphNode& node) const
 {
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+	std::cout << "Check if ";
+	fact.print(std::cout, from_node_->getDTG().getBindings(), step_->getStepId());
+	std::cout << " is part of " << node << "." << std::endl;
+#endif
 	for (std::vector<BoundedAtom*>::const_iterator ci = node.getAtoms().begin(); ci != node.getAtoms().end(); ci++)
 	{
 		const BoundedAtom* bounded_atom = *ci;
 		
 		if (from_node_->getDTG().getBindings().areIdentical(bounded_atom->getAtom(), bounded_atom->getId(), fact, step_->getStepId()))
 		{
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+			std::cout << "The index is: " << std::distance(node.getAtoms().begin(), ci) << "." << std::endl;
+#endif
 			return std::distance(node.getAtoms().begin(), ci);
 		}
 	}
@@ -2019,14 +2108,12 @@ std::ostream& operator<<(std::ostream& os, const Transition& transition)
 		os << std::endl;
 	}
 */
-/*
-	std::vector<std::pair<const Atom*, InvariableIndex> > persistent_facts = transition.getAllPersistentPreconditions();
+
 	os << "All persistent preconditions: " << std::endl;
-	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = persistent_facts.begin(); ci != persistent_facts.end(); ci++)
+	for (std::vector<std::pair<unsigned int, unsigned int> >::const_iterator ci = transition.persistent_sets_->begin(); ci != transition.persistent_sets_->end(); ci++)
 	{
-		(*ci).first->print(os, transition.getToNode().getDTG().getBindings(), transition.getStep()->getStepId());
-		os << " (" << (*ci).second << ") Ox" << (*ci).first << "." << std::endl;
-	}*/
+		os << (*ci).first << " <-> " << (*ci).second << std::endl;
+	}
 	return os;
 }
 

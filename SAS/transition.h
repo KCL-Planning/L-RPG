@@ -253,6 +253,8 @@ private:
 
 	unsigned int isFactContainedByNode(const Atom& fact, const DomainTransitionGraphNode& node) const;
 	
+	void sanityCheck() const;
+	
 	// The step contains:
 	// 1) The action which needs to be executed to make the transition happen and,
 	// 2) The step id under which the action's variables are bounded.
@@ -282,6 +284,8 @@ private:
 	
 	// The term which is balanced.
 	const Term* balanced_term_;
+	
+	friend std::ostream& operator<<(std::ostream& os, const Transition& transition);
 };
 /*
 class RecursivePreconditions

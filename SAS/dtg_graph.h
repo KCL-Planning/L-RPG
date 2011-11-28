@@ -213,6 +213,8 @@ public:
 	
 	void mergeInvariableDTGs();
 	
+	void removeUnconnectedNodes();
+	
 	void solveSubsets();
 	
 	void splitSelfReferencingNodes();

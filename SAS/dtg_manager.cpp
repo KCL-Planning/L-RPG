@@ -888,9 +888,9 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	std::cout << combined_graph << std::endl;
 #endif
 
-/*
-//	struct timeval start_time_solve_subsets;
-//	gettimeofday(&start_time_solve_subsets, NULL);
+
+	struct timeval start_time_solve_subsets;
+	gettimeofday(&start_time_solve_subsets, NULL);
 	
 	combined_graph.solveSubsets();
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
@@ -898,26 +898,10 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	std::cout << combined_graph << std::endl;
 #endif
 	
-//	struct timeval end_time_solve_subsets;
-//	gettimeofday(&end_time_solve_subsets, NULL);
-//	time_spend = end_time_solve_subsets.tv_sec - start_time_solve_subsets.tv_sec + (end_time_solve_subsets.tv_usec - start_time_solve_subsets.tv_usec) / 1000000.0;
-//	std::cerr << "Solve subsets: " << time_spend << " seconds" << std::endl;
-	
-	combined_graph.splitSelfReferencingNodes();
-	
-#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-	std::cout << "FINAL RESULTS" << std::endl;
-	std::cout << combined_graph << std::endl;
-#endif
-
-
-	combined_graph.resolveProperties();
-	
-#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-	std::cout << "After resolving properties: " << std::endl;
-	std::cout << combined_graph << std::endl;
-#endif
-*/
+	struct timeval end_time_solve_subsets;
+	gettimeofday(&end_time_solve_subsets, NULL);
+	time_spend = end_time_solve_subsets.tv_sec - start_time_solve_subsets.tv_sec + (end_time_solve_subsets.tv_usec - start_time_solve_subsets.tv_usec) / 1000000.0;
+	std::cerr << "Solve subsets: " << time_spend << " seconds" << std::endl;
 
 /*
 	std::ofstream ofs;
@@ -931,11 +915,11 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	ofs.close();
 */
 
-//	struct timeval end_time_generation;
-//	gettimeofday(&end_time_generation, NULL);
+	struct timeval end_time_generation;
+	gettimeofday(&end_time_generation, NULL);
 	
-//	time_spend = end_time_generation.tv_sec - start_time_tim_translation.tv_sec + (end_time_generation.tv_usec - start_time_tim_translation.tv_usec) / 1000000.0;
-//	std::cerr << "Initialize structures: " << time_spend << " seconds" << std::endl;
+	time_spend = end_time_generation.tv_sec - start_time_tim_translation.tv_sec + (end_time_generation.tv_usec - start_time_tim_translation.tv_usec) / 1000000.0;
+	std::cerr << "Initialize structures: " << time_spend << " seconds" << std::endl;
 	
 	return combined_graph;
 }

@@ -1450,6 +1450,12 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 	}
 	bool processed_variable_domains[transition.getAction().getVariables().size()];
 	memset(&processed_variable_domains[0], false, sizeof(bool) * transition.getAction().getVariables().size());
+	
+	for (unsigned int i = 0; i < transition.getAction().getVariables().size(); i++)
+	{
+		const std::vector<const Object*>* variable_domain = transition_variable_domains[i];
+		domain_to_action_variable_mapping_[variable_domain] = i;
+	}
 
 	// Find out how the variables are linked to the facts in the from node and those in the set of preconditions which are not part of the 
 	// from node.
@@ -1508,7 +1514,6 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 							std::cout << "The " << i << "th variable is linked to the " << j << "th term of the " <<  from_node_fact_index << "th fact!" << std::endl;
 #endif
 							variable_to_values_mapping_[variable_domain] = new VariableToValues(from_node_fact_index, j, false);
-							domain_to_action_variable_mapping_[variable_domain] = i;
 							processed_variable_domains[i] = true;
 							break;
 						}
@@ -1723,7 +1728,7 @@ void ReachableTransition::initialise(const std::vector<ReachableFact*>& initial_
 bool ReachableTransition::generateReachableFacts()
 {
 	const std::vector<std::vector<ReachableFact*>* >& from_node_reachable_sets = from_node_->getFullyReachableSets();
-	if (from_node_reachable_sets.size() == 0 || latest_processed_from_node_set_ == from_node_reachable_sets.size())
+	if (from_node_reachable_sets.size() == 0)
 	{
 		return false;
 	}
@@ -1734,7 +1739,12 @@ bool ReachableTransition::generateReachableFacts()
 	
 	// Special case if all the preconditions are part of the from node.
 	const std::vector<std::vector<ReachableFact*>* >& transition_reachable_sets = getFullyReachableSets();
-	if (this->getFactsSet().size() > 0 && latest_processed_transition_set_ == transition_reachable_sets.size())
+	if (this->getFactsSet().size() > 0 && transition_reachable_sets.empty())
+	{
+		return false;
+	}
+	
+	if (latest_processed_from_node_set_ == from_node_reachable_sets.size() && latest_processed_transition_set_ == transition_reachable_sets.size())
 	{
 		return false;
 	}
@@ -1876,7 +1886,7 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 		assert (effect_domains[i]->isRootNode());
 #endif
-//		action_domains_[domain_to_action_variable_mapping_[&effect.getVariableDomain(i)]] = effect_domains[i];
+		action_domains_[domain_to_action_variable_mapping_[&effect.getVariableDomain(i)]] = effect_domains[i];
 	}
 
 	bool already_processed = false;

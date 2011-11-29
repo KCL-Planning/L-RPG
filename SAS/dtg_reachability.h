@@ -425,6 +425,9 @@ private:
 	// when the effect is reached.
 	std::vector<std::vector<std::pair<ReachableSet*, unsigned int> >* > effect_propagation_listeners_;
 	
+	
+	// Cache all the groups which have been processed so we do not create the same reachable facts from this
+	// node over and over again.
 	std::vector<EquivalentObjectGroup**> processed_groups_;
 	
 	/**
@@ -444,10 +447,12 @@ private:
 	unsigned int latest_processed_from_node_set_;
 	unsigned int latest_processed_transition_set_;
 	
-	
+	// To speed things up we reuse created arrays of OEGs - used to compare if a similar array was already constructed.
+	// See the generateReachableFacts method.
 	bool use_previous_action_domains_;
 	EquivalentObjectGroup** action_domains_;
 	
+	// Instead of putting a new vector on the stack for a function call to createNewReachableFact, we simply use this one :).
 	const std::vector<ReachableFact*> empty_transition_reachable_set_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const ReachableTransition& reachable_transition);

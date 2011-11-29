@@ -1058,24 +1058,6 @@ bool ReachableSet::canSatisfyConstraints(const ReachableFact& reachable_fact, st
 			}
 		}
 	}
-	
-/*	// Check if the grounded constraints are satisfied too.
-	for (unsigned int i = 0; i < reachable_fact.getAtom().getArity(); i++)
-	{
-		if (facts_set_[index]->isGrounded(i) && 
-			(
-				!reachable_fact.getTermDomain(i).isGrounded() ||
-				&reachable_fact.getTermDomain(i).getEquivalentObjects()[0]->getObject() != facts_set_[index]->getVariableDomain(i)[0]
-			)
-		)
-		{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-			std::cout << "The " << i << "th term of : " << reachable_fact << " should match up with the " << i << "th term of " << *facts_set_[index] << ", but it doesn't!" << std::endl;
-#endif
-			return false;
-		}
-	}*/
-	
 	return true;
 }
 
@@ -1140,7 +1122,10 @@ bool ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsign
 #endif
 		std::vector<ReachableFact*>* new_reachable_set = new std::vector<ReachableFact*>();
 		
-		if (!canSatisfyConstraints(reachable_fact, *new_reachable_set)) return false;
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+		assert (canSatisfyConstraints(reachable_fact, *new_reachable_set));
+#endif
+//		if (!canSatisfyConstraints(reachable_fact, *new_reachable_set)) return false;
 		
 		new_reachable_set->push_back(&reachable_fact);
 		wip_sets_.push_back(new_reachable_set);
@@ -1149,8 +1134,6 @@ bool ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsign
 	// Otherwise, we need to search for all sets the new node can be a part of and process these.
 	else
 	{
-//		std::vector<std::vector<ReachableFact*>* > wip_sets_copy(wip_sets_);
-//		for (std::vector<std::vector<ReachableFact*>* >::const_iterator ci = wip_sets_copy.begin(); ci != wip_sets_copy.end(); ci++)
 		for (unsigned int i = 0; i < wip_sets_.size(); i++)
 		{
 			//std::vector<ReachableFact*>* reachable_set = *ci;

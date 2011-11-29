@@ -28,7 +28,8 @@
 
 //#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 //#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
-///#define MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
+//#define MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
+//#define MYPOP_SAS_PLUS_DTG_MANAGER_KEEP_TIME
 
 namespace MyPOP {
 
@@ -412,9 +413,10 @@ void DomainTransitionGraphManager::getProperties(std::vector<std::pair<const Pre
 
 const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, Bindings& bindings)
 {
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_KEEP_TIME
 	struct timeval start_time_tim_translation;
 	gettimeofday(&start_time_tim_translation, NULL);
-	
+#endif
 	// Store temporary DTGs in this vector, during post processing they might get split again. Only then will we add the DTGs as a managable object (see Manager class).
 	std::vector<DomainTransitionGraph*> tmp_dtgs;
 	
@@ -590,6 +592,7 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 
 		addManagableObject(dtg);
 	}
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_KEEP_TIME
 	struct timeval end_time_tim_translation;
 	gettimeofday(&end_time_tim_translation, NULL);
 	
@@ -598,9 +601,9 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 
 	struct timeval start_time_apply_rules;
 	gettimeofday(&start_time_apply_rules, NULL);
-	
+#endif
 	createPointToPointTransitions();
-	
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_KEEP_TIME
 	struct timeval end_time_apply_rules;
 	gettimeofday(&end_time_apply_rules, NULL);
 	
@@ -609,7 +612,7 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 
 	struct timeval start_time_unsupported_predicates;
 	gettimeofday(&start_time_unsupported_predicates, NULL);
-
+#endif
 	/**
 	 * Some predicates are not seen as DTGs by TIM, these come in two categories:
 	 * - Static predicates - which cannot change, ever.
@@ -1021,13 +1024,13 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 #endif
 		}
 	}
-	
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_KEEP_TIME
 	struct timeval end_time_unsupported_predicates;
 	gettimeofday(&end_time_unsupported_predicates, NULL);
 	
 	time_spend = end_time_unsupported_predicates.tv_sec - start_time_unsupported_predicates.tv_sec + (end_time_unsupported_predicates.tv_usec - start_time_unsupported_predicates.tv_usec) / 1000000.0;
 	std::cerr << "Creating DTGs for unsupported predicates: " << time_spend << " seconds" << std::endl;
-
+#endif
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 	std::cout << "After creating all DTGs:" << std::endl;
 	for (std::vector<DomainTransitionGraph*>::const_iterator ci = objects_.begin(); ci != objects_.end(); ci++)
@@ -1043,17 +1046,17 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	// 3) For all transitions which involve the set of invariables A and produce the set B. If B / A != \emptyset then the difference are in-
 	// variables which were implied due to grounding a term in the from-node. Apply the same transition to all DTG nodes which contain the 
 	// difference. E.g. (at ticket loc -> (have driver ticket) /\ (at driver loc) imply the precondition (at driver log).
-	
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_KEEP_TIME
 	struct timeval start_time_merge_dtgs;
 	gettimeofday(&start_time_merge_dtgs, NULL);
-	
+#endif
 	DomainTransitionGraph& combined_graph = mergeIdenticalDTGs(bindings);
-	
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_KEEP_TIME
 	struct timeval end_time_merge_dtgs;
 	gettimeofday(&end_time_merge_dtgs, NULL);
 	time_spend = end_time_merge_dtgs.tv_sec - start_time_merge_dtgs.tv_sec + (end_time_merge_dtgs.tv_usec - start_time_merge_dtgs.tv_usec) / 1000000.0;
 	std::cerr << "Merge identical DTGs took: " << time_spend << " seconds" << std::endl;
-	
+#endif
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 	std::cout << "Combined graph after merging identical DTGs." << std::endl;
 	std::cout << combined_graph << std::endl;
@@ -1074,13 +1077,13 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	ofs << "}" << std::endl;
 	ofs.close();
 */
-
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_KEEP_TIME
 	struct timeval end_time_generation;
 	gettimeofday(&end_time_generation, NULL);
 	
 	time_spend = end_time_generation.tv_sec - start_time_tim_translation.tv_sec + (end_time_generation.tv_usec - start_time_tim_translation.tv_usec) / 1000000.0;
 	std::cerr << "Initialize structures: " << time_spend << " seconds" << std::endl;
-	
+#endif
 	return combined_graph;
 }
 

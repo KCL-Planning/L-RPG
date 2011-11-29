@@ -30,6 +30,7 @@
 #include "SAS/equivalent_object_group.h"
 
 ///#define MYPOP_COMMENTS
+#define MYPOP_KEEP_TIME
 
 extern int yyparse();
 extern int yydebug;
@@ -184,13 +185,15 @@ int main(int argc,char * argv[])
 	std::cerr << "Total number of transitions: " << nr_transitions << "." << std::endl;
 	
 	// Do the reachability analysis.
+#ifdef MYPOP_KEEP_TIME
 	struct timeval start_time_prepare_reachability;
 	gettimeofday(&start_time_prepare_reachability, NULL);
+#endif
 	std::vector<const SAS_Plus::ReachableFact*> lifted_reachable_facts;
 	{
 
 		SAS_Plus::DTGReachability analyst(dtg_manager, combined_graph, term_manager, predicate_manager);
-		
+#ifdef MYPOP_KEEP_TIME
 		struct timeval end_time_prepare_reachability;
 		gettimeofday(&end_time_prepare_reachability, NULL);	
 		
@@ -199,32 +202,32 @@ int main(int argc,char * argv[])
 		
 		struct timeval start_convert_time;
 		gettimeofday(&start_convert_time, NULL);
-		
+#endif
 		std::vector<const SAS_Plus::BoundedAtom*> bounded_initial_facts;
 		for (std::vector<const Atom*>::const_iterator ci = initial_facts->begin(); ci != initial_facts->end(); ci++)
 		{
 			bounded_initial_facts.push_back(new SAS_Plus::BoundedAtom(Step::INITIAL_STEP, **ci));
 		}
-
+#ifdef MYPOP_KEEP_TIME
 		struct timeval end_convert_time;
 		gettimeofday(&end_convert_time, NULL);	
 
 		double time_spend_converting = end_convert_time.tv_sec - start_convert_time.tv_sec + (end_convert_time.tv_usec - start_convert_time.tv_usec) / 1000000.0;
 		std::cerr << "Converting initial facts: " << time_spend_converting << " seconds" << std::endl;
-
+#endif
 		std::cerr << " -= Start actual reachability!!!  =- " << std::endl;
-
+#ifdef MYPOP_KEEP_TIME
 		struct timeval start_time_reachability;
 		gettimeofday(&start_time_reachability, NULL);
-
+#endif
 		analyst.performReachabilityAnalsysis(lifted_reachable_facts, bounded_initial_facts, combined_graph.getBindings());
 		struct timeval end_time_reachability;
 		gettimeofday(&end_time_reachability, NULL);
-
+#ifdef MYPOP_KEEP_TIME
 		double time_spend = end_time_reachability.tv_sec - start_time_reachability.tv_sec + (end_time_reachability.tv_usec - start_time_reachability.tv_usec) / 1000000.0;
 		std::cerr << "Reachability analysis: " << time_spend << " seconds" << std::endl;
-
-//		exit(0);
+#endif
+		exit(0);
 		
 		// Validate the result.
 		RPG::RelaxedPlanningGraph rpg(action_manager, *plan, analyst.getEquivalentObjectGroupManager(), predicate_manager);

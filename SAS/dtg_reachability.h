@@ -101,10 +101,7 @@ public:
 	
 private:
 	
-	//const BoundedAtom* bounded_atom_;
 	const Atom* atom_;
-	
-//	const Bindings* bindings_;
 	
 	EquivalentObjectGroup** term_domain_mapping_;
 	
@@ -124,7 +121,6 @@ private:
 	//
 	// By marking the former for removal we can remove the remaining reachable fact.
 	ReachableFact* replaced_by_;
-//	bool removed_flag_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact);
 };
@@ -404,6 +400,10 @@ public:
 	
 	const Transition& getTransition() const { return *transition_; }
 	
+	static unsigned int generated_new_reachable_facts;
+	static unsigned int accepted_new_reachable_facts;
+
+	
 	void print(std::ostream& os) const;
 private:
 	
@@ -418,6 +418,8 @@ private:
 	// Mapping from a variable to a reachable set containing its possible values.
 	// The reachable set is accessed as: <fact index, term index>.
 	std::map<const std::vector<const Object*>*, VariableToValues* > variable_to_values_mapping_;
+	
+	std::map<const std::vector<const Object*>*, unsigned int > domain_to_action_variable_mapping_;
 	
 	// For every effect we register all the ReachableSets for which the function processNewReachableFact must be called
 	// when the effect is reached.
@@ -441,6 +443,12 @@ private:
 	// in the past so we don't redo the same thing.
 	unsigned int latest_processed_from_node_set_;
 	unsigned int latest_processed_transition_set_;
+	
+	
+	bool use_previous_action_domains_;
+	EquivalentObjectGroup** action_domains_;
+	
+	const std::vector<ReachableFact*> empty_transition_reachable_set_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const ReachableTransition& reachable_transition);
 };

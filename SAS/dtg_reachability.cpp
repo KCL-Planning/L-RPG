@@ -15,7 +15,6 @@
 
 //#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 //#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
-//#define MYPOP_SAS_PLUS_DTG_REACHABILITY_CACHE
 //#define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
 
@@ -1752,7 +1751,7 @@ bool ReachableTransition::generateReachableFacts()
 	
 	// Special case if all the preconditions are part of the from node.
 	const std::vector<std::vector<ReachableFact*>* >& transition_reachable_sets = getFullyReachableSets();
-	if ((this->getFactsSet().size() > 0 && transition_reachable_sets.size() == 0) || latest_processed_transition_set_ == transition_reachable_sets.size())
+	if (this->getFactsSet().size() > 0 && latest_processed_transition_set_ == transition_reachable_sets.size())
 	{
 		return false;
 	}
@@ -1767,33 +1766,25 @@ bool ReachableTransition::generateReachableFacts()
 	
 	bool new_facts_reached = false;
 	
-///	std::vector<std::vector<ReachableFact*>* > from_node_reachable_sets_copy(from_node_reachable_sets);
-///	std::vector<std::vector<ReachableFact*>* > transition_reachable_sets_copy(transition_reachable_sets);
-//	unsigned int size_of_from_node_reachable_set = from_node_reachable_sets.size();
-//	unsigned int size_of_transition_reachable_set = transition_reachable_sets.size();
-
+	unsigned int from_node_set_size = from_node_reachable_sets.size();
+	unsigned int transition_set_size = transition_reachable_sets.size();
+	
 	// Generate the || from_node_reachable_sets || * || transition_reachable_sets || effects.
 	for (std::vector<ResolvedEffect*>::const_iterator ci = effects_.begin(); ci != effects_.end(); ci++)
 	{
 		unsigned int effect_index = std::distance(static_cast<std::vector<ResolvedEffect*>::const_iterator>(effects_.begin()), ci);
 		const ResolvedEffect* effect = *ci;
 		
-		//for (std::vector<std::vector<ReachableFact*>* >::const_iterator ci = from_node_reachable_sets_copy.begin(); ci != from_node_reachable_sets_copy.end(); ci++)
-		for (unsigned int from_node_set_index = 0; from_node_set_index < from_node_reachable_sets.size(); from_node_set_index++)
+		for (unsigned int from_node_set_index = 0; from_node_set_index < from_node_set_size; from_node_set_index++)
 		{
-			///const std::vector<ReachableFact*>* from_node_reachable_set = *ci;
 			const std::vector<ReachableFact*>* from_node_reachable_set = from_node_reachable_sets[from_node_set_index];
 			if (from_node_reachable_set == NULL) continue;
 			
-			///unsigned int from_node_set_index = std::distance(static_cast<std::vector<std::vector<ReachableFact*>* >::const_iterator>(from_node_reachable_sets_copy.begin()), ci);
-			///for (std::vector<std::vector<ReachableFact*>* >::const_iterator ci = transition_reachable_sets_copy.begin(); ci != transition_reachable_sets_copy.end(); ci++)
-			for (unsigned int transition_set_index = 0; transition_set_index < transition_reachable_sets.size(); transition_set_index++)
+			for (unsigned int transition_set_index = 0; transition_set_index < transition_set_size; transition_set_index++)
 			{
-				///const std::vector<ReachableFact*>* transition_reachable_set = *ci;
 				const std::vector<ReachableFact*>* transition_reachable_set = transition_reachable_sets[transition_set_index];
 				if (transition_reachable_set == NULL) continue;
 				
-				///unsigned int transition_set_index = std::distance(static_cast<std::vector<std::vector<ReachableFact*>* >::const_iterator>(transition_reachable_sets_copy.begin()), ci);
 				if (from_node_set_index < latest_processed_from_node_set_ && transition_set_index < latest_processed_transition_set_) continue;
 				if (createNewReachableFact(*effect, effect_index, *from_node_reachable_set, *transition_reachable_set))
 				{
@@ -1806,8 +1797,6 @@ bool ReachableTransition::generateReachableFacts()
 			{
 				if (from_node_set_index < latest_processed_from_node_set_) continue;
 				
-				// const std::vector<ReachableFact*> transition_reachable_set;
-				//if (createNewReachableFact(*effect, effect_index, *from_node_reachable_set, transition_reachable_set))
 				if (createNewReachableFact(*effect, effect_index, *from_node_reachable_set, empty_transition_reachable_set_))
 				{
 					new_facts_reached = true;
@@ -1816,10 +1805,8 @@ bool ReachableTransition::generateReachableFacts()
 		}
 	}
 	
-	///latest_processed_from_node_set_ = from_node_reachable_sets_copy.size();
-	///latest_processed_transition_set_ = transition_reachable_sets_copy.size();
-	latest_processed_from_node_set_ = from_node_reachable_sets.size();
-	latest_processed_transition_set_ = transition_reachable_sets.size();
+	latest_processed_from_node_set_ = from_node_set_size;
+	latest_processed_transition_set_ = transition_set_size;
 	
 	return new_facts_reached;
 }
@@ -1832,8 +1819,7 @@ void ReachableTransition::handleUpdatedEquivalences()
 	{
 		(*ci)->updateVariableDomains();
 	}
-	
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_CACHE
+
 	for (std::vector<EquivalentObjectGroup**>::const_iterator ci = processed_groups_.begin(); ci != processed_groups_.end(); ci++)
 	{
 		EquivalentObjectGroup** processed_group = *ci;
@@ -1843,7 +1829,6 @@ void ReachableTransition::handleUpdatedEquivalences()
 			processed_group[i] = &processed_group[i]->getRootNode();
 		}
 	}
-#endif
 }
 
 bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, unsigned int effect_index, const std::vector<ReachableFact*>& from_node_reachable_set, const std::vector<ReachableFact*>& transition_reachable_set)
@@ -1852,7 +1837,6 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 	std::cout << "Create new reachable fact of the effect: " << effect << "." << std::endl;
 #endif
 	EquivalentObjectGroup** effect_domains = new EquivalentObjectGroup*[effect.getCorrectedAtom().getArity()];
-	//EquivalentObjectGroup** action_domains = new EquivalentObjectGroup*[transition_->getAction().getVariables().size()];
 	
 	if (!use_previous_action_domains_)
 	{
@@ -1909,43 +1893,38 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 		assert (effect_domains[i]->isRootNode());
 #endif
-		action_domains_[domain_to_action_variable_mapping_[&effect.getVariableDomain(i)]] = effect_domains[i];
+//		action_domains_[domain_to_action_variable_mapping_[&effect.getVariableDomain(i)]] = effect_domains[i];
 	}
 
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_CACHE
-	//if (effect.containsFreeVariables())
+	bool already_processed = false;
+	for (std::vector<EquivalentObjectGroup**>::const_iterator ci = processed_groups_.begin(); ci != processed_groups_.end(); ci++)
 	{
-		bool already_processed = false;
-		for (std::vector<EquivalentObjectGroup**>::const_iterator ci = processed_groups_.begin(); ci != processed_groups_.end(); ci++)
-		{
-			EquivalentObjectGroup** processed_group = *ci;
+		EquivalentObjectGroup** processed_group = *ci;
 
-			bool is_equivalent = true;
-			for (unsigned int i = 0; i < transition_->getAction().getVariables().size(); i++)
+		bool is_equivalent = true;
+		for (unsigned int i = 0; i < transition_->getAction().getVariables().size(); i++)
+		{
+			if (processed_group[i] != action_domains_[i])
 			{
-				if (processed_group[i] != action_domains_[i])
-				{
-					is_equivalent = false;
-					break;
-				}
-			}
-			
-			if (is_equivalent)
-			{
-				already_processed = true;
+				is_equivalent = false;
 				break;
 			}
 		}
 		
-		if (already_processed)
+		if (is_equivalent)
 		{
-			use_previous_action_domains_ = true;
-			return false;
+			already_processed = true;
+			break;
 		}
-		use_previous_action_domains_ = false;
-		processed_groups_.push_back(action_domains_);
 	}
-#endif
+	
+	if (already_processed)
+	{
+		use_previous_action_domains_ = true;
+		return false;
+	}
+	use_previous_action_domains_ = false;
+	processed_groups_.push_back(action_domains_);
 
 	std::vector<ReachableFact*> new_reachable_facts;
 	effect.createReachableFacts(new_reachable_facts, effect_domains);

@@ -161,6 +161,11 @@ bool EquivalentObjectGroup::isIdenticalTo(EquivalentObjectGroup& other)
 bool EquivalentObjectGroup::hasSameFingerPrint(const EquivalentObjectGroup& other) const
 {
 	return memcmp(finger_print_, other.finger_print_, finger_print_size_ * sizeof(bool)) == 0;
+//	for (unsigned int i = 0; i < finger_print_size_; i++)
+//	{
+//		if (finger_print_[i] != other.finger_print_[i]) return false;
+//	}
+//	return true;
 }
 	
 void EquivalentObjectGroup::initialiseFingerPrint(const DomainTransitionGraph& dtg_graph, const Object& object)

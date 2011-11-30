@@ -703,9 +703,9 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 		return NULL;
 	}
 
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 	/**
 	 * Now that we know the invariables, make sure none of the persistent nodes are added or removed.
-	 * TODO: Is this relevant? 
 	 */
 	for (std::vector<std::pair<const BoundedAtom*, const BoundedAtom*> >::reverse_iterator persistent_ci = persistent_facts.rbegin(); persistent_ci != persistent_facts.rend(); persistent_ci++)
 	{
@@ -729,9 +729,7 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 				    &effect->getTerms()[property->getIndex()]->getDomain(action_step_id, bindings) == balanced_variable_domain)
 				{
 	//				std::cout << "Is added!" << std::endl;
-	#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 					std::cout << "A persistent is added but not removed. This is invalid!" << std::endl;
-	#endif
 					assert (false);
 					return NULL;
 				}
@@ -740,15 +738,14 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 				    &effect->getTerms()[property->getIndex()]->getDomain(action_step_id, bindings) == balanced_variable_domain)
 				{
 	//				std::cout << "Is deleted!" << std::endl;
-	#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 					std::cout << "Removed but not added. This is invalid!" << std::endl;
-	#endif
 					assert (false);
 					return NULL;
 				}
 			}
 		}
 	}
+#endif
 	
 	/**
 	 * After we have found the invariable, check there are no mutex preconditions or effects.

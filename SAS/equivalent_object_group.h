@@ -82,17 +82,17 @@ public:
 	
 	bool isRootNode() const;
 	
-	bool isGrounded() const { return is_grounded_; }
+	inline bool isGrounded() const { return is_grounded_; }
 	
 	bool contains(const Object& object) const;
 	
 	bool isIdenticalTo(EquivalentObjectGroup& other);
 	
-	const std::vector<EquivalentObject*>& getEquivalentObjects() const { return equivalent_objects_; }
+	inline const std::vector<EquivalentObject*>& getEquivalentObjects() const { return equivalent_objects_; }
 	
 	bool hasSameFingerPrint(const EquivalentObjectGroup& other) const;
 	
-	const std::vector<ReachableFact*>& getReachableFacts() const { return reachable_facts_; }
+	inline const std::vector<ReachableFact*>& getReachableFacts() const { return reachable_facts_; }
 	
 	/**
 	 * Try to merge the given objectGroup with this group. If the merge can take place, the other object place is merged with

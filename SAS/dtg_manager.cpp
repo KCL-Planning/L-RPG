@@ -1818,7 +1818,9 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 							std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_matching_nodes;
 							getDTGNodes(found_matching_nodes, transition->getStepId(), *precondition, bindings, precondition_term_index);
 							
-							bool precondition_is_balanced = !found_matching_nodes.empty();
+							bool precondition_is_balanced = !found_matching_nodes.empty() || transition->getBalancedTerm() == precondition_term;
+//							bool precondition_is_balanced = transition->getBalancedTerm() == precondition_term;
+							
 							bool is_grounded = false;
 							
 							if (precondition_is_balanced)

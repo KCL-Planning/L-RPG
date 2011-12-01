@@ -1086,10 +1086,19 @@ bool ReachableSet::canSatisfyConstraints(const ReachableFact& reachable_fact, st
 		ReachableFact* reachable_fact = *ci;
 		std::cout << "* " << *reachable_fact << "." << std::endl;
 	}
+	std::cout << "Fact set: " << std::endl;
+	for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = facts_set_.begin(); ci != facts_set_.end(); ci++)
+	{
+		std::cout << "* " << **ci << std::endl;
+	}
 #endif
 
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
-	assert (reachable_fact.getAtom().getPredicate().canSubstitute(facts_set_[reachable_set.size()]->getCorrectedAtom().getPredicate()));
+	if (!reachable_fact.getAtom().getPredicate().canSubstitute(facts_set_[reachable_set.size()]->getCorrectedAtom().getPredicate()))
+	{
+		std::cout << reachable_fact.getAtom().getPredicate().getId() << " can't substitute: " << facts_set_[reachable_set.size()]->getCorrectedAtom().getPredicate().getId() << std::endl;
+		assert (false);
+	}
 	assert (reachable_fact.getAtom().getArity() == facts_set_[reachable_set.size()]->getCorrectedAtom().getArity());
 #endif
 	
@@ -2231,7 +2240,7 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 		if (dtg_node->getTransitions().size() > 0)
 		{
 			all_reachable_sets.push_back(reachable_node);
-			reachable_nodes_.push_back(reachable_node);
+//			reachable_nodes_.push_back(reachable_node);
 		}
 	}
 	
@@ -2245,7 +2254,7 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 			const Transition* transition = *ci;
 			ReachableNode* reachable_to_node = node_mapping[&transition->getToNode()];
 			ReachableTransition* reachable_transition = new ReachableTransition(**ci, *reachable_from_node, *reachable_to_node, *equivalent_object_manager_, predicate_manager);
-			reachable_transitions_[*ci] = reachable_transition;
+//			reachable_transitions_[*ci] = reachable_transition;
 			 
 			reachable_from_node->addReachableTransition(*reachable_transition);
 
@@ -2287,10 +2296,26 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 						if (from_node_reachable_transition->getFromNode().getReachableTransitions().size() < reachable_from_node->getReachableTransitions().size())
 						{
 							reachable_set_to_remove.insert(from_node_reachable_transition);
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+							std::cout << "[DTGReachability::DTGReachability] Remove the transition: " << std::endl;
+							from_node_reachable_transition->print(std::cout);
+							std::cout << std::endl;
+							std::cout << "In favour of: ";
+							reachable_transition->print(std::cout);
+							std::cout << "." << std::endl;
+#endif
 						}
 						else
 						{
 							reachable_set_to_remove.insert(reachable_transition);
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+							std::cout << "[DTGReachability::DTGReachability] Remove the transition: " << std::endl;
+							reachable_transition->print(std::cout);
+							std::cout << std::endl;
+							std::cout << "In favour of: ";
+							from_node_reachable_transition->print(std::cout);
+							std::cout << "." << std::endl;
+#endif
 							break;
 						}
 					}
@@ -2322,10 +2347,9 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 			}
 		}
 		
-		if (reachable_from_node->getReachableTransitions().size() == 0)
+		bool mark_for_removal = reachable_from_node->getReachableTransitions().size() == 0;
+		if (mark_for_removal)
 		{
-			bool mark_for_removal = true;
-
 			// Check if no transition is going to this node.
 			for (std::vector<ReachableTransition*>::reverse_iterator ri = all_reachable_transitions.rbegin(); ri != all_reachable_transitions.rend(); ri++)
 			{
@@ -2338,7 +2362,18 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 				}
 			}
 
-			if (mark_for_removal) reachable_set_to_remove.insert(reachable_from_node);
+			if (mark_for_removal)
+			{
+				reachable_set_to_remove.insert(reachable_from_node);
+				std::cout << "[DTGReachability::DTGReachability] Remove the node: " << std::endl;
+				reachable_from_node->print(std::cout);
+				std::cout << std::endl;
+			}
+		}
+		
+		if (!mark_for_removal)
+		{
+			reachable_nodes_.push_back(reachable_from_node);
 		}
 	}
 	
@@ -2353,7 +2388,7 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 	}
 	
 	std::cerr << "After: " << all_reachable_sets.size() << std::endl;
-	
+
 	for (std::vector<ReachableTransition*>::const_iterator ci = all_reachable_transitions.begin(); ci != all_reachable_transitions.end(); ci++)
 	{
 		(*ci)->finalise(all_reachable_sets);
@@ -2561,7 +2596,7 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const ReachableFa
 	
 	equivalent_object_manager_->getAllReachableFacts(result);
 }
-
+/*
 ReachableTransition& DTGReachability::getReachableTransition(const Transition& transition) const
 {
 	std::map<const Transition*, ReachableTransition*>::const_iterator ci = reachable_transitions_.find(&transition);
@@ -2570,7 +2605,7 @@ ReachableTransition& DTGReachability::getReachableTransition(const Transition& t
 #endif
 	return *(*ci).second;
 }
-
+*/
 void DTGReachability::mapInitialFactsToReachableSets(const std::vector<ReachableFact*>& initial_facts)
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT

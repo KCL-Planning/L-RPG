@@ -483,7 +483,7 @@ public:
 	
 	void performReachabilityAnalsysis(std::vector<const ReachableFact*>& result, const std::vector<const BoundedAtom*>& initial_facts, const Bindings& bindings);
 
-	ReachableTransition& getReachableTransition(const Transition& transition) const;
+//	ReachableTransition& getReachableTransition(const Transition& transition) const;
 	
 	const EquivalentObjectGroupManager& getEquivalentObjectGroupManager() const { return *equivalent_object_manager_; }
 	
@@ -502,7 +502,7 @@ private:
 
 	EquivalentObjectGroupManager* equivalent_object_manager_;
 	
-	std::map<const Transition*, ReachableTransition*> reachable_transitions_;
+//	std::map<const Transition*, ReachableTransition*> reachable_transitions_;
 };
 
 };

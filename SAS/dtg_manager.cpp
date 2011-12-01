@@ -870,7 +870,7 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 						
 						for (std::vector<const Object*>::const_iterator ci = variable_domain.begin(); ci != variable_domain.end(); ci++)
 						{
-//							if (isObjectGrounded(**ci))
+							if (isObjectGrounded(**ci))
 							{
 								if (std::find(variable_domains_to_ground.begin(), variable_domains_to_ground.end(), &variable_domain) == variable_domains_to_ground.end())
 								{

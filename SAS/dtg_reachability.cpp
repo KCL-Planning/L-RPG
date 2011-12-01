@@ -770,6 +770,45 @@ ReachableSet::ReachableSet(const MyPOP::SAS_Plus::EquivalentObjectGroupManager& 
 
 }
 
+bool ReachableSet::arePreconditionsEquivalent(const ReachableSet& other_set) const
+{
+	if (facts_set_.size() != other_set.facts_set_.size()) return false;
+	
+	// Try to find a mapping.
+	bool mask[facts_set_.size()];
+	memset(mask, false, sizeof(bool) * facts_set_.size());
+	return tryToFindMapping(mask, 0, other_set);
+}
+
+bool ReachableSet::tryToFindMapping(bool* mask, unsigned int index, const ReachableSet& other_set) const
+{
+	const ResolvedBoundedAtom* node_to_work_on = facts_set_[index];
+	
+	for (unsigned int i = 0; i < other_set.facts_set_.size(); i++)
+	{
+		if (mask[i]) continue;
+		
+		const ResolvedBoundedAtom* to_compare_with = other_set.facts_set_[i];
+		
+		if (node_to_work_on->canUnifyWith(*to_compare_with))
+		{
+			bool new_mask[facts_set_.size()];
+			memcpy(new_mask, mask, sizeof(bool) * facts_set_.size());
+			new_mask[i] = true;
+			
+			// TODO: Check if the same relationships holds between all the terms.
+			if (index + 1 == facts_set_.size()) return true;
+			
+			if (tryToFindMapping(new_mask, index + 1, other_set))
+			{
+				return true;
+			}
+		}
+	}
+	
+	return false;
+}
+
 void ReachableSet::initialiseInitialFacts(const std::vector< ReachableFact* >& initial_facts)
 {
 	/**
@@ -1369,8 +1408,14 @@ void ReachableNode::handleUpdatedEquivalences()
 
 void ReachableNode::print(std::ostream& os) const
 {
-	os << "ReachableNode: " << *dtg_node_ << std::endl;
+	//os << "ReachableNode: " << *dtg_node_ << std::endl;
+	os << "ReachableNode: " << std::endl;
 	
+	for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = getFactsSet().begin(); ci != getFactsSet().end(); ci++)
+	{
+		os << **ci << "." << std::endl;
+	}
+/*
 	if (getFullyReachableSets().empty())
 	{
 		os << "No supported facts :((" << std::endl;
@@ -1422,6 +1467,7 @@ void ReachableNode::print(std::ostream& os) const
 		}
 		os << " === END === " << std::endl;
 	}
+*/
 /*
 	if (reachable_transitions_.size() > 0)
 	{
@@ -1446,7 +1492,7 @@ std::ostream& operator<<(std::ostream& os, const ReachableNode& reachable_node)
 /**
  * Reachable Transition.
  */
-ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& transition, const ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager)
+ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& transition, ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager)
 	: ReachableSet(eog_manager), from_node_(&from_node), to_node_(&to_node), transition_(&transition), latest_processed_from_node_set_(0), latest_processed_transition_set_(0), use_previous_action_domains_(false)
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
@@ -2080,8 +2126,17 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 void ReachableTransition::print(std::ostream& os) const
 {
 	os << "Reachable transition: ";
-	transition_->getAction().print(std::cout, transition_->getFromNode().getDTG().getBindings(), transition_->getStepId());
-
+	transition_->getAction().print(os, transition_->getFromNode().getDTG().getBindings(), transition_->getStepId());
+	os << std::endl;
+	os << " Fact set: " << std::endl;
+	for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = getFactsSet().begin(); ci != getFactsSet().end(); ci++)
+	{
+		os << **ci << "." << std::endl;
+	}
+	
+	os << "FROM: ";
+	from_node_->print(os);
+/*
 	if (getFullyReachableSets().empty())
 	{
 		os << "No supported facts :((" << std::endl;
@@ -2093,16 +2148,16 @@ void ReachableTransition::print(std::ostream& os) const
 		{
 			std::vector<ReachableFact*>* reachable_facts = *ci;
 			if (reachable_facts == NULL) continue;
-			std::cout << "{";
+			os << "{";
 			for (std::vector<ReachableFact*>::const_iterator ci = reachable_facts->begin(); ci != reachable_facts->end(); ci++)
 			{
-				std::cout << **ci;
+				os << **ci;
 				if (ci + 1 != reachable_facts->end())
 				{
-					std::cout << ", ";
+					os << ", ";
 				}
 			}
-			std::cout << "}" << std::endl;
+			os << "}" << std::endl;
 		}
 	}
 	
@@ -2133,6 +2188,7 @@ void ReachableTransition::print(std::ostream& os) const
 		}
 		os << " === END === " << std::endl;
 	}
+*/
 }
 
 std::ostream& operator<<(std::ostream& os, const ReachableTransition& reachable_transition)
@@ -2192,19 +2248,111 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 			reachable_transitions_[*ci] = reachable_transition;
 			 
 			reachable_from_node->addReachableTransition(*reachable_transition);
-			
-			// DTG nodes which have no transitions, we do not care what facts can be made true for them so we do not need to map any mappings to them.
-			// TODO: Satellite fails if this is not commented - why!?
-			//if (transition->getToNode().getTransitions().size() > 0)
-			{
-				all_reachable_sets.push_back(reachable_transition);
-			}
+
+			all_reachable_sets.push_back(reachable_transition);
 			
 			// For transitions which have a to node with no transitions we still need to create a mapping from its effects to other nodes (with transitions!) 
 			// which have these effects as preconditions.
 			all_reachable_transitions.push_back(reachable_transition);
 		}
 	}
+
+	std::cerr << "Before: " << all_reachable_sets.size() << std::endl;
+	
+	// Search for a reachable node which contains the same nodes as a reachable transition and check if the node has a transition which contains the same 
+	// facts as the from node of the found transition.
+	std::set<const ReachableSet*> reachable_set_to_remove;
+	for (std::map<const DomainTransitionGraphNode*, ReachableNode*>::const_iterator ci = node_mapping.begin(); ci != node_mapping.end(); ci++)
+	{
+		ReachableNode* reachable_from_node = (*ci).second;
+		
+		for (std::vector<ReachableTransition*>::reverse_iterator ri = all_reachable_transitions.rbegin(); ri != all_reachable_transitions.rend(); ri++)
+		{
+			ReachableTransition* reachable_transition = *ri;
+			
+			if (reachable_set_to_remove.count(reachable_transition) != 0) continue;
+			
+			if (reachable_from_node->arePreconditionsEquivalent(*reachable_transition))
+			{
+				// Check if the reachable from node has a transition which contains the same facts as the from node of the transition.
+				for (std::vector<ReachableTransition*>::reverse_iterator ri2 = reachable_from_node->getReachableTransitions().rbegin(); ri2 != reachable_from_node->getReachableTransitions().rend(); ri2++)
+				{
+					ReachableTransition* from_node_reachable_transition = *ri2;
+					
+					if (reachable_set_to_remove.count(from_node_reachable_transition) != 0) continue;
+
+					if (from_node_reachable_transition->arePreconditionsEquivalent(reachable_transition->getFromNode()))
+					{
+						// For now, we remove the transition of the node with the lowest out bound!
+						if (from_node_reachable_transition->getFromNode().getReachableTransitions().size() < reachable_from_node->getReachableTransitions().size())
+						{
+							reachable_set_to_remove.insert(from_node_reachable_transition);
+						}
+						else
+						{
+							reachable_set_to_remove.insert(reachable_transition);
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Remove all the transitions which have been marked for removal.
+	for (std::vector<ReachableTransition*>::reverse_iterator ri = all_reachable_transitions.rbegin(); ri != all_reachable_transitions.rend(); ri++)
+	{
+		ReachableTransition* transition = *ri;
+		if (reachable_set_to_remove.count(transition) != 0)
+		{
+			all_reachable_transitions.erase(ri.base() - 1);
+		}
+	}
+	
+	// Remove all the nodes which have no transitions!
+	for (std::map<const DomainTransitionGraphNode*, ReachableNode*>::const_iterator ci = node_mapping.begin(); ci != node_mapping.end(); ci++)
+	{
+		ReachableNode* reachable_from_node = (*ci).second;
+		
+		for (std::vector<ReachableTransition*>::reverse_iterator ri = reachable_from_node->getReachableTransitions().rbegin(); ri != reachable_from_node->getReachableTransitions().rend(); ri++)
+		{
+			if (reachable_set_to_remove.count(*ri) != 0)
+			{
+				reachable_from_node->getReachableTransitions().erase(ri.base() - 1);
+			}
+		}
+		
+		if (reachable_from_node->getReachableTransitions().size() == 0)
+		{
+			bool mark_for_removal = true;
+
+			// Check if no transition is going to this node.
+			for (std::vector<ReachableTransition*>::reverse_iterator ri = all_reachable_transitions.rbegin(); ri != all_reachable_transitions.rend(); ri++)
+			{
+				ReachableTransition* transition = *ri;
+				
+				if (&transition->getFromNode() == reachable_from_node)
+				{
+					mark_for_removal = false;
+					break;
+				}
+			}
+
+			if (mark_for_removal) reachable_set_to_remove.insert(reachable_from_node);
+		}
+	}
+	
+	// Remove all the nodes which have no transitions!
+	for (std::vector<ReachableSet*>::reverse_iterator ri = all_reachable_sets.rbegin(); ri != all_reachable_sets.rend(); ri++)
+	{
+		ReachableSet* reachable_set = *ri;
+		if (reachable_set_to_remove.count(reachable_set) != 0)
+		{
+			all_reachable_sets.erase(ri.base() - 1);
+		}
+	}
+	
+	std::cerr << "After: " << all_reachable_sets.size() << std::endl;
 	
 	for (std::vector<ReachableTransition*>::const_iterator ci = all_reachable_transitions.begin(); ci != all_reachable_transitions.end(); ci++)
 	{

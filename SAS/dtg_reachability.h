@@ -219,6 +219,8 @@ public:
 	 * Default constructor.
 	 */
 	ReachableSet(const EquivalentObjectGroupManager& eog_manager);
+	
+	bool arePreconditionsEquivalent(const ReachableSet& other_set) const;
 
 	/**
 	 * Return all the sets of reachable facts which satisfy all the constraints and have a reachable fact 
@@ -288,6 +290,8 @@ private:
 	 */
 	bool canSatisfyConstraints(const ReachableFact& reachable_fact, std::vector<ReachableFact*>& reachable_set) const;
 	
+	bool tryToFindMapping(bool* mapping, unsigned int index, const ReachableSet& other_set) const;
+	
 	// This is the set of bounded atoms which is either part of a Lifted Transition or is part of a
 	// node of the Lifted Transition Graph.
 	std::vector<const ResolvedBoundedAtom*> facts_set_;
@@ -330,6 +334,10 @@ public:
 	bool propagateReachableFacts();
 	
 	void handleUpdatedEquivalences();
+	
+	std::vector<ReachableTransition*>& getReachableTransitions() { return reachable_transitions_; }
+	
+//	void removeReachableTransition(const ReachableTransition);
 	
 	void print(std::ostream& os) const;
 	
@@ -376,7 +384,7 @@ struct VariableToValues
 class ReachableTransition : public ReachableSet
 {
 public:
-	ReachableTransition(const Transition& transition, const ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
+	ReachableTransition(const Transition& transition, ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
 	
 	/**
 	 * After all the reachable nodes and reachable transitions have been created we do one more post analysis and
@@ -400,6 +408,8 @@ public:
 	
 	const Transition& getTransition() const { return *transition_; }
 	
+	ReachableNode& getFromNode() const { return *from_node_; }
+	
 	static unsigned int generated_new_reachable_facts;
 	static unsigned int accepted_new_reachable_facts;
 
@@ -407,7 +417,7 @@ public:
 	void print(std::ostream& os) const;
 private:
 	
-	const ReachableNode* from_node_;
+	ReachableNode* from_node_;
 	const ReachableNode* to_node_;
 	
 	const Transition* transition_;

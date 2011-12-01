@@ -677,8 +677,6 @@ void DomainTransitionGraph::solveSubsets()
 	std::map<DomainTransitionGraphNode*, std::vector<DomainTransitionGraphNode*>* > super_to_sub_nodes;
 	std::map<DomainTransitionGraphNode*, int*> sub_to_super_nodes_indexes;
 	
-	
-	
 	// Find a pairing of nodes of which one is a subset of the other.
 	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
 	{

@@ -432,6 +432,26 @@ bool ResolvedBoundedAtom::canUnifyWith(const ResolvedBoundedAtom& other) const
 	
 	return true;
 }
+
+bool ResolvedBoundedAtom::canSubstitude(const ReachableFact& reachable_fact) const
+{
+	if (!getCorrectedAtom().getPredicate().canSubstitute(reachable_fact.getAtom().getPredicate()))
+	{
+		for (unsigned int i = 0; i < reachable_fact.getAtom().getArity(); i++)
+		{
+			const Type* fact_set_type = getCorrectedAtom().getTerms()[i]->getType();
+			const Type* reachable_fact_type = reachable_fact.getTermDomain(i).getEquivalentObjects()[0]->getObject().getType();
+			
+			if (!fact_set_type->isCompatible(*reachable_fact_type))
+			{
+				return false;
+			}
+		}
+	}
+	
+	return true;
+}
+
 std::ostream& operator<<(std::ostream& os, const ResolvedBoundedAtom& resolved_bounded_atom)
 {
 	os << "(" << resolved_bounded_atom.getCorrectedAtom().getPredicate().getName();
@@ -765,7 +785,7 @@ std::ostream& operator<<(std::ostream& os, const ResolvedEffect& resolved_effect
  * ReachableSet.
  */
 ReachableSet::ReachableSet(const MyPOP::SAS_Plus::EquivalentObjectGroupManager& eog_manager)
-	: eog_manager_(&eog_manager)
+	: eog_manager_(&eog_manager), removed_(false)
 {
 
 }
@@ -832,10 +852,14 @@ void ReachableSet::initialiseInitialFacts(const std::vector< ReachableFact* >& i
 			assert (resolved_atom->getCorrectedAtom().getPredicate().getId() != NO_INVARIABLE_INDEX);
 			assert (initial_fact->getAtom().getPredicate().getId() != NO_INVARIABLE_INDEX);
 #endif
-			if (!resolved_atom->getCorrectedAtom().getPredicate().canSubstitute(initial_fact->getAtom().getPredicate()))
+			if (!resolved_atom->canSubstitude(*initial_fact))
 			{
 				continue;
 			}
+//			if (!resolved_atom->getCorrectedAtom().getPredicate().canSubstitute(initial_fact->getAtom().getPredicate()))
+//			{
+//				continue;
+//			}
 			
 			processNewReachableFact(*initial_fact, index);
 		}
@@ -889,6 +913,11 @@ void ReachableSet::addBoundedAtom(const MyPOP::SAS_Plus::BoundedAtom& bounded_at
 
 void ReachableSet::equivalencesUpdated()
 {
+	if (!isValid())
+	{
+		assert (false);
+	}
+	
 	// Sets which are not fully constructed yet.
 	for (std::vector<std::vector<ReachableFact*>*>::reverse_iterator ri = wip_sets_.rbegin(); ri != wip_sets_.rend(); ri++)
 	{
@@ -1143,7 +1172,8 @@ bool ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsign
 
 	// Need to be careful, if the predicate does not substitute than it might mean that the provided reachable fact might in fact 
 	// not be part of this set!
-	if (!facts_set_[index]->getCorrectedAtom().getPredicate().canSubstitute(reachable_fact.getAtom().getPredicate()))
+	if (!facts_set_[index]->canSubstitude(reachable_fact)) return false;
+/*	if (!facts_set_[index]->getCorrectedAtom().getPredicate().canSubstitute(reachable_fact.getAtom().getPredicate()))
 	{
 		for (unsigned int i = 0; i < reachable_fact.getAtom().getArity(); i++)
 		{
@@ -1155,7 +1185,7 @@ bool ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsign
 				return false;
 			}
 		}
-	}
+	}*/
 	
 	// Check if the grounded constraints are satisfied.
 	for (unsigned int i = 0; i < reachable_fact.getAtom().getArity(); i++)
@@ -1298,7 +1328,7 @@ void ReachableSet::generateNewReachableSets(std::vector<ReachableFact*>& reachab
 			const ResolvedBoundedAtom* resolved_bounded_atom = *ci;
 			unsigned int index = std::distance(static_cast<std::vector<const ResolvedBoundedAtom*>::const_iterator>(getFactsSet().begin()), ci);
 			
-			assert (resolved_bounded_atom->getCorrectedAtom().getPredicate().canSubstitute(reachable_sets_to_process[index]->getAtom().getPredicate()));
+//			assert (resolved_bounded_atom->getCorrectedAtom().getPredicate().canSubstitute(reachable_sets_to_process[index]->getAtom().getPredicate()));
 			
 			for (unsigned int i = 0; i < resolved_bounded_atom->getCorrectedAtom().getArity(); i++)
 			{
@@ -1422,6 +1452,10 @@ bool ReachableNode::propagateReachableFacts()
 
 void ReachableNode::handleUpdatedEquivalences()
 {
+	if (!isValid())
+	{
+		assert (false);
+	}
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 	assert (reachable_transitions_.size() > 0);
 #endif
@@ -1781,6 +1815,10 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 
 void ReachableTransition::finalise(const std::vector<ReachableSet*>& all_reachable_sets)
 {
+	if (!isValid())
+	{
+		assert (false);
+	}
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "Link all the effects of " << *this << " to all the sets which can be unified with them." << std::endl;
 #endif
@@ -1828,6 +1866,10 @@ void ReachableTransition::initialise(const std::vector<ReachableFact*>& initial_
 
 bool ReachableTransition::generateReachableFacts()
 {
+	if (!isValid())
+	{
+		assert (false);
+	}
 	const std::vector<std::vector<ReachableFact*>* >& from_node_reachable_sets = from_node_->getFullyReachableSets();
 	if (from_node_reachable_sets.size() == 0)
 	{
@@ -1907,6 +1949,10 @@ bool ReachableTransition::generateReachableFacts()
 
 void ReachableTransition::handleUpdatedEquivalences()
 {
+	if (!isValid())
+	{
+		assert (false);
+	}
 	equivalencesUpdated();
 	
 	for (std::vector<ResolvedEffect*>::const_iterator ci = effects_.begin(); ci != effects_.end(); ci++)
@@ -1927,6 +1973,10 @@ void ReachableTransition::handleUpdatedEquivalences()
 
 bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, unsigned int effect_index, const std::vector<ReachableFact*>& from_node_reachable_set, const std::vector<ReachableFact*>& transition_reachable_set)
 {
+	if (!isValid())
+	{
+		assert (false);
+	}
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "Create new reachable fact of the effect: " << effect << "." << std::endl;
 #endif
@@ -2325,6 +2375,7 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 						if (from_node_reachable_transition->getFromNode().getReachableTransitions().size() < reachable_from_node->getReachableTransitions().size())
 						{
 							reachable_set_to_remove.insert(from_node_reachable_transition);
+							from_node_reachable_transition->markAsRemoved();
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 							std::cout << "[DTGReachability::DTGReachability] Remove the transition: " << std::endl;
 							from_node_reachable_transition->print(std::cout);
@@ -2337,6 +2388,7 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 						else
 						{
 							reachable_set_to_remove.insert(reachable_transition);
+							reachable_transition->markAsRemoved();
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 							std::cout << "[DTGReachability::DTGReachability] Remove the transition: " << std::endl;
 							reachable_transition->print(std::cout);
@@ -2394,6 +2446,7 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 			if (mark_for_removal)
 			{
 				reachable_set_to_remove.insert(reachable_from_node);
+				reachable_from_node->markAsRemoved();
 				std::cout << "[DTGReachability::DTGReachability] Remove the node: " << std::endl;
 				reachable_from_node->print(std::cout);
 				std::cout << std::endl;
@@ -2444,7 +2497,8 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 				unsigned int index = std::distance(reachable_node->getFactsSet().begin(), ci);
 				const ResolvedBoundedAtom* resolved_bounded_atom = *ci;
 				
-				if (resolved_bounded_atom->getCorrectedAtom().getPredicate().canSubstitute(*corresponding_predicate))
+				if (resolved_bounded_atom->getCorrectedAtom().getPredicate().canSubstitute(*corresponding_predicate) ||
+				    corresponding_predicate->canSubstitute(resolved_bounded_atom->getCorrectedAtom().getPredicate()))
 				{
 					predicate_id_to_reachable_sets_mapping_[i]->push_back(std::make_pair(reachable_node, index));
 				}
@@ -2667,49 +2721,6 @@ void DTGReachability::mapInitialFactsToReachableSets(const std::vector<Reachable
 			reachable_set->processNewReachableFact(*initial_fact, fact_index);
 		}
 	}
-	
-	
-	
-	
-/*	for (std::vector<ReachableFact*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
-	{
-		ReachableFact* initial_fact = *ci;
-		
-		if (initial_fact->isMarkedForRemoval()) continue;
-		
-		std::map<std::string, std::vector<std::pair<ReachableSet*, unsigned int> >* >::const_iterator found_mapping = predicate_to_reachable_set_mapping_.find(initial_fact->getAtom().getPredicate().getName());
-		assert (found_mapping != predicate_to_reachable_set_mapping_.end());
-		
-		std::vector<std::pair<ReachableSet*, unsigned int> >* reachable_sets = predicate_to_reachable_set_mapping_[initial_fact->getAtom().getPredicate().getName()];
-		
-		assert (reachable_sets != NULL);
-		
-		for (std::vector<std::pair<ReachableSet*, unsigned int> >::const_iterator ci = reachable_sets->begin(); ci != reachable_sets->end(); ci++)
-		{
-			ReachableSet* reachable_set = (*ci).first;
-			unsigned int fact_index = (*ci).second;
-			
-			// The predicate of the fact in this set should be more general than the one we try to 'merge' with.
-			if (!reachable_set->getFactsSet()[fact_index]->getCorrectedAtom().getPredicate().canSubstitute(initial_fact->getAtom().getPredicate()))
-			{
-				continue;
-			}
-			
-			std::cout << "Process: ";
-			reachable_set->print(std::cout);
-			std::cout << "." << std::endl;
-			
-			reachable_set->processNewReachableFact(*initial_fact, fact_index);
-		}
-	}*/
-	
-/*
-	for (std::vector<ReachableNode*>::const_iterator ci = reachable_nodes_.begin(); ci != reachable_nodes_.end(); ci++)
-	{
-		ReachableNode* reachable_node = *ci;
-		reachable_node->initialise(initial_facts);
-	}
-*/
 }
 
 

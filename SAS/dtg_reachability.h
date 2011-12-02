@@ -154,6 +154,8 @@ public:
 	
 	bool canUnifyWith(const ResolvedBoundedAtom& other) const;
 	
+	bool canSubstitude(const ReachableFact& reachable_fact) const;
+	
 protected:
 	
 	void init(const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
@@ -243,10 +245,16 @@ public:
 	 */
 	bool processNewReachableFact(ReachableFact& reachable_fact, unsigned int index);
 	
+	void markAsRemoved() { removed_ = true; }
+	
+	bool isValid() const { return !removed_; }
+	
 	virtual void print(std::ostream& os) const = 0;
 	
 protected:
 	const EquivalentObjectGroupManager* eog_manager_;
+	
+	bool removed_;
 	
 	/**
 	 * Initialise the reachable set by matching the initial facts.

@@ -13,8 +13,8 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-//#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-//#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_DEBUG
+#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+///#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_DEBUG
 
 namespace MyPOP {
 	
@@ -425,9 +425,9 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group, std::vecto
 			
 			if (already_present)
 			{
-#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+//#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 				std::cout << "Remove: " << *reachable_fact << " because it is identical to the fact: " << *identical_fact << "." << std::endl;
-#endif
+//#endif
 				reachable_fact->replaceBy(*identical_fact);
 				
 				for (unsigned int i = 0; i < reachable_fact->getAtom().getArity(); i++)

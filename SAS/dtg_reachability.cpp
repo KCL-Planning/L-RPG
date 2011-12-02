@@ -13,8 +13,8 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-//#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-//#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 //#define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
 
@@ -287,7 +287,7 @@ std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact)
 		}
 		//os << "- " << *reachable_fact.term_domain_mapping_[i]-> << "(" << reachable_fact.index_ << std::endl;
 	}
-	os << ")" << "%" << &reachable_fact << "%";
+	os << ")" << "%" << &reachable_fact << "%" << reachable_fact.getAtom().getPredicate();
 	
 //	os << "%";
 //	for (std::vector<const Property*>::const_iterator ci = reachable_fact.bounded_atom_->getProperties().begin(); ci != reachable_fact.bounded_atom_->getProperties().end(); ci++)
@@ -936,6 +936,7 @@ void ReachableSet::equivalencesUpdated()
 					
 					for (std::vector<ReachableFact*>::const_iterator ci = reachable_set->begin(); ci != reachable_set->end() - 1; ci++)
 					{
+						(*ci)->updateTermsToRoot();
 						std::cout << "* " << **ci << "." << std::endl;
 					}
 					
@@ -1094,11 +1095,12 @@ bool ReachableSet::canSatisfyConstraints(const ReachableFact& reachable_fact, st
 #endif
 
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
-	if (!reachable_fact.getAtom().getPredicate().canSubstitute(facts_set_[reachable_set.size()]->getCorrectedAtom().getPredicate()))
+/*	if (!facts_set_[reachable_set.size()]->getCorrectedAtom().getPredicate().canSubstitute(reachable_fact.getAtom().getPredicate()))
 	{
-		std::cout << reachable_fact.getAtom().getPredicate().getId() << " can't substitute: " << facts_set_[reachable_set.size()]->getCorrectedAtom().getPredicate().getId() << std::endl;
+		std::cout << facts_set_[reachable_set.size()]->getCorrectedAtom().getPredicate() << " can't substitute: " << reachable_fact.getAtom().getPredicate() << std::endl;
 		assert (false);
 	}
+*/
 	assert (reachable_fact.getAtom().getArity() == facts_set_[reachable_set.size()]->getCorrectedAtom().getArity());
 #endif
 	
@@ -1136,9 +1138,25 @@ bool ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsign
 	// Make sure the fact to be added can be unified with the fact at the given index.
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 	assert (facts_set_.size() > index);
-	assert (facts_set_[index]->getCorrectedAtom().getPredicate().canSubstitute(reachable_fact.getAtom().getPredicate()));
+//	assert (facts_set_[index]->getCorrectedAtom().getPredicate().canSubstitute(reachable_fact.getAtom().getPredicate()));
 #endif
 
+	// Need to be careful, if the predicate does not substitute than it might mean that the provided reachable fact might in fact 
+	// not be part of this set!
+	if (!facts_set_[index]->getCorrectedAtom().getPredicate().canSubstitute(reachable_fact.getAtom().getPredicate()))
+	{
+		for (unsigned int i = 0; i < reachable_fact.getAtom().getArity(); i++)
+		{
+			const Type* fact_set_type = facts_set_[index]->getCorrectedAtom().getTerms()[i]->getType();
+			const Type* reachable_fact_type = reachable_fact.getTermDomain(i).getEquivalentObjects()[0]->getObject().getType();
+			
+			if (!fact_set_type->isCompatible(*reachable_fact_type))
+			{
+				return false;
+			}
+		}
+	}
+	
 	// Check if the grounded constraints are satisfied.
 	for (unsigned int i = 0; i < reachable_fact.getAtom().getArity(); i++)
 	{
@@ -1780,29 +1798,24 @@ void ReachableTransition::finalise(const std::vector<ReachableSet*>& all_reachab
 		{
 			ReachableSet* reachable_set = *ci;
 			
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+			std::cout << "Process the set: " << std::endl;
+			reachable_set->print(std::cout);
+			std::cout << std::endl;
+#endif
+			
 			const std::vector<const ResolvedBoundedAtom*>& preconditions = reachable_set->getFactsSet();
 			
 			for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 			{
 				const ResolvedBoundedAtom* precondition = *ci;
-				
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-				std::cout << "Potential candidate: " << *precondition << "." << std::endl;
-#endif
-				
 				if (precondition->canUnifyWith(*effect))
 				{
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-					std::cout << "Accepted! :D" << std::endl;
+					std::cout << "Accepted candidate: " << *precondition << "." << std::endl;
 #endif
 					preconditions_reached_by_effect_->push_back(std::make_pair(reachable_set, std::distance(preconditions.begin(), ci)));
 				}
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-				else
-				{
-					std::cout << "Declined :((" << std::endl;
-				}
-#endif
 			}
 		}
 	}
@@ -2120,7 +2133,24 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 		{
 			for (unsigned int i = 0; i < new_reachable_fact->getAtom().getArity(); i++)
 			{
-				new_reachable_fact->getTermDomain(i).addReachableFact(*new_reachable_fact);
+				// Make sure not to add the fact to the same EOG!
+				EquivalentObjectGroup& to_add_to = new_reachable_fact->getTermDomain(i);
+				
+				bool already_added = false;
+				for (unsigned int j = 0; j < i; j++)
+				{
+					EquivalentObjectGroup& previously_added_to = new_reachable_fact->getTermDomain(j);
+					if (&to_add_to == &previously_added_to)
+					{
+						already_added = true;
+						break;
+					}
+				}
+				
+				if (!already_added)
+				{
+					new_reachable_fact->getTermDomain(i).addReachableFact(*new_reachable_fact);
+				}
 			}
 		}
 		else
@@ -2254,7 +2284,6 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 			const Transition* transition = *ci;
 			ReachableNode* reachable_to_node = node_mapping[&transition->getToNode()];
 			ReachableTransition* reachable_transition = new ReachableTransition(**ci, *reachable_from_node, *reachable_to_node, *equivalent_object_manager_, predicate_manager);
-//			reachable_transitions_[*ci] = reachable_transition;
 			 
 			reachable_from_node->addReachableTransition(*reachable_transition);
 

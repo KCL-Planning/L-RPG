@@ -2446,9 +2446,11 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 			{
 				reachable_set_to_remove.insert(reachable_from_node);
 				reachable_from_node->markAsRemoved();
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 				std::cout << "[DTGReachability::DTGReachability] Remove the node: " << std::endl;
 				reachable_from_node->print(std::cout);
 				std::cout << std::endl;
+#endif
 			}
 		}
 		

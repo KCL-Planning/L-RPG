@@ -449,10 +449,7 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group, std::vecto
 		
 		if (!already_present)
 		{
-//#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_DEBUG
 			addReachableFact(*reachable_fact);
-//#endif
-//			reachable_facts_.push_back(reachable_fact);
 		}
 	}
 

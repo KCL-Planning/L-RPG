@@ -417,6 +417,7 @@ public:
 	const Transition& getTransition() const { return *transition_; }
 	
 	ReachableNode& getFromNode() const { return *from_node_; }
+	const ReachableNode& getToNode() const { return *to_node_; }
 	
 	static unsigned int generated_new_reachable_facts;
 	static unsigned int accepted_new_reachable_facts;

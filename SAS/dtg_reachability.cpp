@@ -792,6 +792,11 @@ bool ReachableSet::arePreconditionsEquivalent(const ReachableSet& other_set) con
 {
 	if (facts_set_.size() != other_set.facts_set_.size()) return false;
 	
+	if (facts_set_.size() == 0)
+	{
+		return true;
+	}
+	
 	// Try to find a mapping.
 	bool mask[facts_set_.size()];
 	memset(mask, false, sizeof(bool) * facts_set_.size());
@@ -2224,6 +2229,8 @@ void ReachableTransition::print(std::ostream& os) const
 	
 	os << "FROM: ";
 	from_node_->print(os);
+	os << "TO: ";
+	to_node_->print(os);
 /*
 	if (getFullyReachableSets().empty())
 	{
@@ -2368,6 +2375,8 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 					
 					if (reachable_set_to_remove.count(from_node_reachable_transition) != 0) continue;
 
+//					if (&from_node_reachable_transition->getToNode() == &reachable_transition->getToNode() &&
+//					    from_node_reachable_transition->arePreconditionsEquivalent(reachable_transition->getFromNode()))
 					if (from_node_reachable_transition->arePreconditionsEquivalent(reachable_transition->getFromNode()))
 					{
 						// For now, we remove the transition of the node with the lowest out bound!
@@ -2375,27 +2384,27 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 						{
 							reachable_set_to_remove.insert(from_node_reachable_transition);
 							from_node_reachable_transition->markAsRemoved();
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+//#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 							std::cout << "[DTGReachability::DTGReachability] Remove the transition: " << std::endl;
 							from_node_reachable_transition->print(std::cout);
 							std::cout << std::endl;
 							std::cout << "In favour of: ";
 							reachable_transition->print(std::cout);
 							std::cout << "." << std::endl;
-#endif
+//#endif
 						}
 						else
 						{
 							reachable_set_to_remove.insert(reachable_transition);
 							reachable_transition->markAsRemoved();
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+//#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 							std::cout << "[DTGReachability::DTGReachability] Remove the transition: " << std::endl;
 							reachable_transition->print(std::cout);
 							std::cout << std::endl;
 							std::cout << "In favour of: ";
 							from_node_reachable_transition->print(std::cout);
 							std::cout << "." << std::endl;
-#endif
+//#endif
 							break;
 						}
 					}
@@ -2446,11 +2455,11 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 			{
 				reachable_set_to_remove.insert(reachable_from_node);
 				reachable_from_node->markAsRemoved();
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+//#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 				std::cout << "[DTGReachability::DTGReachability] Remove the node: " << std::endl;
 				reachable_from_node->print(std::cout);
 				std::cout << std::endl;
-#endif
+//#endif
 			}
 		}
 		
@@ -2475,6 +2484,8 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 	for (std::vector<ReachableTransition*>::const_iterator ci = all_reachable_transitions.begin(); ci != all_reachable_transitions.end(); ci++)
 	{
 		(*ci)->finalise(all_reachable_sets);
+		(*ci)->print(std::cout);
+		std::cout << std::endl;
 	}
 	
 	// All predicate should have number at this point. Next we record which predicate can substitute other predicates.

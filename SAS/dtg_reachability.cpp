@@ -13,8 +13,8 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+//#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+//#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 //#define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
 
@@ -148,6 +148,7 @@ bool ReachableFact::isIdenticalTo(const ReachableFact& other) const
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 			if (term_domain_mapping_[i]->isIdenticalTo(*other.term_domain_mapping_[i]))
 			{
+				std::cerr << "Could not check if " << *this << " is equivalent to " << other << std::endl;
 				std::cerr << "WRONG!" << std::endl;
 				assert (false);
 			}
@@ -254,6 +255,8 @@ void ReachableFact::replaceBy(ReachableFact& replacement)
 {
 //	assert (replaced_by_ == NULL);
 	replaced_by_ = &replacement;
+	
+	assert (replaced_by_->replaced_by_ != this);
 }
 
 //bool isMarkedForRemoval() const { return removed_flag_; }
@@ -262,6 +265,9 @@ void ReachableFact::replaceBy(ReachableFact& replacement)
 ReachableFact& ReachableFact::getReplacement()
 {
 	if (replaced_by_ == NULL) return *this;
+	
+	assert (replaced_by_->replaced_by_ != this);
+	
 	return replaced_by_->getReplacement();
 }
 
@@ -285,17 +291,9 @@ std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact)
 		{
 			os << ", ";
 		}
-		//os << "- " << *reachable_fact.term_domain_mapping_[i]-> << "(" << reachable_fact.index_ << std::endl;
 	}
 	os << ")" << "%" << &reachable_fact << "%" << reachable_fact.getAtom().getPredicate();
-	
-//	os << "%";
-//	for (std::vector<const Property*>::const_iterator ci = reachable_fact.bounded_atom_->getProperties().begin(); ci != reachable_fact.bounded_atom_->getProperties().end(); ci++)
-//	{
-//		os << **ci << ", ";
-//	}
-	
-//	os << "%" << std::endl;
+	os << "[r=" << &const_cast<ReachableFact&>(reachable_fact).getReplacement() << "]";
 	return os;
 }
 
@@ -952,6 +950,7 @@ void ReachableSet::equivalencesUpdated()
 				bool found_identical = false;
 				for (std::vector<ReachableFact*>::const_iterator ci = reachable_set->begin(); ci != reachable_set->end() - 1; ci++)
 				{
+					(*ci)->updateTermsToRoot();
 					if ((*ci)->isIdenticalTo(*reachable_fact))
 					{
 						found_identical = true;

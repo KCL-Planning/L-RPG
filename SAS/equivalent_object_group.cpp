@@ -13,8 +13,8 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-///#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_DEBUG
+//#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+//#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_DEBUG
 
 namespace MyPOP {
 	
@@ -385,15 +385,17 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group, std::vecto
 		}
 	}
 	std::vector<ReachableFact*> updated_facts(reachable_facts_);
-	
 	for (std::vector<ReachableFact*>::const_iterator ri = other_group.reachable_facts_.begin(); ri != other_group.reachable_facts_.end(); ri++)
 	{
 		ReachableFact* reachable_fact = *ri;
 		// The set of reachable facts in this EOG and the other EOG should be disjunct so there is no way any of the facts 
 		// are yet marked for removal.
-#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_DEBUG
-		assert (!reachable_fact->isMarkedForRemoval());
-#endif
+		// However, if a fact contains a reference to the same EOG which is then merged with another EOG we cannot select the EOG with the same 
+		// references as the "head" node.
+
+		// If multiple EOGs have been updated it can be that one of the facts in this EOG is also affected. We should ignore the 
+		// nodes marked for removal.
+		if (reachable_fact->isMarkedForRemoval()) continue;
 		
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 //		std::cout << "Check if " << *reachable_fact << " needs to be updated!" << std::endl;
@@ -416,7 +418,6 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group, std::vecto
 				if ((*ci)->isIdenticalTo(*reachable_fact))
 				{
 					assert (*ci != reachable_fact);
-//					assert (!(*ci)->isMarkedForRemoval());
 					identical_fact = *ci;
 					already_present = true;
 					break;
@@ -425,16 +426,16 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group, std::vecto
 			
 			if (already_present)
 			{
-//#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-				std::cout << "Remove: " << *reachable_fact << " because it is identical to the fact: " << *identical_fact << "." << std::endl;
-//#endif
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+				std::cout << "Remove: " << *reachable_fact << "[r=" << &reachable_fact->getReplacement() << "] because it is identical to the fact: " << *identical_fact << "[r=" << &identical_fact->getReplacement() << "]." << std::endl;
+#endif
 				reachable_fact->replaceBy(*identical_fact);
 				
 				for (unsigned int i = 0; i < reachable_fact->getAtom().getArity(); i++)
 				{
 					EquivalentObjectGroup& eog = reachable_fact->getTermDomain(i);
 					
-					if (&eog != this && std::find(affected_groups.begin(), affected_groups.end(), &eog) == affected_groups.end())
+					if (/*&eog != this && */std::find(affected_groups.begin(), affected_groups.end(), &eog) == affected_groups.end())
 					{
 						affected_groups.push_back(&eog);
 					}
@@ -448,7 +449,10 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group, std::vecto
 		
 		if (!already_present)
 		{
-			reachable_facts_.push_back(reachable_fact);
+//#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_DEBUG
+			addReachableFact(*reachable_fact);
+//#endif
+//			reachable_facts_.push_back(reachable_fact);
 		}
 	}
 
@@ -463,7 +467,7 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group, std::vecto
 	
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 	std::cout << "Result of merging: " << *this << "." << std::endl;
-#endif 
+#endif
 }
 
 void EquivalentObjectGroup::deleteRemovedFacts()

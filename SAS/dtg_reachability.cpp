@@ -14,8 +14,8 @@
 #include "../term_manager.h"
 
 //#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-//#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
-//#define DTG_REACHABILITY_KEEP_TIME
+#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+#define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
 
 namespace SAS_Plus {
@@ -1148,7 +1148,7 @@ bool ReachableSet::canSatisfyConstraints(const ReachableFact& reachable_fact, st
 			unsigned int fact_index = (*ci).first;
 			unsigned int variable_index = (*ci).second;
 			// Check if the relationship holds.
-			if (reachable_fact.getTermDomain(i) != reachable_set[fact_index]->getTermDomain(variable_index))
+			if (&reachable_fact.getTermDomain(i) != &reachable_set[fact_index]->getTermDomain(variable_index))
 			{
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 				std::cout << "The " << i << "th term of : " << reachable_fact << " should match up with the " << variable_index << "th term of " << *reachable_set[fact_index] << ", but it doesn't!" << std::endl;
@@ -2384,27 +2384,27 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 						{
 							reachable_set_to_remove.insert(from_node_reachable_transition);
 							from_node_reachable_transition->markAsRemoved();
-//#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 							std::cout << "[DTGReachability::DTGReachability] Remove the transition: " << std::endl;
 							from_node_reachable_transition->print(std::cout);
 							std::cout << std::endl;
 							std::cout << "In favour of: ";
 							reachable_transition->print(std::cout);
 							std::cout << "." << std::endl;
-//#endif
+#endif
 						}
 						else
 						{
 							reachable_set_to_remove.insert(reachable_transition);
 							reachable_transition->markAsRemoved();
-//#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 							std::cout << "[DTGReachability::DTGReachability] Remove the transition: " << std::endl;
 							reachable_transition->print(std::cout);
 							std::cout << std::endl;
 							std::cout << "In favour of: ";
 							from_node_reachable_transition->print(std::cout);
 							std::cout << "." << std::endl;
-//#endif
+#endif
 							break;
 						}
 					}
@@ -2455,11 +2455,11 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 			{
 				reachable_set_to_remove.insert(reachable_from_node);
 				reachable_from_node->markAsRemoved();
-//#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 				std::cout << "[DTGReachability::DTGReachability] Remove the node: " << std::endl;
 				reachable_from_node->print(std::cout);
 				std::cout << std::endl;
-//#endif
+#endif
 			}
 		}
 		
@@ -2611,8 +2611,6 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const ReachableFa
 	equivalent_object_manager_->print(std::cout);
 #endif
 	
-//	exit(0);
-	
 	// Now for every LTG node for which we have found a full set we check if their reachable transitions have the same property and we
 	// can generate new reachable facts from these.
 	bool done = false;
@@ -2690,6 +2688,7 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const ReachableFa
 #endif
 	
 	equivalent_object_manager_->getAllReachableFacts(result);
+	equivalent_object_manager_->printAll(std::cout);
 }
 /*
 ReachableTransition& DTGReachability::getReachableTransition(const Transition& transition) const

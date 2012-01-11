@@ -14,8 +14,8 @@
 #include "../term_manager.h"
 
 //#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
-#define DTG_REACHABILITY_KEEP_TIME
+//#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+//#define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
 
 namespace SAS_Plus {
@@ -1741,6 +1741,7 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = effects.begin(); ci != effects.end(); ci++)
 	{
 		const Atom* effect = (*ci).first;
+		if (effect->isNegative()) continue;
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 		std::cout << "Process the effect: ";
 		effect->print(std::cout, bindings, transition_->getStepId());
@@ -2484,8 +2485,6 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 	for (std::vector<ReachableTransition*>::const_iterator ci = all_reachable_transitions.begin(); ci != all_reachable_transitions.end(); ci++)
 	{
 		(*ci)->finalise(all_reachable_sets);
-		(*ci)->print(std::cout);
-		std::cout << std::endl;
 	}
 	
 	// All predicate should have number at this point. Next we record which predicate can substitute other predicates.
@@ -2688,7 +2687,6 @@ void DTGReachability::performReachabilityAnalsysis(std::vector<const ReachableFa
 #endif
 	
 	equivalent_object_manager_->getAllReachableFacts(result);
-	equivalent_object_manager_->printAll(std::cout);
 }
 /*
 ReachableTransition& DTGReachability::getReachableTransition(const Transition& transition) const

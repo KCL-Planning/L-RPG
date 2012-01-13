@@ -84,10 +84,11 @@ public:
 	
 	const std::vector<const SAS_Plus::ResolvedBoundedAtom*>* getFacts(const SAS_Plus::ResolvedBoundedAtom& precondition) const;
 
-private:
+//private:
 	
 	std::string getUniqueName(const SAS_Plus::ResolvedBoundedAtom& atom) const;
 	
+private:
 	// All the facts stored in this fact layer.
 	std::vector<const SAS_Plus::ResolvedBoundedAtom*> facts_;
 	
@@ -113,8 +114,8 @@ public:
 	const std::vector<std::vector<const ResolvedAction*>* >& getActionLayers() const { return action_layers_; }
 
 	const std::vector<FactLayer* >& getFactLayers() const { return fact_layers_; }
-
-//	const Bindings& getBindings() const { return *bindings_; }
+	
+	int calculateHeuristic(const std::vector<const SAS_Plus::BoundedAtom*>& goals, const Bindings& bindings) const;
 
 private:
 

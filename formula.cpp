@@ -101,7 +101,7 @@ void Atom::print(std::ostream& os, const Bindings& bindings, StepID step_id, boo
 	{
 		const Term* term = *ci;
 		term->print(os, bindings, step_id);
-		os << "[ADDR=" << term << "]";
+//		os << "[ADDR=" << term << "]";
 		
 		if (verbal)
 		{

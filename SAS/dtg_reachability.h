@@ -24,6 +24,9 @@ class PredicateManager;
 	
 namespace SAS_Plus {
 
+class ReachableTree;
+
+
 class Property;
 class PropertySpace;
 
@@ -37,6 +40,7 @@ class EquivalentObjectGroup;
 class EquivalentObjectGroupManager;
 
 class ReachableTransition;
+class ReachableTreeNode;
 
 class ReachableFact
 {
@@ -91,13 +95,11 @@ public:
 	const Atom& getAtom() const { return *atom_; }
 	
 	// See removed_flag_;
-//	void markForRemoval() { removed_flag_ = true; }
 	void replaceBy(ReachableFact& replacement);
 	
-	//bool isMarkedForRemoval() const { return removed_flag_; }
 	bool isMarkedForRemoval() const;
 	
-	ReachableFact& getReplacement();
+	const ReachableFact& getReplacement() const;
 	
 private:
 	
@@ -228,13 +230,26 @@ public:
 	 * Return all the sets of reachable facts which satisfy all the constraints and have a reachable fact 
 	 * for every fact in the fact set.
 	 */
-	const std::vector<std::vector<ReachableFact*>* >& getFullyReachableSets() const { return fully_reachable_sets_; }
+	const std::vector<ReachableTree*>& getReachableTrees() const { return reachability_tree_; }
+	unsigned int getCachedReachableTreesSizeConst() const
+	{
+		assert (cache_is_valid_);
+		return cached_reachability_tree_size_;
+	}
+	unsigned int getCachedReachableTreesSize()
+	{
+		if (!cache_is_valid_)
+		{
+			cached_reachability_tree_size_ = reachability_tree_.size();
+			cache_is_valid_ = true;
+		}
+		
+		return cached_reachability_tree_size_;
+	}
 	
-	const std::vector<std::vector<ReachableFact*>* >& getReachableSets() const { return reachable_set_; }
+	const std::vector<std::list<ReachableFact*>* >& getReachableSets() const { return reachable_set_; }
 	
 	const std::vector<const ResolvedBoundedAtom*>& getFactsSet() const { return facts_set_; }
-	
-	const std::vector<std::vector<ReachableFact*>* >& getWIPSets() const { return wip_sets_; }
 	
 	/**
 	 * A new reachable fact has been proven to be reachable. This function should only ever be
@@ -252,6 +267,7 @@ public:
 	virtual void print(std::ostream& os) const = 0;
 	
 protected:
+	
 	const EquivalentObjectGroupManager* eog_manager_;
 	
 	bool removed_;
@@ -273,7 +289,7 @@ protected:
 	 * Called every time the equivalence relationships have been updated. All the ReachableFacts which 
 	 * have been marked for removal need to be deleted.
 	 */
-	void equivalencesUpdated();
+	void equivalencesUpdated(unsigned int iteration);
 	
 private:
 	
@@ -306,13 +322,13 @@ private:
 	
 	// For every bounded atom in this set, we store a list of reachable facts which can unify with
 	// that bounded atom.
-	std::vector<std::vector<ReachableFact*>*> reachable_set_;
+	std::vector<std::list<ReachableFact*>*> reachable_set_;
 	
-	// Sets which are not fully constructed yet.
-	std::vector<std::vector<ReachableFact*>* > wip_sets_;
+	// All the facts which have been combined into a partial of complete assignment to all the facts in the set.
+	std::vector<ReachableTree*> reachability_tree_;
 	
-	// All sets which are completely unitable are stored in the fully_reachable_sets.
-	std::vector<std::vector<ReachableFact*>* > fully_reachable_sets_;
+	unsigned int cached_reachability_tree_size_;
+	bool cache_is_valid_;
 	
 	// When generating the reachable sets we need to make sure the constraints are satisfied, so for 
 	// every atom in the fact set we record for every index which other indexes of other facts must
@@ -341,7 +357,7 @@ public:
 	
 	bool propagateReachableFacts();
 	
-	void handleUpdatedEquivalences();
+	void handleUpdatedEquivalences(unsigned int iteration);
 	
 	std::vector<ReachableTransition*>& getReachableTransitions() { return reachable_transitions_; }
 	
@@ -412,7 +428,7 @@ public:
 	 */
 	bool generateReachableFacts();
 	
-	void handleUpdatedEquivalences();
+	void handleUpdatedEquivalences(unsigned int iteration);
 	
 	const Transition& getTransition() const { return *transition_; }
 	
@@ -459,7 +475,7 @@ private:
 	 * @param transition_reachable_set The full set of assignments to the facts in the transition.
 	 * @return True if a new effect could be created (i.e. it wasn't already created previously), false otherwise.
 	 */
-	bool createNewReachableFact(const ResolvedEffect& effect, unsigned int effect_index, const std::vector<ReachableFact*>& from_node_reachable_set, const std::vector<ReachableFact*>& transition_reachable_set);
+	bool createNewReachableFact(const ResolvedEffect& effect, unsigned int effect_index, const ReachableTreeNode& from_reachable_node, const ReachableTreeNode* transition_reachable_node);
 	
 	// To speed up the createNewReachableFact method we keep track of all the combinations of sets we have already combined 
 	// in the past so we don't redo the same thing.
@@ -490,7 +506,7 @@ public:
 	 */
 	DTGReachability(const DomainTransitionGraphManager& dtg_manager, const DomainTransitionGraph& dtg_graph, const TermManager& term_manager, PredicateManager& predicate_manager);
 	
-	void performReachabilityAnalsysis(std::vector<const ReachableFact*>& result, const std::vector<const BoundedAtom*>& initial_facts, const Bindings& bindings);
+	void performReachabilityAnalysis(std::vector<const ReachableFact*>& result, const std::vector<const BoundedAtom*>& initial_facts, const Bindings& bindings);
 
 //	ReachableTransition& getReachableTransition(const Transition& transition) const;
 	

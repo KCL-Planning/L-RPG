@@ -25,7 +25,7 @@ mypop_SOURCES = VALfiles/DebugWriteController.cpp VALfiles/FastEnvironment.cpp \
 	VALfiles/instantiation.cpp VALfiles/pddl+.cpp VALfiles/ptree.cpp VALfiles/typecheck.cpp \
 	SAS/dtg_manager.cpp SAS/dtg_node.cpp SAS/transition.cpp SAS/causal_graph.cpp \
 	SAS/dtg_graph.cpp SAS/property_space.cpp SAS/recursive_function.cpp SAS/dtg_reachability.cpp\
-	SAS/equivalent_object_group.cpp \
+	SAS/equivalent_object_group.cpp SAS/reachable_tree.cpp\
 	action_manager.cpp bindings_propagator.cpp formula.cpp mypop.cpp parser_utils.cpp \
 	plan.cpp plan_bindings.cpp plan_flaws.cpp plan_orderings.cpp planner.cpp \
 	predicate_manager.cpp relaxed_planning_graph.cpp simple_flaw_selector.cpp term_manager.cpp \

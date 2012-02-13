@@ -134,8 +134,9 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_ob
 /**
  * Equivalent Object Group.
  */
+unsigned int EquivalentObjectGroup::largest_unique_id_ = 0;
 EquivalentObjectGroup::EquivalentObjectGroup(const DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded)
-	: is_grounded_(is_grounded), link_(NULL)
+	: is_grounded_(is_grounded), link_(NULL), unique_id_(largest_unique_id_++)
 {
 	if (object != NULL)
 	{
@@ -582,6 +583,9 @@ void EquivalentObjectGroupManager::updateEquivalences()
 	bool merge_mask[equivalent_groups_.size()];
 	memset(&merge_mask[0], false, sizeof(bool) * equivalent_groups_.size());
 	unsigned int index1 = 0;
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+	std::vector<const EquivalentObjectGroup*> newly_merged_eogs;
+#endif
 	
 	std::vector<EquivalentObjectGroup*> affected_groups;
 	
@@ -608,6 +612,7 @@ void EquivalentObjectGroupManager::updateEquivalences()
 			{
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 				std::cout << "Merged: " << *eog1 << "." << std::endl;
+				newly_merged_eogs.push_back(eog1);
 #endif
 				merge_mask[index2] = true;
 			}
@@ -616,13 +621,17 @@ void EquivalentObjectGroupManager::updateEquivalences()
 		++index1;
 	}
 	
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 	unsigned int removed_instances = 0;
+#endif
 	for (std::vector<EquivalentObjectGroup*>::reverse_iterator ri = equivalent_groups_.rbegin(); ri != equivalent_groups_.rend(); ri++)
 	{
 		unsigned int index = std::distance(equivalent_groups_.begin(), ri.base() - 1);
 		if (merge_mask[index])
 		{
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 			++removed_instances;
+#endif
 			equivalent_groups_.erase(ri.base() - 1);
 		}
 	}
@@ -638,6 +647,12 @@ void EquivalentObjectGroupManager::updateEquivalences()
 	
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 	std::cerr << "[EquivalentObjectGroupManager::updateEquivalences] Merged: " << removed_instances << " EOGs!" << std::endl;
+	for (std::vector<const EquivalentObjectGroup*>::const_iterator ci = newly_merged_eogs.begin(); ci != newly_merged_eogs.end(); ci++)
+	{
+		std::cerr << "* ";
+		(*ci)->printObjects(std::cerr);
+		std::cerr << std::endl;
+	}
 #endif
 }
 

@@ -220,7 +220,7 @@ int main(int argc,char * argv[])
 		struct timeval start_time_reachability;
 		gettimeofday(&start_time_reachability, NULL);
 #endif
-		analyst.performReachabilityAnalsysis(lifted_reachable_facts, bounded_initial_facts, combined_graph.getBindings());
+		analyst.performReachabilityAnalysis(lifted_reachable_facts, bounded_initial_facts, combined_graph.getBindings());
 		struct timeval end_time_reachability;
 		gettimeofday(&end_time_reachability, NULL);
 #ifdef MYPOP_KEEP_TIME
@@ -274,8 +274,52 @@ int main(int argc,char * argv[])
 			
 			if (!reached)
 			{
-				std::cerr << "Fact reachable by the RPG but not by the lifted implementation: " << *rpg_bounded_atom << "." << std::endl;
-				all_clear = false;
+				for (std::vector<const SAS_Plus::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
+				{
+					const SAS_Plus::ReachableFact* lifted_bounded_atom = *ci;
+					std::cout << "Compare against: " << *lifted_bounded_atom << std::endl;
+					
+					if (lifted_bounded_atom->getAtom().getPredicate().getName() != rpg_bounded_atom->getOriginalAtom().getPredicate().getName())
+					{
+						std::cout << "Predicate names are not the same!" << std::endl;
+						continue;
+					}
+				
+					if (lifted_bounded_atom->getAtom().getArity() != rpg_bounded_atom->getOriginalAtom().getArity())
+					{
+						std::cout << "Arities are different!" << std::endl;
+						continue;
+					}
+					
+					bool is_equivalent = true;
+					for (unsigned int i = 0; i < lifted_bounded_atom->getAtom().getArity(); i++)
+					{
+						const Object* grounded_object = rpg_bounded_atom->getVariableDomain(i)[0];
+						
+						const SAS_Plus::EquivalentObjectGroup& eog = lifted_bounded_atom->getTermDomain(i);
+						
+						if (!eog.contains(*grounded_object))
+						{
+							std::cout << "The " << i << "th term is different!" << std::endl;
+							is_equivalent = false;
+							break;
+						}
+					}
+					
+					if (is_equivalent)
+					{
+						std::cout << "We are good anyways!" << std::endl;
+						reached = true;
+						break;
+					}
+				}
+
+				if (!reached)
+				{
+					all_clear = false;
+					std::cerr << "Fact reachable by the RPG but not by the lifted implementation: " << *rpg_bounded_atom << "." << std::endl;
+					std::cout << "Fact reachable by the RPG but not by the lifted implementation: " << *rpg_bounded_atom << "." << std::endl;
+				}
 			}
 		}
 		
@@ -322,6 +366,11 @@ int main(int argc,char * argv[])
 		
 		if (!all_clear)
 		{
+			for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
+			{
+				std::cout << "* Reachable lifted fact: " << **ci << std::endl;
+			}
+			
 			exit(1);
 		}
 	}

@@ -2104,13 +2104,14 @@ std::ostream& operator<<(std::ostream& os, const Transition& transition)
 		(*ci).first->print(os, transition.getToNode().getDTG().getBindings(), transition.getStep()->getStepId());
 		os << std::endl;
 	}
-*/
+
 
 	os << "All persistent preconditions: " << std::endl;
 	for (std::vector<std::pair<unsigned int, unsigned int> >::const_iterator ci = transition.persistent_sets_->begin(); ci != transition.persistent_sets_->end(); ci++)
 	{
 		os << (*ci).first << " <-> " << (*ci).second << std::endl;
 	}
+*/
 	return os;
 }
 

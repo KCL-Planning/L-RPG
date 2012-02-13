@@ -98,8 +98,8 @@ void Action::print(std::ostream& os, const Bindings& bindings, StepID step_id) c
 			os << "}";
 		}
 		
-		os << "[ADDR=" << *ci << "]";
-		os << "%" << &(vd.getDomain()) << "%";
+//		os << "[ADDR=" << *ci << "]";
+//		os << "%" << &(vd.getDomain()) << "%";
 
 		if (ci + 1 != variables_->end())
 		{

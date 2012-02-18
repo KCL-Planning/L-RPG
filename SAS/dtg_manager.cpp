@@ -1778,10 +1778,10 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 					assert (false);
 				}
 
-//#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 				std::cout << "[DomainTransitionGraphManager::createPointToPointTransitions] Original transition: " << *org_transition << std::endl;
 				std::cout << "[DomainTransitionGraphManager::createPointToPointTransitions] Process the transition: " << *transition << std::endl;
-//#endif
+#endif
 
 				// Find out the invariable for this transition.
 				assert (transition->getBalancedTerm() != NULL);

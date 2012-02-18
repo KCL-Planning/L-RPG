@@ -75,6 +75,8 @@ class EquivalentObjectGroup
 {
 public:
 	EquivalentObjectGroup(const DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded);
+	
+	~EquivalentObjectGroup();
 
 	void addEquivalentObject(EquivalentObject& eo);
 	
@@ -178,6 +180,8 @@ public:
 	 */
 	EquivalentObjectGroupManager(const DomainTransitionGraphManager& dtg_manager, const DomainTransitionGraph& dtg_graph, const TermManager& term_manager);
 	
+	~EquivalentObjectGroupManager();
+	
 	void initialise(const std::vector<ReachableFact*>& initial_facts);
 	
 	void updateEquivalences();
@@ -204,6 +208,7 @@ private:
 
 	std::map<const Object*, EquivalentObject*> object_to_equivalent_object_mapping_;
 	std::vector<EquivalentObjectGroup*> equivalent_groups_;
+	std::vector<EquivalentObjectGroup*> old_equivalent_groups_;
 	
 	EquivalentObjectGroup* zero_arity_equivalent_object_group_;
 };

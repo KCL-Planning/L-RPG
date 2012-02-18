@@ -46,8 +46,8 @@ void Formula::print(std::ostream& os, const Bindings& bindings, StepID step_id) 
 /*************************
  * The Atom class
  *************************/
-Atom::Atom(const Predicate& predicate, const std::vector<const Term*>& terms, bool is_negative)
-	: Formula(is_negative), predicate_(&predicate), terms_(&terms)
+Atom::Atom(const Predicate& predicate, const std::vector<const Term*>& terms, bool is_negative, bool delete_terms)
+	: Formula(is_negative), predicate_(&predicate), terms_(&terms), delete_terms_(delete_terms)
 {
 //	for (unsigned int i = 0; i < terms.size(); i++)
 //	{
@@ -55,11 +55,32 @@ Atom::Atom(const Predicate& predicate, const std::vector<const Term*>& terms, bo
 //	}
 }
 
+Atom::Atom(const Atom& other)
+	: Formula(other.is_negative_), predicate_(other.predicate_), delete_terms_(true)
+{
+	std::vector<const Term*>* new_terms = new std::vector<const Term*>();
+	for (std::vector<const Term*>::const_iterator ci = other.terms_->begin(); ci != other.terms_->end(); ci++)
+	{
+		const Term* term_to_copy = *ci;
+		const Term& new_term = term_to_copy->clone();
+		new_terms->push_back(&new_term);
+	}
+	
+	terms_ = new_terms;
+}
+
 Atom::~Atom()
 {
 #ifdef MYPOP_FORMULA_COMMENTS
 	std::cout << predicate_ << " is deleted!" << std::endl;
 #endif
+	if (delete_terms_)
+	{
+		for (std::vector<const Term*>::const_iterator ci = terms_->begin(); ci != terms_->end(); ci++)
+		{
+			delete *ci;
+		}
+	}
 	delete terms_;
 }
 

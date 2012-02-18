@@ -13,11 +13,11 @@ std::vector<const Property*> Property::all_properties_;
 /*****************************
  * Property state.
  ****************************/
-PropertyState::PropertyState(const PropertySpace& property_space, const Property& property)
+/*PropertyState::PropertyState(const PropertySpace& property_space, const Property& property)
 	: property_space_(&property_space)
 {
 	property_.push_back(&property);
-}
+}*/
 
 PropertyState::PropertyState(const PropertySpace& property_space, const std::vector<std::pair<const Predicate*, InvariableIndex> >& properties)
 	: property_space_(&property_space)

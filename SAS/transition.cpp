@@ -1368,6 +1368,7 @@ Transition::~Transition()
 	delete all_effects_;
 	delete to_node_effects_;
 	delete free_variables_;
+	delete persistent_sets_;
 }
 
 void Transition::sanityCheck() const
@@ -1414,6 +1415,40 @@ Transition* Transition::migrateTransition(DomainTransitionGraphNode& from_node, 
 	Bindings& bindings = from_node_->getDTG().getBindings();
 	StepID action_step_id =  bindings.createVariableDomains(getAction());
 
+	assert (&getAction().getPrecondition() != NULL);
+	
+	std::vector<const Atom*> preconditions;
+	Utility::convertFormula(preconditions, &getAction().getPrecondition());
+
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
+	std::cout << "Preconditions of the action; StepID: " << action_step_id << std::endl; 
+	for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
+	{
+		const Atom* atom = *ci;
+		for (std::vector<const Term*>::const_iterator ci = atom->getTerms().begin(); ci != atom->getTerms().end(); ci++)
+		{
+			const Term* atom_term = *ci;
+
+			bool is_action_term = false;
+			for (std::vector<const Variable*>::const_iterator ci = getAction().getVariables().begin(); ci != getAction().getVariables().end(); ci++)
+			{
+				const Variable* action_variable = *ci;
+				if (action_variable == atom_term)
+				{
+					is_action_term = true;
+					break;
+				}
+			}
+			
+			assert (is_action_term);
+		}
+		
+		std::cout << "* ";
+		atom->print(std::cout, bindings, action_step_id);
+		std::cout << std::endl;
+	}
+#endif
+
 	StepPtr new_step = StepPtr(new Step(action_step_id, getAction()));
 	
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
@@ -1446,7 +1481,25 @@ Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode&
 	std::vector<const Atom*> preconditions;
 	Utility::convertFormula(preconditions, &step->getAction().getPrecondition());
 	
-	assert (preconditions.size() == all_preconditions_->size());
+	if (preconditions.size() != all_preconditions_->size())
+	{
+		std::cout << "Could not perform bindings, because the preconditions do not match up!" << std::endl;
+		std::cout << "Preconditions of the action: " << std::endl;
+		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
+		{
+			std::cout << "* ";
+			(*ci)->print(std::cout, bindings, step->getStepId());
+			std::cout << std::endl;
+		}
+		std::cout << "Preconditions recorded by the transition: " << std::endl;
+		for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = all_preconditions_->begin(); ci != all_preconditions_->end(); ci++)
+		{
+			std::cout << "* ";
+			(*ci).first->print(std::cout, getFromNode().getDTG().getBindings(), getStepId());
+			std::cout << std::endl;
+		}
+		assert (false);
+	}
 	
 	std::map<const Atom*, const Atom*> org_precondition_to_new;
 	
@@ -1507,6 +1560,9 @@ Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode&
 				clone_precondition->print(std::cout, bindings, step->getStepId());
 				std::cout << std::endl;
 #endif
+				delete all_precondition_mappings;
+				delete all_effect_mappings;
+				delete clone_from_node_preconditions;
 				return NULL;
 			}
 		}
@@ -1536,6 +1592,10 @@ Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode&
 				clone_effect->print(std::cout, bindings, step->getStepId());
 				std::cout << std::endl;
 #endif
+				delete clone_to_node_effects;
+				delete clone_from_node_preconditions;
+				delete all_effect_mappings;
+				delete all_precondition_mappings;
 				return NULL;
 			}
 		}
@@ -1549,7 +1609,7 @@ Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode&
 	std::cout << "[Transition::performBindings] Handle persistent sets: " << std::endl;
 #endif
 	// Bind the persistent nodes.
-	std::vector<std::pair<unsigned int, unsigned int> >* new_persistent_sets_ = new std::vector<std::pair<unsigned int, unsigned int> >();
+	std::vector<std::pair<unsigned int, unsigned int> >* new_persistent_sets = new std::vector<std::pair<unsigned int, unsigned int> >();
 	for (std::vector<std::pair<unsigned int, unsigned int> >::const_iterator ci = persistent_sets_->begin(); ci != persistent_sets_->end(); ci++)
 	{
 		unsigned int from_index = (*ci).first;
@@ -1576,10 +1636,15 @@ Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode&
 			to_node.print(std::cout);
 			std::cout << std::endl;
 #endif
+			delete clone_to_node_effects;
+			delete clone_from_node_preconditions;
+			delete all_effect_mappings;
+			delete all_precondition_mappings;
+			delete new_persistent_sets;
 			return NULL;
 		}
 		
-		new_persistent_sets_->push_back(std::make_pair(actual_from_index, actual_to_index));
+		new_persistent_sets->push_back(std::make_pair(actual_from_index, actual_to_index));
 	}
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 	std::cout << "[Transition::performBindings] Handle persistent sets - DONE! " << std::endl;
@@ -1609,22 +1674,17 @@ Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode&
 	std::cout << "[Transition::performBindings] Figure out the new free variables - DONE!" << std::endl;
 #endif
 	
-	return new Transition(step, from_node, to_node, *all_precondition_mappings, *clone_from_node_preconditions, *all_effect_mappings, *clone_to_node_effects, *new_persistent_sets_, *new_free_variables);
+	return new Transition(step, from_node, to_node, *all_precondition_mappings, *clone_from_node_preconditions, *all_effect_mappings, *clone_to_node_effects, *new_persistent_sets, *new_free_variables);
 }
 
 void Transition::addedFromNodePrecondition(const Atom& precondition)
 {
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 	// Detect which precondition this is.
-	bool is_a_precondition = false;
 	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = all_preconditions_->begin(); ci != all_preconditions_->end(); ci++)
 	{
-		if (&precondition == (*ci).first)
-		{
-			is_a_precondition = true;
-		}
+		assert (&precondition != (*ci).first);
 	}
-	assert (is_a_precondition);
 #endif
 
 	InvariableIndex invariable_index = NO_INVARIABLE_INDEX;
@@ -1956,6 +2016,14 @@ bool Transition::finalise(const std::vector<const Atom*>& initial_facts)
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 				std::cout << "[Transition::finalise] Found no initial fact which can unify with the static precondition. The transition is impossible!" << std::endl;
 #endif
+				for (std::vector<std::vector<const Object*>* >::const_iterator ci = new_variable_domains.begin(); ci != new_variable_domains.end(); ci++)
+				{
+					delete *ci;
+				}
+				for (unsigned int i = 0; i < step_->getAction().getVariables().size(); i++)
+				{
+					delete updated_new_variable_domains[i];
+				}
 				return false;
 			}
 			
@@ -2023,6 +2091,11 @@ bool Transition::finalise(const std::vector<const Atom*>& initial_facts)
 			
 			static_preconditions.erase(ri.base() - 1);
 			finalised = false;
+			
+			for (unsigned int i = 0; i < step_->getAction().getVariables().size(); i++)
+			{
+				delete updated_new_variable_domains[i];
+			}
 		}
 		
 		// After all static preconditions of this iteration have pruned the variables, update the variables which we consider to be grounded.
@@ -2049,6 +2122,10 @@ bool Transition::finalise(const std::vector<const Atom*>& initial_facts)
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 					std::cout << "[Transition::finalise] Transition is impossible!" << std::endl;
 #endif
+					for (std::vector<std::vector<const Object*>* >::const_iterator ci = new_variable_domains.begin(); ci != new_variable_domains.end(); ci++)
+					{
+						delete *ci;
+					}
 					return false;
 				}
 				
@@ -2057,6 +2134,11 @@ bool Transition::finalise(const std::vector<const Atom*>& initial_facts)
 				// Update the variable domains.
 				step_->getAction().getVariables()[i]->makeDomainEqualTo(step_->getStepId(), *new_variable_domains[i], bindings);
 			}
+		}
+		
+		for (std::vector<std::vector<const Object*>* >::const_iterator ci = new_variable_domains.begin(); ci != new_variable_domains.end(); ci++)
+		{
+			delete *ci;
 		}
 	}
 	

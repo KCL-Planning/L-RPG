@@ -111,6 +111,7 @@ void Utility::convertEffects(const TermManager& term_manager, const PredicateMan
 
 void Utility::convertFormula(std::vector<const Atom*>& atoms, const Formula* formula)
 {
+	assert (formula != NULL);
 	const Atom* atom = dynamic_cast<const Atom*>(formula);
 	if (atom != NULL)
 	{

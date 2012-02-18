@@ -51,6 +51,8 @@ public:
 	
 	ReachableFact(const Atom& atom, EquivalentObjectGroup** term_domain_mapping);
 	
+	~ReachableFact();
+	
 	/**
 	 * This method is called everytime a merge has taken place which involves a Equivalent Object Group 
 	 * which is part of this reachable fact. In such an occasion we end up with at least one term in this
@@ -144,6 +146,8 @@ public:
 	
 	ResolvedBoundedAtom(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
 	
+	~ResolvedBoundedAtom();
+	
 	const StepID getId() const { return id_; }
 	
 	const Atom& getOriginalAtom() const { return *atom_; }
@@ -182,6 +186,8 @@ class ResolvedEffect : public ResolvedBoundedAtom
 {
 public:
 	ResolvedEffect(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, bool free_variables[], PredicateManager& predicate_manager);
+	
+	~ResolvedEffect();
 	
 	void updateVariableDomains();
 	
@@ -223,6 +229,8 @@ public:
 	 * Default constructor.
 	 */
 	ReachableSet(const EquivalentObjectGroupManager& eog_manager);
+	
+	virtual ~ReachableSet();
 	
 	bool arePreconditionsEquivalent(const ReachableSet& other_set) const;
 
@@ -283,7 +291,7 @@ protected:
 	 * All subclasses can add a set of bounded atoms which are the set or preconditions
 	 * which are part of their set.
 	 */
-	void addBoundedAtom(const BoundedAtom& bounded_atom, const Bindings& bindings, PredicateManager& predicate_manager);
+	void addBoundedAtom(StepID step_id, const Atom& atom, const Bindings& bindings, PredicateManager& predicate_manager);
 	
 	/**
 	 * Called every time the equivalence relationships have been updated. All the ReachableFacts which 
@@ -344,6 +352,8 @@ class ReachableNode : public ReachableSet
 {
 public:
 	ReachableNode(const DomainTransitionGraphNode& dtg_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
+	
+	virtual ~ReachableNode();
 
 	/**
 	 * Inititialise the structure by matching all the facts true in the initial state with both the set of nodes
@@ -409,6 +419,8 @@ class ReachableTransition : public ReachableSet
 {
 public:
 	ReachableTransition(const Transition& transition, ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
+	
+	virtual ~ReachableTransition();
 	
 	/**
 	 * After all the reachable nodes and reachable transitions have been created we do one more post analysis and
@@ -506,6 +518,8 @@ public:
 	 */
 	DTGReachability(const DomainTransitionGraphManager& dtg_manager, const DomainTransitionGraph& dtg_graph, const TermManager& term_manager, PredicateManager& predicate_manager);
 	
+	~DTGReachability();
+	
 	void performReachabilityAnalysis(std::vector<const ReachableFact*>& result, const std::vector<const BoundedAtom*>& initial_facts, const Bindings& bindings);
 
 //	ReachableTransition& getReachableTransition(const Transition& transition) const;
@@ -516,18 +530,15 @@ private:
 	
 	void mapInitialFactsToReachableSets(const std::vector<ReachableFact*>& initial_facts);
 	
-
 	const TermManager* term_manager_;
 	
 	// The set of nodes we are working on.
 	std::vector<ReachableNode*> reachable_nodes_;
 	
-	//std::map<std::string, std::vector<std::pair<ReachableSet*, unsigned int> >* > predicate_to_reachable_set_mapping_;
-	std::vector<std::pair<ReachableSet*, unsigned int> >** predicate_id_to_reachable_sets_mapping_;
+	//std::vector<std::pair<ReachableSet*, unsigned int> >** predicate_id_to_reachable_sets_mapping_;
+	std::vector<std::vector<std::pair<ReachableSet*, unsigned int> >* >* predicate_id_to_reachable_sets_mapping_;
 
 	EquivalentObjectGroupManager* equivalent_object_manager_;
-	
-//	std::map<const Transition*, ReachableTransition*> reachable_transitions_;
 };
 
 };

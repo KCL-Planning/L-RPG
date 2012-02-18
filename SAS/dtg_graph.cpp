@@ -45,7 +45,6 @@ DomainTransitionGraph::~DomainTransitionGraph()
 		delete *ci;
 	}
 
-//	delete bindings_;
 	delete dtg_term_manager_;
 }
 
@@ -481,8 +480,18 @@ void DomainTransitionGraph::removeNode(const DomainTransitionGraphNode& dtg_node
 		
 		// Remove all transitions to this node.
 		std::vector<const Transition*>& transitions = (*i)->getTransitionsNonConst();
-		std::vector<const Transition*>::iterator the_end = std::remove_if(transitions.begin(), transitions.end(), std::bind2nd(Utilities::TransitionToNodeEquals(), &dtg_node));
-		transitions.erase(the_end, transitions.end());
+		for (std::vector<const Transition*>::reverse_iterator ri = transitions.rbegin(); ri != transitions.rend(); ri++)
+		{
+			const Transition* transition = *ri;
+			if (&transition->getToNode() == &dtg_node)
+			{
+				transitions.erase(ri.base() - 1);
+				delete transition;
+			}
+		}
+		
+		//std::vector<const Transition*>::iterator the_end = std::remove_if(transitions.begin(), transitions.end(), std::bind2nd(Utilities::TransitionToNodeEquals(), &dtg_node));
+		//transitions.erase(the_end, transitions.end());
 	}
 	
 	if (node_to_remove != nodes_.end())
@@ -667,6 +676,7 @@ void DomainTransitionGraph::removeUnconnectedNodes()
 		if (marked_dtg_nodes.count(dtg_node) == 0)
 		{
 			nodes_.erase(ri.base() - 1);
+			delete dtg_node;
 		}
 	}
 }
@@ -757,7 +767,7 @@ void DomainTransitionGraph::solveSubsets()
 			
 			if (!possibly_sub_set)
 			{
-				delete mapping;
+				delete[] mapping;
 				continue;
 			}
 			
@@ -849,6 +859,17 @@ void DomainTransitionGraph::solveSubsets()
 		
 		// Remove all the transitions from the super node so it will be marked for removal.
 		super_from_node->removeTransitions();
+	}
+	
+	// Free up used memory.
+	for (std::map<DomainTransitionGraphNode*, std::vector<DomainTransitionGraphNode*>* >::const_iterator ci = super_to_sub_nodes.begin(); ci != super_to_sub_nodes.end(); ci++)
+	{
+		delete (*ci).second;
+	}
+	
+	for (std::map<DomainTransitionGraphNode*, int*>::const_iterator ci = sub_to_super_nodes_indexes.begin(); ci != sub_to_super_nodes_indexes.end(); ci++)
+	{
+		delete[] (*ci).second;
 	}
 	
 //	for (std::map<DomainTransitionGraphNode*, DomainTransitionGraphNode*>::const_iterator ci = sub_to_super_nodes.begin(); ci != sub_to_super_nodes.end(); ci++)

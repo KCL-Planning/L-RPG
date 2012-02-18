@@ -136,11 +136,26 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_ob
  */
 unsigned int EquivalentObjectGroup::largest_unique_id_ = 0;
 EquivalentObjectGroup::EquivalentObjectGroup(const DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded)
-	: is_grounded_(is_grounded), link_(NULL), unique_id_(largest_unique_id_++)
+	: is_grounded_(is_grounded), link_(NULL), finger_print_(NULL), unique_id_(largest_unique_id_++)
 {
 	if (object != NULL)
 	{
 		initialiseFingerPrint(dtg_graph, *object);
+	}
+}
+
+EquivalentObjectGroup::~EquivalentObjectGroup()
+{
+	delete[] finger_print_;
+	
+	// Only delete the equivalent object if this EOG is root. Otherwise the object groups are used and contained by another EOG.
+	//delete *equivalent_objects_.begin();
+	if (link_ == NULL)
+	{
+		for (std::vector<EquivalentObject*>::const_iterator ci = equivalent_objects_.begin(); ci != equivalent_objects_.end(); ci++)
+		{
+			delete *ci;
+		}
 	}
 }
 
@@ -542,6 +557,28 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const DomainTransitio
 #endif
 }
 
+EquivalentObjectGroupManager::~EquivalentObjectGroupManager()
+{
+	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
+	{
+		for (std::vector<EquivalentObjectGroup*>::const_iterator ci2 = old_equivalent_groups_.begin(); ci2 != old_equivalent_groups_.end(); ci2++)
+		{
+			assert (ci != ci2);
+		}
+	}
+	
+	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
+	{
+		delete *ci;
+	}
+	
+	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = old_equivalent_groups_.begin(); ci != old_equivalent_groups_.end(); ci++)
+	{
+		assert (!(*ci)->isRootNode());
+		delete *ci;
+	}
+}
+
 void EquivalentObjectGroupManager::initialise(const std::vector<ReachableFact*>& initial_facts)
 {
 	// Record the set of initial facts every object is part of.
@@ -565,17 +602,49 @@ void EquivalentObjectGroupManager::initialise(const std::vector<ReachableFact*>&
 			zero_arity_equivalent_object_group_->addReachableFact(*initial_reachable_fact);
 		}
 	}
-	
-	// Try to merge those eogs which are equivalent.
-	//updateEquivalences();
-	
-//#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-//	std::cout << "Merge together equivalent groups if their initial states match - Done!" << std::endl;
-//	std::cout << "EOG manager Ready for use!" << std::endl;
-//	print(std::cout);
-//	printAll(std::cout);
-//#endif
 }
+
+
+void EquivalentObjectGroupManager::updateEquivalences()
+{
+	std::vector<EquivalentObjectGroup*> affected_groups;
+	
+	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end() - 1; ci++)
+	{
+		EquivalentObjectGroup* eog1 = *ci;
+		if (!eog1->isRootNode()) continue;
+		
+		for (std::vector<EquivalentObjectGroup*>::const_iterator ci2 = ci + 1; ci2 != equivalent_groups_.end(); ci2++)
+		{
+			EquivalentObjectGroup* eog2 = *ci2;
+			if (!eog2->isRootNode()) continue;
+			eog1->tryToMergeWith(*eog2, affected_groups);
+		}
+	}
+	
+	for (std::vector<EquivalentObjectGroup*>::reverse_iterator ri = equivalent_groups_.rbegin(); ri != equivalent_groups_.rend(); ri++)
+	{
+		EquivalentObjectGroup* eog = *ri;
+		if (!eog->isRootNode())
+		{
+			equivalent_groups_.erase(ri.base() - 1);
+			old_equivalent_groups_.push_back(eog);
+		}
+	}
+	
+	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = affected_groups.begin(); ci != affected_groups.end(); ci++)
+	{
+		EquivalentObjectGroup* eog = *ci;
+		if (eog->isRootNode())
+		{
+			eog->deleteRemovedFacts();
+		}
+	}
+}
+
+/*
+
+
 
 void EquivalentObjectGroupManager::updateEquivalences()
 {
@@ -615,6 +684,7 @@ void EquivalentObjectGroupManager::updateEquivalences()
 				newly_merged_eogs.push_back(eog1);
 #endif
 				merge_mask[index2] = true;
+				assert (!eog2->isRootNode());
 			}
 			++index2;
 		}
@@ -633,6 +703,9 @@ void EquivalentObjectGroupManager::updateEquivalences()
 			++removed_instances;
 #endif
 			equivalent_groups_.erase(ri.base() - 1);
+			
+			assert (!(*ri)->isRootNode());
+			old_equivalent_groups_.push_back(*ri);
 		}
 	}
 	
@@ -656,6 +729,7 @@ void EquivalentObjectGroupManager::updateEquivalences()
 #endif
 }
 
+*/
 
 EquivalentObject& EquivalentObjectGroupManager::getEquivalentObject(const Object& object) const
 {

@@ -153,20 +153,23 @@ public:
 	bool operator==(const DomainTransitionGraphNode& dtg_node) const;
 
 	friend std::ostream& operator<<(std::ostream&, const DomainTransitionGraphNode& node);
+	
+	/**
+	 * Ground this DTG node and store the results in the provided vector.
+	 * @param grounded_nodes The vector all the grounded nodes are stored in. It also records the variable domains which have been grounded and the object it has been grounded to.
+	 * @param variable_domains_to_ground The variable domains which must be grounded.
+	 * @return True if a term was grounded, false otherwise.
+	 */
+	bool groundTerms(std::vector<std::pair<DomainTransitionGraphNode*, std::map<const std::vector<const Object*>*, const Object*>* > >& grounded_nodes, const std::vector<const std::vector<const Object*>* >& variable_domains_to_ground) const;
 
 	/**
-	 * Ground out a specific term of all Atoms. All possible instantiations are produced and stored in the given vector. This node
-	 * remains unchanged, to replace this node it has to be removed from the DTG and all the produced nodes added. Transitions are not
-	 * copied or affected.
-	 * @param ground_nodes This will contain the grounded out copies of this node.
-	 * @param variable_to_ground The variable which needs to be grounded, membership is tested through pointer checking.
-	 * @return true if at least one grounded node was produced, false otherwise.
+	 * Ground this DTG node and store the results in the provided vector.
+	 * @param grounded_nodes The vector all the grounded nodes are stored in.
+	 * @param variable_domains_to_ground The variable domains which must be grounded.
+	 * @param bound_objects Additional variable domains which need to be grounded and the object it needs to be grounded to.
+	 * @return True if a term was grounded, false otherwise.
 	 */
-	bool groundTerm(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const Term& term_to_ground, StepID term_id) const;
-	
-	bool groundTerms(std::vector<std::pair<DomainTransitionGraphNode*, std::map<const std::vector<const Object*>*, const Object*>* > >& grounded_nodes, const std::vector<const std::vector<const Object*>* >& variable_domains_to_ground);
-
-	bool groundTerms(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const std::vector<const std::vector<const Object*>* >& variable_domains_to_ground, const std::map<const std::vector<const Object*>*, const Object*>& bound_objects);
+	bool groundTerms(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const std::vector<const std::vector<const Object*>* >& variable_domains_to_ground, const std::map<const std::vector<const Object*>*, const Object*>& bound_objects) const;
 	
 	/**
 	 * Check if this node contains an empty variable domain, in that case the node has to be removed.
@@ -229,6 +232,16 @@ public:
 private:
 	
 	/**
+	 * Ground out a specific term of all Atoms. All possible instantiations are produced and stored in the given vector. This node
+	 * remains unchanged, to replace this node it has to be removed from the DTG and all the produced nodes added. Transitions are not
+	 * copied or affected.
+	 * @param ground_nodes This will contain the grounded out copies of this node.
+	 * @param variable_to_ground The variable which needs to be grounded, membership is tested through pointer checking.
+	 * @return true if at least one grounded node was produced, false otherwise.
+	 */
+	bool groundTerm(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const Term& term_to_ground, StepID term_id) const;
+	
+	/**
 	 * Find a one-to-one mapping between the given list of facts - starting at the given index. Facts
 	 * of this DG node which have been masked cannot be used for the mapping. After such a mapping is found
 	 * the index is increased, the mapping is updated so the same fact cannot be selected twice to make the
@@ -267,10 +280,6 @@ private:
 	// All proper sub sets of this DTG nodes. A sub set should contain no other facts than those in this node
 	// and they should be identical.
 	std::vector<const DomainTransitionGraphNode*> sub_sets_;
-	
-	// When copying DTG nodes we create new variables to create new Atoms. These are not registered with 
-	// the term manager and thus needs to be removed manually.
-	bool delete_terms_;
 };
 
 std::ostream& operator<<(std::ostream&, const DomainTransitionGraphNode& node);

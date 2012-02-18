@@ -20,6 +20,10 @@ Predicate::Predicate(const std::string& name, const std::vector<const Type*>& ty
 Predicate::~Predicate()
 {
 	delete types_;
+	if (can_substitute_ != NULL)
+	{
+		delete[] can_substitute_;
+	}
 }
 
 void Predicate::makeStatic(bool make_static)

@@ -196,6 +196,11 @@ public:
 	 * Create variable domain for each atom variable, all terms which are objects will be skipped.
 	 */
 	StepID createVariableDomains(const Atom& atom, StepID step_id = Step::INVALID_STEP);
+	
+	/**
+	 * Remove bindings after the are no longer used.
+	 */
+	//void deleteVariableDomains(StepID step_id, const Variable& variable);
 
 	/**
 	 * Remove all binding constraints from a step id.

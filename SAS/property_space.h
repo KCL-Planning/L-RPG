@@ -24,7 +24,7 @@ class PropertySpace;
 class PropertyState
 {
 public:
-	PropertyState(const PropertySpace& property_space, const Property& property);
+	//PropertyState(const PropertySpace& property_space, const Property& property);
 	
 	PropertyState(const PropertySpace& property_space, const std::vector<std::pair<const Predicate*, InvariableIndex> >& properties);
 	

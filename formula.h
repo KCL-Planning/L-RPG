@@ -58,7 +58,9 @@ class Atom : public Formula
 {
 public:
 	// Create a new atom.
-	Atom(const Predicate& predicate, const std::vector<const Term*>& terms, bool is_negative);
+	Atom(const Predicate& predicate, const std::vector<const Term*>& terms, bool is_negative, bool delete_terms = false);
+	
+	Atom(const Atom& other);
 
 	virtual ~Atom();
 
@@ -95,7 +97,9 @@ protected:
 	const Predicate* predicate_;
 
 	// A vector with all the terms of this atom.
-	const std::vector<const Term*>* terms_;
+ 	const std::vector<const Term*>* terms_;
+	
+	bool delete_terms_;
 };
 
 /**

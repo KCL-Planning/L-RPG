@@ -40,6 +40,11 @@ public:
 	const std::string& getName() const { return name_; }
 	
 	/**
+	 * Create a copy of this term. Note that we NEVER copy objects.
+	 */
+	virtual const Term& clone() const = 0;
+	
+	/**
 	 * Check if this term is unifiable with the given term. This means that if we take the intersection
 	 * of both term's domains it yields a non-empty set.
 	 * @param lhs_id The step id for this term, used to find its variable domain (if applicable) in @param bindings.
@@ -253,6 +258,11 @@ class Object : public Term {
 public:
 	Object (const Type& type, const std::string& name);
 	virtual ~Object();
+	
+	/**
+	 * We NEVER clone objects, rather we return an instance of the same instance.
+	 */
+	virtual const Term& clone() const { return *this; }
 
 	/**
 	 * Unify the two terms, there are three different possible scenarios.
@@ -403,6 +413,11 @@ public:
 	Variable (const Type& type, const std::string& name);
 	
 	virtual ~Variable();
+	
+	/**
+	 * Create a clone of the variable with the same type and name.
+	 */
+	virtual Term& clone() const { return *(new Variable(*getType(), getName())); }
 
 	/**
 	 * Unify the two terms, there are three different possible scenarios.

@@ -181,9 +181,8 @@ int main(int argc,char * argv[])
 			++nr_transitions;
 		}
 	}
-	
 	std::cerr << "Total number of transitions: " << nr_transitions << "." << std::endl;
-	
+
 	// Do the reachability analysis.
 #ifdef MYPOP_KEEP_TIME
 	struct timeval start_time_prepare_reachability;
@@ -227,8 +226,7 @@ int main(int argc,char * argv[])
 		double time_spend = end_time_reachability.tv_sec - start_time_reachability.tv_sec + (end_time_reachability.tv_usec - start_time_reachability.tv_usec) / 1000000.0;
 		std::cerr << "Reachability analysis: " << time_spend << " seconds" << std::endl;
 #endif
-//		exit(0);
-		
+
 		// Validate the result.
 		RPG::RelaxedPlanningGraph rpg(action_manager, *plan, analyst.getEquivalentObjectGroupManager(), predicate_manager);
 		//std::cout << rpg << std::endl;
@@ -371,8 +369,18 @@ int main(int argc,char * argv[])
 				std::cout << "* Reachable lifted fact: " << **ci << std::endl;
 			}
 			
+			assert (false);
 			exit(1);
 		}
+//		for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = bounded_initial_facts.begin(); ci != bounded_initial_facts.end(); ci++)
+//		{
+//			delete *ci;
+//		}
+	}
+
+	for (std::vector<const SAS_Plus::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
+	{
+		delete *ci;
 	}
 
 //	Graphviz::printToDot(dtg_manager);
@@ -429,7 +437,6 @@ int main(int argc,char * argv[])
 	delete plan;
 	delete &combined_graph;
 	delete propagator;
-//	delete sfss;
 	delete initial_action;
 	delete goal_action;
 //	delete solution_plan;

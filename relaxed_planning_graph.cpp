@@ -38,6 +38,18 @@ ResolvedAction::ResolvedAction(const Action& action, StepID step_id, const Bindi
 	}
 }
 
+ResolvedAction::~ResolvedAction()
+{
+	for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator ci = preconditions_.begin(); ci != preconditions_.end(); ci++)
+	{
+		delete *ci;
+	}
+	
+	for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator ci = effects_.begin(); ci != effects_.end(); ci++)
+	{
+		delete *ci;
+	}
+}
 
 std::ostream& operator<<(std::ostream& os, const ResolvedAction& resolved_action)
 {
@@ -45,16 +57,32 @@ std::ostream& operator<<(std::ostream& os, const ResolvedAction& resolved_action
 	return os;
 }
 
-	
-FactLayer::FactLayer()
+FactLayer::FactLayer(bool delete_facts)
+	: delete_facts_(delete_facts)
 {
-
 }
-
+	
 FactLayer::FactLayer(const FactLayer& fact_layer)
+	: delete_facts_(false)
 {
 	facts_.insert(facts_.begin(), fact_layer.facts_.begin(), fact_layer.facts_.end());
 	mapped_facts_.insert(fact_layer.mapped_facts_.begin(), fact_layer.mapped_facts_.end());
+}
+
+FactLayer::~FactLayer()
+{
+	for (std::vector<std::vector<const SAS_Plus::ResolvedBoundedAtom*>*>::const_iterator ci = mapped_facts_to_remove_.begin(); ci != mapped_facts_to_remove_.end(); ci++)
+	{
+		delete *ci;
+	}
+	
+	if (delete_facts_)
+	{
+		for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator ci = facts_.begin(); ci != facts_.end(); ci++)
+		{
+			delete *ci;
+		}
+	}
 }
 
 bool FactLayer::addFact(const SAS_Plus::ResolvedBoundedAtom& bounded_atom)
@@ -69,6 +97,7 @@ bool FactLayer::addFact(const SAS_Plus::ResolvedBoundedAtom& bounded_atom)
 	{
 		mapping = new std::vector<const SAS_Plus::ResolvedBoundedAtom*>();
 		mapped_facts_[getUniqueName(bounded_atom)] = mapping;
+		mapped_facts_to_remove_.push_back(mapping);
 	}
 	else
 	{
@@ -110,21 +139,22 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 	: bindings_(new Bindings(initial_plan.getBindings()))
 {
 	const Action& initial_state_action = initial_plan.getSteps()[0]->getAction();
-	FactLayer* current_fact_layer = new FactLayer();
+	FactLayer* initial_fact_layer = new FactLayer(true);
 	
 	for (std::vector<const Atom*>::const_iterator ci = initial_state_action.getEffects().begin(); ci != initial_state_action.getEffects().end(); ci++)
 	{
-		SAS_Plus::BoundedAtom* new_bounded_atom = new SAS_Plus::BoundedAtom(Step::INITIAL_STEP, **ci);
-		SAS_Plus::ResolvedBoundedAtom* resolved_bounded_atom = new SAS_Plus::ResolvedBoundedAtom(*new_bounded_atom, *bindings_, eog_manager, predicate_manager);
-		current_fact_layer->addFact(*resolved_bounded_atom);
+//		SAS_Plus::BoundedAtom* new_bounded_atom = new SAS_Plus::BoundedAtom(Step::INITIAL_STEP, **ci);
+//		SAS_Plus::ResolvedBoundedAtom* resolved_bounded_atom = new SAS_Plus::ResolvedBoundedAtom(*new_bounded_atom, *bindings_, eog_manager, predicate_manager);
+		SAS_Plus::ResolvedBoundedAtom* resolved_bounded_atom = new SAS_Plus::ResolvedBoundedAtom(Step::INITIAL_STEP, **ci, *bindings_, eog_manager, predicate_manager);
+		initial_fact_layer->addFact(*resolved_bounded_atom);
 	}
-	FactLayer* next_fact_layer = new FactLayer(*current_fact_layer);
-	FactLayer* initial_fact_layer = new FactLayer(*current_fact_layer);
+	FactLayer* next_fact_layer = new FactLayer(*initial_fact_layer);
+	FactLayer* current_fact_layer = initial_fact_layer;
+	//FactLayer* initial_fact_layer = new FactLayer(*current_fact_layer);
 	fact_layers_.push_back(initial_fact_layer);
 
 	// First we will ground all the actions.
 	std::cerr << "Ground actions..." << std::endl;
-	std::vector<const ResolvedAction*> all_grounded_actions;
 	for (std::vector<Action*>::const_iterator ci = action_manager.getManagableObjects().begin(); ci != action_manager.getManagableObjects().end(); ci++)
 	{
 		const Action* action = *ci;
@@ -134,17 +164,18 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 		for (std::vector<const Step*>::const_iterator ci = grounded_actions.begin(); ci != grounded_actions.end(); ci++)
 		{
 			const Step* action_step = *ci;
-			all_grounded_actions.push_back(new ResolvedAction(action_step->getAction(), action_step->getStepId(), *bindings_, eog_manager, predicate_manager));
+			all_grounded_actions_.push_back(new ResolvedAction(action_step->getAction(), action_step->getStepId(), *bindings_, eog_manager, predicate_manager));
+			delete action_step;
 		}
 	}
-	std::cerr << "#" << all_grounded_actions.size() << std::endl;
+	std::cerr << "#" << all_grounded_actions_.size() << std::endl;
 
 	// Now check for each grounded action which one is applicable in the current fact layer.
 	while (true)
 	{
 		std::cerr << "Work on layer " << fact_layers_.size() << "..." << std::endl;
 //		std::vector<const ResolvedAction*>* new_action_layer = new std::vector<const ResolvedAction*>();
-		for (std::vector<const ResolvedAction*>::reverse_iterator action_ci = all_grounded_actions.rbegin(); action_ci != all_grounded_actions.rend(); action_ci++)
+		for (std::vector<const ResolvedAction*>::reverse_iterator action_ci = all_grounded_actions_.rbegin(); action_ci != all_grounded_actions_.rend(); action_ci++)
 		{
 			// Check if all preconditions are satisfied in the current layer.
 			const ResolvedAction* resolved_action = *action_ci;
@@ -191,8 +222,8 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 
 				// Add this action to the action layer.
 //				new_action_layer->push_back(resolved_action);
-				all_grounded_actions.erase(action_ci.base() - 1);
-				delete resolved_action;
+//				all_grounded_actions.erase(action_ci.base() - 1);
+//				delete resolved_action;
 			}
 		}
 
@@ -204,6 +235,7 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 //				delete *step_ci;
 //			}
 //			delete new_action_layer;
+			delete next_fact_layer;
 			break;
 		}
 
@@ -213,14 +245,30 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 
 		// Add the action and fact layer to the RPG:
 //		action_layers_.push_back(new_action_layer);
-		fact_layers_.push_back(next_fact_layer);
+		fact_layers_.push_back(current_fact_layer);
 	}
 }
 
 
 RelaxedPlanningGraph::~RelaxedPlanningGraph()
 {
+	for (std::vector<std::vector<const ResolvedAction*>* >::const_iterator ci = action_layers_.begin(); ci != action_layers_.end(); ci++)
+	{
+		delete *ci;
+	}
 
+	// The fact layers.
+	for (std::vector<FactLayer*>::const_iterator ci = fact_layers_.begin(); ci != fact_layers_.end(); ci++)
+	{
+		delete *ci;
+	}
+	
+	for (std::vector<const ResolvedAction*>::const_iterator action_ci = all_grounded_actions_.begin(); action_ci != all_grounded_actions_.end(); action_ci++)
+	{
+		delete *action_ci;
+	}
+	
+	delete bindings_;
 }
 
 std::ostream& operator<<(std::ostream& os, const RelaxedPlanningGraph& rpg)

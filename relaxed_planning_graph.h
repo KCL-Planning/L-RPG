@@ -32,6 +32,8 @@ class ResolvedAction
 public:
 	ResolvedAction(const Action& action, StepID step_id, const Bindings& bindings, const SAS_Plus::EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
 	
+	~ResolvedAction();
+	
 	const std::vector<const SAS_Plus::ResolvedBoundedAtom*>& getPreconditions() const { return preconditions_; }
 	
 	const std::vector<const SAS_Plus::ResolvedBoundedAtom*>& getEffects() const { return effects_; }
@@ -64,12 +66,14 @@ public:
 	/**
 	 * Create a new empty fact layer.
 	 */
-	FactLayer();
+	FactLayer(bool delete_facts = false);
 
 	/**
 	 * Copy constructor.
 	 */
 	FactLayer(const FactLayer& fact_layer);
+	
+	~FactLayer();
 
 	/**
 	 * Add a fact to this fact layer, this method only succeeds if the bounded atom cannot be unified
@@ -86,12 +90,16 @@ public:
 
 private:
 	
+	bool delete_facts_;
+	
 	std::string getUniqueName(const SAS_Plus::ResolvedBoundedAtom& atom) const;
 	
 	// All the facts stored in this fact layer.
 	std::vector<const SAS_Plus::ResolvedBoundedAtom*> facts_;
 	
 	std::map<std::string, std::vector<const SAS_Plus::ResolvedBoundedAtom*>* > mapped_facts_;
+	
+	std::vector<std::vector<const SAS_Plus::ResolvedBoundedAtom*>*> mapped_facts_to_remove_;
 };
 
 /**
@@ -106,15 +114,13 @@ public:
 	 * Create a relaxed planning graph from the intial state to the goal state. These can be found in the
 	 * initial plan. The relaxed planning graph is only allowed to make use of the lifted actions.
 	 */
-    RelaxedPlanningGraph(const ActionManager& action_manager, const Plan& initial_plan, const SAS_Plus::EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
+	RelaxedPlanningGraph(const ActionManager& action_manager, const Plan& initial_plan, const SAS_Plus::EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
 
-    ~RelaxedPlanningGraph();
+	~RelaxedPlanningGraph();
 
 	const std::vector<std::vector<const ResolvedAction*>* >& getActionLayers() const { return action_layers_; }
 
 	const std::vector<FactLayer* >& getFactLayers() const { return fact_layers_; }
-
-//	const Bindings& getBindings() const { return *bindings_; }
 
 private:
 
@@ -124,6 +130,8 @@ private:
 
 	// The fact layers.
 	std::vector<FactLayer* > fact_layers_;
+	
+	std::vector<const ResolvedAction*> all_grounded_actions_;
 
 	// The bindings of the actions.
 	Bindings* bindings_;

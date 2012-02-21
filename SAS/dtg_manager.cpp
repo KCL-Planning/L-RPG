@@ -1056,6 +1056,8 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	ofs.close();
 #endif
 
+	std::cerr << "Number of bindings: " << bindings << std::endl;
+
 	return combined_graph;
 }
 
@@ -1679,6 +1681,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 #endif
 				// Migrate the original transition to the cloned nodes.
 				Transition* transition = org_transition->migrateTransition(*from_dtg_node_clone, *to_dtg_node_clone);
+				from_dtg_node_clone->addTransition(*transition);
 				
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 				assert (transition != org_transition);
@@ -1933,7 +1936,16 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 										if (invariable_index != std::numeric_limits< unsigned int>::max())
 										{
 											// Check if the term is balanced in the bounded_atom.
-											if (bounded_atom->isBalanced(invariable_index)) break;
+											if (bounded_atom->isBalanced(invariable_index)) {
+												contains_balanced_term = true;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+												if (!transition->isPreconditionRemoved(*precondition))
+												{
+													std::cerr << "Add extra precondition!" << std::endl;
+												}
+#endif
+												break;
+											}
 
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 											std::cout << "Confirm grounding!" << std::endl;
@@ -2008,7 +2020,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 						
 						assert (transition->getBalancedTerm() != NULL);
 						
-#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 						bool could_add_precondition = from_dtg_node_clone->addAtom(bounded_precondition_to_add, bounded_precondition_to_add.containsVariableDomain(transition->getBalancedTerm()->getDomain(transition->getStepId(), dtg->getBindings()), dtg->getBindings()));
 						assert (could_add_precondition);
 #else
@@ -2143,6 +2155,9 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 				
 				// We're done with adding all the preconditions to the to / from nodes.
 				
+				// Test, remove nodes with more than 5 nodes (Depots)
+//				if (from_dtg_node_clone->getAtoms().size() > 4 || to_dtg_node_clone->getAtoms().size() > 4) continue;
+				
 				/**
 				 * If a term is shared between the from and to node and it is not balanced, it needs to be grounded too!
 				 * Unless it's the exact same fact!
@@ -2210,6 +2225,10 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 						{
 							grounded_from_dtg_node->addTransition(*new_transition);
 							dtg_nodes_to_add.push_back(grounded_to_dtg_node);
+							
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+							std::cout << "Created a new (grounded?) transition: " << *new_transition << std::endl;
+#endif
 						}
 						else
 						{
@@ -2230,6 +2249,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 					delete variable_domain_to_object_mapping;
 				}
 				
+/*
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 				std::cout << "ORG:" << *from_dtg_node_clone << std::endl;
 				std::cout << "to: " << *to_dtg_node_clone << std::endl;
@@ -2237,7 +2257,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 				transition->getAction().print(std::cout, dtg->getBindings(), transition->getStepId());
 				std::cout << std::endl << " -+----------+- " << std::endl;
 #endif
-				
+*/
 				
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 				assert (from_dtg_node_clone->getTransitions().empty());
@@ -2328,7 +2348,6 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 				// Delete the stubs.
 				delete from_dtg_node_clone;
 				delete to_dtg_node_clone;
-				delete transition;
 			}
 			
 			dtg_nodes_to_remove.insert(dtg_node);

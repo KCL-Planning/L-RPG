@@ -164,13 +164,13 @@ int main(int argc,char * argv[])
 #ifdef MYPOP_COMMENTS
 	std::cout << " === Creating the DTGs === " << std::endl;
 #endif
-	SAS_Plus::DomainTransitionGraphManager dtg_manager(predicate_manager, type_manager, action_manager, term_manager, *initial_facts);
+	SAS_Plus::DomainTransitionGraphManager* dtg_manager = new SAS_Plus::DomainTransitionGraphManager(predicate_manager, type_manager, action_manager, term_manager, *initial_facts);
 	
 	// Old style, working with the lifted SAS structures.
 //	dtg_manager.generateDomainTransitionGraphs(*the_domain->types, plan->getBindings());
 
 	// New style, working directly on the TIM structure.
-	const SAS_Plus::DomainTransitionGraph& combined_graph = dtg_manager.generateDomainTransitionGraphsTIM(*the_domain->types, plan->getBindings());
+	const SAS_Plus::DomainTransitionGraph& combined_graph = dtg_manager->generateDomainTransitionGraphsTIM(*the_domain->types, plan->getBindings());
 
 	unsigned int nr_transitions = 0;
 	for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = combined_graph.getNodes().begin(); ci != combined_graph.getNodes().end(); ci++)
@@ -191,7 +191,7 @@ int main(int argc,char * argv[])
 	std::vector<const SAS_Plus::ReachableFact*> lifted_reachable_facts;
 	{
 
-		SAS_Plus::DTGReachability analyst(dtg_manager, combined_graph, term_manager, predicate_manager);
+		SAS_Plus::DTGReachability analyst(*dtg_manager, combined_graph, term_manager, predicate_manager);
 #ifdef MYPOP_KEEP_TIME
 		struct timeval end_time_prepare_reachability;
 		gettimeofday(&end_time_prepare_reachability, NULL);	
@@ -226,7 +226,6 @@ int main(int argc,char * argv[])
 		double time_spend = end_time_reachability.tv_sec - start_time_reachability.tv_sec + (end_time_reachability.tv_usec - start_time_reachability.tv_usec) / 1000000.0;
 		std::cerr << "Reachability analysis: " << time_spend << " seconds" << std::endl;
 #endif
-
 		// Validate the result.
 		RPG::RelaxedPlanningGraph rpg(action_manager, *plan, analyst.getEquivalentObjectGroupManager(), predicate_manager);
 		//std::cout << rpg << std::endl;
@@ -434,8 +433,9 @@ int main(int argc,char * argv[])
 //	std::cout << "Dead ends encountered: " << planner.getDeadEnds() << std::endl;
 
 	// Don't leave any mess!
-	delete plan;
 	delete &combined_graph;
+	delete dtg_manager;
+	delete plan;
 	delete propagator;
 	delete initial_action;
 	delete goal_action;

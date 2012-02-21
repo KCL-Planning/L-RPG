@@ -136,6 +136,11 @@ public:
 	 */
 	const std::vector<VariableDomain*>& getUnequalVariables() const { return unequal_variables_; }
 	std::vector<VariableDomain*>& getNonConstUnequalVariables() { return unequal_variables_; }
+	
+	/**
+	 * Called every time a variable domain is removed.
+	 */
+	void variableDomainRemoved(const VariableDomain& variable_domain);
 
 	friend std::ostream& operator<<(std::ostream& os, const VariableDomain& vd);
 

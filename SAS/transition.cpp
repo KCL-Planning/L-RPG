@@ -1363,6 +1363,7 @@ Transition::Transition(StepPtr step,
 
 Transition::~Transition()
 {
+	from_node_->getDTG().getBindings().removeBindings(getStepId());
 	delete all_preconditions_;
 	delete from_node_preconditions_;
 	delete all_effects_;

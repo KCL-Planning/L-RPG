@@ -124,7 +124,6 @@ void DomainTransitionGraphNode::copyAtoms(const DomainTransitionGraphNode& dtg_n
 
 DomainTransitionGraphNode::~DomainTransitionGraphNode()
 {
-
 	if (transitions_.size() > 0)
 	{
 		for (unsigned int i = 0; i < transitions_.size() - 1; i++)
@@ -136,7 +135,6 @@ DomainTransitionGraphNode::~DomainTransitionGraphNode()
 		}
 	}
 	
-	
 	// Delete the transitions.
 	for (std::vector<const Transition*>::const_iterator ci = transitions_.begin(); ci != transitions_.end(); ci++)
 	{
@@ -145,6 +143,7 @@ DomainTransitionGraphNode::~DomainTransitionGraphNode()
 
 	for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
 	{
+		dtg_->getBindings().removeBindings((*ci)->getId());
 		delete *ci;
 	}
 }
@@ -230,6 +229,17 @@ bool DomainTransitionGraphNode::addAtom(BoundedAtom& bounded_atom, InvariableInd
 					
 					if (&new_property->getPropertyState().getPropertySpace() == &reference_property->getPropertyState().getPropertySpace())
 					{
+						if (getIndex(*reference_bounded_atom) >= reference_bounded_atom->getAtom().getTerms().size())
+						{
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
+							std::cout << "Tried to add an atom to : " << std::endl << *this << std::endl;
+							
+							std::cout << "Could not find the index of the bounded atom: ";
+							reference_bounded_atom->print(std::cout, dtg_->getBindings());
+							std::cout << "." << std::endl;
+#endif
+							continue;
+						}
 						const Term* reference_term = reference_bounded_atom->getAtom().getTerms()[getIndex(*reference_bounded_atom)];
 						const Term* domain_term = bounded_atom.getAtom().getTerms()[index];
 						

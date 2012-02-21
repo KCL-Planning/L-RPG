@@ -93,7 +93,6 @@ bool VariableDomain::makeEqualTo(const VariableDomain& variable_domain)
 	StepID step = variable_domain.equal_variables_[0].first;
 	const Variable& variable = *variable_domain.equal_variables_[0].second;
 
-//	bool already_included = false;
 	for (std::vector<std::pair<StepID, const Variable*> >::const_iterator ci = equal_variables_.begin(); ci != equal_variables_.end(); ci++)
 	{
 		StepID equal_variable_step = (*ci).first;
@@ -107,21 +106,16 @@ bool VariableDomain::makeEqualTo(const VariableDomain& variable_domain)
 #ifdef MYPOP_VARIABLE_DOMAIN_DEBUG
 			std::cout << "EQUAL!" << std::endl;
 #endif
-//			already_included = true;
-//			break;
 			return false;
 		}
 	}
 	
-//	if (!already_included)
-	{
-		// Limit the domain to contain only the objects in both variables.
-		std::vector<const Object*> new_domain;
-		getIntersection(new_domain, variable_domain.domain_);
+	// Limit the domain to contain only the objects in both variables.
+	std::vector<const Object*> new_domain;
+	getIntersection(new_domain, variable_domain.domain_);
 
-		domain_.clear();
-		domain_.insert(domain_.begin(), new_domain.begin(), new_domain.end());
-	}
+	domain_.clear();
+	domain_.insert(domain_.begin(), new_domain.begin(), new_domain.end());
 
 	// Next merge the equal to and unequal to relationships, but make sure we don't end up with duplicates.
 	for (std::vector<std::pair<StepID, const Variable*> >::const_iterator ci = variable_domain.equal_variables_.begin(); ci != variable_domain.equal_variables_.end(); ci++)
@@ -330,6 +324,17 @@ void VariableDomain::setObjects(std::vector<const Object*>& objects)
 	domain_.insert(domain_.begin(), new_objects.begin(), new_objects.end());
 }
 
+void VariableDomain::variableDomainRemoved(const VariableDomain& variable_domain)
+{
+	for (std::vector<VariableDomain*>::reverse_iterator ri = unequal_variables_.rbegin(); ri != unequal_variables_.rend(); ri++)
+	{
+		if (*ri == &variable_domain)
+		{
+			unequal_variables_.erase(ri.base() - 1);
+		}
+	}
+}
+
 std::ostream& operator<<(std::ostream& os, const VariableDomain& vd)
 {
 	for (std::vector<std::pair<StepID, const Variable*> >::const_iterator ci = vd.equal_variables_.begin(); ci != vd.equal_variables_.end(); ci++)
@@ -503,19 +508,41 @@ StepID Bindings::createVariableDomains(const Atom& atom, StepID step_id)
 
 void Bindings::removeBindings(StepID step)
 {
+	return;
+//	if (binding_mapping_.size() > 100000) assert (false);
 	bool changed = true;
 	
 	// N^2 algorithm, but I'm not caring. reverse iterator doesn't play nice :(.
+//	std::set<VariableDomain*> domains_to_remove;
 	while (changed)
 	{
 		changed = false;
 		for (std::map<std::pair<StepID, const Variable*>, VariableDomain*>::iterator i = binding_mapping_.begin(); i != binding_mapping_.end(); i++)
 		{
 			std::pair<StepID, const Variable*> key = (*i).first;
+			VariableDomain* variable_domain = (*i).second;
 			if (key.first == step)
 			{
 				// Remove this entry from the variable domain.
-				(*i).second->removeVariable(step);
+//				domains_to_remove.insert((*i).second);
+				variable_domain->removeVariable(step);
+				
+				// If the variable domain not equal to anything else anymore, delete it!
+				if (variable_domain->getEqualVariables().empty())
+				{
+					for (std::vector<VariableDomain*>::reverse_iterator ri = variable_domains_.rbegin(); ri != variable_domains_.rend(); ri++)
+					{
+						variable_domains_.erase(ri.base() - 1);
+					}
+					
+					for (std::vector<VariableDomain*>::const_iterator ci = variable_domain->getUnequalVariables().begin(); ci != variable_domain->getUnequalVariables().end(); ci++)
+					{
+						(*ci)->variableDomainRemoved(*variable_domain);
+					}
+					delete variable_domain;
+//					std::cerr << "DELETE!" << std::endl;
+				}
+				
 				binding_mapping_.erase(i);
 				changed = true;
 				break;
@@ -758,7 +785,7 @@ std::ostream& operator<<(std::ostream& os, const Bindings& bindings)
 {
 	std::set<std::pair<StepID, const Variable*> > closed_list;
 
-	for (std::map<std::pair<StepID, const Variable*>, VariableDomain*>::const_iterator ci = bindings.binding_mapping_.begin(); ci != bindings.binding_mapping_.end(); ci++)
+/*	for (std::map<std::pair<StepID, const Variable*>, VariableDomain*>::const_iterator ci = bindings.binding_mapping_.begin(); ci != bindings.binding_mapping_.end(); ci++)
 	{
 		if (closed_list.find((*ci).first) != closed_list.end())
 		{
@@ -774,7 +801,8 @@ std::ostream& operator<<(std::ostream& os, const Bindings& bindings)
 		{
 			closed_list.insert(std::make_pair((*ci2).first, (*ci2).second));
 		}
-	}
+	}*/
+	os << "Bindings: " << bindings.binding_mapping_.size() << ", " << bindings.variable_domains_.size();
 	return os;
 }
 

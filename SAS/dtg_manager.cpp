@@ -28,7 +28,7 @@
 
 //#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 //#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
-//#define MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
+#define MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
 #define MYPOP_SAS_PLUS_DTG_MANAGER_KEEP_TIME
 
 namespace MyPOP {
@@ -1078,7 +1078,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 	 * of the index of the fact in the 'leaf' and how this relates to the 'root' node.
 	 */
 	std::map<const DomainTransitionGraphNode*, DomainTransitionGraphNode*> mapping_leaf_to_root_node;
-	std::map<const DomainTransitionGraphNode*, int*> map_leaf_facts_to_root;
+	std::map<const DomainTransitionGraphNode*, unsigned int*> map_leaf_facts_to_root;
 	
 	// Accumulate all the transitions of the identical DTGs.
 //	std::map<const DomainTransitionGraphNode*, std::vector<const Transition*>* > mapping_merged_transitions;
@@ -1101,8 +1101,8 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 			
 			// Since the node is not in the closed list it is the very first instance so we map all the values to itself.
 			mapping_leaf_to_root_node[dtg_node] = dtg_node;
-			
-			int* initial_mapping = new int[dtg_node->getAtoms().size()];
+
+			unsigned int* initial_mapping = new unsigned int[dtg_node->getAtoms().size()];
 			for (unsigned int i = 0; i < dtg_node->getAtoms().size(); i++)
 			{
 				initial_mapping[i] = i;
@@ -1157,8 +1157,8 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 						continue;
 					}
 					
-					int* mapping = new int[dtg_node->getAtoms().size()];
-					memset(mapping, -1, sizeof(int) * dtg_node->getAtoms().size());
+					unsigned int* mapping = new unsigned int[dtg_node->getAtoms().size()];
+					memset(mapping, -1, sizeof(unsigned int) * dtg_node->getAtoms().size());
 					
 					for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node2->getAtoms().begin(); ci != dtg_node2->getAtoms().end(); ci++)
 					{
@@ -1236,6 +1236,11 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 						std::cout << " to ";
 						dtg_node->print(std::cout);
 						std::cout << std::endl;
+						
+						for (unsigned int i = 0; i < dtg_node->getAtoms().size(); i++)
+						{
+							std::cout << i << " -> " << mapping[i] << std::endl;
+						}
 					}
 #endif
 					//if (properties_differ) continue;
@@ -1359,7 +1364,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 		
 		if (leaf_from_dtg_node == root_from_dtg_node) continue;
 		
-		int* from_fact_ordering = map_leaf_facts_to_root[leaf_from_dtg_node];
+		unsigned int* from_fact_ordering = map_leaf_facts_to_root[leaf_from_dtg_node];
 		
 		for (std::vector<const Transition*>::const_iterator ci = leaf_from_dtg_node->getTransitions().begin(); ci != leaf_from_dtg_node->getTransitions().end(); ci++)
 		{
@@ -1370,7 +1375,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 			
 			assert (&leaf_to_dtg_node != root_to_dtg_node);
 			
-			int* to_fact_ordering = map_leaf_facts_to_root[&leaf_to_dtg_node];
+			unsigned int* to_fact_ordering = map_leaf_facts_to_root[&leaf_to_dtg_node];
 			
 			/**
 			 * Make sure the transition doesn't already exist.
@@ -1409,10 +1414,14 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 		}
 	}
 	
-	for (std::map<const DomainTransitionGraphNode*, int*>::const_iterator ci = map_leaf_facts_to_root.begin(); ci != map_leaf_facts_to_root.end(); ci++)
+	for (std::map<const DomainTransitionGraphNode*, unsigned int*>::const_iterator ci = map_leaf_facts_to_root.begin(); ci != map_leaf_facts_to_root.end(); ci++)
 	{
 		delete[] (*ci).second;
 	}
+	
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+	std::cout << "Combined DTG after adding transitions: " << *combined_dtg << "." << std::endl;
+#endif
 
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
 	/**
@@ -1682,6 +1691,21 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 				// Migrate the original transition to the cloned nodes.
 				Transition* transition = org_transition->migrateTransition(*from_dtg_node_clone, *to_dtg_node_clone);
 				from_dtg_node_clone->addTransition(*transition);
+
+				bool needs_prune = false;
+				for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = transition->getFromNodePreconditions().begin(); ci != transition->getFromNodePreconditions().end(); ci++)
+				{
+					if ((*ci).first == NULL)
+					{
+						needs_prune = true;
+						std::cout << "Work on the transition: " << *transition << std::endl;
+					}
+				}
+				transition->pruneNodes();
+				if (needs_prune)
+				{
+					std::cout << "After pruning: " << *transition << std::endl;
+				}
 				
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 				assert (transition != org_transition);

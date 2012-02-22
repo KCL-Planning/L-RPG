@@ -110,7 +110,12 @@ public:
 	 */
 	Transition* migrateTransition(DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node) const;
 	
-	Transition* migrateTransition(MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, int from_fact_ordering[], int to_fact_ordering[]) const;
+	Transition* migrateTransition(MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, unsigned int from_fact_ordering[], unsigned int to_fact_ordering[]) const;
+
+	/**
+	 * Remove all facts from the from and to node which are not a precondition or persistent / effect, respectively.
+	 */
+	void pruneNodes();
 	
 	/**
 	 * As we update the from and to nodes of the transition with new nodes we need to update the lists of preconditions linking to the from
@@ -249,7 +254,7 @@ private:
 	 * @param bindings The bindings where all the bindings will be stored.
 	 * @return The actual transition which is constructed by cloning this one, this always succeeds or the program quits!
 	 */
-	Transition* performBindings(MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, int from_fact_ordering[], int to_fact_ordering[], MyPOP::Bindings& bindings) const;
+	Transition* performBindings(MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, unsigned int from_fact_ordering[], unsigned int to_fact_ordering[], MyPOP::Bindings& bindings) const;
 
 	unsigned int isFactContainedByNode(const Atom& fact, const DomainTransitionGraphNode& node) const;
 	

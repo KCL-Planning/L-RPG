@@ -1395,8 +1395,8 @@ void Transition::sanityCheck() const
 
 Transition* Transition::migrateTransition(DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node) const
 {
-	int from_mapping[from_node.getAtoms().size()];
-	int to_mapping[to_node.getAtoms().size()];
+	unsigned int from_mapping[from_node.getAtoms().size()];
+	unsigned int to_mapping[to_node.getAtoms().size()];
 	
 	for (unsigned int i = 0; i < from_node.getAtoms().size(); i++)
 	{
@@ -1411,7 +1411,7 @@ Transition* Transition::migrateTransition(DomainTransitionGraphNode& from_node, 
 	return migrateTransition(from_node, to_node, from_mapping, to_mapping);
 }
 
-Transition* Transition::migrateTransition(DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, int from_fact_ordering[], int to_fact_ordering[]) const
+Transition* Transition::migrateTransition(DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, unsigned int from_fact_ordering[], unsigned int to_fact_ordering[]) const
 {
 	Bindings& bindings = from_node_->getDTG().getBindings();
 	StepID action_step_id =  bindings.createVariableDomains(getAction());
@@ -1476,7 +1476,51 @@ Transition* Transition::migrateTransition(DomainTransitionGraphNode& from_node, 
 	return new_transition;
 }
 
-Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, int from_fact_ordering[], int to_fact_ordering[], Bindings& bindings) const
+void Transition::pruneNodes()
+{
+	for (std::vector<std::pair<const Atom*, InvariableIndex> >::reverse_iterator ri = from_node_preconditions_->rbegin(); ri != from_node_preconditions_->rend(); ri++)
+	{
+		if ((*ri).first == NULL)
+		{
+			unsigned int from_node_fact_index = std::distance(from_node_preconditions_->begin(), ri.base() - 1);
+			from_node_preconditions_->erase(ri.base() - 1);
+			from_node_->removeAtom(*from_node_->getAtoms()[from_node_fact_index]);
+			
+			for (std::vector<std::pair<unsigned int, unsigned int> >::reverse_iterator ri = persistent_sets_->rbegin(); ri != persistent_sets_->rend(); ri++)
+			{
+				if ((*ri).first == from_node_fact_index)
+				{
+					persistent_sets_->erase(ri.base() - 1);
+				}
+			}
+		}
+	}
+	
+	for (std::vector<std::pair<const Atom*, InvariableIndex> >::reverse_iterator ri = to_node_effects_->rbegin(); ri != to_node_effects_->rend(); ri++)
+	{
+		if ((*ri).first == NULL)
+		{
+			unsigned int to_node_fact_index = std::distance(to_node_effects_->begin(), ri.base() - 1);
+			bool is_persistent = false;
+			for (std::vector<std::pair<unsigned int, unsigned int> >::const_iterator ci = persistent_sets_->begin(); ci != persistent_sets_->end(); ci++)
+			{
+				if ((*ci).second == to_node_fact_index)
+				{
+					is_persistent = true;
+					break;
+				}
+			}
+			
+			if (!is_persistent)
+			{
+				to_node_effects_->erase(ri.base() - 1);
+				to_node_->removeAtom(*to_node_->getAtoms()[to_node_fact_index]);
+			}
+		}
+	}
+}
+
+Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, unsigned int from_fact_ordering[], unsigned int to_fact_ordering[], Bindings& bindings) const
 {
 	// Map the preconditions.
 	std::vector<const Atom*> preconditions;

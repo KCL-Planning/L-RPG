@@ -53,6 +53,8 @@ public:
 	DomainTransitionGraphNode(const DomainTransitionGraphNode& dtg_node, DomainTransitionGraph& dtg);
 	
 	~DomainTransitionGraphNode();
+	
+	unsigned int* getMapping(const DomainTransitionGraphNode& other_dtg_node) const;
 
 	/**
 	 * Add an atom to this node.
@@ -100,7 +102,7 @@ public:
 	 * @param mapping The set of facts which we need to map to the facts of the DTG node.
 	 * @return True if such a mapping can be found, false otherwise.
 	 */
-	bool canMap(const std::vector<const BoundedAtom*>& mapping) const;
+	//bool canMap(const std::vector<const BoundedAtom*>& mapping) const;
 	
 	/**
 	 * Add a transition from this node to to_node, without checking for static preconditions.
@@ -252,7 +254,8 @@ private:
 	 * @param mask Determines which facts of the DTG node can be used in the mapping. True means it cannot be used.
 	 * @return True if a mapping is found, false otherwise.
 	 */
-	bool findMapping(const std::vector<const BoundedAtom*>& mapping, unsigned int index, bool mask[]) const;
+//	bool findMapping(const std::vector<const BoundedAtom*>& mapping, unsigned int index, bool mask[]) const;
+	unsigned int* findMapping(const DomainTransitionGraphNode& other_dtg_node, unsigned int index, unsigned int mask[]) const;
 	
 	// The DTG this node is part of.
 	DomainTransitionGraph* dtg_;

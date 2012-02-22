@@ -148,6 +148,199 @@ DomainTransitionGraphNode::~DomainTransitionGraphNode()
 	}
 }
 
+unsigned int* DomainTransitionGraphNode::getMapping(const DomainTransitionGraphNode& other_dtg_node) const
+{
+	if (other_dtg_node.getAtoms().size() != getAtoms().size()) return false;
+	
+	unsigned int mask[getAtoms().size()];
+	memset (&mask[0], std::numeric_limits<unsigned int>::max(), sizeof(unsigned int) * getAtoms().size());
+	
+	return findMapping(other_dtg_node, 0, mask);
+/*
+	
+	//memset (mapping_from_this_to_other, std::numeric_limits<unsigned int>::max(), getAtoms().size() * sizeof(unsigned int));
+
+	// Start with a valid mapping.
+	for (unsigned int i = 0; i < getAtoms().size(); i++)
+	{
+		mapping_from_this_to_other[i] = i;
+	}
+	
+	// Generate sets of numbers with no duplicates.
+	bool exhausted_all_combinations = false;
+	while (!exhausted_all_combinations)
+	{
+		bool found_valid_mapping = true;
+		for (unsigned int i = 0; i < getAtoms().size(); i++)
+		{
+			const BoundedAtom* this_atom = getAtoms()[i];
+			const BoundedAtom* other_atom = other_dtg_node.getAtoms()[mapping_from_this_to_other[i]];
+			
+			// Try to look for the next possible candidate.
+			if (this_atom->getAtom().isNegative() != other_atom->getAtom().isNegative() ||
+				!other_atom->getAtom().getPredicate().canSubstitute(this_atom->getAtom().getPredicate()) ||
+				!this_atom->canUnifyWith(*other_atom, dtg_->getBindings()))
+			{
+				found_valid_mapping = false;
+				break;
+			}
+		}
+		
+		if (found_valid_mapping)
+		{
+			// TODO: Check if the bindings are respected.
+			return true;
+		}
+
+		// Update the mapping.
+		bool found_mapping = false;
+		while (!found_mapping)
+		{
+			for (unsigned int i = 0; i < getAtoms().size(); i++)
+			{
+				if (mapping_from_this_to_other[i] + 1 == getAtoms().size()) mapping_from_this_to_other[i] = 0;
+				else
+				{
+					mapping_from_this_to_other[i] = mapping_from_this_to_other[i] + 1;
+					break;
+				}
+			}
+			
+			// Validate.
+			found_mapping = true;
+			for (unsigned int i = 0; i < getAtoms().size(); i++)
+			{
+				for (unsigned int j= 0; j < i; j++)
+				{
+					if (mapping_from_this_to_other[i] == mapping_from_this_to_other[j])
+					{
+						found_mapping = false;
+						break;
+					}
+				}
+				
+				if (found_mapping) break;
+			}
+		}
+		
+		// Make sure we have not come back full circle.
+		exhausted_all_combinations = true;
+		for (unsigned int i = 0; i < getAtoms().size(); i++)
+		{
+			if (mapping_from_this_to_other[i] != i)
+			{
+				exhausted_all_combinations = false;
+				break;
+			}
+		}
+	}
+*/
+}
+
+unsigned int* DomainTransitionGraphNode::findMapping(const DomainTransitionGraphNode& dtg_node, unsigned int index, unsigned int mask[]) const
+{
+	const BoundedAtom* fact_to_map_from = getAtoms()[index];
+	
+	for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node.atoms_.begin(); ci != dtg_node.atoms_.end(); ci++)
+	{
+		unsigned int atom_index = std::distance(dtg_node.atoms_.begin(), ci);
+		bool already_processed = false;
+		for (unsigned int i = 0; i < index; i++)
+		{
+			if (mask[i] == atom_index)
+			{
+				already_processed = true;
+				break;
+			}
+		}
+		if (already_processed) continue;
+		
+		const BoundedAtom* fact_to_map_to = *ci;
+
+		if (fact_to_map_from->getAtom().isNegative() == fact_to_map_to->getAtom().isNegative() &&
+		    fact_to_map_to->getAtom().getPredicate().canSubstitute(fact_to_map_from->getAtom().getPredicate()) &&
+		    fact_to_map_from->canUnifyWith(*fact_to_map_to, dtg_->getBindings()))
+		{
+			unsigned int new_mask[atoms_.size()];
+			memcpy(new_mask, mask, sizeof(unsigned int) * atoms_.size());
+			new_mask[index] = atom_index;
+			
+			// If the predicates are the same, we need to check if fact_to_map_to is a subset of this set, if that the case we prefer the 
+			// grounded term over the lifted. But if the objects have not been grounded and predicate of the given dtg_node's fact is more 
+			// general predicate, we prefer that one!
+			if (fact_to_map_to->getAtom().getPredicate() == fact_to_map_from->getAtom().getPredicate())
+			{
+				bool fact_to_map_is_grounded_or_equal = true;
+				for (unsigned int i = 0; i < fact_to_map_to->getAtom().getArity(); i++)
+				{
+					const std::vector<const Object*>& from_variable_domain = fact_to_map_from->getVariableDomain(i, dtg_->getBindings());
+					const std::vector<const Object*>& to_variable_domain = fact_to_map_to->getVariableDomain(i, dtg_->getBindings());
+					
+					if (from_variable_domain.size() < to_variable_domain.size())
+					{
+						fact_to_map_is_grounded_or_equal = false;
+						break;
+					}
+				}
+				
+				if (!fact_to_map_is_grounded_or_equal) continue;
+			}
+			
+/*			// Check if the binding constraints are satisfied.
+			bool bindings_are_satisfied = true;
+			for (unsigned int i = 0; i <= index; i++)
+			{
+				BoundedAtom* from_fact = getAtoms()[i];
+				BoundedAtom* corresponding_from_fact = dtg_node.getAtoms()[new_mask[i]];
+				for (unsigned int j = i; j <= index; j++)
+				{
+					BoundedAtom* other_from_fact = getAtoms()[j];
+					BoundedAtom* other_corresponding_from_fact = dtg_node.getAtoms()[new_mask[j]];
+					
+					// Check if these facts have any variable domain in common.
+					for (unsigned int k = 0; k < from_fact->getAtom().getArity(); k++)
+					{
+						const std::vector<const Object*>& variable_domain1 = from_fact->getVariableDomain(k, dtg_->getBindings());
+						const std::vector<const Object*>& other_variable_domain1 = corresponding_from_fact->getVariableDomain(k, dtg_->getBindings());
+						for (unsigned int l = 0; l < other_from_fact->getAtom().getArity(); l++)
+						{
+							const std::vector<const Object*>& variable_domain2 = other_from_fact->getVariableDomain(l, dtg_->getBindings());
+							const std::vector<const Object*>& other_variable_domain2 = other_corresponding_from_fact->getVariableDomain(l, dtg_->getBindings());
+							
+							if ((&variable_domain1 == &variable_domain2) != (&other_variable_domain1 == &other_variable_domain2))
+							{
+								bindings_are_satisfied = false;
+								break;
+							}
+						}
+						if (!bindings_are_satisfied) break;
+					}
+					if (!bindings_are_satisfied) break;
+				}
+				if (!bindings_are_satisfied) break;
+			}
+			
+			if (!bindings_are_satisfied) continue;
+*/
+			// If we have found a mapping for the last node we are done!
+			if (index + 1 == dtg_node.getAtoms().size())
+			{
+				unsigned int* return_value = new unsigned int[atoms_.size()];
+				memcpy(return_value, new_mask, sizeof(unsigned int) * atoms_.size());
+				return return_value;
+			}
+			
+			// Otherwise bind the found mapping and try to find a mapping for the other nodes.
+//			unsigned int new_mask[atoms_.size()];
+//			memcpy(new_mask, mask, sizeof(unsigned int) * atoms_.size());
+//			new_mask[index] = atom_index;
+			return findMapping(dtg_node, index + 1, new_mask);
+		}
+	}
+	
+	return NULL;
+}
+
 bool DomainTransitionGraphNode::contains(StepID id, const Atom& atom, InvariableIndex index) const
 {
 	for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
@@ -329,7 +522,7 @@ InvariableIndex DomainTransitionGraphNode::getIndex(StepID id, const Atom& atom)
 	//assert (false);
 	return NO_INVARIABLE_INDEX;
 }
-
+/*
 bool DomainTransitionGraphNode::canMap(const std::vector<const BoundedAtom*>& mapping) const
 {
 	bool mask[atoms_.size()];
@@ -364,7 +557,7 @@ bool DomainTransitionGraphNode::findMapping(const std::vector<const BoundedAtom*
 	
 	return false;
 }
-
+*/
 bool DomainTransitionGraphNode::canUnifyWith(const DomainTransitionGraphNode& other) const
 {
 //	std::cout << "Can unify: " << *this << " and " << node2 << "?" << std::endl;

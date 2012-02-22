@@ -150,6 +150,9 @@ public:
 	friend std::ostream& operator<<(std::ostream& os, const DomainTransitionGraph& dtg);
 private:
 	
+	bool containsDoubleVariableDomains(const DomainTransitionGraphNode& dtg_node) const;
+
+	
 	/**
 	 * Create a new DTG node with the given atom and add bind t to this DTG's bindings. The node is not added though!
 	 * @param atom The atom to create the lifted DTG node from.

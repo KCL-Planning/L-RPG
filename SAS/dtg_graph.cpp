@@ -20,7 +20,7 @@
 #include "../bindings_propagator.h"
 #include "../plan.h"
 
-//#define MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+#define MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 
 namespace MyPOP {
 
@@ -688,101 +688,55 @@ void DomainTransitionGraph::solveSubsets()
 	std::map<DomainTransitionGraphNode*, unsigned int*> sub_to_super_nodes_indexes;
 	
 	// Find a pairing of nodes of which one is a subset of the other.
-	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
+//	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
+	for (std::vector<DomainTransitionGraphNode*>::reverse_iterator ri = nodes_.rbegin(); ri != nodes_.rend(); ri++)
 	{
 		// Check if this node is a superset of other.
-		DomainTransitionGraphNode* dtg_node = *ci;
+		DomainTransitionGraphNode* dtg_node = *ri;
 		
+		// Test for depots...
+		bool contains_similar_variable_domain = dtg_node->containsDoubleVariableDomains();
+
+		if (!contains_similar_variable_domain)
+		{
+			for (std::vector<const Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
+			{
+				const Transition* transition = *ci;
+				
+				if (transition->getToNode().containsDoubleVariableDomains())
+				{
+					contains_similar_variable_domain = true;
+					break;
+				}
+			}
+		}
+		
+		if (contains_similar_variable_domain)
+		{
+			nodes_.erase(ri.base() - 1);
+			continue;
+		}
+
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci2 = nodes_.begin(); ci2 != nodes_.end(); ci2++)
 		{
-			if (ci == ci2) continue;
+			//if (ci == ci2) continue;
 			
 			// Check if this node is a subset of the other.
 			DomainTransitionGraphNode* other_dtg_node = *ci2;
+			if (other_dtg_node == dtg_node) continue;
 			
 			if (dtg_node->getAtoms().size() != other_dtg_node->getAtoms().size()) continue;
 			
 			// Try to find a mapping from one set of atoms to the other.
 			unsigned int* mapping = dtg_node->getMapping(*other_dtg_node);
-#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
-			std::cout << "[solveSubsets] Cannot replace " << *dtg_node << " with " << *other_dtg_node << std::endl;
-#endif
+//#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+//			std::cout << "[solveSubsets] Cannot replace " << *dtg_node << " with " << *other_dtg_node << std::endl;
+//#endif
 			if (mapping == NULL) continue;
 		
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 			std::cout << "[solveSubsets] " << *dtg_node << " can be replaced by " << *other_dtg_node << std::endl;
 #endif
-			
-/*
-			bool mask[dtg_node->getAtoms().size()];
-			memset (mask, false, sizeof(bool) * dtg_node->getAtoms().size());
-			bool other_mask[dtg_node->getAtoms().size()];
-			memset (other_mask, false, sizeof(bool) * dtg_node->getAtoms().size());
-			
-			bool possibly_sub_set = false;
-			bool definitely_not_a_sub_set = false;
-			
-			for (unsigned int i = 0; i < dtg_node->getAtoms().size(); i++)
-			{
-				if (mask[i]) continue;
-				BoundedAtom* bounded_atom = dtg_node->getAtoms()[i];
-				
-				bool found_match = false;
-				
-				for (unsigned int j = 0; j < other_dtg_node->getAtoms().size(); j++)
-				{
-					if (other_mask[j]) continue;
-					BoundedAtom* other_bounded_atom = other_dtg_node->getAtoms()[j];
-					
-					if (bounded_atom->getAtom().isNegative() == other_bounded_atom->getAtom().isNegative() &&
-					    bounded_atom->getAtom().getPredicate().getName() == other_bounded_atom->getAtom().getPredicate().getName() &&
-					    bindings_->canUnify(bounded_atom->getAtom(), bounded_atom->getId(), other_bounded_atom->getAtom(), other_bounded_atom->getId()))
-					{
-						mapping[i] = j;
-						mask[i] = true;
-						other_mask[j] = true;
-						found_match = true;
-						
-						// Check if dtg_node is a super node of other_dtg_node.
-						for (unsigned int k = 0; k < bounded_atom->getAtom().getArity(); k++)
-						{
-							if (bounded_atom->getAtom().getTerms()[k]->isProperSubSetOf(bounded_atom->getId(), *other_bounded_atom->getAtom().getTerms()[k], other_bounded_atom->getId(), *bindings_))
-							{
-								possibly_sub_set = true;
-							}
-							else if (bounded_atom->getAtom().getTerms()[k]->isProperSuperSetOf(bounded_atom->getId(), *other_bounded_atom->getAtom().getTerms()[k], other_bounded_atom->getId(), *bindings_))
-							{
-								definitely_not_a_sub_set = true;
-								possibly_sub_set = false;
-								break;
-							}
-							else if (!bounded_atom->getAtom().getTerms()[k]->isEquivalentTo(bounded_atom->getId(), *other_bounded_atom->getAtom().getTerms()[k], other_bounded_atom->getId(), *bindings_))
-							{
-								definitely_not_a_sub_set = true;
-								possibly_sub_set = false;
-								break;
-							}
-						}
-					}
-					if (definitely_not_a_sub_set) break;
-				}
-				
-				if (!found_match)
-				{
-					possibly_sub_set = false;
-					break;
-				}
-				
-				if (definitely_not_a_sub_set) break;
-			}
-			
-			if (!possibly_sub_set)
-			{
-				delete[] mapping;
-				continue;
-			}
-*/
-			
 			// dtg_node is a sub set of other_dtg_node. We can delete dtg_node and replace it with other_dtg_node.
 			sub_to_super_nodes[dtg_node] = other_dtg_node;
 			sub_to_super_nodes_indexes[dtg_node] = mapping;
@@ -828,6 +782,9 @@ void DomainTransitionGraph::solveSubsets()
 			if (sub_to_super_nodes.count(&transition->getToNode()) != 0)
 			{
 				DomainTransitionGraphNode* super_to_node = sub_to_super_nodes[&transition->getToNode()];
+				
+				std::cout << "Super set of the to node: " << *super_to_node << std::endl;
+				
 				unsigned int* to_mapping = sub_to_super_nodes_indexes[&transition->getToNode()];
 				
 				Transition* new_transition = transition->migrateTransition(*super_from_node, *super_to_node, from_mapping, to_mapping);
@@ -837,7 +794,7 @@ void DomainTransitionGraph::solveSubsets()
 				}
 				super_from_node->addTransition(*new_transition);
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
-				std::cout << "[DomainTransitionGraph::solveSubsets] New transition: " << *new_transition << "." << std::endl;
+				std::cout << "[DomainTransitionGraph::solveSubsets] Use the super node: New transition: " << *new_transition << "." << std::endl;
 #endif
 			}
 			// The to node is not replaced.
@@ -860,7 +817,7 @@ void DomainTransitionGraph::solveSubsets()
 				}
 				super_from_node->addTransition(*new_transition);
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
-				std::cout << "[DomainTransitionGraph::solveSubsets] New transition: " << *new_transition << "." << std::endl;
+				std::cout << "[DomainTransitionGraph::solveSubsets] Use org node: New transition: " << *new_transition << "." << std::endl;
 #endif
 			}
 			

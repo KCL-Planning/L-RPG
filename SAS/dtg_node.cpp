@@ -237,6 +237,48 @@ unsigned int* DomainTransitionGraphNode::getMapping(const DomainTransitionGraphN
 */
 }
 
+bool DomainTransitionGraphNode::containsDoubleVariableDomains() const
+{
+	// Test for depots...
+	for (std::vector<BoundedAtom*>::const_iterator bounded_atom_ci = getAtoms().begin(); bounded_atom_ci != getAtoms().end(); bounded_atom_ci++)
+	{
+		BoundedAtom* bounded_atom = *bounded_atom_ci;
+		for (unsigned int i = 0; i < bounded_atom->getAtom().getArity(); i++)
+		{
+			const std::vector<const Object*>& variable_domain1 = bounded_atom->getVariableDomain(i, dtg_->getBindings());
+			for (unsigned int j = i + 1; j < bounded_atom->getAtom().getArity(); j++)
+			{
+				const std::vector<const Object*>& variable_domain2 = bounded_atom->getVariableDomain(j, dtg_->getBindings());
+				
+				if (&variable_domain1 == &variable_domain2)
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+bool DomainTransitionGraphNode::containsDoubleVariableDomains(const BoundedAtom& bounded_atom) const
+{
+	// Test for depots...
+	for (unsigned int i = 0; i < bounded_atom.getAtom().getArity(); i++)
+	{
+		const std::vector<const Object*>& variable_domain1 = bounded_atom.getVariableDomain(i, dtg_->getBindings());
+		for (unsigned int j = i + 1; j < bounded_atom.getAtom().getArity(); j++)
+		{
+			const std::vector<const Object*>& variable_domain2 = bounded_atom.getVariableDomain(j, dtg_->getBindings());
+			
+			if (&variable_domain1 == &variable_domain2)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 unsigned int* DomainTransitionGraphNode::findMapping(const DomainTransitionGraphNode& dtg_node, unsigned int index, unsigned int mask[]) const
 {
 	const BoundedAtom* fact_to_map_from = getAtoms()[index];
@@ -284,9 +326,26 @@ unsigned int* DomainTransitionGraphNode::findMapping(const DomainTransitionGraph
 				}
 				
 				if (!fact_to_map_is_grounded_or_equal) continue;
-			}
+			}/*
+			else
+			{
+				bool fact_to_map_is_larger_or_equal = true;
+				for (unsigned int i = 0; i < fact_to_map_to->getAtom().getArity(); i++)
+				{
+					const std::vector<const Object*>& from_variable_domain = fact_to_map_from->getVariableDomain(i, dtg_->getBindings());
+					const std::vector<const Object*>& to_variable_domain = fact_to_map_to->getVariableDomain(i, dtg_->getBindings());
+					
+					if (from_variable_domain.size() > to_variable_domain.size())
+					{
+						fact_to_map_is_larger_or_equal = false;
+						break;
+					}
+				}
+				
+				if (!fact_to_map_is_larger_or_equal) continue;
+			}*/
 			
-/*			// Check if the binding constraints are satisfied.
+			// Check if the binding constraints are satisfied.
 			bool bindings_are_satisfied = true;
 			for (unsigned int i = 0; i <= index; i++)
 			{
@@ -321,7 +380,7 @@ unsigned int* DomainTransitionGraphNode::findMapping(const DomainTransitionGraph
 			}
 			
 			if (!bindings_are_satisfied) continue;
-*/
+
 			// If we have found a mapping for the last node we are done!
 			if (index + 1 == dtg_node.getAtoms().size())
 			{
@@ -331,9 +390,6 @@ unsigned int* DomainTransitionGraphNode::findMapping(const DomainTransitionGraph
 			}
 			
 			// Otherwise bind the found mapping and try to find a mapping for the other nodes.
-//			unsigned int new_mask[atoms_.size()];
-//			memcpy(new_mask, mask, sizeof(unsigned int) * atoms_.size());
-//			new_mask[index] = atom_index;
 			return findMapping(dtg_node, index + 1, new_mask);
 		}
 	}

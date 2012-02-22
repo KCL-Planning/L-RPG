@@ -18,7 +18,7 @@
 //#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 //#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 //#define MYPOP_SAS_PLUS_DTG_REACHABILITY_CLEANUP
-//#define DTG_REACHABILITY_KEEP_TIME
+#define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
 
 namespace SAS_Plus {
@@ -2318,7 +2318,6 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 	}
 	
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-
 	std::cout << "DONE! All the equivalent objects: " << std::endl;
 	equivalent_object_manager_->printAll(std::cout);
 	std::cout << std::endl;
@@ -2334,6 +2333,7 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 	
 #ifdef DTG_REACHABILITY_KEEP_TIME
 	std::cerr << "Generated facts / Accepted facts [%] - " << ReachableTransition::generated_new_reachable_facts << " / " << ReachableTransition::accepted_new_reachable_facts << " [" << (((double)(ReachableTransition::accepted_new_reachable_facts) / ReachableTransition::generated_new_reachable_facts) * 100) << "%]" << std::endl;
+	std::cerr << "Compression rate " << 100 - ((double)equivalent_object_manager_->getNumberOfEquivalentGroups() / (double)total_number_of_eog) * 100 << std::endl;
 #endif
 	
 	equivalent_object_manager_->getAllReachableFacts(result);

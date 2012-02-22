@@ -388,7 +388,6 @@ int main(int argc,char * argv[])
 					std::cout << "* Reachable lifted fact: " << **ci << std::endl;
 				}
 				
-				assert (false);
 				exit(1);
 			}
 		}

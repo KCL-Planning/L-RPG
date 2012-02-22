@@ -230,7 +230,11 @@ public:
 	bool canUnifyWith(const DomainTransitionGraphNode& other) const;
 	
 	void setDTG(DomainTransitionGraph& dtg_graph) { dtg_ = &dtg_graph; }
-	
+
+	// DEBUG - for Depots...
+	bool containsDoubleVariableDomains() const;
+	bool containsDoubleVariableDomains(const BoundedAtom& bounded_atom) const;
+
 private:
 	
 	/**

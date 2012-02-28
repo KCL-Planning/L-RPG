@@ -20,7 +20,7 @@
 #include "../bindings_propagator.h"
 #include "../plan.h"
 
-#define MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+//#define MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 
 namespace MyPOP {
 
@@ -676,7 +676,8 @@ void DomainTransitionGraph::removeUnconnectedNodes()
 		if (marked_dtg_nodes.count(dtg_node) == 0)
 		{
 			nodes_.erase(ri.base() - 1);
-			delete dtg_node;
+			// TODO: Reenable.
+//			delete dtg_node;
 		}
 	}
 }

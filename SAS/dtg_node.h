@@ -54,6 +54,9 @@ public:
 	
 	~DomainTransitionGraphNode();
 	
+	void postProcessNode(const DomainTransitionGraphNode& linked_dtg_node, MyPOP::SAS_Plus::Transition& transition);
+
+	
 	unsigned int* getMapping(const DomainTransitionGraphNode& other_dtg_node) const;
 
 	/**

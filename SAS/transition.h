@@ -131,6 +131,12 @@ public:
 	 */
 	void addedToNodeFact(const Atom& fact);
 	
+	void markFromNodeForRemoval(unsigned int index);
+	
+	void markToNodeForRemoval(unsigned int index);
+	
+	void markToNodeAsPersistent(unsigned int index);
+	
 	/**
 	 * Get the Step ID how the action is bound.
 	 */
@@ -283,6 +289,8 @@ private:
 
 	// The index of the facts in from node and to node which are persistent.
 	std::vector<std::pair<unsigned int, unsigned int> >* persistent_sets_;
+	
+	std::vector<unsigned int> do_not_remove_to_node_bla_;
 	
 	// An array of action variables which are considered to be 'free'.
 	const std::set<const Term*>* free_variables_;

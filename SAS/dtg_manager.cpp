@@ -734,6 +734,12 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 				StepID new_action_step_id = bindings.createVariableDomains(*achieving_action);
 				StepPtr new_step(new Step(new_action_step_id, *achieving_action));
 				
+				// Make sure this action actually achieves the unprocessed predicate!
+				if ((*ci).second->getPredicate() != *predicate)
+				{
+					continue;
+				}
+				
 				// Create a transition between the two nodes.
 				Transition* transition = Transition::createSimpleTransition(new_step, *negative_new_unprocessed_dtg, *possitive_new_unprocessed_dtg);
 				
@@ -1240,10 +1246,10 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 						for (unsigned int i = 0; i < dtg_node->getAtoms().size(); i++)
 						{
 							std::cout << i << " -> " << mapping[i] << std::endl;
+							assert (mapping[i] < dtg_node->getAtoms().size());
 						}
 					}
 #endif
-					//if (properties_differ) continue;
 					merged = true;
 					
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
@@ -1255,6 +1261,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 #endif
 					map_leaf_facts_to_root[dtg_node2] = mapping;
 					mapping_leaf_to_root_node[dtg_node2] = dtg_node;
+					assert (dtg_node->getAtoms().size() == dtg_node2->getAtoms().size());
 //					accumulated_dtgs->insert(accumulated_dtgs->end(), dtg_node2->getTransitions().begin(), dtg_node2->getTransitions().end());
 					
 					closed_list.insert(dtg_node2);
@@ -1343,6 +1350,9 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 			std::cout << "Found an identical node: " << *identical_dtg_node << " - combine it with:" << *hub_dtg_node << "." << std::endl;
 #endif
 			combined_dtg_node = org_node_to_combined_node[hub_dtg_node];
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT			
+			assert (identical_dtg_node->getAtoms().size() == hub_dtg_node->getAtoms().size());
+#endif
 		}
 
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
@@ -1393,7 +1403,23 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 			}
 			
 			if (transitionAlreadyExists) continue;
-			
+
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+			std::cout << "Try to migrate the transition: " << *leaf_transition << " to the root nodes: " << std::endl;
+			std::cout << *root_from_dtg_node << std::endl;
+			std::cout << " TO " << std::endl;
+			std::cout << *root_to_dtg_node << std::endl;
+			std::cout << " Mappings: " << std::endl;
+			for (unsigned int i = 0; i < leaf_from_dtg_node->getAtoms().size(); i++)
+			{
+				std::cout << "From: " << i << " -> " << from_fact_ordering[i] << std::endl;
+			}
+			for (unsigned int i = 0; i < leaf_to_dtg_node.getAtoms().size(); i++)
+			{
+				std::cout << "To: " << i << " -> " << to_fact_ordering[i] << std::endl;
+			}
+#endif
+
 			Transition* new_transition = leaf_transition->migrateTransition(*root_from_dtg_node, *root_to_dtg_node, from_fact_ordering, to_fact_ordering);
 			if (new_transition == NULL)
 			{
@@ -1673,6 +1699,18 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 				const Transition* org_transition = dtg_node->getTransitions()[i];
 				DomainTransitionGraphNode* from_dtg_node_clone = new DomainTransitionGraphNode(*dtg_node);
 				DomainTransitionGraphNode* to_dtg_node_clone = new DomainTransitionGraphNode(org_transition->getToNode());
+				
+				if (org_transition->getFromNodePreconditions().size() != from_dtg_node_clone->getAtoms().size())
+				{
+					std::cout << "Transition has " << org_transition->getFromNodePreconditions().size() << " recorded preconditions, but there are " << from_dtg_node_clone->getAtoms().size() << " total!" << std::endl;
+					assert (false);
+				}
+				
+				if (org_transition->getToNodeEffects().size() != to_dtg_node_clone->getAtoms().size())
+				{
+					std::cout << "Transition has " << org_transition->getToNodeEffects().size() << " recorded effects, but there are " << to_dtg_node_clone->getAtoms().size() << " total!" << std::endl;
+					assert (false);
+				}
 
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 				assert (&from_dtg_node_clone->getDTG() == &dtg_node->getDTG());
@@ -1692,6 +1730,7 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 				Transition* transition = org_transition->migrateTransition(*from_dtg_node_clone, *to_dtg_node_clone);
 				from_dtg_node_clone->addTransition(*transition);
 
+				// Remove all the atoms from a node if they are not linked to a precondition and effect of the transition.
 				bool needs_prune = false;
 				for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = transition->getFromNodePreconditions().begin(); ci != transition->getFromNodePreconditions().end(); ci++)
 				{
@@ -2048,8 +2087,12 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 						bool could_add_precondition = from_dtg_node_clone->addAtom(bounded_precondition_to_add, bounded_precondition_to_add.containsVariableDomain(transition->getBalancedTerm()->getDomain(transition->getStepId(), dtg->getBindings()), dtg->getBindings()));
 						assert (could_add_precondition);
 #else
-						from_dtg_node_clone->addAtom(bounded_precondition_to_add, bounded_precondition_to_add.containsVariableDomain(transition->getBalancedTerm()->getDomain(transition->getStepId(), dtg->getBindings()), dtg->getBindings()));
-						transition->addedFromNodePrecondition(*precondition);
+						assert (transition->getFromNodePreconditions().size() == from_dtg_node_clone->getAtoms().size());
+						if (from_dtg_node_clone->addAtom(bounded_precondition_to_add, bounded_precondition_to_add.containsVariableDomain(transition->getBalancedTerm()->getDomain(transition->getStepId(), dtg->getBindings()), dtg->getBindings())))
+						{
+							assert (transition->getFromNodePreconditions().size() != from_dtg_node_clone->getAtoms().size());
+							transition->addedFromNodePrecondition(*precondition);
+						}
 #endif
 					}
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
@@ -2178,10 +2221,6 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 				}
 				
 				// We're done with adding all the preconditions to the to / from nodes.
-				
-				// Test, remove nodes with more than 5 nodes (Depots)
-//				if (from_dtg_node_clone->getAtoms().size() > 4 || to_dtg_node_clone->getAtoms().size() > 4) continue;
-				
 				/**
 				 * If a term is shared between the from and to node and it is not balanced, it needs to be grounded too!
 				 * Unless it's the exact same fact!
@@ -2205,6 +2244,9 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 							if (to_bounded_atom->containsVariableDomain(imbalanced_variable_domain, to_dtg_node_clone->getDTG().getBindings()) != std::numeric_limits< unsigned int>::max() &&
 							    !from_bounded_atom->isIdenticalTo(*to_bounded_atom, to_dtg_node_clone->getDTG().getBindings()))
 							{
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+								std::cout << "Ground the variable domain " << &imbalanced_variable_domain << " because it is shared between the from and to node!" << std::endl;
+#endif
 								variable_domains_to_ground.push_back(&imbalanced_variable_domain);
 								break;
 							}
@@ -2241,8 +2283,28 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 						DomainTransitionGraphNode* grounded_to_dtg_node = *ci;
 						assert (grounded_to_dtg_node != to_dtg_node_clone);
 						
+						if (transition->getFromNode().getAtoms().size() != grounded_from_dtg_node->getAtoms().size()  ||
+						    transition->getToNode().getAtoms().size() != grounded_to_dtg_node->getAtoms().size())
+						{
+							continue;
+						}
+						
 						// Try to establish the original transitions.
+						if (transition->getFromNodePreconditions().size() != from_dtg_node_clone->getAtoms().size())
+						{
+							std::cout << "Transition has " << transition->getFromNodePreconditions().size() << " recorded preconditions, but there are " << from_dtg_node_clone->getAtoms().size() << " total!" << std::endl;
+							assert (false);
+						}
+						
+						if (transition->getToNodeEffects().size() != to_dtg_node_clone->getAtoms().size())
+						{
+							std::cout << "Transition has " << transition->getToNodeEffects().size() << " recorded effects, but there are " << to_dtg_node_clone->getAtoms().size() << " total!" << std::endl;
+							assert (false);
+						}
+						
 						Transition* new_transition = transition->migrateTransition(*grounded_from_dtg_node, *grounded_to_dtg_node);
+						assert (new_transition->getFromNodePreconditions().size() == transition->getFromNodePreconditions().size());
+						assert (new_transition->getFromNodePreconditions().size() == grounded_from_dtg_node->getAtoms().size());
 						
 						if (new_transition == NULL) continue;
 						if (new_transition->finalise(*initial_facts_))
@@ -2250,9 +2312,24 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 							grounded_from_dtg_node->addTransition(*new_transition);
 							dtg_nodes_to_add.push_back(grounded_to_dtg_node);
 							
-#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-							std::cout << "Created a new (grounded?) transition: " << *new_transition << std::endl;
-#endif
+							/**
+							 * Now that we know which variables need to be grounded, check if there are facts among the from and to node which are redundant. I.e. if a fact only
+							 * consists of grounded variables which have no relation to an ungrounded variable and do not connect two grounded facts from two different facts which 
+							 * should not be removed - remove that fact!
+							 *
+//#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+							unsigned int size = grounded_from_dtg_node->getAtoms().size() + grounded_to_dtg_node->getAtoms().size();
+//#endif
+							grounded_from_dtg_node->postProcessNode(*grounded_to_dtg_node, *new_transition);
+							grounded_to_dtg_node->postProcessNode(*grounded_from_dtg_node, *new_transition);
+							new_transition->pruneNodes();
+							
+//#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+							if (size != grounded_from_dtg_node->getAtoms().size() + grounded_to_dtg_node->getAtoms().size())
+							{
+								std::cout << "Pruned a transition! " << *new_transition << std::endl;
+							}
+//#endif*/
 						}
 						else
 						{

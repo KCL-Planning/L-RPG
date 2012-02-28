@@ -11,8 +11,8 @@
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
-///#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-///#define ENABLE_MYPOP_SAS_TRANSITION_DEBUG
+//#define ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+//#define ENABLE_MYPOP_SAS_TRANSITION_DEBUG
 
 namespace MyPOP {
 
@@ -104,6 +104,12 @@ Transition* Transition::createTransition(const Action& action, DomainTransitionG
 		delete (*ci).second;
 	}
 	
+	if (transition != NULL)
+	{
+		assert (transition->getFromNodePreconditions().size() == from_node.getAtoms().size());
+		assert (transition->getToNodeEffects().size() == to_node.getAtoms().size());
+	}
+	
 	return transition;
 }
 
@@ -174,7 +180,13 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 	
 	std::vector<std::pair<unsigned int, unsigned int> >* persistent_sets = new std::vector<std::pair<unsigned int, unsigned int> >();
 	
-	return new Transition(action_step, from_node, to_node, *all_precondition_mappings, *preconditions_in_from_node, *all_effect_mappings, *effects_in_to_node, *persistent_sets, *free_variables);
+	Transition* transition = new Transition(action_step, from_node, to_node, *all_precondition_mappings, *preconditions_in_from_node, *all_effect_mappings, *effects_in_to_node, *persistent_sets, *free_variables);
+	if (transition != NULL)
+	{
+		assert (transition->getFromNodePreconditions().size() == from_node.getAtoms().size());
+		assert (transition->getToNodeEffects().size() == to_node.getAtoms().size());
+	}
+	return transition;
 }
 
 Transition* Transition::createTransition(const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, std::map<const PropertySpace*, BalancedPropertySet*>& property_space_balanced_sets)
@@ -1245,7 +1257,10 @@ Transition* Transition::createTransition(const StepPtr action_step, DomainTransi
 	action_step->getAction().print(std::cout, from_node.getDTG().getBindings(), action_step->getStepId());
 	std::cout << std::endl;
 #endif
-	return new Transition(action_step, from_node, to_node, *all_precondition_mappings, *preconditions_in_from_node, *all_effect_mappings, *effects_in_to_node, *persistent_sets, *free_variables);
+	Transition* transition = new Transition(action_step, from_node, to_node, *all_precondition_mappings, *preconditions_in_from_node, *all_effect_mappings, *effects_in_to_node, *persistent_sets, *free_variables);
+	assert (transition->getFromNodePreconditions().size() == from_node.getAtoms().size());
+	assert (transition->getToNodeEffects().size() == to_node.getAtoms().size());
+	return transition;
 }
 
 bool Transition::areMutex(const std::vector<BoundedAtom*>& facts, const std::vector<const Atom*>& preconditions, StepID action_step_id, const PropertySpace& balanced_property_space, const Bindings& bindings, const Variable& balanced_action_variable)
@@ -1473,11 +1488,25 @@ Transition* Transition::migrateTransition(DomainTransitionGraphNode& from_node, 
 	
 	
 	Transition* new_transition = performBindings(new_step, from_node, to_node, from_fact_ordering, to_fact_ordering, bindings);
+	if (new_transition != NULL)
+	{
+		assert (new_transition->getFromNodePreconditions().size() == from_node.getAtoms().size());
+		assert (new_transition->getToNodeEffects().size() == to_node.getAtoms().size());
+	}
 	return new_transition;
 }
 
 void Transition::pruneNodes()
 {
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+	std::cout << "Prune " << *this << std::endl;
+	
+	std::cout << "preconditions recorded: " << from_node_preconditions_->size() << "; actual number of preconditions in from node: " << from_node_->getAtoms().size() << std::endl;
+	std::cout << "effects recorded: " << to_node_effects_->size() << "; actual number of effects in to node: " << to_node_->getAtoms().size() << std::endl;
+	
+#endif
+	assert (from_node_preconditions_->size() == from_node_->getAtoms().size());
+	assert (to_node_effects_->size() == to_node_->getAtoms().size());
 	for (std::vector<std::pair<const Atom*, InvariableIndex> >::reverse_iterator ri = from_node_preconditions_->rbegin(); ri != from_node_preconditions_->rend(); ri++)
 	{
 		if ((*ri).first == NULL)
@@ -1486,11 +1515,25 @@ void Transition::pruneNodes()
 			from_node_preconditions_->erase(ri.base() - 1);
 			from_node_->removeAtom(*from_node_->getAtoms()[from_node_fact_index]);
 			
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+			std::cout << "Remove the " << from_node_fact_index << "th from fact." << std::endl;
+#endif
+			
 			for (std::vector<std::pair<unsigned int, unsigned int> >::reverse_iterator ri = persistent_sets_->rbegin(); ri != persistent_sets_->rend(); ri++)
 			{
 				if ((*ri).first == from_node_fact_index)
 				{
 					persistent_sets_->erase(ri.base() - 1);
+				}
+			}
+			
+			// Update the persistent sets.
+			for (std::vector<std::pair<unsigned int, unsigned int> >::iterator i = persistent_sets_->begin(); i != persistent_sets_->end(); i++)
+			{
+				unsigned int index = std::distance(persistent_sets_->begin(), i);
+				if ((*i).first > from_node_fact_index)
+				{
+					(*persistent_sets_)[index] = std::make_pair((*i).first - 1, (*i).second);
 				}
 			}
 		}
@@ -1502,9 +1545,23 @@ void Transition::pruneNodes()
 		{
 			unsigned int to_node_fact_index = std::distance(to_node_effects_->begin(), ri.base() - 1);
 			bool is_persistent = false;
+			
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+			std::cout << "Remove the " << to_node_fact_index << "th to fact." << std::endl;
+#endif
+			
 			for (std::vector<std::pair<unsigned int, unsigned int> >::const_iterator ci = persistent_sets_->begin(); ci != persistent_sets_->end(); ci++)
 			{
 				if ((*ci).second == to_node_fact_index)
+				{
+					is_persistent = true;
+					break;
+				}
+			}
+			
+			for (std::vector<unsigned int>::const_iterator ci = do_not_remove_to_node_bla_.begin(); ci != do_not_remove_to_node_bla_.end(); ci++)
+			{
+				if (*ci == to_node_fact_index)
 				{
 					is_persistent = true;
 					break;
@@ -1515,9 +1572,38 @@ void Transition::pruneNodes()
 			{
 				to_node_effects_->erase(ri.base() - 1);
 				to_node_->removeAtom(*to_node_->getAtoms()[to_node_fact_index]);
+				
+				for (unsigned int i = 0; i < do_not_remove_to_node_bla_.size(); i++)
+				{
+					if (do_not_remove_to_node_bla_[i] > to_node_fact_index)
+					{
+						do_not_remove_to_node_bla_[i] = do_not_remove_to_node_bla_[i] - 1;
+					}
+				}
+				
+				// Update the persistent sets.
+				for (std::vector<std::pair<unsigned int, unsigned int> >::iterator i = persistent_sets_->begin(); i != persistent_sets_->end(); i++)
+				{
+					unsigned int index = std::distance(persistent_sets_->begin(), i);
+					if ((*i).second > to_node_fact_index)
+					{
+						(*persistent_sets_)[index] = std::make_pair((*i).first, (*i).second - 1);
+					}
+				}
 			}
 		}
 	}
+	
+	for (std::vector<std::pair<unsigned int, unsigned int> >::reverse_iterator ri = persistent_sets_->rbegin(); ri != persistent_sets_->rend(); ri++)
+	{
+		if ((*ri).first == std::numeric_limits<unsigned int>::max())
+		{
+			persistent_sets_->erase(ri.base() - 1);
+		}
+	}
+	
+	assert (from_node_preconditions_->size() == from_node_->getAtoms().size());
+	assert (to_node_effects_->size() == to_node_->getAtoms().size());
 }
 
 Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, unsigned int from_fact_ordering[], unsigned int to_fact_ordering[], Bindings& bindings) const
@@ -1577,6 +1663,7 @@ Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode&
 		const std::pair< const Atom*, InvariableIndex >& from_node_precondition = (*from_node_preconditions_)[i];
 		
 		unsigned int actual_index = from_fact_ordering[i];
+		assert (actual_index < from_node.getAtoms().size());
 		
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
 		std::cout << "The " << i << "th precondition is actually part of the " << actual_index << "th fact!" << std::endl;
@@ -1611,6 +1698,14 @@ Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode&
 				return NULL;
 			}
 		}
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+		else
+		{
+			std::cout << "The original precondition: ";
+			from_node.getAtoms()[i]->print(std::cout, bindings);
+			std::cout << " maps to NULL[" << actual_index << "]" << std::endl;
+		}
+#endif
 		
 		//clone_from_node_preconditions->push_back(std::make_pair(clone_precondition, from_node_precondition.second));
 		(*clone_from_node_preconditions)[actual_index] = std::make_pair<const Atom*, InvariableIndex>(clone_precondition, from_node_precondition.second);
@@ -1618,10 +1713,16 @@ Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode&
 	
 	std::vector< std::pair< const Atom*, InvariableIndex > >* clone_to_node_effects = new std::vector< std::pair< const Atom*, InvariableIndex > >(to_node_effects_->size());
 	for (unsigned int i = 0; i < to_node_effects_->size(); i++)
+//	for (unsigned int i = 0; i < to_node.getAtoms().size(); i++)
 	{
 		const std::pair< const Atom*, InvariableIndex >& to_node_effect = (*to_node_effects_)[i];
 		
 		unsigned int actual_index = to_fact_ordering[i];
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS		
+		std::cout << "Map the " << i << "th effect to " << actual_index << std::endl;
+#endif
+		
+		assert (actual_index < clone_to_node_effects->size());
 		
 		const Atom* org_effect = to_node_effect.first;
 		const Atom* clone_effect = NULL;
@@ -1724,14 +1825,6 @@ Transition* Transition::performBindings(StepPtr step, DomainTransitionGraphNode&
 
 void Transition::addedFromNodePrecondition(const Atom& precondition)
 {
-#ifdef ENABLE_MYPOP_SAS_TRANSITION_DEBUG
-	// Detect which precondition this is.
-	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = all_preconditions_->begin(); ci != all_preconditions_->end(); ci++)
-	{
-		assert (&precondition != (*ci).first);
-	}
-#endif
-
 	InvariableIndex invariable_index = NO_INVARIABLE_INDEX;
 	for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = all_preconditions_->begin(); ci != all_preconditions_->end(); ci++)
 	{
@@ -1802,6 +1895,46 @@ void Transition::addedToNodeFact(const Atom& fact)
 	
 	
 	assert (false);
+}
+
+void Transition::markFromNodeForRemoval(unsigned int index)
+{
+	(*from_node_preconditions_)[index].first = NULL;
+}
+	
+void Transition::markToNodeForRemoval(unsigned int index)
+{
+	(*to_node_effects_)[index].first = NULL;
+	
+	// Break the persistence relationships.
+	for (std::vector<std::pair<unsigned int, unsigned int> >::reverse_iterator ri = persistent_sets_->rbegin(); ri != persistent_sets_->rend(); ri++)
+	{
+		if ((*ri).second == index)
+		{
+			persistent_sets_->erase(ri.base() - 1);
+		}
+	}
+}
+
+void Transition::markToNodeAsPersistent(unsigned int index)
+{
+	do_not_remove_to_node_bla_.push_back(index);
+/*
+	// Break the persistence relationships.
+	bool is_already_persistent = false;
+	for (std::vector<std::pair<unsigned int, unsigned int> >::reverse_iterator ri = persistent_sets_->rbegin(); ri != persistent_sets_->rend(); ri++)
+	{
+		if ((*ri).second == index)
+		{
+			is_already_persistent = true;
+			break;
+		}
+	}
+	
+	if (is_already_persistent) return;
+	
+	persistent_sets_->push_back(std::make_pair(std::numeric_limits<unsigned int>::max(), index));
+*/
 }
 
 unsigned int Transition::isFactContainedByNode(const Atom& fact, const DomainTransitionGraphNode& node) const
@@ -2040,7 +2173,7 @@ bool Transition::finalise(const std::vector<const Atom*>& initial_facts)
 						unsigned int updated_variable_domain_index = variable_domain_mapping[&variable_domain];
 						
 #ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
-					std::cout << "[Transition::finalise] Update the: " << updated_variable_domain_index << "th index!" << std::endl;
+						std::cout << "[Transition::finalise] Update the: " << updated_variable_domain_index << "th index!" << std::endl;
 #endif
 						
 						std::vector<const Object*>* variable_domain_to_update = updated_new_variable_domains[updated_variable_domain_index];

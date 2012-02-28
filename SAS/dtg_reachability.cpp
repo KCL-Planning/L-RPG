@@ -18,7 +18,7 @@
 //#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 //#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 //#define MYPOP_SAS_PLUS_DTG_REACHABILITY_CLEANUP
-#define DTG_REACHABILITY_KEEP_TIME
+//#define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
 
 namespace SAS_Plus {
@@ -2093,6 +2093,7 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 	}
 	
 	std::cerr << "After: " << all_reachable_sets.size() << std::endl;
+	std::cerr << "Number of transitions: " << all_reachable_transitions.size() << std::endl;
 
 	for (std::vector<ReachableTransition*>::const_iterator ci = all_reachable_transitions.begin(); ci != all_reachable_transitions.end(); ci++)
 	{

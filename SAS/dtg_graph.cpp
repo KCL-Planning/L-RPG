@@ -489,9 +489,6 @@ void DomainTransitionGraph::removeNode(const DomainTransitionGraphNode& dtg_node
 				delete transition;
 			}
 		}
-		
-		//std::vector<const Transition*>::iterator the_end = std::remove_if(transitions.begin(), transitions.end(), std::bind2nd(Utilities::TransitionToNodeEquals(), &dtg_node));
-		//transitions.erase(the_end, transitions.end());
 	}
 	
 	if (node_to_remove != nodes_.end())
@@ -677,51 +674,48 @@ void DomainTransitionGraph::removeUnconnectedNodes()
 		{
 			nodes_.erase(ri.base() - 1);
 			// TODO: Reenable.
-//			delete dtg_node;
+			delete dtg_node;
 		}
 	}
 }
 
 void DomainTransitionGraph::solveSubsets()
 {
-	std::map<DomainTransitionGraphNode*, DomainTransitionGraphNode*> sub_to_super_nodes;
-	std::map<DomainTransitionGraphNode*, std::vector<DomainTransitionGraphNode*>* > super_to_sub_nodes;
-	std::map<DomainTransitionGraphNode*, unsigned int*> sub_to_super_nodes_indexes;
-	
-	// Find a pairing of nodes of which one is a subset of the other.
-//	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ci++)
+	std::map<DomainTransitionGraphNode*, std::vector<std::pair<DomainTransitionGraphNode*, unsigned int*> >* > sub_to_super_nodes;
 	for (std::vector<DomainTransitionGraphNode*>::reverse_iterator ri = nodes_.rbegin(); ri != nodes_.rend(); ri++)
 	{
 		// Check if this node is a superset of other.
 		DomainTransitionGraphNode* dtg_node = *ri;
 		
 		// Test for depots...
-		bool contains_similar_variable_domain = dtg_node->containsDoubleVariableDomains();
-
-		if (!contains_similar_variable_domain)
+		// TODO: Should be removed in time...
 		{
-			for (std::vector<const Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
+			bool contains_similar_variable_domain = dtg_node->containsDoubleVariableDomains();
+
+			if (!contains_similar_variable_domain)
 			{
-				const Transition* transition = *ci;
-				
-				if (transition->getToNode().containsDoubleVariableDomains())
+				for (std::vector<const Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
 				{
-					contains_similar_variable_domain = true;
-					break;
+					const Transition* transition = *ci;
+					
+					if (transition->getToNode().containsDoubleVariableDomains())
+					{
+						contains_similar_variable_domain = true;
+						break;
+					}
 				}
 			}
-		}
-		
-		if (contains_similar_variable_domain)
-		{
-			nodes_.erase(ri.base() - 1);
-			continue;
+			
+			if (contains_similar_variable_domain)
+			{
+				nodes_.erase(ri.base() - 1);
+				delete dtg_node;
+				continue;
+			}
 		}
 
 		for (std::vector<DomainTransitionGraphNode*>::const_iterator ci2 = nodes_.begin(); ci2 != nodes_.end(); ci2++)
 		{
-			//if (ci == ci2) continue;
-			
 			// Check if this node is a subset of the other.
 			DomainTransitionGraphNode* other_dtg_node = *ci2;
 			if (other_dtg_node == dtg_node) continue;
@@ -730,162 +724,116 @@ void DomainTransitionGraph::solveSubsets()
 			
 			// Try to find a mapping from one set of atoms to the other.
 			unsigned int* mapping = dtg_node->getMapping(*other_dtg_node);
-//#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
-//			std::cout << "[solveSubsets] Cannot replace " << *dtg_node << " with " << *other_dtg_node << std::endl;
-//#endif
 			if (mapping == NULL) continue;
 		
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 			std::cout << "[solveSubsets] " << *dtg_node << " can be replaced by " << *other_dtg_node << std::endl;
 #endif
 			// dtg_node is a sub set of other_dtg_node. We can delete dtg_node and replace it with other_dtg_node.
-			sub_to_super_nodes[dtg_node] = other_dtg_node;
-			sub_to_super_nodes_indexes[dtg_node] = mapping;
-			
-			std::vector<DomainTransitionGraphNode*>* super_to_sub_mappings = NULL;
-			if (super_to_sub_nodes.find(other_dtg_node) == super_to_sub_nodes.end())
+			std::vector<std::pair<DomainTransitionGraphNode*, unsigned int* > >* sub_to_super_mappings = NULL;
+			std::map<DomainTransitionGraphNode*, std::vector<std::pair<DomainTransitionGraphNode*, unsigned int*> >* >::const_iterator mapped_i = sub_to_super_nodes.find(dtg_node);
+			if (mapped_i == sub_to_super_nodes.end())
 			{
-				super_to_sub_mappings = new std::vector<DomainTransitionGraphNode*>();
-				super_to_sub_nodes[other_dtg_node] = super_to_sub_mappings;
+				sub_to_super_mappings = new std::vector<std::pair<DomainTransitionGraphNode*, unsigned int* > >();
+				sub_to_super_nodes[dtg_node] = sub_to_super_mappings;
 			}
 			else
 			{
-				super_to_sub_mappings = super_to_sub_nodes[other_dtg_node];
+				sub_to_super_mappings = (*mapped_i).second;
 			}
 			
-			if (std::find(super_to_sub_mappings->begin(), super_to_sub_mappings->end(), dtg_node) == super_to_sub_mappings->end())
-			{
-				super_to_sub_mappings->push_back(dtg_node);
-			}
+			sub_to_super_mappings->push_back(std::make_pair(other_dtg_node, mapping));
 		}
 	}
 	
-	for (std::map<DomainTransitionGraphNode*, DomainTransitionGraphNode*>::const_iterator ci = sub_to_super_nodes.begin(); ci != sub_to_super_nodes.end(); ci++)
+	for (std::map<DomainTransitionGraphNode*, std::vector<std::pair<DomainTransitionGraphNode*, unsigned int*> >* >::const_iterator ci = sub_to_super_nodes.begin(); ci != sub_to_super_nodes.end(); ci++)
 	{
-		DomainTransitionGraphNode* sub_from_node = (*ci).first;
-		DomainTransitionGraphNode* super_from_node = (*ci).second;
+		DomainTransitionGraphNode* from_node_to_replace = (*ci).first;
 		
-#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
-		std::cout << "[DomainTransitionGraph::solveSubsets] Try to replace " << *sub_from_node << " with " << *super_from_node << std::endl;
-#endif
-		
-		unsigned int* from_mapping = sub_to_super_nodes_indexes[sub_from_node];
-		
-		// Map the transition to the new nodes.
-		for (std::vector<const Transition*>::const_iterator ci = sub_from_node->getTransitions().begin(); ci != sub_from_node->getTransitions().end(); ci++)
+		for (std::vector<std::pair<DomainTransitionGraphNode*, unsigned int*> >::const_iterator ci2 = (*ci).second->begin(); ci2 != (*ci).second->end(); ci2++)
 		{
-			const Transition* transition = *ci;
-#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
-			std::cout << "[DomainTransitionGraph::solveSubsets] Process the transition: " << *transition << "." << std::endl;
-#endif
+			DomainTransitionGraphNode* super_from_node = (*ci2).first;
+			unsigned int* from_mapping = (*ci2).second;
 			
-			// Check if the to node has been replaced by another node.
-			if (sub_to_super_nodes.count(&transition->getToNode()) != 0)
-			{
-				DomainTransitionGraphNode* super_to_node = sub_to_super_nodes[&transition->getToNode()];
-				
-				std::cout << "Super set of the to node: " << *super_to_node << std::endl;
-				
-				unsigned int* to_mapping = sub_to_super_nodes_indexes[&transition->getToNode()];
-				
-				Transition* new_transition = transition->migrateTransition(*super_from_node, *super_to_node, from_mapping, to_mapping);
-				if (new_transition == NULL)
-				{
-					continue;
-				}
-				super_from_node->addTransition(*new_transition);
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
-				std::cout << "[DomainTransitionGraph::solveSubsets] Use the super node: New transition: " << *new_transition << "." << std::endl;
+			std::cout << "[DomainTransitionGraph::solveSubsets] Try to replace " << *from_node_to_replace << " with " << *super_from_node << std::endl;
 #endif
-			}
-			// The to node is not replaced.
-			else
+		
+			// Map the transition to the new nodes.
+			for (std::vector<const Transition*>::const_iterator ci = from_node_to_replace->getTransitions().begin(); ci != from_node_to_replace->getTransitions().end(); ci++)
 			{
-				unsigned int to_mapping[transition->getToNode().getAtoms().size()];
-				for (unsigned int i = 0; i < transition->getToNode().getAtoms().size(); i++)
-				{
-					to_mapping[i] = i;
-				}
-				
+				const Transition* transition = *ci;
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
-				std::cout << "[DomainTransitionGraph::solveSubsets] Possible to node: " << transition->getToNode() << "." << std::endl;
+				std::cout << "[DomainTransitionGraph::solveSubsets] Process the transition: " << *transition << "." << std::endl;
 #endif
-				
-				Transition* new_transition = transition->migrateTransition(*sub_from_node, transition->getToNode(), from_mapping, to_mapping);
-				if (new_transition == NULL)
+				std::map<DomainTransitionGraphNode*, std::vector<std::pair<DomainTransitionGraphNode*, unsigned int*> >* >::const_iterator to_mapping_i = sub_to_super_nodes.find(&transition->getToNode());
+				// Check if the to node has been replaced by other node(s).
+				if (to_mapping_i != sub_to_super_nodes.end())
 				{
-					continue;
-				}
-				super_from_node->addTransition(*new_transition);
-#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
-				std::cout << "[DomainTransitionGraph::solveSubsets] Use org node: New transition: " << *new_transition << "." << std::endl;
-#endif
-			}
-			
-/*
-			if (super_to_sub_nodes.count(&transition->getToNode()) != 0)
-			{
-				std::vector<DomainTransitionGraphNode*>* super_to_sub_mappings = super_to_sub_nodes[&transition->getToNode()];
-				for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = super_to_sub_mappings->begin(); ci != super_to_sub_mappings->end(); ci++)
-				{
-					DomainTransitionGraphNode* sub_to_node = *ci;
-					unsigned int* to_mapping = sub_to_super_nodes_indexes[sub_to_node];
+					for (std::vector<std::pair<DomainTransitionGraphNode*, unsigned int*> >::const_iterator ci = (*to_mapping_i).second->begin(); ci != (*to_mapping_i).second->end(); ci++)
+					{
+						DomainTransitionGraphNode* super_to_node = (*ci).first;
+						unsigned int* to_mapping = (*ci).second;
 					
-#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
-					std::cout << "[DomainTransitionGraph::solveSubsets] Possible to node: " << *sub_to_node << "." << std::endl;
-#endif
+						std::cout << "Super set of the to node: " << *super_to_node << std::endl;
 					
-					Transition* new_transition = transition->migrateTransition(*sub_from_node, *sub_to_node, from_mapping, to_mapping);
+						Transition* new_transition = transition->migrateTransition(*super_from_node, *super_to_node, from_mapping, to_mapping);
+						if (new_transition == NULL)
+						{
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+							std::cout << "[DomainTransitionGraph::solveSubsets] Could not replace the original transition..." << std::endl;
+#endif
+							continue;
+						}
+						super_from_node->addTransition(*new_transition);
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+						std::cout << "[DomainTransitionGraph::solveSubsets] Use the super node: New transition: " << *new_transition << "." << std::endl;
+#endif
+					}
+				}
+				
+				// The to node is not replaced.
+				else
+				{
+					unsigned int to_mapping[transition->getToNode().getAtoms().size()];
+					for (unsigned int i = 0; i < transition->getToNode().getAtoms().size(); i++)
+					{
+						to_mapping[i] = i;
+					}
+				
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+					std::cout << "[DomainTransitionGraph::solveSubsets] Possible to node: " << transition->getToNode() << "." << std::endl;
+#endif
+					// TODO: The latter is the correct version. But it might be that the super set does not cover all the subsets, because it might 
+					// be partly grounded.
+					//Transition* new_transition = transition->migrateTransition(*sub_from_node, transition->getToNode(), from_mapping, to_mapping);
+					Transition* new_transition = transition->migrateTransition(*super_from_node, transition->getToNode(), from_mapping, to_mapping);
 					if (new_transition == NULL)
 					{
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
+						std::cout << "[DomainTransitionGraph::solveSubsets] Could not replace the original transition..." << std::endl;
+#endif
 						continue;
 					}
 					super_from_node->addTransition(*new_transition);
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
-					std::cout << "[DomainTransitionGraph::solveSubsets] New transition: " << *new_transition << "." << std::endl;
+					std::cout << "[DomainTransitionGraph::solveSubsets] Use org node: New transition: " << *new_transition << "." << std::endl;
 #endif
 				}
 			}
-			else
-			{
-				unsigned int to_mapping[transition->getToNode().getAtoms().size()];
-				
-				for (unsigned int i = 0; i < transition->getToNode().getAtoms().size(); i++)
-				{
-					to_mapping[i] = i;
-				}
-				
-#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
-				std::cout << "[DomainTransitionGraph::solveSubsets] Possible to node: " << transition->getToNode() << "." << std::endl;
-#endif
-				
-				Transition* new_transition = transition->migrateTransition(*sub_from_node, transition->getToNode(), from_mapping, to_mapping);
-				if (new_transition == NULL)
-				{
-					continue;
-				}
-				sub_from_node->addTransition(*new_transition);
-#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
-				std::cout << "[DomainTransitionGraph::solveSubsets] New transition: " << *new_transition << "." << std::endl;
-#endif
-			}
-*/
 		}
-		
 		// Remove all the transitions from the super node so it will be marked for removal.
-		//super_from_node->removeTransitions();
-		sub_from_node->removeTransitions();
+		from_node_to_replace->removeTransitions();
 	}
-	
+
 	// Free up used memory.
-	for (std::map<DomainTransitionGraphNode*, std::vector<DomainTransitionGraphNode*>* >::const_iterator ci = super_to_sub_nodes.begin(); ci != super_to_sub_nodes.end(); ci++)
+	for (std::map<DomainTransitionGraphNode*, std::vector<std::pair<DomainTransitionGraphNode*, unsigned int*> >* >::const_iterator ci = sub_to_super_nodes.begin(); ci != sub_to_super_nodes.end(); ci++)
 	{
+		for (std::vector<std::pair<DomainTransitionGraphNode*, unsigned int*> >::const_iterator ci2 = (*ci).second->begin(); ci2 != (*ci).second->end(); ci2++)
+		{
+			delete[] (*ci2).second;
+		}
 		delete (*ci).second;
-	}
-	
-	for (std::map<DomainTransitionGraphNode*, unsigned int*>::const_iterator ci = sub_to_super_nodes_indexes.begin(); ci != sub_to_super_nodes_indexes.end(); ci++)
-	{
-		delete[] (*ci).second;
 	}
 }
 

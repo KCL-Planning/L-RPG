@@ -176,6 +176,14 @@ public:
 	 */
 	bool canUnifyWith(const BoundedAtom& other, const Bindings& bindings) const;
 	
+	/**
+	 * The variable domain of the bounded atom might not contain all the objects associated with the 
+	 * given type, thus the 'actual' predicate might not match that of the one given by the atom. This 
+	 * functions tries to find a better fitting property which corresponds with the types of the objects 
+	 * contained by the variable domains.
+	 */
+	//const Predicate& getPredicate(const PredicateManager& predicate_manager, const Bindings& bindings) const;
+	
 	bool shareSameProperties(const BoundedAtom& other) const;
 	
 	void print(std::ostream& os, const Bindings& bindings, bool verbal = true) const;

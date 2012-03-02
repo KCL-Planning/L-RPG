@@ -61,7 +61,9 @@ void DomainTransitionGraphNode::postProcessNode(const DomainTransitionGraphNode&
 			if (linked_dtg_node.isTermGrounded(**ci))
 			{
 				const std::vector<const Object*>& grounded_variable_domain = bounded_atom->getVariableDomain(std::distance(bounded_atom->getAtom().getTerms().begin(), ci), dtg_->getBindings());
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
 				std::cout << "!* " << &grounded_variable_domain << std::endl;
+#endif
 				
 				// Update these terms too!
 				for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
@@ -425,85 +427,6 @@ unsigned int* DomainTransitionGraphNode::getMapping(const DomainTransitionGraphN
 	memset (&mask[0], std::numeric_limits<unsigned int>::max(), sizeof(unsigned int) * getAtoms().size());
 	
 	return findMapping(other_dtg_node, 0, mask);
-/*
-	
-	//memset (mapping_from_this_to_other, std::numeric_limits<unsigned int>::max(), getAtoms().size() * sizeof(unsigned int));
-
-	// Start with a valid mapping.
-	for (unsigned int i = 0; i < getAtoms().size(); i++)
-	{
-		mapping_from_this_to_other[i] = i;
-	}
-	
-	// Generate sets of numbers with no duplicates.
-	bool exhausted_all_combinations = false;
-	while (!exhausted_all_combinations)
-	{
-		bool found_valid_mapping = true;
-		for (unsigned int i = 0; i < getAtoms().size(); i++)
-		{
-			const BoundedAtom* this_atom = getAtoms()[i];
-			const BoundedAtom* other_atom = other_dtg_node.getAtoms()[mapping_from_this_to_other[i]];
-			
-			// Try to look for the next possible candidate.
-			if (this_atom->getAtom().isNegative() != other_atom->getAtom().isNegative() ||
-				!other_atom->getAtom().getPredicate().canSubstitute(this_atom->getAtom().getPredicate()) ||
-				!this_atom->canUnifyWith(*other_atom, dtg_->getBindings()))
-			{
-				found_valid_mapping = false;
-				break;
-			}
-		}
-		
-		if (found_valid_mapping)
-		{
-			// TODO: Check if the bindings are respected.
-			return true;
-		}
-
-		// Update the mapping.
-		bool found_mapping = false;
-		while (!found_mapping)
-		{
-			for (unsigned int i = 0; i < getAtoms().size(); i++)
-			{
-				if (mapping_from_this_to_other[i] + 1 == getAtoms().size()) mapping_from_this_to_other[i] = 0;
-				else
-				{
-					mapping_from_this_to_other[i] = mapping_from_this_to_other[i] + 1;
-					break;
-				}
-			}
-			
-			// Validate.
-			found_mapping = true;
-			for (unsigned int i = 0; i < getAtoms().size(); i++)
-			{
-				for (unsigned int j= 0; j < i; j++)
-				{
-					if (mapping_from_this_to_other[i] == mapping_from_this_to_other[j])
-					{
-						found_mapping = false;
-						break;
-					}
-				}
-				
-				if (found_mapping) break;
-			}
-		}
-		
-		// Make sure we have not come back full circle.
-		exhausted_all_combinations = true;
-		for (unsigned int i = 0; i < getAtoms().size(); i++)
-		{
-			if (mapping_from_this_to_other[i] != i)
-			{
-				exhausted_all_combinations = false;
-				break;
-			}
-		}
-	}
-*/
 }
 
 bool DomainTransitionGraphNode::containsDoubleVariableDomains() const
@@ -567,11 +490,95 @@ unsigned int* DomainTransitionGraphNode::findMapping(const DomainTransitionGraph
 		if (already_processed) continue;
 		
 		const BoundedAtom* fact_to_map_to = *ci;
-
+		
 		if (fact_to_map_from->getAtom().isNegative() == fact_to_map_to->getAtom().isNegative() &&
-		    fact_to_map_to->getAtom().getPredicate().canSubstitute(fact_to_map_from->getAtom().getPredicate()) &&
+//		    fact_to_map_to->getAtom().getPredicate().canSubstitute(fact_to_map_from->getAtom().getPredicate()) &&
 		    fact_to_map_from->canUnifyWith(*fact_to_map_to, dtg_->getBindings()))
 		{
+			// Check if the predicate of the fact to map to is more general than the fact to map from.
+			if (fact_to_map_to->getAtom().getPredicate().getName() != fact_to_map_from->getAtom().getPredicate().getName()) continue;
+			
+			bool predicates_are_identical = true;
+			bool to_can_substitute_from = true;
+			for (unsigned int i = 0; i < fact_to_map_to->getAtom().getArity(); i++)
+			{
+				const std::vector<const Object*>& variable_domain_to = fact_to_map_to->getVariableDomain(i, dtg_->getBindings());
+				const std::vector<const Object*>& variable_domain_from = fact_to_map_from->getVariableDomain(i, dtg_->getBindings());
+				
+				// Get the most specific type for both terms.
+				const Type* to_type = NULL;
+				const Type* from_type = NULL;
+				
+				for (std::vector<const Object*>::const_iterator ci = variable_domain_to.begin(); ci != variable_domain_to.end(); ci++)
+				{
+					const Object* object = *ci;
+					if (to_type == NULL)
+					{
+						to_type = object->getType();
+					}
+					else
+					{
+						if (to_type->isEqual(*object->getType()) || to_type->isSupertypeOf(*object->getType())) continue;
+						
+						// Search through the type hiarchy until we find a type which is a super type of both.
+						while ((to_type = to_type->getSupertype()) != NULL)
+						{
+							if (to_type->isEqual(*object->getType()) || to_type->isSupertypeOf(*object->getType())) break;
+						}
+						
+						assert (to_type != NULL);
+					}
+				}
+				
+				for (std::vector<const Object*>::const_iterator ci = variable_domain_from.begin(); ci != variable_domain_from.end(); ci++)
+				{
+					const Object* object = *ci;
+					if (from_type == NULL)
+					{
+						from_type = object->getType();
+					}
+					else
+					{
+						if (from_type->isEqual(*object->getType()) || from_type->isSupertypeOf(*object->getType())) continue;
+						
+						// Search through the type hiarchy until we find a type which is a super type of both.
+						while ((from_type = from_type->getSupertype()) != NULL)
+						{
+							if (from_type->isEqual(*object->getType()) || from_type->isSupertypeOf(*object->getType())) break;
+						}
+						
+						assert (from_type != NULL);
+						predicates_are_identical = false;
+					}
+				}
+				
+				if (!to_type->isEqual(*from_type)) predicates_are_identical = false;
+				
+				if (!to_type->isEqual(*from_type) && !to_type->isSupertypeOf(*from_type))
+				{
+					to_can_substitute_from = false;
+					break;
+				}
+			}
+			
+			if (!to_can_substitute_from)
+			{
+#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
+				if (fact_to_map_to->getAtom().getPredicate().canSubstitute(fact_to_map_from->getAtom().getPredicate()))
+				{
+					std::cout << "[DomainTransitionGraphNode::findMapping] Conflict: Cannot let ";
+					fact_to_map_to->print(std::cout, dtg_->getBindings());
+					std::cout << " substitute for: ";
+					fact_to_map_from->print(std::cout, dtg_->getBindings());
+					std::cout << "." << std::endl;
+				}
+				else
+#endif
+				{
+					continue;
+				}
+			}
+			
 			unsigned int new_mask[atoms_.size()];
 			memcpy(new_mask, mask, sizeof(unsigned int) * atoms_.size());
 			new_mask[index] = atom_index;
@@ -579,7 +586,8 @@ unsigned int* DomainTransitionGraphNode::findMapping(const DomainTransitionGraph
 			// If the predicates are the same, we need to check if fact_to_map_to is a subset of this set, if that the case we prefer the 
 			// grounded term over the lifted. But if the objects have not been grounded and predicate of the given dtg_node's fact is more 
 			// general predicate, we prefer that one!
-			if (fact_to_map_to->getAtom().getPredicate() == fact_to_map_from->getAtom().getPredicate())
+			//if (fact_to_map_to->getAtom().getPredicate() == fact_to_map_from->getAtom().getPredicate())
+			if (predicates_are_identical)
 			{
 				bool fact_to_map_is_grounded_or_equal = true;
 				for (unsigned int i = 0; i < fact_to_map_to->getAtom().getArity(); i++)
@@ -1008,24 +1016,6 @@ bool DomainTransitionGraphNode::groundTerm(std::vector<DomainTransitionGraphNode
 					new_node->grounded_terms_.insert(term_to_ground);
 					term_to_ground->unify(bounded_atom_to_ground->getId(), *object_to_ground_to, term_id, dtg_->getBindings());
 					found_term_to_ground = true;
-					
-/*
-					// Propagate this change to all the to nodes as well.
-					const std::vector<const Object*>& variable_domain = bounded_atom->getVariableDomain(j, dtg_->getBindings());
-					for (std::vector<const Transition*>::const_iterator ci = transitions_.begin(); ci != transitions_.end(); ci++)
-					{
-						DomainTransitionGraphNode& to_node = (*ci)->getToNode();
-						for (std::vector<BoundedAtom*>::const_iterator ci = to_node.getAtoms().begin(); ci != to_node.getAtoms().end(); ci++)
-						{
-							const BoundedAtom* bounded_atom = *ci;
-							unsigned int term_index = bounded_atom->containsVariableDomain(variable_domain, to_node.dtg_->getBindings());
-							if (term_index != std::numeric_limits<unsigned int>::max())
-							{
-								to_node.grounded_terms_.insert(bounded_atom->getAtom().getTerms()[term_index]);
-							}
-						}
-					}
-*/
 				}
 			}
 		}

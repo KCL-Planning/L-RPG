@@ -24,7 +24,7 @@ print TEMP_FILE "set yrange [0.001:100] reverse\n";
 print TEMP_FILE "set format y \"-%g\"\n";
 print TEMP_FILE "set origin 0.0,0.0\n";
 print TEMP_FILE "set tmargin 0\n";
-print TEMP_FILE "set xlabel \"Compression rate (%)\"\n";
+print TEMP_FILE "set xlabel \"Compressed size (%)\"\n";
 print TEMP_FILE "set size 1,0.5\n";
 print TEMP_FILE "set nokey\n";
 print TEMP_FILE "plot ";

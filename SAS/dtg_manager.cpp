@@ -341,20 +341,7 @@ bool BoundedAtom::canUnifyWith(const BoundedAtom& other, const Bindings& binding
 	return bindings.canUnify(getAtom(), getId(), other.getAtom(), other.getId());
 }
 
-/*const Predicate& BoundedAtom::getPredicate(const PredicateManager& predicate_manager, const Bindings& bindings) const
-{
-	
-	std::vector<const Type*> types;
-	for (unsigned int i = 0; i < atom_->getArity(); i++)
-	{
-		const std::vector<const Object*>& variable_domain = getVariableDomain(i, bindings);
-		
-	}
-	
-	predicate_manager.getPredicate(atom_->getPredicate().getName())
-}*/
-
-bool BoundedAtom::shareSameProperties(const BoundedAtom& other) const
+/*bool BoundedAtom::shareSameProperties(const BoundedAtom& other) const
 {
 	if (properties_.size() != other.properties_.size()) return false;
 	
@@ -374,7 +361,7 @@ bool BoundedAtom::shareSameProperties(const BoundedAtom& other) const
 		if (!found) return false;
 	}
 	return true;
-}
+}*/
 
 void BoundedAtom::print(std::ostream& os, const Bindings& bindings, bool verbal) const
 {
@@ -699,7 +686,7 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 		std::vector<std::pair<const Predicate*, unsigned int> > predicates_to_add;
 		predicates_to_add.push_back(std::make_pair(predicate, NO_INVARIABLE_INDEX));
 		
-		DomainTransitionGraphNode* possitive_new_unprocessed_dtg = new DomainTransitionGraphNode(*new_unprocessed_dtg, NO_INVARIABLE_INDEX);
+		DomainTransitionGraphNode* possitive_new_unprocessed_dtg = new DomainTransitionGraphNode(*new_unprocessed_dtg);
 		
 		StepID possitive_atom_id = new_unprocessed_dtg->getBindings().createVariableDomains(*possitive_atom);
 		
@@ -722,7 +709,7 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 		if (!predicate->isStatic())
 		{
 			// Add all preconditions which share a term with the unsupported predicate.
-			DomainTransitionGraphNode* negative_new_unprocessed_dtg = new DomainTransitionGraphNode(*new_unprocessed_dtg, NO_INVARIABLE_INDEX);
+			DomainTransitionGraphNode* negative_new_unprocessed_dtg = new DomainTransitionGraphNode(*new_unprocessed_dtg);
 			
 			Atom* negative_atom = new Atom(*possitive_atom);
 			negative_atom->makeNegative(true);
@@ -1320,7 +1307,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 		const DomainTransitionGraphNode* dtg_node = *ci;
 		
 		// Copy the DTG node and add it to the combined DTG.
-		DomainTransitionGraphNode* new_dtg_node = new DomainTransitionGraphNode(*combined_dtg, std::numeric_limits< unsigned int >::max());
+		DomainTransitionGraphNode* new_dtg_node = new DomainTransitionGraphNode(*combined_dtg);
 		new_dtg_node->copyAtoms(*dtg_node);
 		
 		combined_dtg->addNode(*new_dtg_node);
@@ -1350,7 +1337,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 #endif
 
 			// Copy the DTG node and add it to the combined DTG.
-			combined_dtg_node = new DomainTransitionGraphNode(*combined_dtg, std::numeric_limits< unsigned int >::max());
+			combined_dtg_node = new DomainTransitionGraphNode(*combined_dtg);
 			combined_dtg_node->copyAtoms(*hub_dtg_node);
 			
 			if (!combined_dtg->addNode(*combined_dtg_node))

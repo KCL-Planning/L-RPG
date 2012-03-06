@@ -183,15 +183,15 @@ void ActionManager::processActions(const VAL::operator_list& operators)
 		// * timed_goal [not supported]
 		// * simple_goal
 		// * con_goal [not supported]
-		//  * constraint_goal [not supported]
-		//  * preference [not supported]
-		//  * qfied_goal [not supported]
-		//  * conj_goal
+		// * constraint_goal [not supported]
+		// * preference [not supported]
+		// * qfied_goal [not supported]
+		// * conj_goal
 		const Formula* action_precondition = Utility::convertGoal(*term_manager_, *predicate_manager_, precondition, false);
 
 		// Parse the effects. All possible effects are:
-	    	// * pc_list<simple_effect*> add_effects;
-	    	// * pc_list<simple_effect*> del_effects;
+		// * pc_list<simple_effect*> add_effects;
+		// * pc_list<simple_effect*> del_effects;
 		// * pc_list<forall_effect*> forall_effects; [not supported]
 		// * pc_list<cond_effect*>   cond_effects; [not supported]
 		// * pc_list<cond_effect*>   cond_assign_effects; [not supported]

@@ -3,8 +3,7 @@
 use strict;
 use warnings;
 
-#my @domain_names = ("driverlog", "satellite", "zeno", "gripper", "rovers", "storage", "depots", "blocksworld");
-my @domain_names = ("storage");
+my @domain_names = ("driverlog", "satellite", "zeno", "gripper", "rovers", "storage", "depots", "blocksworld");
 my @from_domain_sizes = (1, 1, 1, 1, 1, 1, 1, 1);
 my @to_domain_sizes = (20, 20, 20, 20, 20, 20, 20, 20);
 

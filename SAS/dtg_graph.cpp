@@ -451,11 +451,7 @@ void DomainTransitionGraph::removeObjects(const std::set<const Object*>& objects
 
 DomainTransitionGraphNode* DomainTransitionGraph::createDTGNode(const Atom& atom, unsigned int index, const Property* property)
 {
-//	StepID unique_nr = bindings_->createVariableDomains(atom);
-
-	static unsigned int unique_id = 0;
-	
-	DomainTransitionGraphNode* dtg_node = new DomainTransitionGraphNode(*this, unique_id++);
+	DomainTransitionGraphNode* dtg_node = new DomainTransitionGraphNode(*this);
 	
 	BoundedAtom* new_bounded_atom = NULL;
 	
@@ -673,7 +669,6 @@ void DomainTransitionGraph::removeUnconnectedNodes()
 		if (marked_dtg_nodes.count(dtg_node) == 0)
 		{
 			nodes_.erase(ri.base() - 1);
-			// TODO: Reenable.
 			delete dtg_node;
 		}
 	}

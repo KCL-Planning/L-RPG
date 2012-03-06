@@ -5,7 +5,7 @@ use warnings;
 
 #my $domain_name = shift(@ARGV);
 #my @domain_names = ("pipesnotankage", "freecell", "airport", "mystery");
-my @domain_names = ("scalable_storage");
+my @domain_names = ("pipesnotankage");
 #my @domain_names = ("driverlog", "satellite", "zeno", "gripper", "rovers", "storage", "depots", "blocksworld");
 #my @domain_names = ("big_driverlog", "big_depots", "big_satellite", "big_zeno");
 my $from_problem_count = shift(@ARGV);

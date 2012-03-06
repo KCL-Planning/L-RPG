@@ -36,7 +36,7 @@ class DomainTransitionGraphNode;
 class DomainTransitionGraphNode
 {
 public:
-	DomainTransitionGraphNode(DomainTransitionGraph& dtg, unsigned int unique_id);
+	DomainTransitionGraphNode(DomainTransitionGraph& dtg);
 
 	/**
 	 * Make a copy of an existing DTG node. We inherrit the same domain for the variables and atom,
@@ -282,14 +282,8 @@ private:
 	// by Stefan Edelkamp and Malte Helmert.
 	std::map<const BoundedAtom*, InvariableIndex> indexes_;
 	
-	std::vector<unsigned int> unique_ids_;
-	
 	// The set of terms which are grounded.
 	std::set<const Term*> grounded_terms_;
-	
-	// All proper sub sets of this DTG nodes. A sub set should contain no other facts than those in this node
-	// and they should be identical.
-	std::vector<const DomainTransitionGraphNode*> sub_sets_;
 };
 
 std::ostream& operator<<(std::ostream&, const DomainTransitionGraphNode& node);

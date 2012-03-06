@@ -1559,7 +1559,7 @@ void Transition::pruneNodes()
 				}
 			}
 			
-			for (std::vector<unsigned int>::const_iterator ci = do_not_remove_to_node_bla_.begin(); ci != do_not_remove_to_node_bla_.end(); ci++)
+			for (std::vector<unsigned int>::const_iterator ci = to_facts_marked_as_persistent_.begin(); ci != to_facts_marked_as_persistent_.end(); ci++)
 			{
 				if (*ci == to_node_fact_index)
 				{
@@ -1573,11 +1573,11 @@ void Transition::pruneNodes()
 				to_node_effects_->erase(ri.base() - 1);
 				to_node_->removeAtom(*to_node_->getAtoms()[to_node_fact_index]);
 				
-				for (unsigned int i = 0; i < do_not_remove_to_node_bla_.size(); i++)
+				for (unsigned int i = 0; i < to_facts_marked_as_persistent_.size(); i++)
 				{
-					if (do_not_remove_to_node_bla_[i] > to_node_fact_index)
+					if (to_facts_marked_as_persistent_[i] > to_node_fact_index)
 					{
-						do_not_remove_to_node_bla_[i] = do_not_remove_to_node_bla_[i] - 1;
+						to_facts_marked_as_persistent_[i] = to_facts_marked_as_persistent_[i] - 1;
 					}
 				}
 				
@@ -1918,23 +1918,7 @@ void Transition::markToNodeForRemoval(unsigned int index)
 
 void Transition::markToNodeAsPersistent(unsigned int index)
 {
-	do_not_remove_to_node_bla_.push_back(index);
-/*
-	// Break the persistence relationships.
-	bool is_already_persistent = false;
-	for (std::vector<std::pair<unsigned int, unsigned int> >::reverse_iterator ri = persistent_sets_->rbegin(); ri != persistent_sets_->rend(); ri++)
-	{
-		if ((*ri).second == index)
-		{
-			is_already_persistent = true;
-			break;
-		}
-	}
-	
-	if (is_already_persistent) return;
-	
-	persistent_sets_->push_back(std::make_pair(std::numeric_limits<unsigned int>::max(), index));
-*/
+	to_facts_marked_as_persistent_.push_back(index);
 }
 
 unsigned int Transition::isFactContainedByNode(const Atom& fact, const DomainTransitionGraphNode& node) const

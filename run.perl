@@ -6,7 +6,7 @@ use POSIX qw(strftime);
 
 #my $domain_name = shift(@ARGV);
 #my @domain_names = ("scalable_storage");
-my @domain_names = ("pipesnotankage", "freecell", "airport", "mystery");
+my @domain_names = ("airport", "mystery");
 #my @domain_names = ("driverlog", "satellite", "zeno", "gripper", "rovers", "storage", "depots", "blocksworld");
 #my @domain_names = ("big_storage", "big_driverlog", "big_depots", "big_satellite", "big_zeno");
 #my @domain_names = ("big_storage", "big_depots");
@@ -41,12 +41,12 @@ foreach my $domain_name (@domain_names)
 		}
 	#	print $count . "\n";
 
-#		my $stuff = `./mypop -val $example_path/domain.pddl $example_path/pfile$count.pddl 2>&1`;
-#		if ($? != 0)
-#		{
-#			print "Failed validation on $domain_name problem number $count!\n";
-#			next;
-#		}
+		my $stuff = `./mypop -val $example_path/domain.pddl $example_path/pfile$count.pddl 2>&1`;
+		if ($? != 0)
+		{
+			print "Failed validation on $domain_name problem number $count!\n";
+			next;
+		}
 
 		#do planning
 		my $total_time = 0;

@@ -25,25 +25,22 @@ namespace MyPOP {
 
 namespace SAS_Plus {
 
-DomainTransitionGraphNode::DomainTransitionGraphNode(DomainTransitionGraph& dtg, unsigned int unique_id)
+DomainTransitionGraphNode::DomainTransitionGraphNode(DomainTransitionGraph& dtg)
 	: dtg_(&dtg)
 {
-	unique_ids_.push_back(unique_id);
+
 }
 
 DomainTransitionGraphNode::DomainTransitionGraphNode(const DomainTransitionGraphNode& dtg_node)
 	: dtg_(dtg_node.dtg_)
 {
 	// We take the same atom and bindings as the template we copy all the information from.
-	// NOTE: This needs to change, the clone might not be linked to the same DTG!
-	unique_ids_.insert(unique_ids_.end(), dtg_node.unique_ids_.begin(), dtg_node.unique_ids_.end());
 	copyAtoms(dtg_node);
 }
 
 DomainTransitionGraphNode::DomainTransitionGraphNode(const DomainTransitionGraphNode& dtg_node, DomainTransitionGraph& dtg)
 	: dtg_(&dtg)
 {
-	unique_ids_.insert(unique_ids_.end(), dtg_node.unique_ids_.begin(), dtg_node.unique_ids_.end());
 	copyAtoms(dtg_node);
 }
 
@@ -251,70 +248,6 @@ void DomainTransitionGraphNode::postProcessNode(const DomainTransitionGraphNode&
 			{
 				transition.markToNodeAsPersistent(index);
 			}
-/*			// TODO: This is a hot dirty fix, the get from node preconditions should never be NULl!
-			// Find the preconditions which can unify.
-			const Atom* suitable_precondition = NULL;
-			for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = transition.getAllPreconditions().begin(); ci != transition.getAllPreconditions().end(); ci++)
-			{
-				const Atom* precondition = (*ci).first;
-				if (dtg_->getBindings().canUnify(*precondition, transition.getStepId(), atoms_[index]->getAtom(), atoms_[index]->getId()))
-				{
-					suitable_precondition = precondition;
-					break;
-				}
-			}
-
-			if (&transition.getFromNode() == this)
-			{
-				if (transition.getFromNodePreconditions()[index].first == NULL)
-				{
-					std::cout << "This is wrong!!" << std::endl;
-						
-/				if (suitable_precondition == NULL)
-					{
-						std::cout << "could not find a suitable precondition :(." << std::endl;
-						for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = transition.getAllPreconditions().begin(); ci != transition.getAllPreconditions().end(); ci++)
-						{
-							std::cout << "* ";
-							(*ci).first->print(std::cout, dtg_->getBindings(), transition.getStepId());
-							std::cout << "." << std::endl;
-						}
-						assert (false);
-					}
-					
-					const_cast<std::vector<std::pair<const Atom*, InvariableIndex> >&>(transition.getFromNodePreconditions())[index].first = suitable_precondition;
-					const_cast<std::vector<std::pair<const Atom*, InvariableIndex> >&>(transition.getFromNodePreconditions())[index].second = 0;
-					assert (false);
-				}
-			}
-			else if (&transition.getToNode() == this)
-			{
-				if (transition.getToNodeEffects()[index].first == NULL)
-				{
-					std::cout << "This is wrong!!" << std::endl;
-					
-					// This must be a persistent fact, remove all references to its persistence!
-					if (suitable_precondition == NULL)
-					{
-						std::cout << "could not find a suitable precondition :(." << std::endl;
-						for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = transition.getAllPreconditions().begin(); ci != transition.getAllPreconditions().end(); ci++)
-						{
-							std::cout << "* ";
-							(*ci).first->print(std::cout, dtg_->getBindings(), transition.getStepId());
-							std::cout << "." << std::endl;
-						}
-						assert (false);
-					}
-					
-					const_cast<std::vector<std::pair<const Atom*, InvariableIndex> >&>(transition.getToNodeEffects())[index].first = suitable_precondition;
-					const_cast<std::vector<std::pair<const Atom*, InvariableIndex> >&>(transition.getToNodeEffects())[index].second = 0;
-				}
-			}
-			else
-			{
-				assert (false);
-			}
-*/
 		}
 	}
 }
@@ -729,6 +662,7 @@ bool DomainTransitionGraphNode::addAtom(BoundedAtom& bounded_atom, InvariableInd
 //			(*ci)->getAtom().print(std::cout);
 //			std::cout << "(" << getIndex(**ci) << ") are mutex!" << std::endl;
 			assert (false);
+//			exit(1);
 		}
 	}
 	
@@ -1587,13 +1521,6 @@ void DomainTransitionGraphNode::print(std::ostream& os) const
 
 std::ostream& operator<<(std::ostream& os, const DomainTransitionGraphNode& node)
 {
-/*	os << "%";
-	for (std::vector<unsigned int>::const_iterator ci = node.unique_ids_.begin(); ci != node.unique_ids_.end(); ci++)
-	{
-		os << *ci << "  ";
-	}
-	os << "%";*/
-
 	for (std::vector<BoundedAtom*>::const_iterator ci = node.getAtoms().begin(); ci != node.getAtoms().end(); ci++)
 	{
 		//os << "\t";

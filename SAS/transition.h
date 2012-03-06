@@ -290,7 +290,7 @@ private:
 	// The index of the facts in from node and to node which are persistent.
 	std::vector<std::pair<unsigned int, unsigned int> >* persistent_sets_;
 	
-	std::vector<unsigned int> do_not_remove_to_node_bla_;
+	std::vector<unsigned int> to_facts_marked_as_persistent_;
 	
 	// An array of action variables which are considered to be 'free'.
 	const std::set<const Term*>* free_variables_;

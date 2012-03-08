@@ -2,10 +2,11 @@
 #include "dtg_reachability.h"
 #include <predicate_manager.h>
 #include "equivalent_object_group.h"
+#include "reachable_fact.h"
 
 //#define MYPOP_SAS_PLUS_REACHABLE_TREE_COMMENT
 //#define MYPOP_SAS_PLUS_REACHABLE_TREE_DEBUG
-//#define MYPOP_SAS_PLUS_REACHABLE_TREE_CLEANUP
+#define MYPOP_SAS_PLUS_REACHABLE_TREE_CLEANUP
 
 namespace MyPOP {
 

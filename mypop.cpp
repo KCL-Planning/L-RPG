@@ -26,6 +26,7 @@
 #include "SAS/causal_graph.h"
 #include "SAS/dtg_graph.h"
 #include "SAS/dtg_reachability.h"
+#include "SAS/reachable_fact.h"
 #include "relaxed_planning_graph.h"
 #include "SAS/equivalent_object_group.h"
 
@@ -397,10 +398,10 @@ int main(int argc,char * argv[])
 //		}
 	}
 
-	for (std::vector<const SAS_Plus::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
-	{
-		delete *ci;
-	}
+//	for (std::vector<const SAS_Plus::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
+//	{
+//		delete *ci;
+//	}
 
 //	Graphviz::printToDot(dtg_manager);
 //	for (std::vector<SAS_Plus::DomainTransitionGraph*>::const_iterator ci = dtg_manager.getManagableObjects().begin(); ci != dtg_manager.getManagableObjects().end(); ci++)

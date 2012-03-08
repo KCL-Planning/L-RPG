@@ -41,103 +41,9 @@ class EquivalentObjectGroupManager;
 class ReachableTransition;
 class ReachableTreeNode;
 
-class ReachableFact
-{
-public:
-	ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
-	
-	ReachableFact(const Atom& atom, EquivalentObjectGroup** term_domain_mapping);
-	
-	~ReachableFact();
-	
-	/**
-	 * This method is called everytime a merge has taken place which involves a Equivalent Object Group 
-	 * which is part of this reachable fact. In such an occasion we end up with at least one term in this
-	 * reachable fact which is no longer a root node (and thus yields incomplete information).
-	 * 
-	 * In order to fix this problem this method updates all the equivalent object group points so they link
-	 * to the proper root node.
-	 * 
-	 * @return True if a Equivalent Object Group had to be updated, false otherwise.
-	 * @note This function should always return true, we only want to call it if an update is due!
-	 */
-	bool updateTermsToRoot();
-	
-	/**
-	 * Two reachable facts are equivalent iff:
-	 * 1) All the objects have the same signature.
-	 * 2) Those variables which have been labeled as unbalanced must be identical.
-	 */
-	bool isEquivalentTo(const ReachableFact& other) const;
-	
-	/**
-	 * Two reachable facts are identical iff:
-	 * 1) All the objects have the same signature.
-	 * 2) All variables are identical.
-	 */
-	bool isIdenticalTo(const ReachableFact& other) const;
-	
-//	void printGrounded(std::ostream& os) const;
-	
-	EquivalentObjectGroup& getTermDomain(unsigned int index) const
-	{
-		assert (index < atom_->getArity());
-		EquivalentObjectGroup* eog = term_domain_mapping_[index];
-		assert (eog != NULL);
-		return *eog;
-	}
-	
-	EquivalentObjectGroup** getTermDomains() const { return term_domain_mapping_; }
-	
-	const Atom& getAtom() const { return *atom_; }
-	
-	/**
-	 * When updating the Equivalent Object Group, we need to update the Reachable Facts. We pick a single ReachableFact to update its 
-	 * EOGs and create a link for all all reachable facts which are subsumed.
-	 * @param replacement The ReachableFact which subsumes this reachable fact.
-	 */
-	void replaceBy(ReachableFact& replacement);
-	
-	/**
-	 * Check if this reachable fact has been subsumed by another reachable fact. Call @ref getReplacement to get its replacement.
-	 * @return True if this reachable fact has been subsumed, false otherwise.
-	 */
-	bool isMarkedForRemoval() const;
-	
-	/**
-	 * @return The reachable fact which has subsumed this fact, or this if it has not been subsumed.
-	 */
-	const ReachableFact& getReplacement() const;
-	
-private:
-	
-	const Atom* atom_;
-	
-	EquivalentObjectGroup** term_domain_mapping_;
-	
-	// During the construction of the reachability graph terms can be merged and because of that some reachable facts are
-	// removed because they have become identical to others. E.g. consider the following two reachable facts:
-	//
-	// * (at truck1 s1)
-	// * (at truck2 s1)
-	//
-	// Suppose that truck1 and truck2 become equivalent, then we remove one of the two and update the other to:
-	// * (at {truck1, truck2} s1)
-	//
-	// Reachable facts can be shared among multiple objects, so in this case the EOG linked to s1 will contain the following 
-	// reachable facts:
-	// * (at truck1 s1)
-	// * (at {truck1, truck2} s1)
-	//
-	// By marking the former for removal we can remove the remaining reachable fact.
-	ReachableFact* replaced_by_;
-	
-	friend std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact);
-};
+class ReachableFactMemoryPool;
 
-inline bool ReachableFact::isMarkedForRemoval() const { return replaced_by_ != NULL; }
-
-std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact);
+class ReachableFact;
 
 /**
  * To improve the speed of the algorithms we want to eliminate all calls to any Bindings object. The nodes
@@ -198,7 +104,7 @@ public:
 	 * search for all EOGs in the @ref eog_manager which match the bill.
 	 * @param predicate_manager The predicate manager.
 	 */
-	ResolvedEffect(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, bool free_variables[], PredicateManager& predicate_manager);
+	ResolvedEffect(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, bool free_variables[], PredicateManager& predicate_manager, ReachableFactMemoryPool& memory_pool);
 	
 	~ResolvedEffect();
 	
@@ -235,6 +141,8 @@ private:
 	// Links every index of this effect's atom to the variable of the action it is part of. If the index is a free 
 	// variable, the variable's index it is linked to is equal to the action's arity (thus out of bounds!).
 	int* index_to_variable_;
+	
+	ReachableFactMemoryPool* memory_pool_;
 };
 
 std::ostream& operator<<(std::ostream& os, const ResolvedEffect& resolved_bounded_atom);
@@ -440,7 +348,7 @@ struct VariableToValues
 class ReachableTransition : public ReachableSet
 {
 public:
-	ReachableTransition(const Transition& transition, ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
+	ReachableTransition(const Transition& transition, ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager, ReachableFactMemoryPool& memory_pool);
 	
 	virtual ~ReachableTransition();
 	
@@ -523,6 +431,8 @@ private:
 	// Instead of putting a new vector on the stack for a function call to createNewReachableFact, we simply use this one :).
 	const std::vector<ReachableFact*> empty_transition_reachable_set_;
 	
+	ReachableFactMemoryPool* memory_pool_;
+	
 	friend std::ostream& operator<<(std::ostream& os, const ReachableTransition& reachable_transition);
 };
 
@@ -557,6 +467,8 @@ private:
 	std::vector<std::vector<std::pair<ReachableSet*, unsigned int> >* >* predicate_id_to_reachable_sets_mapping_;
 
 	EquivalentObjectGroupManager* equivalent_object_manager_;
+	
+	ReachableFactMemoryPool* memory_pool_;
 };
 
 };

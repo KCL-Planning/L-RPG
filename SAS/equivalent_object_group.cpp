@@ -10,6 +10,7 @@
 #include "property_space.h"
 #include "transition.h"
 #include "type_manager.h"
+#include "reachable_fact.h"
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
@@ -558,26 +559,10 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const DomainTransitio
 
 EquivalentObjectGroupManager::~EquivalentObjectGroupManager()
 {
-#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_DEBUG
-	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
-	{
-		for (std::vector<EquivalentObjectGroup*>::const_iterator ci2 = old_equivalent_groups_.begin(); ci2 != old_equivalent_groups_.end(); ci2++)
-		{
-			assert (ci != ci2);
-		}
-	}
-#endif
-	
 	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
 	{
 		delete *ci;
 	}
-	
-//	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = old_equivalent_groups_.begin(); ci != old_equivalent_groups_.end(); ci++)
-//	{
-//		assert (!(*ci)->isRootNode());
-//		delete *ci;
-//	}
 }
 
 void EquivalentObjectGroupManager::initialise(const std::vector<ReachableFact*>& initial_facts)
@@ -623,16 +608,6 @@ void EquivalentObjectGroupManager::updateEquivalences()
 		}
 	}
 	
-	for (std::vector<EquivalentObjectGroup*>::reverse_iterator ri = equivalent_groups_.rbegin(); ri != equivalent_groups_.rend(); ri++)
-	{
-		EquivalentObjectGroup* eog = *ri;
-		if (!eog->isRootNode())
-		{
-			equivalent_groups_.erase(ri.base() - 1);
-//			old_equivalent_groups_.push_back(eog);
-		}
-	}
-	
 	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = affected_groups.begin(); ci != affected_groups.end(); ci++)
 	{
 		EquivalentObjectGroup* eog = *ci;
@@ -661,6 +636,7 @@ void EquivalentObjectGroupManager::getAllReachableFacts(std::vector<const Reacha
 	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
 	{
 		EquivalentObjectGroup* eog = *ci;
+		if (!eog->isRootNode()) continue;
 		const std::vector<ReachableFact*>& reachable_fact = eog->getReachableFacts();
 		
 		for (std::vector<ReachableFact*>::const_iterator ci = reachable_fact.begin(); ci != reachable_fact.end(); ci++)
@@ -687,11 +663,25 @@ void EquivalentObjectGroupManager::getAllReachableFacts(std::vector<const Reacha
 	}
 }
 
+unsigned int EquivalentObjectGroupManager::getNumberOfEquivalentGroups() const
+{
+	unsigned int index = 0;
+	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
+	{
+		if ((*ci)->isRootNode())
+		{
+			++index ;
+		}
+	}
+	return index;
+}
+
 void EquivalentObjectGroupManager::print(std::ostream& os) const
 {
 	os << "All equivalence groups:" << std::endl;
 	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
 	{
+		if (!(*ci)->isRootNode()) continue;
 		os << **ci << std::endl;
 	}
 }
@@ -700,6 +690,7 @@ void EquivalentObjectGroupManager::printAll(std::ostream& os) const
 {
 	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
 	{
+		if (!(*ci)->isRootNode()) continue;
 		std::cout << "Print all grounded facts of the EOG: " << **ci << std::endl;
 		
 		(*ci)->printGrounded(os);

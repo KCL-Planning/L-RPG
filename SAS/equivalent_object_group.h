@@ -187,7 +187,7 @@ public:
 	
 	void getAllReachableFacts(std::vector<const ReachableFact*>& result) const;
 	
-	unsigned int getNumberOfEquivalentGroups() const { return equivalent_groups_.size(); }
+	unsigned int getNumberOfEquivalentGroups() const;
 	
 	// Output methods.
 	void print(std::ostream& os) const;
@@ -203,7 +203,6 @@ private:
 
 	std::map<const Object*, EquivalentObject*> object_to_equivalent_object_mapping_;
 	std::vector<EquivalentObjectGroup*> equivalent_groups_;
-	std::vector<EquivalentObjectGroup*> old_equivalent_groups_;
 	
 	EquivalentObjectGroup* zero_arity_equivalent_object_group_;
 };

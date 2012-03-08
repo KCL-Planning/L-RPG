@@ -26,7 +26,6 @@ namespace SAS_Plus {
 
 class ReachableTree;
 
-
 class Property;
 class PropertySpace;
 
@@ -46,8 +45,6 @@ class ReachableFact
 {
 public:
 	ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
-	
-	ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, EquivalentObjectGroup** term_domain_mapping);
 	
 	ReachableFact(const Atom& atom, EquivalentObjectGroup** term_domain_mapping);
 	
@@ -80,9 +77,7 @@ public:
 	 */
 	bool isIdenticalTo(const ReachableFact& other) const;
 	
-	void printGrounded(std::ostream& os) const;
-	
-	void getAllReachableFacts(std::vector<const BoundedAtom*>& results) const;
+//	void printGrounded(std::ostream& os) const;
 	
 	EquivalentObjectGroup& getTermDomain(unsigned int index) const
 	{
@@ -96,11 +91,22 @@ public:
 	
 	const Atom& getAtom() const { return *atom_; }
 	
-	// See removed_flag_;
+	/**
+	 * When updating the Equivalent Object Group, we need to update the Reachable Facts. We pick a single ReachableFact to update its 
+	 * EOGs and create a link for all all reachable facts which are subsumed.
+	 * @param replacement The ReachableFact which subsumes this reachable fact.
+	 */
 	void replaceBy(ReachableFact& replacement);
 	
+	/**
+	 * Check if this reachable fact has been subsumed by another reachable fact. Call @ref getReplacement to get its replacement.
+	 * @return True if this reachable fact has been subsumed, false otherwise.
+	 */
 	bool isMarkedForRemoval() const;
 	
+	/**
+	 * @return The reachable fact which has subsumed this fact, or this if it has not been subsumed.
+	 */
 	const ReachableFact& getReplacement() const;
 	
 private:
@@ -144,8 +150,6 @@ public:
 	
 	ResolvedBoundedAtom(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
 	
-	ResolvedBoundedAtom(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
-	
 	~ResolvedBoundedAtom();
 	
 	const StepID getId() const { return id_; }
@@ -180,33 +184,56 @@ protected:
 std::ostream& operator<<(std::ostream& os, const ResolvedBoundedAtom& resolved_bounded_atom);
 
 /**
- * 
+ * To speed up the reachability analysis we resolve all the variable domains of the effects in advance.
  */
 class ResolvedEffect : public ResolvedBoundedAtom
 {
 public:
+	/**
+	 * @param id The id by which the variable domains of the @ref atom are bound.
+	 * @param atom The atom of the effect.
+	 * @param bindings The class which holds all the bindings.
+	 * @param eog_manager The EOG manager.
+	 * @param free_variables An array which indicates which indexes of the atom are free variables. For these we look at the type of the variable and
+	 * search for all EOGs in the @ref eog_manager which match the bill.
+	 * @param predicate_manager The predicate manager.
+	 */
 	ResolvedEffect(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, bool free_variables[], PredicateManager& predicate_manager);
 	
 	~ResolvedEffect();
 	
+	/**
+	 * After the EOGs have been updated, we need to update the free variables to point to the merged EOGs.
+	 */
 	void updateVariableDomains();
 	
+	/**
+	 * @return True if the variable at the given index is a free variable, false otherwise.
+	 */
 	bool isFreeVariable(unsigned int index) const;
 	
-	bool containsFreeVariables() const;
+	bool containsFreeVariables() const { return free_variables_.size() != 0; }
 	
+	/**
+	 * Given the @ref effect_domains create new reachable facts and store them in @ref results.
+	 * @param results A vector in which all the  generated reachable facts will be put.
+	 * @param effect_domains An array of EOGs whose index match that of the effect. Using this one-to-one mapping 
+	 * the new reachable facts are produced.
+	 */
 	void createReachableFacts(std::vector<ReachableFact*>& results, EquivalentObjectGroup** effect_domains) const;
 	
 private:
-	
-	const EquivalentObjectGroupManager* eog_manager_;
-	
+	// Array with length equal to that of the effect's atom's arity.
 	bool* is_free_variable_;
 	
+	// The terms which are free.
 	std::vector<const Term*> free_variables_;
 	
+	// For every free variable we record it's domain.
 	std::vector<std::vector<EquivalentObjectGroup*>* > free_variable_domains_;
 	
+	// Links every index of this effect's atom to the variable of the action it is part of. If the index is a free 
+	// variable, the variable's index it is linked to is equal to the action's arity (thus out of bounds!).
 	int* index_to_variable_;
 };
 
@@ -239,11 +266,12 @@ public:
 	 * for every fact in the fact set.
 	 */
 	const std::vector<ReachableTree*>& getReachableTrees() const { return reachability_tree_; }
-	unsigned int getCachedReachableTreesSizeConst() const
-	{
-		assert (cache_is_valid_);
-		return cached_reachability_tree_size_;
-	}
+
+	/**
+	 * Per iteration, we keep track of the number of reachable facts which were made reachable prior to 
+	 * that iteration. Thus we avoid using facts which were made reachable during that iteration.
+	 * @return The highest index of the fact which was made true during the last iteration.
+	 */
 	unsigned int getCachedReachableTreesSize()
 	{
 		if (!cache_is_valid_)
@@ -268,17 +296,11 @@ public:
 	 */
 	bool processNewReachableFact(ReachableFact& reachable_fact, unsigned int index);
 	
-	void markAsRemoved() { removed_ = true; }
-	
-	bool isValid() const { return !removed_; }
-	
 	virtual void print(std::ostream& os) const = 0;
 	
 protected:
 	
 	const EquivalentObjectGroupManager* eog_manager_;
-	
-	bool removed_;
 	
 	/**
 	 * Initialise the reachable set by matching the initial facts.
@@ -297,7 +319,7 @@ protected:
 	 * Called every time the equivalence relationships have been updated. All the ReachableFacts which 
 	 * have been marked for removal need to be deleted.
 	 */
-	void equivalencesUpdated(unsigned int iteration);
+	virtual void equivalencesUpdated(unsigned int iteration);
 	
 private:
 	
@@ -335,6 +357,8 @@ private:
 	// All the facts which have been combined into a partial of complete assignment to all the facts in the set.
 	std::vector<ReachableTree*> reachability_tree_;
 	
+	// We only allow access to the facts which were made true during the last iteration. These point to the highest index 
+	// of the fact which was made true during the last iteration.
 	unsigned int cached_reachability_tree_size_;
 	bool cache_is_valid_;
 	
@@ -366,12 +390,10 @@ public:
 	void addReachableTransition(ReachableTransition& reachable_transition);
 	
 	bool propagateReachableFacts();
-	
-	void handleUpdatedEquivalences(unsigned int iteration);
+
+	void equivalencesUpdated(unsigned int iteration);
 	
 	std::vector<ReachableTransition*>& getReachableTransitions() { return reachable_transitions_; }
-	
-//	void removeReachableTransition(const ReachableTransition);
 	
 	void print(std::ostream& os) const;
 	
@@ -440,7 +462,7 @@ public:
 	 */
 	bool generateReachableFacts();
 	
-	void handleUpdatedEquivalences(unsigned int iteration);
+	void equivalencesUpdated(unsigned int iteration);
 	
 	const Transition& getTransition() const { return *transition_; }
 	
@@ -471,7 +493,6 @@ private:
 	// For every effect we register all the ReachableSets for which the function processNewReachableFact must be called
 	// when the effect is reached.
 	std::vector<std::vector<std::pair<ReachableSet*, unsigned int> >* > effect_propagation_listeners_;
-	
 	
 	// Cache all the groups which have been processed so we do not create the same reachable facts from this
 	// node over and over again.
@@ -521,8 +542,6 @@ public:
 	~DTGReachability();
 	
 	void performReachabilityAnalysis(std::vector<const ReachableFact*>& result, const std::vector<const BoundedAtom*>& initial_facts, const Bindings& bindings);
-
-//	ReachableTransition& getReachableTransition(const Transition& transition) const;
 	
 	const EquivalentObjectGroupManager& getEquivalentObjectGroupManager() const { return *equivalent_object_manager_; }
 	
@@ -535,7 +554,6 @@ private:
 	// The set of nodes we are working on.
 	std::vector<ReachableNode*> reachable_nodes_;
 	
-	//std::vector<std::pair<ReachableSet*, unsigned int> >** predicate_id_to_reachable_sets_mapping_;
 	std::vector<std::vector<std::pair<ReachableSet*, unsigned int> >* >* predicate_id_to_reachable_sets_mapping_;
 
 	EquivalentObjectGroupManager* equivalent_object_manager_;

@@ -124,8 +124,6 @@ public:
 	 * Remove all the reachable facts which have been marked for removal.
 	 */
 	void deleteRemovedFacts();
-	
-	unsigned int getUniqueId() const { return unique_id_; }
 
 private:
 	
@@ -155,9 +153,6 @@ private:
 	
 	bool* finger_print_;
 	unsigned int finger_print_size_;
-	
-	static unsigned int largest_unique_id_;
-	unsigned int unique_id_;
 
 	friend std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group);
 };

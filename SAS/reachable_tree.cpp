@@ -461,7 +461,6 @@ const std::list<ReachableFact*>& ReachableTree::getFactsAtLevel(unsigned int lev
 #ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_DEBUG
 	sanityCheck();
 #endif
-	assert (reachable_set_->isValid());
 	assert (reachable_set_->getReachableSets().size() > level);
 	return *reachable_set_->getReachableSets()[level];
 }

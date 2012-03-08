@@ -134,9 +134,8 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_ob
 /**
  * Equivalent Object Group.
  */
-unsigned int EquivalentObjectGroup::largest_unique_id_ = 0;
 EquivalentObjectGroup::EquivalentObjectGroup(const DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded)
-	: is_grounded_(is_grounded), link_(NULL), finger_print_(NULL), unique_id_(largest_unique_id_++)
+	: is_grounded_(is_grounded), link_(NULL), finger_print_(NULL)
 {
 	if (object != NULL)
 	{
@@ -559,6 +558,7 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const DomainTransitio
 
 EquivalentObjectGroupManager::~EquivalentObjectGroupManager()
 {
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_DEBUG
 	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
 	{
 		for (std::vector<EquivalentObjectGroup*>::const_iterator ci2 = old_equivalent_groups_.begin(); ci2 != old_equivalent_groups_.end(); ci2++)
@@ -566,17 +566,18 @@ EquivalentObjectGroupManager::~EquivalentObjectGroupManager()
 			assert (ci != ci2);
 		}
 	}
+#endif
 	
 	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
 	{
 		delete *ci;
 	}
 	
-	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = old_equivalent_groups_.begin(); ci != old_equivalent_groups_.end(); ci++)
-	{
-		assert (!(*ci)->isRootNode());
-		delete *ci;
-	}
+//	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = old_equivalent_groups_.begin(); ci != old_equivalent_groups_.end(); ci++)
+//	{
+//		assert (!(*ci)->isRootNode());
+//		delete *ci;
+//	}
 }
 
 void EquivalentObjectGroupManager::initialise(const std::vector<ReachableFact*>& initial_facts)
@@ -628,7 +629,7 @@ void EquivalentObjectGroupManager::updateEquivalences()
 		if (!eog->isRootNode())
 		{
 			equivalent_groups_.erase(ri.base() - 1);
-			old_equivalent_groups_.push_back(eog);
+//			old_equivalent_groups_.push_back(eog);
 		}
 	}
 	
@@ -641,95 +642,6 @@ void EquivalentObjectGroupManager::updateEquivalences()
 		}
 	}
 }
-
-/*
-
-
-
-void EquivalentObjectGroupManager::updateEquivalences()
-{
-	// Try to merge those eogs which are equivalent.
-	bool merge_mask[equivalent_groups_.size()];
-	memset(&merge_mask[0], false, sizeof(bool) * equivalent_groups_.size());
-	unsigned int index1 = 0;
-#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-	std::vector<const EquivalentObjectGroup*> newly_merged_eogs;
-#endif
-	
-	std::vector<EquivalentObjectGroup*> affected_groups;
-	
-	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end() - 1; ci++)
-	{
-		if (merge_mask[index1])
-		{
-			++index1;
-			continue;
-		}
-		EquivalentObjectGroup* eog1 = *ci;
-		
-		unsigned int index2 = index1 + 1;
-		for (std::vector<EquivalentObjectGroup*>::const_iterator ci2 = ci + 1; ci2 != equivalent_groups_.end(); ci2++)
-		{
-			EquivalentObjectGroup* eog2 = *ci2;
-			
-			if (merge_mask[index2])
-			{
-				++index2;
-				continue;
-			}
-			if (eog1->tryToMergeWith(*eog2, affected_groups))
-			{
-#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-				std::cout << "Merged: " << *eog1 << "." << std::endl;
-				newly_merged_eogs.push_back(eog1);
-#endif
-				merge_mask[index2] = true;
-				assert (!eog2->isRootNode());
-			}
-			++index2;
-		}
-		++index1;
-	}
-	
-#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-	unsigned int removed_instances = 0;
-#endif
-	for (std::vector<EquivalentObjectGroup*>::reverse_iterator ri = equivalent_groups_.rbegin(); ri != equivalent_groups_.rend(); ri++)
-	{
-		unsigned int index = std::distance(equivalent_groups_.begin(), ri.base() - 1);
-		if (merge_mask[index])
-		{
-#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-			++removed_instances;
-#endif
-			equivalent_groups_.erase(ri.base() - 1);
-			
-			assert (!(*ri)->isRootNode());
-			old_equivalent_groups_.push_back(*ri);
-		}
-	}
-	
-	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = affected_groups.begin(); ci != affected_groups.end(); ci++)
-	{
-		EquivalentObjectGroup* eog = *ci;
-		if (eog->isRootNode())
-		{
-			eog->deleteRemovedFacts();
-		}
-	}
-	
-#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-	std::cerr << "[EquivalentObjectGroupManager::updateEquivalences] Merged: " << removed_instances << " EOGs!" << std::endl;
-	for (std::vector<const EquivalentObjectGroup*>::const_iterator ci = newly_merged_eogs.begin(); ci != newly_merged_eogs.end(); ci++)
-	{
-		std::cerr << "* ";
-		(*ci)->printObjects(std::cerr);
-		std::cerr << std::endl;
-	}
-#endif
-}
-
-*/
 
 EquivalentObject& EquivalentObjectGroupManager::getEquivalentObject(const Object& object) const
 {

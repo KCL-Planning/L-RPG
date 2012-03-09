@@ -2000,7 +2000,7 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 	std::cerr << "Compression rate " << 100 - ((double)equivalent_object_manager_->getNumberOfEquivalentGroups() / (double)total_number_of_eog) * 100 << std::endl;
 #endif
 	
-	//equivalent_object_manager_->getAllReachableFacts(result);
+	equivalent_object_manager_->getAllReachableFacts(result);
 }
 
 void DTGReachability::mapInitialFactsToReachableSets(const std::vector<ReachableFact*>& initial_facts)

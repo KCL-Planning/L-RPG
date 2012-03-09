@@ -247,8 +247,6 @@ int main(int argc,char * argv[])
 		std::cerr << "Reachability analysis: " << time_spend << " seconds" << std::endl;
 #endif
 
-		exit(0);
-
 		if (validate)
 		{
 			// Validate the result.

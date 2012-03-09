@@ -10,7 +10,6 @@
 #include "property_space.h"
 #include "transition.h"
 #include "type_manager.h"
-#include "reachable_fact.h"
 #include "../predicate_manager.h"
 #include "../term_manager.h"
 
@@ -135,7 +134,7 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_ob
 /**
  * Equivalent Object Group.
  */
-MemoryPool** EquivalentObjectGroup::g_eog_arrays_memory_pool_;
+MyPOP::UTILITY::MemoryPool** EquivalentObjectGroup::g_eog_arrays_memory_pool_;
 
 unsigned int EquivalentObjectGroup::max_arity_;
 EquivalentObjectGroup::EquivalentObjectGroup(const DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded)
@@ -164,10 +163,10 @@ EquivalentObjectGroup::~EquivalentObjectGroup()
 
 void EquivalentObjectGroup::initMemoryPool(unsigned int max_arity)
 {
-	g_eog_arrays_memory_pool_ = new MemoryPool*[max_arity];
+	g_eog_arrays_memory_pool_ = new MyPOP::UTILITY::MemoryPool*[max_arity];
 	for (unsigned int i = 0; i < max_arity; i++)
 	{
-		g_eog_arrays_memory_pool_[i] = new MemoryPool(sizeof(EquivalentObjectGroup*) * i);
+		g_eog_arrays_memory_pool_[i] = new MyPOP::UTILITY::MemoryPool(sizeof(EquivalentObjectGroup*) * i);
 	}
 	max_arity_ = max_arity;
 }

@@ -13,6 +13,10 @@ namespace MyPOP {
 class Object;
 class Predicate;
 class TermManager;
+
+namespace UTILITY {
+class MemoryPool;
+}
 	
 namespace SAS_Plus {
 
@@ -20,8 +24,6 @@ class DomainTransitionGraph;
 class DomainTransitionGraphManager;
 class EquivalentObjectGroup;
 class ReachableFact;
-
-class MemoryPool;
 
 /**
  * The equivalent object class keeps track of a single object and its initial state. The initial state records both
@@ -137,7 +139,7 @@ public:
 
 private:
 	
-	static MemoryPool** g_eog_arrays_memory_pool_;
+	static MyPOP::UTILITY::MemoryPool** g_eog_arrays_memory_pool_;
 	
 	static unsigned int max_arity_;
 	

@@ -26,10 +26,8 @@
 #include "SAS/causal_graph.h"
 #include "SAS/dtg_graph.h"
 #include "SAS/dtg_reachability.h"
-#include "SAS/reachable_fact.h"
 #include "relaxed_planning_graph.h"
 #include "SAS/equivalent_object_group.h"
-#include "SAS/reachable_fact.h"
 
 ///#define MYPOP_COMMENTS
 #define MYPOP_KEEP_TIME

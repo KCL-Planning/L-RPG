@@ -238,7 +238,7 @@ MemoryChunk::~MemoryChunk()
 MemoryPool::MemoryPool(size_t unit_size)
 	: unit_size_(unit_size)
 {
-	std::cerr << "Initialise the memory pool with the size of: " << unit_size << std::endl;
+//	std::cerr << "Initialise the memory pool with the size of: " << unit_size << std::endl;
 	latest_created_chunk_ = NULL;
 	createNewMemoryChunk();
 }

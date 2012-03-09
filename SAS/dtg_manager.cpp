@@ -690,6 +690,7 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 		
 		StepID possitive_atom_id = new_unprocessed_dtg->getBindings().createVariableDomains(*possitive_atom);
 		
+		// Only memory leak here :P.
 		PropertySpace* property_space = new PropertySpace();
 		PropertyState* property_state = new PropertyState(*property_space, predicates_to_add);
 		property_space->addPropertyState(*property_state);

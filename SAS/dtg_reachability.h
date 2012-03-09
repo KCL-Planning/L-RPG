@@ -41,8 +41,6 @@ class EquivalentObjectGroupManager;
 class ReachableTransition;
 class ReachableTreeNode;
 
-class ReachableFactMemoryPool;
-
 class ReachableFact;
 
 /**
@@ -104,7 +102,7 @@ public:
 	 * search for all EOGs in the @ref eog_manager which match the bill.
 	 * @param predicate_manager The predicate manager.
 	 */
-	ResolvedEffect(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, bool free_variables[], PredicateManager& predicate_manager, ReachableFactMemoryPool& memory_pool);
+	ResolvedEffect(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, bool free_variables[], PredicateManager& predicate_manager);
 	
 	~ResolvedEffect();
 	
@@ -141,8 +139,6 @@ private:
 	// Links every index of this effect's atom to the variable of the action it is part of. If the index is a free 
 	// variable, the variable's index it is linked to is equal to the action's arity (thus out of bounds!).
 	int* index_to_variable_;
-	
-	ReachableFactMemoryPool* memory_pool_;
 };
 
 std::ostream& operator<<(std::ostream& os, const ResolvedEffect& resolved_bounded_atom);
@@ -348,7 +344,7 @@ struct VariableToValues
 class ReachableTransition : public ReachableSet
 {
 public:
-	ReachableTransition(const Transition& transition, ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager, ReachableFactMemoryPool& memory_pool);
+	ReachableTransition(const Transition& transition, ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
 	
 	virtual ~ReachableTransition();
 	
@@ -431,8 +427,6 @@ private:
 	// Instead of putting a new vector on the stack for a function call to createNewReachableFact, we simply use this one :).
 	const std::vector<ReachableFact*> empty_transition_reachable_set_;
 	
-	ReachableFactMemoryPool* memory_pool_;
-	
 	friend std::ostream& operator<<(std::ostream& os, const ReachableTransition& reachable_transition);
 };
 
@@ -467,8 +461,6 @@ private:
 	std::vector<std::vector<std::pair<ReachableSet*, unsigned int> >* >* predicate_id_to_reachable_sets_mapping_;
 
 	EquivalentObjectGroupManager* equivalent_object_manager_;
-	
-	ReachableFactMemoryPool* memory_pool_;
 };
 
 };

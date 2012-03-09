@@ -21,6 +21,8 @@ class DomainTransitionGraphManager;
 class EquivalentObjectGroup;
 class ReachableFact;
 
+class MemoryPool;
+
 /**
  * The equivalent object class keeps track of a single object and its initial state. The initial state records both
  * the DTG the object is part of and all relations to other objects based on the predicates it is part of.
@@ -77,6 +79,14 @@ public:
 	EquivalentObjectGroup(const DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded);
 	
 	~EquivalentObjectGroup();
+	
+	static void initMemoryPool(unsigned int max_arity);
+	
+	static void deleteMemoryPool();
+	
+	void* operator new[](size_t size);
+	
+	void operator delete[](void* p);
 
 	void addEquivalentObject(EquivalentObject& eo);
 	
@@ -126,6 +136,10 @@ public:
 	void deleteRemovedFacts();
 
 private:
+	
+	static MemoryPool** g_eog_arrays_memory_pool_;
+	
+	static unsigned int max_arity_;
 	
 	// The set of objects which are equivalent.
 	std::vector<EquivalentObject*> equivalent_objects_;

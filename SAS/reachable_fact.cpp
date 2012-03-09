@@ -3,13 +3,12 @@
 #include "equivalent_object_group.h"
 #include "../term_manager.h"
 #include "../predicate_manager.h"
+#include <stdlib.h>
 
 namespace MyPOP {
 
 namespace SAS_Plus {
 
-unsigned int ReachableFactMemoryPool::MEMORY_CHUNK_SIZE_ = 1000;
-	
 ReachableFact::ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager)
 	: atom_(&bounded_atom.getAtom()), replaced_by_(NULL)
 {
@@ -51,6 +50,16 @@ ReachableFact::ReachableFact(const Atom& atom, EquivalentObjectGroup** term_doma
 ReachableFact::~ReachableFact()
 {
 	delete[] term_domain_mapping_;
+}
+
+void* ReachableFact::operator new (size_t size)
+{
+	return g_reachable_fact_memory_pool->allocate(size);
+}
+	
+void ReachableFact::operator delete (void* p)
+{
+	g_reachable_fact_memory_pool->free(p);
 }
 
 bool ReachableFact::updateTermsToRoot()
@@ -202,110 +211,66 @@ std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact)
 	return os;
 }
 
-ReachableFactMemoryChunk::ReachableFactMemoryChunk(unsigned int chunk_size, ReachableFactMemoryChunk* previous_chunk)
-	: chunk_size_(chunk_size), previous_chunk_(previous_chunk)
+MemoryChunk::MemoryChunk(size_t unit_size, MyPOP::SAS_Plus::MemoryChunk* previous_chunk, unsigned int nr_units)
+	: unit_size_(unit_size), previous_chunk_(previous_chunk), nr_units_(nr_units)
 {
-	allocated_memory_ = new MemoryElement*[chunk_size];
-	//for (unsigned int i = chunk_size - 1; i >= 0; i--)
-	for (unsigned int i = 0; i < chunk_size; i++)
+	// Allocate all the memory we need.
+	allocated_memory_ = malloc(nr_units_ * (unit_size + sizeof(struct MemoryElement)));
+	assert (allocated_memory_ != NULL);
+	
+	// Structure the memory, such that each memory element points to the next available memory location.
+	struct MemoryElement* next_unit = NULL;
+	for (unsigned int i = 0; i < nr_units; i++)
 	{
-		unsigned int index = chunk_size - 1 - i;
-		if (index == chunk_size - 1) 
-		{
-			allocated_memory_[index] = new MemoryElement(NULL, NULL);
-		}
-		else
-		{
-			allocated_memory_[index] = new MemoryElement(allocated_memory_[index + 1], NULL);
-		}
+		unsigned int index = nr_units - 1 - i;
+		MemoryElement* cur_unit = (struct MemoryElement*)((char*)allocated_memory_ + index * (unit_size + sizeof(struct MemoryElement)));
+		cur_unit->next_free_memory_slot_ = next_unit;
+		next_unit = cur_unit;
 	}
 }
 
-ReachableFactMemoryChunk::~ReachableFactMemoryChunk()
+MemoryChunk::~MemoryChunk()
 {
-	for (unsigned int i = 0; i < chunk_size_; i++)
-	{
-		delete allocated_memory_[i];
-	}
-	delete[] allocated_memory_;
-	
+	free(allocated_memory_);
 	delete previous_chunk_;
 }
 
-ReachableFactMemoryPool::ReachableFactMemoryPool(unsigned int max_arity)
-	: max_arity_(max_arity)
+MemoryPool::MemoryPool(size_t unit_size)
+	: unit_size_(unit_size)
 {
-	std::cerr << "Initialise the memory pool with a max arity of: " << max_arity << std::endl;
-	current_free_slots_ = new MemoryElement*[max_arity + 1];
-	latest_created_chunks_ = new ReachableFactMemoryChunk*[max_arity + 1];
-	
-	for (unsigned int i = 0; i <= max_arity; i++)
-	{
-		latest_created_chunks_[i] = NULL;
-		createNewMemoryChunk(i);
-	}
+	std::cerr << "Initialise the memory pool with the size of: " << unit_size << std::endl;
+	latest_created_chunk_ = NULL;
+	createNewMemoryChunk();
 }
 
-ReachableFactMemoryPool::~ReachableFactMemoryPool()
+MemoryPool::~MemoryPool()
 {
-	delete[] current_free_slots_;
-	for (unsigned int i = 0; i <= max_arity_; i++)
-	{
-		delete latest_created_chunks_[i];
-	}
-	delete[] latest_created_chunks_;
-}
-	
-ReachableFact& ReachableFactMemoryPool::createReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager)
-{
-	if (current_free_slots_[bounded_atom.getAtom().getArity()] == NULL) createNewMemoryChunk(bounded_atom.getAtom().getArity());
-	MemoryElement* next_free_slot = current_free_slots_[bounded_atom.getAtom().getArity()]->next_free_memory_slot_;
-	
-	ReachableFact* rf = new ReachableFact(bounded_atom, bindings, eog_manager);
-	
-	current_free_slots_[bounded_atom.getAtom().getArity()]->element_ = rf;
-	current_free_slots_[bounded_atom.getAtom().getArity()] = next_free_slot;
-	
-	return *rf;
-}
-		
-ReachableFact& ReachableFactMemoryPool::createReachableFact(const Atom& atom, EquivalentObjectGroup** term_domain_mapping)
-{
-	if (current_free_slots_[atom.getArity()] == NULL) createNewMemoryChunk(atom.getArity());
-	MemoryElement* next_free_slot = current_free_slots_[atom.getArity()]->next_free_memory_slot_;
-	
-	// If the current free slot contains a copy of a reachable fact, exploit it!
-	ReachableFact* rf;
-	if (current_free_slots_[atom.getArity()]->element_ != NULL)
-	{
-		current_free_slots_[atom.getArity()]->element_->atom_ = &atom;
-		current_free_slots_[atom.getArity()]->element_->term_domain_mapping_ = term_domain_mapping;
-		current_free_slots_[atom.getArity()]->element_->replaced_by_ = NULL;
-		
-		rf = current_free_slots_[atom.getArity()]->element_;
-	}
-	else
-	{
-		rf = new ReachableFact(atom, term_domain_mapping);
-		current_free_slots_[atom.getArity()]->element_ = rf;
-	}
-	current_free_slots_[atom.getArity()] = next_free_slot;
-	return *rf;
+	delete latest_created_chunk_;
 }
 
-void ReachableFactMemoryPool::deleteReachableFact(ReachableFact& reachable_fact)
+void* MemoryPool::allocate(size_t size)
 {
-	// The memory it occupies is restructured as a MemoryElement.
-	MemoryElement* to_free = reinterpret_cast<MemoryElement*>(&reachable_fact - sizeof(MemoryElement*));
-	to_free->next_free_memory_slot_ = current_free_slots_[reachable_fact.getAtom().getArity()];
-	current_free_slots_[reachable_fact.getAtom().getArity()] = to_free;
+	MemoryElement* next_free_slot = current_free_slot_->next_free_memory_slot_;
+	MemoryElement* to_return = current_free_slot_;
+	current_free_slot_ = next_free_slot;
+	
+	// Check if we need to allocate more memory!
+	if (current_free_slot_ == NULL) createNewMemoryChunk();
+	
+	return to_return;
 }
 
-void ReachableFactMemoryPool::createNewMemoryChunk(unsigned int arity)
+void MemoryPool::free(void* p)
 {
-	assert (arity <= max_arity_);
-	latest_created_chunks_[arity] = new ReachableFactMemoryChunk(MEMORY_CHUNK_SIZE_, latest_created_chunks_[arity]);
-	current_free_slots_[arity] = latest_created_chunks_[arity]->begin();
+	MemoryElement* to_free = static_cast<struct MemoryElement*>(p);
+	to_free->next_free_memory_slot_ = current_free_slot_;
+	current_free_slot_ = to_free;
+}
+
+void MemoryPool::createNewMemoryChunk()
+{
+	latest_created_chunk_ = new MemoryChunk(unit_size_, latest_created_chunk_);
+	current_free_slot_ = latest_created_chunk_->begin();
 }
 
 };

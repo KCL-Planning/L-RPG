@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <vector>
+#include <cstring>
 
 namespace MyPOP {
 
@@ -19,7 +20,15 @@ class ReachableFactMemoryPool;
 class ReachableFact
 {
 public:
+	ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
+	
+	ReachableFact(const Atom& atom, EquivalentObjectGroup** term_domain_mapping);
+	
 	~ReachableFact();
+	
+	static void* operator new (size_t size);
+	
+	static void operator delete (void* p);
 	
 	/**
 	 * This method is called everytime a merge has taken place which involves a Equivalent Object Group 
@@ -75,11 +84,7 @@ public:
 	const ReachableFact& getReplacement() const;
 	
 private:
-	
-	ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
-	
-	ReachableFact(const Atom& atom, EquivalentObjectGroup** term_domain_mapping);
-	
+
 	const Atom* atom_;
 	
 	EquivalentObjectGroup** term_domain_mapping_;
@@ -101,82 +106,65 @@ private:
 	// By marking the former for removal we can remove the remaining reachable fact.
 	ReachableFact* replaced_by_;
 	
-	friend class ReachableFactMemoryPool;
+	//friend class ReachableFactMemoryPool;
 	
 	friend std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact);
 };
 
 std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact);
-/*
-union MemoryElement
-{
-	MemoryElement* next_free_memory_slot_;
-	ReachableFact* element_;
-};
-*/
 
 struct MemoryElement
 {
-	MemoryElement(MemoryElement* next_free_memory_slot, ReachableFact* element)
-		: next_free_memory_slot_(next_free_memory_slot), element_(element)
-	{
-		
-	}
-	
-	~MemoryElement()
-	{
-		delete element_;
-	}
-	
+//	ReachableFact* element_;
 	MemoryElement* next_free_memory_slot_;
-	ReachableFact* element_;
 };
 
-class ReachableFactMemoryChunk
+class MemoryChunk
 {
 public:
-	ReachableFactMemoryChunk(unsigned int chunk_size, ReachableFactMemoryChunk* previous_chunk);
-	~ReachableFactMemoryChunk();
+	MemoryChunk(size_t unit_size, MemoryChunk* previous_chunk, unsigned int nr_units = 100000);
+	~MemoryChunk();
 
-	MemoryElement* begin() const { return allocated_memory_[0]; }
+	MemoryElement* begin() const { return (struct MemoryElement*)allocated_memory_; }
 	
 private:
-	MemoryElement** allocated_memory_;
 	
-	unsigned int chunk_size_;
-	ReachableFactMemoryChunk* previous_chunk_;
+	void* allocated_memory_;
+	
+	size_t unit_size_;
+	MemoryChunk* previous_chunk_;
+	unsigned int nr_units_;
 };
 
 /**
  * This is a memory pool which is used to make the usage of reachable facts more efficient in both time and memory.
  */
-class ReachableFactMemoryPool
+class MemoryPool
 {
 public:
 	/**
 	 * Create a memory pool for the given set of arities.
 	 */
-	ReachableFactMemoryPool(unsigned int max_arity);
+	MemoryPool(size_t unit_size);
 	
-	~ReachableFactMemoryPool();
+	~MemoryPool();
 	
-	ReachableFact& createReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
-		
-	ReachableFact& createReachableFact(const Atom& atom, EquivalentObjectGroup** term_domain_mapping);
+	void* allocate(size_t size);
 	
-	void deleteReachableFact(ReachableFact& reachable_fact);
+	void free(void* p);
 	
 private:
 	
-	unsigned int max_arity_;
+	size_t unit_size_;
 	
-	void createNewMemoryChunk(unsigned int arity);
+	void createNewMemoryChunk();
 	
-	MemoryElement** current_free_slots_;
+	MemoryElement* current_free_slot_;
 	
-	ReachableFactMemoryChunk** latest_created_chunks_;
-	static unsigned int MEMORY_CHUNK_SIZE_;
+	MemoryChunk* latest_created_chunk_;
 };
+
+static MemoryPool* g_reachable_fact_memory_pool = new MemoryPool(sizeof(ReachableFact));
 
 };
 

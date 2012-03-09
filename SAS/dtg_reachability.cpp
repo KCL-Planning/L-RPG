@@ -18,8 +18,7 @@
 
 //#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 //#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
-#define MYPOP_SAS_PLUS_DTG_REACHABILITY_CLEANUP
-#define DTG_REACHABILITY_KEEP_TIME
+//#define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
 
 namespace SAS_Plus {
@@ -44,10 +43,8 @@ ResolvedBoundedAtom::ResolvedBoundedAtom(StepID id, const Atom& atom, const Bind
 
 ResolvedBoundedAtom::~ResolvedBoundedAtom()
 {
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_CLEANUP
 	delete corrected_atom_;
 	delete[] is_grounded_;
-#endif
 }
 
 void ResolvedBoundedAtom::init(const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager)
@@ -212,8 +209,8 @@ std::ostream& operator<<(std::ostream& os, const ResolvedBoundedAtom& resolved_b
 /**
  * ResolvedEffect.
  */
-ResolvedEffect::ResolvedEffect(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, bool free_variables[], PredicateManager& predicate_manager, ReachableFactMemoryPool& memory_pool)
-	: ResolvedBoundedAtom(id, atom, bindings, eog_manager, predicate_manager), memory_pool_(&memory_pool)
+ResolvedEffect::ResolvedEffect(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, bool free_variables[], PredicateManager& predicate_manager)
+	: ResolvedBoundedAtom(id, atom, bindings, eog_manager, predicate_manager)
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "Process the resolved effect: ";
@@ -279,7 +276,6 @@ ResolvedEffect::ResolvedEffect(StepID id, const Atom& atom, const Bindings& bind
 
 ResolvedEffect::~ResolvedEffect()
 {
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_CLEANUP
 	delete[] is_free_variable_;
 	
 	for (std::vector<std::vector<EquivalentObjectGroup*>* >::const_iterator ci = free_variable_domains_.begin(); ci != free_variable_domains_.end(); ci++)
@@ -288,7 +284,6 @@ ResolvedEffect::~ResolvedEffect()
 	}
 	
 	delete[] index_to_variable_;
-#endif
 }
 
 void ResolvedEffect::updateVariableDomains()
@@ -367,8 +362,7 @@ void ResolvedEffect::createReachableFacts(std::vector<ReachableFact*>& results, 
 			assert (is_free_variable_[i] == false);
 		}
 #endif
-		//results.push_back(new ReachableFact(getCorrectedAtom(), effect_domains));
-		results.push_back(&memory_pool_->createReachableFact(getCorrectedAtom(), effect_domains));
+		results.push_back(new ReachableFact(getCorrectedAtom(), effect_domains));
 		return;
 	}
 	
@@ -421,14 +415,13 @@ void ResolvedEffect::createReachableFacts(std::vector<ReachableFact*>& results, 
 			++processed_free_variables;
 		}
 		
-		//ReachableFact* new_reachable_fact = new ReachableFact(getCorrectedAtom(), new_effect_domains);
-		ReachableFact& new_reachable_fact = memory_pool_->createReachableFact(getCorrectedAtom(), new_effect_domains);
+		ReachableFact* new_reachable_fact = new ReachableFact(getCorrectedAtom(), new_effect_domains);
 		
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 		std::cout << "New reachable fact with free variables: " << *new_reachable_fact << "." << std::endl;
 #endif
 		
-		results.push_back(&new_reachable_fact);
+		results.push_back(new_reachable_fact);
 		
 		// Update the counter.
 		done = true;
@@ -469,9 +462,7 @@ void ResolvedEffect::createReachableFacts(std::vector<ReachableFact*>& results, 
 #endif
 	}
 	
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_CLEANUP
 	delete[] effect_domains;
-#endif
 	
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "DONE!!!" << std::endl;
@@ -528,7 +519,6 @@ ReachableSet::ReachableSet(const EquivalentObjectGroupManager& eog_manager)
 
 ReachableSet::~ReachableSet()
 {
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_CLEANUP
 	for (std::vector<const ResolvedBoundedAtom*>::iterator ci = facts_set_.begin(); ci != facts_set_.end(); ci++)
 	{
 		unsigned int fact_index = std::distance(facts_set_.begin(), ci);
@@ -543,10 +533,6 @@ ReachableSet::~ReachableSet()
 	for (std::vector<std::list<ReachableFact*>*>::const_iterator ci = reachable_set_.begin(); ci != reachable_set_.end(); ci++)
 	{
 		std::list<ReachableFact*>* reachable_list = *ci;
-//		for (std::list<ReachableFact*>::const_iterator ci = reachable_list->begin(); ci != reachable_list->end(); ci++)
-//		{
-//			delete *ci;
-//		}
 		delete reachable_list;
 	}
 	
@@ -559,7 +545,6 @@ ReachableSet::~ReachableSet()
 	{
 		delete *ci;
 	}
-#endif
 }
 
 bool ReachableSet::arePreconditionsEquivalent(const ReachableSet& other_set) const
@@ -728,9 +713,7 @@ void ReachableSet::equivalencesUpdated(unsigned int iteration)
 		if (reachable_tree->getRoot()->getReachableFact().isMarkedForRemoval())
 		{
 			reachability_tree_.erase(ri.base() - 1);
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_CLEANUP
 			delete reachable_tree;
-#endif
 		}
 	}
 	cached_reachability_tree_size_ = reachability_tree_.size();
@@ -869,12 +852,10 @@ ReachableNode::ReachableNode(const DomainTransitionGraphNode& dtg_node, const Eq
 
 ReachableNode::~ReachableNode()
 {
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_CLEANUP
 	for (std::vector<ReachableTransition*>::const_iterator ci = reachable_transitions_.begin(); ci != reachable_transitions_.end(); ci++)
 	{
 		delete *ci;
 	}
-#endif
 }
 
 
@@ -950,8 +931,8 @@ std::ostream& operator<<(std::ostream& os, const ReachableNode& reachable_node)
 /**
  * Reachable Transition.
  */
-ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& transition, ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager, ReachableFactMemoryPool& memory_pool)
-	: ReachableSet(eog_manager), from_node_(&from_node), to_node_(&to_node), transition_(&transition), latest_processed_from_node_set_(0), latest_processed_transition_set_(0), use_previous_action_domains_(false), action_domains_(NULL), memory_pool_(&memory_pool)
+ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& transition, ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager)
+	: ReachableSet(eog_manager), from_node_(&from_node), to_node_(&to_node), transition_(&transition), latest_processed_from_node_set_(0), latest_processed_transition_set_(0), use_previous_action_domains_(false), action_domains_(NULL)
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "New reachable transition: " << transition << "." << std::endl;
@@ -1168,7 +1149,7 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 			}
 		}
 		
-		ResolvedEffect* resolved_effect = new ResolvedEffect(transition.getStepId(), *effect, bindings, eog_manager, free_variables, predicate_manager, memory_pool);
+		ResolvedEffect* resolved_effect = new ResolvedEffect(transition.getStepId(), *effect, bindings, eog_manager, free_variables, predicate_manager);
 		effects_.push_back(resolved_effect);
 	}
 	
@@ -1216,7 +1197,6 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 
 ReachableTransition::~ReachableTransition()
 {
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_CLEANUP
 	for (std::vector<ResolvedEffect*>::const_iterator ci = effects_.begin(); ci != effects_.end(); ci++)
 	{
 		delete *ci;
@@ -1242,7 +1222,6 @@ ReachableTransition::~ReachableTransition()
 	{
 		delete[] action_domains_;
 	}
-#endif
 }
 
 void ReachableTransition::finalise(const std::vector<ReachableSet*>& all_reachable_sets)
@@ -1456,9 +1435,7 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 	if (already_processed)
 	{
 		use_previous_action_domains_ = true;
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_CLEANUP
 		delete[] effect_domains;
-#endif
 		return false;
 	}
 	use_previous_action_domains_ = false;
@@ -1526,10 +1503,7 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 		}
 		if (already_reached)
 		{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_CLEANUP
-//			memory_pool_->deleteReachableFact(*new_reachable_fact);
-//			delete new_reachable_fact;
-#endif
+			delete new_reachable_fact;
 			continue;
 		}
 #ifdef DTG_REACHABILITY_KEEP_TIME
@@ -1617,14 +1591,6 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 	std::cout << "DTG Reachability on graph: " << dtg_graph << "." << std::endl;
 #endif
 
-	// Find out the largest arity.
-	unsigned int largest_arity = 0;
-	for (std::vector<Predicate*>::const_iterator ci = predicate_manager.getManagableObjects().begin(); ci != predicate_manager.getManagableObjects().end(); ci++)
-	{
-		if ((*ci)->getArity() > largest_arity) largest_arity = (*ci)->getArity();
-	}
-	memory_pool_ = new ReachableFactMemoryPool(largest_arity);
-
 	// Initialise the individual groups per object.
 	equivalent_object_manager_ = new EquivalentObjectGroupManager(dtg_manager, dtg_graph, term_manager);
 	
@@ -1655,7 +1621,7 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 		{
 			const Transition* transition = *ci;
 			ReachableNode* reachable_to_node = node_mapping[&transition->getToNode()];
-			ReachableTransition* reachable_transition = new ReachableTransition(**ci, *reachable_from_node, *reachable_to_node, *equivalent_object_manager_, predicate_manager, *memory_pool_);
+			ReachableTransition* reachable_transition = new ReachableTransition(**ci, *reachable_from_node, *reachable_to_node, *equivalent_object_manager_, predicate_manager);
 			 
 			reachable_from_node->addReachableTransition(*reachable_transition);
 
@@ -1788,9 +1754,7 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 		if (reachable_set_to_remove.count(reachable_set) != 0)
 		{
 			all_reachable_sets.erase(ri.base() - 1);
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_CLEANUP
 			delete reachable_set;
-#endif
 		}
 	}
 	
@@ -1851,7 +1815,6 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 
 DTGReachability::~DTGReachability()
 {
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_CLEANUP
 	delete equivalent_object_manager_;
 	for (std::vector<std::vector<std::pair<ReachableSet*, unsigned int> >* >::const_iterator ci = predicate_id_to_reachable_sets_mapping_->begin(); ci != predicate_id_to_reachable_sets_mapping_->end(); ci++)
 	{
@@ -1863,9 +1826,6 @@ DTGReachability::~DTGReachability()
 	{
 		delete *ci;
 	}
-	
-	delete memory_pool_;
-#endif
 }
 
 
@@ -1890,9 +1850,8 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 	std::vector<ReachableFact*> established_reachable_facts;
 	for (std::vector<const BoundedAtom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
 	{
-		//ReachableFact* initial_reachable_fact = new ReachableFact(**ci, bindings, *equivalent_object_manager_);
-		ReachableFact& initial_reachable_fact = memory_pool_->createReachableFact(**ci, bindings, *equivalent_object_manager_);
-		established_reachable_facts.push_back(&initial_reachable_fact);
+		ReachableFact* initial_reachable_fact = new ReachableFact(**ci, bindings, *equivalent_object_manager_);
+		established_reachable_facts.push_back(initial_reachable_fact);
 	}
 
 	equivalent_object_manager_->initialise(established_reachable_facts);
@@ -2041,7 +2000,7 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 	std::cerr << "Compression rate " << 100 - ((double)equivalent_object_manager_->getNumberOfEquivalentGroups() / (double)total_number_of_eog) * 100 << std::endl;
 #endif
 	
-	equivalent_object_manager_->getAllReachableFacts(result);
+	//equivalent_object_manager_->getAllReachableFacts(result);
 }
 
 void DTGReachability::mapInitialFactsToReachableSets(const std::vector<ReachableFact*>& initial_facts)

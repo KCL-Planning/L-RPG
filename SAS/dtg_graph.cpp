@@ -769,9 +769,9 @@ void DomainTransitionGraph::solveSubsets()
 					{
 						DomainTransitionGraphNode* super_to_node = (*ci).first;
 						unsigned int* to_mapping = (*ci).second;
-					
+#ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 						std::cout << "Super set of the to node: " << *super_to_node << std::endl;
-					
+#endif
 						Transition* new_transition = transition->migrateTransition(*super_from_node, *super_to_node, from_mapping, to_mapping);
 						if (new_transition == NULL)
 						{

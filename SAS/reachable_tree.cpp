@@ -6,7 +6,6 @@
 
 //#define MYPOP_SAS_PLUS_REACHABLE_TREE_COMMENT
 //#define MYPOP_SAS_PLUS_REACHABLE_TREE_DEBUG
-#define MYPOP_SAS_PLUS_REACHABLE_TREE_CLEANUP
 
 namespace MyPOP {
 
@@ -22,14 +21,12 @@ ReachableTreeNode::ReachableTreeNode(ReachableTree& tree, ReachableTreeNode* par
 
 ReachableTreeNode::~ReachableTreeNode()
 {
-#ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_CLEANUP
 	// Delete all children first!
 	for (std::vector<ReachableTreeNode*>::const_reverse_iterator ri = children_.rbegin(); ri != children_.rend(); ri++)
 	{
 		assert (*ri != NULL);
 		delete *ri;
 	}
-#endif
 }
 
 void ReachableTreeNode::printCompleteTree(std::ostream& os) const
@@ -203,9 +200,7 @@ void ReachableTreeNode::updateChildren(const ReachableSet& reachable_set, const 
 		assert (&child->getTree() == tree_);
 		if (child->getReachableFact().isMarkedForRemoval())
 		{
-#ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_CLEANUP
 			delete child;
-#endif
 			children_.erase(ri.base() - 1);
 		}
 		else
@@ -290,9 +285,7 @@ ReachableTree::ReachableTree(const ReachableSet& reachable_set, const std::vecto
 
 ReachableTree::~ReachableTree()
 {
-#ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_CLEANUP
 	if (root_node_ != NULL) delete root_node_;
- #endif
 }
 
 void ReachableTree::addFact(unsigned int level, const ReachableFact& reachable_fact)

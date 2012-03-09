@@ -135,6 +135,9 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_ob
 /**
  * Equivalent Object Group.
  */
+MemoryPool** EquivalentObjectGroup::g_eog_arrays_memory_pool_;
+
+unsigned int EquivalentObjectGroup::max_arity_;
 EquivalentObjectGroup::EquivalentObjectGroup(const DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded)
 	: is_grounded_(is_grounded), link_(NULL), finger_print_(NULL)
 {
@@ -157,6 +160,36 @@ EquivalentObjectGroup::~EquivalentObjectGroup()
 			delete *ci;
 		}
 	}
+}
+
+void EquivalentObjectGroup::initMemoryPool(unsigned int max_arity)
+{
+	g_eog_arrays_memory_pool_ = new MemoryPool*[max_arity];
+	for (unsigned int i = 0; i < max_arity; i++)
+	{
+		g_eog_arrays_memory_pool_[i] = new MemoryPool(sizeof(EquivalentObjectGroup*) * i);
+	}
+	max_arity_ = max_arity;
+}
+
+void EquivalentObjectGroup::deleteMemoryPool()
+{
+	for (unsigned int i = 0; i < max_arity_; i++)
+	{
+		delete g_eog_arrays_memory_pool_[i];
+	}
+	delete[] g_eog_arrays_memory_pool_;
+}
+
+void* EquivalentObjectGroup::operator new[](size_t size)
+{
+	// Check which memory pool to use.
+	return g_eog_arrays_memory_pool_[size / sizeof(EquivalentObjectGroup*)]->allocate(size);
+}
+
+void EquivalentObjectGroup::operator delete[](void* p)
+{
+	// We don't know where it is stored :X.
 }
 
 bool EquivalentObjectGroup::contains(const Object& object) const
@@ -537,6 +570,15 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group)
  */
 EquivalentObjectGroupManager::EquivalentObjectGroupManager(const DomainTransitionGraphManager& dtg_manager, const DomainTransitionGraph& dtg_graph, const TermManager& term_manager)
 {
+	unsigned int max_arity = 0;
+	for (std::vector<const Property*>::const_iterator ci = dtg_graph.getPredicates().begin(); ci != dtg_graph.getPredicates().end(); ci++)
+	{
+		const Property* property = *ci;
+		if (property->getPredicate().getArity() > max_arity) max_arity = property->getPredicate().getArity();
+	}
+	
+	EquivalentObjectGroup::initMemoryPool(max_arity);
+	
 	// Create initial data structures.
 	for (std::vector<const Object*>::const_iterator ci = term_manager.getAllObjects().begin(); ci != term_manager.getAllObjects().end(); ci++)
 	{
@@ -559,6 +601,7 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const DomainTransitio
 
 EquivalentObjectGroupManager::~EquivalentObjectGroupManager()
 {
+	EquivalentObjectGroup::deleteMemoryPool();
 	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
 	{
 		delete *ci;

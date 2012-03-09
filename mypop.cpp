@@ -29,6 +29,7 @@
 #include "SAS/reachable_fact.h"
 #include "relaxed_planning_graph.h"
 #include "SAS/equivalent_object_group.h"
+#include "SAS/reachable_fact.h"
 
 ///#define MYPOP_COMMENTS
 #define MYPOP_KEEP_TIME
@@ -238,12 +239,15 @@ int main(int argc,char * argv[])
 		gettimeofday(&start_time_reachability, NULL);
 #endif
 		analyst.performReachabilityAnalysis(lifted_reachable_facts, bounded_initial_facts, combined_graph.getBindings());
+
 		struct timeval end_time_reachability;
 		gettimeofday(&end_time_reachability, NULL);
 #ifdef MYPOP_KEEP_TIME
 		double time_spend = end_time_reachability.tv_sec - start_time_reachability.tv_sec + (end_time_reachability.tv_usec - start_time_reachability.tv_usec) / 1000000.0;
 		std::cerr << "Reachability analysis: " << time_spend << " seconds" << std::endl;
 #endif
+
+		exit(0);
 
 		if (validate)
 		{
@@ -462,4 +466,5 @@ int main(int argc,char * argv[])
 	delete goal_action;
 //	delete solution_plan;
 	delete VAL::current_analysis;
+//	delete MyPOP::SAS_Plus::g_reachable_fact_memory_pool;
 }

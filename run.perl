@@ -5,9 +5,9 @@ use warnings;
 use POSIX qw(strftime);
 
 #my $domain_name = shift(@ARGV);
-my @domain_names = ("depots");
+#my @domain_names = ("depots");
 #my @domain_names = ("airport", "mystery");
-#my @domain_names = ("driverlog", "satellite", "zeno", "gripper", "rovers", "storage", "depots", "blocksworld");
+my @domain_names = ("driverlog", "satellite", "zeno", "gripper", "rovers", "storage", "depots", "blocksworld");
 #my @domain_names = ("big_storage", "big_driverlog", "big_depots", "big_satellite", "big_zeno");
 #my @domain_names = ("big_storage", "big_depots");
 my $from_problem_count = shift(@ARGV);

@@ -22,12 +22,12 @@
 #include "simple_flaw_selector.h"
 #include "bindings_propagator.h"
 #include "landmarks.h"
-#include "SAS/dtg_manager.h"
-#include "SAS/causal_graph.h"
-#include "SAS/dtg_graph.h"
-#include "SAS/dtg_reachability.h"
 #include "relaxed_planning_graph.h"
-#include "SAS/equivalent_object_group.h"
+#include "sas/dtg_manager.h"
+#include "sas/causal_graph.h"
+#include "sas/dtg_graph.h"
+#include "heuristics/dtg_reachability.h"
+#include "heuristics/equivalent_object_group.h"
 
 ///#define MYPOP_COMMENTS
 #define MYPOP_KEEP_TIME

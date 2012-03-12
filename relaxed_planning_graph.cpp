@@ -6,9 +6,9 @@
 #include "parser_utils.h"
 #include "formula.h"
 #include "predicate_manager.h"
-#include "SAS/dtg_manager.h"
-#include "SAS/equivalent_object_group.h"
-#include "SAS/dtg_reachability.h"
+#include "sas/dtg_manager.h"
+#include "heuristics/equivalent_object_group.h"
+#include "heuristics/dtg_reachability.h"
 
 ///#define MYPOP_RPG_RELAXED_PLANNING_GRAPH
 

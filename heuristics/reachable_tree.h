@@ -9,7 +9,7 @@
 
 namespace MyPOP {
 
-namespace SAS_Plus {
+namespace REACHABILITY {
 
 class ReachableSet;
 

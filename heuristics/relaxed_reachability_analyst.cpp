@@ -11,7 +11,7 @@
 
 namespace MyPOP {
 
-namespace SAS_Plus {
+namespace REACHABILITY {
 
 RelaxedReachabilityAnalyst::RelaxedReachabilityAnalyst(const DomainTransitionGraphManager& dtg_manager)
 	: dtg_manager_(&dtg_manager)

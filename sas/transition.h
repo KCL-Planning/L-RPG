@@ -30,20 +30,6 @@ class Transition;
 class BoundedAtom;
 class PropertySpace;
 
-/**
- * To make my life easier I created a couple of function to help executing functions like std::remove_if.
- */
-namespace Utilities {
-
-	/**
-	 * Check if the given DTG node is the destination node for the given transition.
-	 */
-	struct TransitionToNodeEquals : public std::binary_function<const Transition*, const DomainTransitionGraphNode*, bool>
-	{
-		bool operator()(const Transition* transition, const DomainTransitionGraphNode* dtg_node) const;
-	};
-};
-
 class BalancedPropertySet;
 
 struct CompareBalancedPropertySet {

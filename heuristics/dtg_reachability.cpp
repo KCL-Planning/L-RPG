@@ -20,12 +20,12 @@
 //#define DTG_REACHABILITY_KEEP_TIME
 namespace MyPOP {
 
-namespace SAS_Plus {
+namespace REACHABILITY {
 	
 unsigned int ReachableTransition::generated_new_reachable_facts = 0;
 unsigned int ReachableTransition::accepted_new_reachable_facts = 0;
 
-ReachableFact::ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager)
+ReachableFact::ReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager)
 	: atom_(&bounded_atom.getAtom()), replaced_by_(NULL)
 {
 	term_domain_mapping_ = new EquivalentObjectGroup*[bounded_atom.getAtom().getArity()];
@@ -1041,10 +1041,10 @@ bool ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsign
 /**
  * ReachableNode
  */
-ReachableNode::ReachableNode(const DomainTransitionGraphNode& dtg_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager)
+ReachableNode::ReachableNode(const SAS_Plus::DomainTransitionGraphNode& dtg_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager)
 	: ReachableSet(eog_manager), dtg_node_(&dtg_node)
 {
-	for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node.getAtoms().begin(); ci != dtg_node.getAtoms().end(); ci++)
+	for (std::vector<SAS_Plus::BoundedAtom*>::const_iterator ci = dtg_node.getAtoms().begin(); ci != dtg_node.getAtoms().end(); ci++)
 	{
 		addBoundedAtom((*ci)->getId(), (*ci)->getAtom(), dtg_node.getDTG().getBindings(), predicate_manager);
 	}
@@ -1794,12 +1794,12 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 	// Initialise the individual groups per object.
 	equivalent_object_manager_ = new EquivalentObjectGroupManager(dtg_manager, dtg_graph, term_manager);
 	
-	std::map<const DomainTransitionGraphNode*, ReachableNode*> node_mapping;
+	std::map<const SAS_Plus::DomainTransitionGraphNode*, ReachableNode*> node_mapping;
 	std::vector<ReachableSet*> all_reachable_sets;
 	std::vector<ReachableTransition*> all_reachable_transitions;
-	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph.getNodes().begin(); ci != dtg_graph.getNodes().end(); ci++)
+	for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = dtg_graph.getNodes().begin(); ci != dtg_graph.getNodes().end(); ci++)
 	{
-		DomainTransitionGraphNode* dtg_node = *ci;
+		SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
 		
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 		std::cout << *dtg_node << std::endl;
@@ -1812,14 +1812,14 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 		all_reachable_sets.push_back(reachable_node);
 	}
 	
-	for (std::map<const DomainTransitionGraphNode*, ReachableNode*>::const_iterator ci = node_mapping.begin(); ci != node_mapping.end(); ci++)
+	for (std::map<const SAS_Plus::DomainTransitionGraphNode*, ReachableNode*>::const_iterator ci = node_mapping.begin(); ci != node_mapping.end(); ci++)
 	{
-		const DomainTransitionGraphNode* dtg_node = (*ci).first;
+		const SAS_Plus::DomainTransitionGraphNode* dtg_node = (*ci).first;
 		ReachableNode* reachable_from_node = (*ci).second;
 		
-		for (std::vector<const Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
+		for (std::vector<const SAS_Plus::Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
 		{
-			const Transition* transition = *ci;
+			const SAS_Plus::Transition* transition = *ci;
 			ReachableNode* reachable_to_node = node_mapping[&transition->getToNode()];
 			ReachableTransition* reachable_transition = new ReachableTransition(**ci, *reachable_from_node, *reachable_to_node, *equivalent_object_manager_, predicate_manager);
 			 
@@ -1838,7 +1838,7 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 	// Search for a reachable node which contains the same nodes as a reachable transition and check if the node has a transition which contains the same 
 	// facts as the from node of the found transition.
 	std::set<const ReachableSet*> reachable_set_to_remove;
-	for (std::map<const DomainTransitionGraphNode*, ReachableNode*>::const_iterator ci = node_mapping.begin(); ci != node_mapping.end(); ci++)
+	for (std::map<const SAS_Plus::DomainTransitionGraphNode*, ReachableNode*>::const_iterator ci = node_mapping.begin(); ci != node_mapping.end(); ci++)
 	{
 		ReachableNode* reachable_from_node = (*ci).second;
 		
@@ -1902,7 +1902,7 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 	}
 	
 	// Remove all the nodes which have no transitions!
-	for (std::map<const DomainTransitionGraphNode*, ReachableNode*>::const_iterator ci = node_mapping.begin(); ci != node_mapping.end(); ci++)
+	for (std::map<const SAS_Plus::DomainTransitionGraphNode*, ReachableNode*>::const_iterator ci = node_mapping.begin(); ci != node_mapping.end(); ci++)
 	{
 		ReachableNode* reachable_from_node = (*ci).second;
 		
@@ -2029,7 +2029,7 @@ DTGReachability::~DTGReachability()
 }
 
 
-void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFact*>& result, const std::vector<const BoundedAtom*>& initial_facts, const Bindings& bindings)
+void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFact*>& result, const std::vector<const SAS_Plus::BoundedAtom*>& initial_facts, const Bindings& bindings)
 {
 //	double time_propagating = 0;
 //	double time_iterating = 0;
@@ -2048,7 +2048,7 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 	// Transform the set of initial facts into reachable facts, which means we drop the variable domains
 	// and work solely with equivalent object groups.
 	std::vector<ReachableFact*> established_reachable_facts;
-	for (std::vector<const BoundedAtom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
+	for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
 	{
 		ReachableFact* initial_reachable_fact = new ReachableFact(**ci, bindings, *equivalent_object_manager_);
 		established_reachable_facts.push_back(initial_reachable_fact);

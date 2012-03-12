@@ -2310,12 +2310,6 @@ bool Transition::finalise(const std::vector<const Atom*>& initial_facts)
 	return true;
 }
 
-
-bool Utilities::TransitionToNodeEquals::operator()(const Transition* transition, const DomainTransitionGraphNode* dtg_node) const
-{
-	return &transition->getToNode() == dtg_node;
-}
-
 std::ostream& operator<<(std::ostream& os, const Transition& transition)
 {
 	os << "Transition from: " << std::endl;

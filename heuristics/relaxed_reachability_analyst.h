@@ -11,10 +11,12 @@ class Bindings;
 class Object;
 
 namespace SAS_Plus {
-
 class BoundedAtom;
 class DomainTransitionGraphManager;
 class DomainTransitionGraphNode;
+}
+
+namespace REACHABILITY {
 	
 /**
  * Take the DTG nodes constructed and perform the same analyse as done by the relaxed planning graph.

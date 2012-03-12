@@ -17,7 +17,7 @@ namespace MyPOP {
 namespace RPG {
 
 	
-ResolvedAction::ResolvedAction(const Action& action, StepID step_id, const Bindings& bindings, const SAS_Plus::EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager)
+ResolvedAction::ResolvedAction(const Action& action, StepID step_id, const Bindings& bindings, const REACHABILITY::EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager)
 	: step_id_(step_id), action_(&action), bindings_(&bindings)
 {
 	const Formula& precondition_formula = action.getPrecondition();
@@ -27,25 +27,25 @@ ResolvedAction::ResolvedAction(const Action& action, StepID step_id, const Bindi
 	for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 	{
 		const Atom* precondition = *ci;
-		SAS_Plus::ResolvedBoundedAtom* resolved_precondition = new SAS_Plus::ResolvedBoundedAtom(step_id, *precondition, bindings, eog_manager, predicate_manager);
+		REACHABILITY::ResolvedBoundedAtom* resolved_precondition = new REACHABILITY::ResolvedBoundedAtom(step_id, *precondition, bindings, eog_manager, predicate_manager);
 		preconditions_.push_back(resolved_precondition);
 	}
 	
 	for (std::vector<const Atom*>::const_iterator ci = action.getEffects().begin(); ci != action.getEffects().end(); ci++)
 	{
-		SAS_Plus::ResolvedBoundedAtom* resolved_effect = new SAS_Plus::ResolvedBoundedAtom(step_id, **ci, bindings, eog_manager, predicate_manager);
+		REACHABILITY::ResolvedBoundedAtom* resolved_effect = new REACHABILITY::ResolvedBoundedAtom(step_id, **ci, bindings, eog_manager, predicate_manager);
 		effects_.push_back(resolved_effect);
 	}
 }
 
 ResolvedAction::~ResolvedAction()
 {
-	for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator ci = preconditions_.begin(); ci != preconditions_.end(); ci++)
+	for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator ci = preconditions_.begin(); ci != preconditions_.end(); ci++)
 	{
 		delete *ci;
 	}
 	
-	for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator ci = effects_.begin(); ci != effects_.end(); ci++)
+	for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator ci = effects_.begin(); ci != effects_.end(); ci++)
 	{
 		delete *ci;
 	}
@@ -71,31 +71,31 @@ FactLayer::FactLayer(const FactLayer& fact_layer)
 
 FactLayer::~FactLayer()
 {
-	for (std::vector<std::vector<const SAS_Plus::ResolvedBoundedAtom*>*>::const_iterator ci = mapped_facts_to_remove_.begin(); ci != mapped_facts_to_remove_.end(); ci++)
+	for (std::vector<std::vector<const REACHABILITY::ResolvedBoundedAtom*>*>::const_iterator ci = mapped_facts_to_remove_.begin(); ci != mapped_facts_to_remove_.end(); ci++)
 	{
 		delete *ci;
 	}
 	
 	if (delete_facts_)
 	{
-		for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator ci = facts_.begin(); ci != facts_.end(); ci++)
+		for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator ci = facts_.begin(); ci != facts_.end(); ci++)
 		{
 			delete *ci;
 		}
 	}
 }
 
-bool FactLayer::addFact(const SAS_Plus::ResolvedBoundedAtom& bounded_atom)
+bool FactLayer::addFact(const REACHABILITY::ResolvedBoundedAtom& bounded_atom)
 {
 	// Check if any of the existing facts can be unified with the given bounded atom. If this is the case
 	// this atom will not be added.
 	std::string unique_name = getUniqueName(bounded_atom);
 	
-	std::map<std::string, std::vector<const SAS_Plus::ResolvedBoundedAtom*>* >::iterator i = mapped_facts_.find(unique_name);
-	std::vector<const SAS_Plus::ResolvedBoundedAtom*>* mapping = NULL;
+	std::map<std::string, std::vector<const REACHABILITY::ResolvedBoundedAtom*>* >::iterator i = mapped_facts_.find(unique_name);
+	std::vector<const REACHABILITY::ResolvedBoundedAtom*>* mapping = NULL;
 	if (i == mapped_facts_.end())
 	{
-		mapping = new std::vector<const SAS_Plus::ResolvedBoundedAtom*>();
+		mapping = new std::vector<const REACHABILITY::ResolvedBoundedAtom*>();
 		mapped_facts_[getUniqueName(bounded_atom)] = mapping;
 		mapped_facts_to_remove_.push_back(mapping);
 	}
@@ -103,7 +103,7 @@ bool FactLayer::addFact(const SAS_Plus::ResolvedBoundedAtom& bounded_atom)
 	{
 		mapping = (*i).second;
 		
-		for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator ci = mapping->begin(); ci != mapping->end(); ci++)
+		for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator ci = mapping->begin(); ci != mapping->end(); ci++)
 		{
 			if (bounded_atom.getOriginalAtom().isNegative() == (*ci)->getOriginalAtom().isNegative() &&
 			    bounded_atom.canUnifyWith(**ci))
@@ -119,9 +119,9 @@ bool FactLayer::addFact(const SAS_Plus::ResolvedBoundedAtom& bounded_atom)
 	return true;
 }
 
-const std::vector<const SAS_Plus::ResolvedBoundedAtom*>* FactLayer::getFacts(const SAS_Plus::ResolvedBoundedAtom& precondition) const
+const std::vector<const REACHABILITY::ResolvedBoundedAtom*>* FactLayer::getFacts(const REACHABILITY::ResolvedBoundedAtom& precondition) const
 {
-	std::map<std::string, std::vector<const SAS_Plus::ResolvedBoundedAtom*>* >::const_iterator i = mapped_facts_.find(getUniqueName(precondition));
+	std::map<std::string, std::vector<const REACHABILITY::ResolvedBoundedAtom*>* >::const_iterator i = mapped_facts_.find(getUniqueName(precondition));
 	if (i == mapped_facts_.end())
 	{
 		return NULL;
@@ -129,13 +129,13 @@ const std::vector<const SAS_Plus::ResolvedBoundedAtom*>* FactLayer::getFacts(con
 	return (*i).second;
 }
 
-std::string FactLayer::getUniqueName(const SAS_Plus::ResolvedBoundedAtom& atom) const
+std::string FactLayer::getUniqueName(const REACHABILITY::ResolvedBoundedAtom& atom) const
 {
 	return atom.getOriginalAtom().getPredicate().getName();
 }
 
 
-RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, const Plan& initial_plan, const SAS_Plus::EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager)
+RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, const Plan& initial_plan, const REACHABILITY::EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager)
 	: bindings_(new Bindings(initial_plan.getBindings()))
 {
 	const Action& initial_state_action = initial_plan.getSteps()[0]->getAction();
@@ -145,7 +145,7 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 	{
 //		SAS_Plus::BoundedAtom* new_bounded_atom = new SAS_Plus::BoundedAtom(Step::INITIAL_STEP, **ci);
 //		SAS_Plus::ResolvedBoundedAtom* resolved_bounded_atom = new SAS_Plus::ResolvedBoundedAtom(*new_bounded_atom, *bindings_, eog_manager, predicate_manager);
-		SAS_Plus::ResolvedBoundedAtom* resolved_bounded_atom = new SAS_Plus::ResolvedBoundedAtom(Step::INITIAL_STEP, **ci, *bindings_, eog_manager, predicate_manager);
+		REACHABILITY::ResolvedBoundedAtom* resolved_bounded_atom = new REACHABILITY::ResolvedBoundedAtom(Step::INITIAL_STEP, **ci, *bindings_, eog_manager, predicate_manager);
 		initial_fact_layer->addFact(*resolved_bounded_atom);
 	}
 	FactLayer* next_fact_layer = new FactLayer(*initial_fact_layer);
@@ -181,12 +181,12 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 			const ResolvedAction* resolved_action = *action_ci;
 
 			bool preconditions_are_satisfied = true;
-			for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator precondition_ci = resolved_action->getPreconditions().begin(); precondition_ci != resolved_action->getPreconditions().end(); precondition_ci++)
+			for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator precondition_ci = resolved_action->getPreconditions().begin(); precondition_ci != resolved_action->getPreconditions().end(); precondition_ci++)
 			{
-				const SAS_Plus::ResolvedBoundedAtom* precondition = *precondition_ci;
+				const REACHABILITY::ResolvedBoundedAtom* precondition = *precondition_ci;
 				bool precondition_satisfied = false;
 				
-				const std::vector<const SAS_Plus::ResolvedBoundedAtom*>* supporting_facts = current_fact_layer->getFacts(*precondition);
+				const std::vector<const REACHABILITY::ResolvedBoundedAtom*>* supporting_facts = current_fact_layer->getFacts(*precondition);
 				
 				if (supporting_facts == NULL)
 				{
@@ -194,7 +194,7 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 					break;
 				}
 				
-				for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator layer_ci = supporting_facts->begin(); layer_ci != supporting_facts->end(); layer_ci++)
+				for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator layer_ci = supporting_facts->begin(); layer_ci != supporting_facts->end(); layer_ci++)
 				//for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator layer_ci = current_fact_layer->getFacts().begin(); layer_ci != current_fact_layer->getFacts().end(); layer_ci++)
 				{
 					if (precondition->getOriginalAtom().isNegative() == (*layer_ci)->getOriginalAtom().isNegative() && 
@@ -215,7 +215,7 @@ RelaxedPlanningGraph::RelaxedPlanningGraph(const ActionManager& action_manager, 
 			// If all preconditions are satisfied, add all the action's effects to the new layer.
 			if (preconditions_are_satisfied)
 			{
-				for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator ci = resolved_action->getEffects().begin(); ci != resolved_action->getEffects().end(); ci++)
+				for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator ci = resolved_action->getEffects().begin(); ci != resolved_action->getEffects().end(); ci++)
 				{
 					next_fact_layer->addFact(**ci);
 				}
@@ -286,7 +286,7 @@ std::ostream& operator<<(std::ostream& os, const RelaxedPlanningGraph& rpg)
 	for (unsigned int i = 0; i < action_layers.size(); i++)
 	{
 		std::cout << "Fact layer " << i << std::endl;
-		for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator facts_ci = fact_layers[i]->getFacts().begin(); facts_ci != fact_layers[i]->getFacts().end(); facts_ci++)
+		for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator facts_ci = fact_layers[i]->getFacts().begin(); facts_ci != fact_layers[i]->getFacts().end(); facts_ci++)
 		{
 			std::cout << **facts_ci << std::endl;
 		}
@@ -300,7 +300,7 @@ std::ostream& operator<<(std::ostream& os, const RelaxedPlanningGraph& rpg)
 
 	// The last layer is the last fact layer.
 	std::cout << "Fact layer " << fact_layers.size() - 1 << std::endl;
-	for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator facts_ci = fact_layers[fact_layers.size() - 1]->getFacts().begin(); facts_ci != fact_layers[fact_layers.size() - 1]->getFacts().end(); facts_ci++)
+	for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator facts_ci = fact_layers[fact_layers.size() - 1]->getFacts().begin(); facts_ci != fact_layers[fact_layers.size() - 1]->getFacts().end(); facts_ci++)
 	{
 		std::cout << **facts_ci << std::endl;
 	}

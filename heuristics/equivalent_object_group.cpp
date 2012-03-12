@@ -18,7 +18,7 @@
 
 namespace MyPOP {
 	
-namespace SAS_Plus {
+namespace REACHABILITY {
 
 /**
  * Equivalent Object.
@@ -137,7 +137,7 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_ob
 MyPOP::UTILITY::MemoryPool** EquivalentObjectGroup::g_eog_arrays_memory_pool_;
 
 unsigned int EquivalentObjectGroup::max_arity_;
-EquivalentObjectGroup::EquivalentObjectGroup(const DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded)
+EquivalentObjectGroup::EquivalentObjectGroup(const SAS_Plus::DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded)
 	: is_grounded_(is_grounded), link_(NULL), finger_print_(NULL)
 {
 	if (object != NULL)
@@ -216,14 +216,14 @@ bool EquivalentObjectGroup::hasSameFingerPrint(const EquivalentObjectGroup& othe
 //	return true;
 }
 	
-void EquivalentObjectGroup::initialiseFingerPrint(const DomainTransitionGraph& dtg_graph, const Object& object)
+void EquivalentObjectGroup::initialiseFingerPrint(const SAS_Plus::DomainTransitionGraph& dtg_graph, const Object& object)
 {
 	// Check the DTG graph and check which DTG nodes an object can be part of based on its type.
 	unsigned int number_of_facts = 0;
-	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph.getNodes().begin(); ci != dtg_graph.getNodes().end(); ci++)
+	for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = dtg_graph.getNodes().begin(); ci != dtg_graph.getNodes().end(); ci++)
 	{
-		const DomainTransitionGraphNode* dtg_node = *ci;
-		for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
+		const SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
+		for (std::vector<SAS_Plus::BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
 		{
 			number_of_facts += (*ci)->getAtom().getArity();
 		}
@@ -234,12 +234,12 @@ void EquivalentObjectGroup::initialiseFingerPrint(const DomainTransitionGraph& d
 	memset(&finger_print_[0], false, sizeof(bool) * number_of_facts);
 	
 	number_of_facts = 0;
-	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_graph.getNodes().begin(); ci != dtg_graph.getNodes().end(); ci++)
+	for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = dtg_graph.getNodes().begin(); ci != dtg_graph.getNodes().end(); ci++)
 	{
-		const DomainTransitionGraphNode* dtg_node = *ci;
-		for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
+		const SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
+		for (std::vector<SAS_Plus::BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
 		{
-			const BoundedAtom* bounded_atom = *ci;
+			const SAS_Plus::BoundedAtom* bounded_atom = *ci;
 			for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
 			{
 				const Term* term = *ci;
@@ -567,12 +567,12 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group)
 /**
  * Equivalent Object Group Manager.
  */
-EquivalentObjectGroupManager::EquivalentObjectGroupManager(const DomainTransitionGraphManager& dtg_manager, const DomainTransitionGraph& dtg_graph, const TermManager& term_manager)
+EquivalentObjectGroupManager::EquivalentObjectGroupManager(const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const SAS_Plus::DomainTransitionGraph& dtg_graph, const TermManager& term_manager)
 {
 	unsigned int max_arity = 0;
-	for (std::vector<const Property*>::const_iterator ci = dtg_graph.getPredicates().begin(); ci != dtg_graph.getPredicates().end(); ci++)
+	for (std::vector<const SAS_Plus::Property*>::const_iterator ci = dtg_graph.getPredicates().begin(); ci != dtg_graph.getPredicates().end(); ci++)
 	{
-		const Property* property = *ci;
+		const SAS_Plus::Property* property = *ci;
 		if (property->getPredicate().getArity() > max_arity) max_arity = property->getPredicate().getArity();
 	}
 	

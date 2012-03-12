@@ -25,27 +25,30 @@ class PredicateManager;
 	
 namespace SAS_Plus {
 
-class ReachableTree;
-
 class Property;
 class PropertySpace;
 
 class BoundedAtom;
 class DomainTransitionGraph;
 class DomainTransitionGraphNode;
-class DTGReachability;
 class Transition;
+};
+
+namespace REACHABILITY {
+
+class ReachableTree;
+class DTGReachability;
 
 class EquivalentObjectGroup;
 class EquivalentObjectGroupManager;
 
 class ReachableTransition;
 class ReachableTreeNode;
-
+	
 class ReachableFact
 {
 public:
-	ReachableFact(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
+	ReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
 	
 	ReachableFact(const Atom& atom, EquivalentObjectGroup** term_domain_mapping);
 	
@@ -377,7 +380,7 @@ private:
 class ReachableNode : public ReachableSet
 {
 public:
-	ReachableNode(const DomainTransitionGraphNode& dtg_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
+	ReachableNode(const SAS_Plus::DomainTransitionGraphNode& dtg_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
 	
 	virtual ~ReachableNode();
 
@@ -387,7 +390,7 @@ public:
 	 */
 	void initialise(const std::vector<ReachableFact*>& initial_facts);
 	
-	const DomainTransitionGraphNode& getDTGNode() const { return *dtg_node_; }
+	const SAS_Plus::DomainTransitionGraphNode& getDTGNode() const { return *dtg_node_; }
 	
 	void addReachableTransition(ReachableTransition& reachable_transition);
 	
@@ -401,7 +404,7 @@ public:
 	
 private:
 	
-	const DomainTransitionGraphNode* dtg_node_;
+	const SAS_Plus::DomainTransitionGraphNode* dtg_node_;
 	
 	// All the transitions which have this node as from node.
 	std::vector<ReachableTransition*> reachable_transitions_;
@@ -442,7 +445,7 @@ struct VariableToValues
 class ReachableTransition : public ReachableSet
 {
 public:
-	ReachableTransition(const Transition& transition, ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
+	ReachableTransition(const SAS_Plus::Transition& transition, ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
 	
 	virtual ~ReachableTransition();
 	
@@ -466,7 +469,7 @@ public:
 	
 	void equivalencesUpdated(unsigned int iteration);
 	
-	const Transition& getTransition() const { return *transition_; }
+	const SAS_Plus::Transition& getTransition() const { return *transition_; }
 	
 	ReachableNode& getFromNode() const { return *from_node_; }
 	const ReachableNode& getToNode() const { return *to_node_; }
@@ -481,7 +484,7 @@ private:
 	ReachableNode* from_node_;
 	const ReachableNode* to_node_;
 	
-	const Transition* transition_;
+	const SAS_Plus::Transition* transition_;
 	
 	// To speed up the process we resolve all the variable domains of all the effects.
 	std::vector<ResolvedEffect*> effects_;
@@ -530,6 +533,26 @@ private:
 
 std::ostream& operator<<(std::ostream& os, const ReachableTransition& reachable_transition);
 
+class FactLayer {
+public:
+	FactLayer(unsigned int nr);
+	void addFact(const ReachableFact& reachable_fact);
+	
+private:
+	unsigned int nr_;
+	std::vector<const ReachableFact*> reachable_facts_;
+};
+
+class ActionLayer {
+public:
+	ActionLayer(unsigned int nr);
+	void addAction(const ReachableTransition& reachable_action);
+	
+private:
+	unsigned int nr_;
+	std::vector<const ReachableTransition*> reachable_actions_;
+};
+
 /**
  * Utility class to perform relaxed reachability analysis on a given DTG.
  */
@@ -539,11 +562,11 @@ public:
 	/**
 	 * Constructor.
 	 */
-	DTGReachability(const DomainTransitionGraphManager& dtg_manager, const DomainTransitionGraph& dtg_graph, const TermManager& term_manager, PredicateManager& predicate_manager);
+	DTGReachability(const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const SAS_Plus::DomainTransitionGraph& dtg_graph, const TermManager& term_manager, PredicateManager& predicate_manager);
 	
 	~DTGReachability();
 	
-	void performReachabilityAnalysis(std::vector<const ReachableFact*>& result, const std::vector<const BoundedAtom*>& initial_facts, const Bindings& bindings);
+	void performReachabilityAnalysis(std::vector<const ReachableFact*>& result, const std::vector<const SAS_Plus::BoundedAtom*>& initial_facts, const Bindings& bindings);
 	
 	const EquivalentObjectGroupManager& getEquivalentObjectGroupManager() const { return *equivalent_object_manager_; }
 	

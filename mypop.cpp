@@ -205,10 +205,10 @@ int main(int argc,char * argv[])
 	struct timeval start_time_prepare_reachability;
 	gettimeofday(&start_time_prepare_reachability, NULL);
 #endif
-	std::vector<const SAS_Plus::ReachableFact*> lifted_reachable_facts;
+	std::vector<const REACHABILITY::ReachableFact*> lifted_reachable_facts;
 	{
 
-		SAS_Plus::DTGReachability analyst(*dtg_manager, combined_graph, term_manager, predicate_manager);
+		REACHABILITY::DTGReachability analyst(*dtg_manager, combined_graph, term_manager, predicate_manager);
 #ifdef MYPOP_KEEP_TIME
 		struct timeval end_time_prepare_reachability;
 		gettimeofday(&end_time_prepare_reachability, NULL);	
@@ -253,17 +253,17 @@ int main(int argc,char * argv[])
 			
 			const std::vector<RPG::FactLayer*>& fact_layers = rpg.getFactLayers();
 			const RPG::FactLayer* last_layer = fact_layers[fact_layers.size() - 1];
-			const std::vector<const SAS_Plus::ResolvedBoundedAtom*>& reachable_facts = last_layer->getFacts();
+			const std::vector<const REACHABILITY::ResolvedBoundedAtom*>& reachable_facts = last_layer->getFacts();
 			
 			bool all_clear = true;
-			for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
+			for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
 			{
-				const SAS_Plus::ResolvedBoundedAtom* rpg_bounded_atom = *ci;
+				const REACHABILITY::ResolvedBoundedAtom* rpg_bounded_atom = *ci;
 				if (rpg_bounded_atom->getOriginalAtom().isNegative()) continue;
 				bool reached = false;
-				for (std::vector<const SAS_Plus::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
+				for (std::vector<const REACHABILITY::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
 				{
-					const SAS_Plus::ReachableFact* lifted_bounded_atom = *ci;
+					const REACHABILITY::ReachableFact* lifted_bounded_atom = *ci;
 					
 					if (lifted_bounded_atom->getAtom().getPredicate().getName() != rpg_bounded_atom->getOriginalAtom().getPredicate().getName()) continue;
 				
@@ -274,7 +274,7 @@ int main(int argc,char * argv[])
 					{
 						const Object* grounded_object = rpg_bounded_atom->getVariableDomain(i)[0];
 						
-						const SAS_Plus::EquivalentObjectGroup& eog = lifted_bounded_atom->getTermDomain(i);
+						const REACHABILITY::EquivalentObjectGroup& eog = lifted_bounded_atom->getTermDomain(i);
 						
 						if (!eog.contains(*grounded_object))
 						{
@@ -292,9 +292,9 @@ int main(int argc,char * argv[])
 				
 				if (!reached)
 				{
-					for (std::vector<const SAS_Plus::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
+					for (std::vector<const REACHABILITY::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
 					{
-						const SAS_Plus::ReachableFact* lifted_bounded_atom = *ci;
+						const REACHABILITY::ReachableFact* lifted_bounded_atom = *ci;
 						std::cout << "Compare against: " << *lifted_bounded_atom << std::endl;
 						
 						if (lifted_bounded_atom->getAtom().getPredicate().getName() != rpg_bounded_atom->getOriginalAtom().getPredicate().getName())
@@ -314,7 +314,7 @@ int main(int argc,char * argv[])
 						{
 							const Object* grounded_object = rpg_bounded_atom->getVariableDomain(i)[0];
 							
-							const SAS_Plus::EquivalentObjectGroup& eog = lifted_bounded_atom->getTermDomain(i);
+							const REACHABILITY::EquivalentObjectGroup& eog = lifted_bounded_atom->getTermDomain(i);
 							
 							if (!eog.contains(*grounded_object))
 							{
@@ -342,13 +342,13 @@ int main(int argc,char * argv[])
 			}
 			
 			
-			for (std::vector<const SAS_Plus::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
+			for (std::vector<const REACHABILITY::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
 			{
-				const SAS_Plus::ReachableFact* lifted_bounded_atom = *ci;
+				const REACHABILITY::ReachableFact* lifted_bounded_atom = *ci;
 				bool reached = false;
-				for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
+				for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
 				{
-					const SAS_Plus::ResolvedBoundedAtom* rpg_bounded_atom = *ci;
+					const REACHABILITY::ResolvedBoundedAtom* rpg_bounded_atom = *ci;
 					
 					if (lifted_bounded_atom->getAtom().getPredicate().getName() != rpg_bounded_atom->getOriginalAtom().getPredicate().getName()) continue;
 				
@@ -359,7 +359,7 @@ int main(int argc,char * argv[])
 					{
 						const Object* grounded_object = rpg_bounded_atom->getVariableDomain(i)[0];
 						
-						const SAS_Plus::EquivalentObjectGroup& eog = lifted_bounded_atom->getTermDomain(i);
+						const REACHABILITY::EquivalentObjectGroup& eog = lifted_bounded_atom->getTermDomain(i);
 						
 						if (!eog.contains(*grounded_object))
 						{
@@ -384,7 +384,7 @@ int main(int argc,char * argv[])
 			
 			if (!all_clear)
 			{
-				for (std::vector<const SAS_Plus::ResolvedBoundedAtom*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
+				for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
 				{
 					std::cout << "* Reachable lifted fact: " << **ci << std::endl;
 				}
@@ -392,16 +392,7 @@ int main(int argc,char * argv[])
 				exit(1);
 			}
 		}
-//		for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = bounded_initial_facts.begin(); ci != bounded_initial_facts.end(); ci++)
-//		{
-//			delete *ci;
-//		}
 	}
-
-//	for (std::vector<const SAS_Plus::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
-//	{
-//		delete *ci;
-//	}
 
 //	Graphviz::printToDot(dtg_manager);
 //	for (std::vector<SAS_Plus::DomainTransitionGraph*>::const_iterator ci = dtg_manager.getManagableObjects().begin(); ci != dtg_manager.getManagableObjects().end(); ci++)

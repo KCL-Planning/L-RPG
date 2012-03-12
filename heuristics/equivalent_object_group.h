@@ -19,9 +19,11 @@ class MemoryPool;
 }
 	
 namespace SAS_Plus {
-
 class DomainTransitionGraph;
 class DomainTransitionGraphManager;
+};
+
+namespace REACHABILITY {
 class EquivalentObjectGroup;
 class ReachableFact;
 
@@ -78,7 +80,7 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_ob
 class EquivalentObjectGroup
 {
 public:
-	EquivalentObjectGroup(const DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded);
+	EquivalentObjectGroup(const SAS_Plus::DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded);
 	
 	~EquivalentObjectGroup();
 	
@@ -160,7 +162,7 @@ private:
 	 * Every equivalent object group has a finger print which correlates to the terms of the facts in the DTG nodes
 	 * the object can be a part of. At the moment we do not consider sub / super sets yet.
 	 */
-	void initialiseFingerPrint(const DomainTransitionGraph& dtg_graph, const Object& object);
+	void initialiseFingerPrint(const SAS_Plus::DomainTransitionGraph& dtg_graph, const Object& object);
 	
 	/**
 	 * Merge the given group with this group.
@@ -189,7 +191,7 @@ public:
 	/**
 	 * Initialise the individual groups.
 	 */
-	EquivalentObjectGroupManager(const DomainTransitionGraphManager& dtg_manager, const DomainTransitionGraph& dtg_graph, const TermManager& term_manager);
+	EquivalentObjectGroupManager(const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const SAS_Plus::DomainTransitionGraph& dtg_graph, const TermManager& term_manager);
 	
 	~EquivalentObjectGroupManager();
 	

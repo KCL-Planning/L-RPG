@@ -8,7 +8,7 @@
 
 namespace MyPOP {
 
-namespace SAS_Plus {
+namespace REACHABILITY {
 
 ReachableTreeNode::ReachableTreeNode(ReachableTree& tree, ReachableTreeNode* parent, unsigned int level, const ReachableFact& reachable_fact)
 	: tree_(&tree), parent_(parent), level_(level), max_level_of_children_(level), reachable_fact_(&reachable_fact), last_iteration_updated_(std::numeric_limits<unsigned int>::max()), has_been_processed_(false)
@@ -491,7 +491,7 @@ std::ostream& operator<<(std::ostream& os, const ReachableTree& reachable_tree)
 	os << "[ReachableTree - " << &reachable_tree << "^" << reachable_tree.constraints_set_ << "] " << *reachable_tree.getRoot();
 	return os;
 }
-    const MyPOP::SAS_Plus::ReachableTree* reachable_tree_;
+    const ReachableTree* reachable_tree_;
 
 };
 

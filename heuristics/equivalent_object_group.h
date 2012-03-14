@@ -81,7 +81,7 @@ class EquivalentObjectGroup
 {
 public:
 	EquivalentObjectGroup(const SAS_Plus::DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded);
-	
+
 	~EquivalentObjectGroup();
 	
 	static void initMemoryPool(unsigned int max_arity);
@@ -101,30 +101,18 @@ public:
 	inline bool isGrounded() const { return is_grounded_; }
 	
 	bool contains(const Object& object) const;
+	bool contains(const Object& object, unsigned int iteration) const;
 	
 	bool isIdenticalTo(EquivalentObjectGroup& other);
 	
-	inline const std::vector<EquivalentObject*>& getEquivalentObjects() const { return equivalent_objects_; }
+	const std::vector<EquivalentObject*>& getEquivalentObjects() const { return equivalent_objects_; }
 	
 	bool hasSameFingerPrint(const EquivalentObjectGroup& other) const;
 	
-	inline const std::vector<ReachableFact*>& getReachableFacts() const { return reachable_facts_; }
-	
-	/**
-	 * Try to merge the given objectGroup with this group. If the merge can take place, the other object place is merged with
-	 * this one. We can merge two groups if the initial DTG node of this group is reachable from the initial DTG node of the other
-	 * group and visa versa, and - in addition - if the types of the objects are the same.
-	 * @param objectGroup The object group which we try to merge with this node.
-	 * @return True if the groups could be merged, false otherwise.
-	 */
-	bool tryToMergeWith(EquivalentObjectGroup& object_group, std::vector<EquivalentObjectGroup*>& affected_groups);
+	const std::vector<ReachableFact*>& getReachableFacts() const { return reachable_facts_; }
 	
 	bool operator==(const EquivalentObjectGroup& other) const;
 	bool operator!=(const EquivalentObjectGroup& other) const;
-	
-	void printObjects(std::ostream& os) const;
-	
-	void printGrounded(std::ostream& os) const;
 	
 	/**
 	 * As equivalent object groups are merged the merged node will become a child node of the node it got merged into. Internally
@@ -138,8 +126,24 @@ public:
 	 * Remove all the reachable facts which have been marked for removal.
 	 */
 	void deleteRemovedFacts();
+	
+	void updateEquivalences(const std::vector<EquivalentObjectGroup*>& all_eogs, std::vector<EquivalentObjectGroup*>& affected_groups, unsigned int iteration);
+	
+	void printObjects(std::ostream& os) const;
+	void printObjects(std::ostream& os, unsigned int iteration) const;
+	
+	void printGrounded(std::ostream& os) const;
 
 private:
+	
+	/**
+	 * Try to merge the given objectGroup with this group. If the merge can take place, the other object place is merged with
+	 * this one. We can merge two groups if the initial DTG node of this group is reachable from the initial DTG node of the other
+	 * group and visa versa, and - in addition - if the types of the objects are the same.
+	 * @param objectGroup The object group which we try to merge with this node.
+	 * @return True if the groups could be merged, false otherwise.
+	 */
+	bool tryToMergeWith(EquivalentObjectGroup& object_group, std::vector<EquivalentObjectGroup*>& affected_groups, unsigned int iteration);
 	
 	static MyPOP::UTILITY::MemoryPool** g_eog_arrays_memory_pool_;
 	
@@ -171,6 +175,11 @@ private:
 	
 	bool* finger_print_;
 	unsigned int finger_print_size_;
+	
+	// We keep track of both the size and when this EOG was merged. That way we can reconstruct the reachable facts 
+	// which have been made true during each iteration.
+	unsigned int merged_at_iteration_;
+	std::vector<unsigned int> size_per_iteration_;
 
 	friend std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group);
 };
@@ -197,7 +206,11 @@ public:
 	
 	void initialise(const std::vector<ReachableFact*>& initial_facts);
 	
-	void updateEquivalences();
+	/**
+	 * Try to merge as many EOGs as possible.
+	 * @param iteration The iteration we are currently at.
+	 */
+	void updateEquivalences(unsigned int iteration);
 	
 	EquivalentObject& getEquivalentObject(const Object& object) const;
 	

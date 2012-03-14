@@ -138,7 +138,7 @@ MyPOP::UTILITY::MemoryPool** EquivalentObjectGroup::g_eog_arrays_memory_pool_;
 
 unsigned int EquivalentObjectGroup::max_arity_;
 EquivalentObjectGroup::EquivalentObjectGroup(const SAS_Plus::DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded)
-	: is_grounded_(is_grounded), link_(NULL), finger_print_(NULL)
+	: is_grounded_(is_grounded), link_(NULL), finger_print_(NULL), merged_at_iteration_(std::numeric_limits<unsigned int>::max())
 {
 	if (object != NULL)
 	{
@@ -197,6 +197,25 @@ bool EquivalentObjectGroup::contains(const Object& object) const
 	{
 		const EquivalentObject* eo = *ci;
 		if (&eo->getObject() == &object) return true;
+	}
+	return false;
+}
+
+bool EquivalentObjectGroup::contains(const Object& object, unsigned int iteration) const
+{
+	// Check if we were merged with another EOG.
+	if (merged_at_iteration_ <= iteration)
+	{
+		assert (link_ != NULL);
+		return link_->contains(object, iteration);
+	}
+	else
+	{
+		assert (size_per_iteration_.size() > iteration);
+		for (unsigned int i = 0; i < size_per_iteration_[iteration]; i++)
+		{
+			if (&equivalent_objects_[i]->getObject() == &object) return true;
+		}
 	}
 	return false;
 }
@@ -285,7 +304,7 @@ void EquivalentObjectGroup::addReachableFact(ReachableFact& reachable_fact)
 	reachable_facts_.push_back(&reachable_fact);
 }
 
-bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group, std::vector<EquivalentObjectGroup*>& affected_groups)
+bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group, std::vector<EquivalentObjectGroup*>& affected_groups, unsigned int iteration)
 {
 	// If the object has been grounded it cannot be merged!
 	if (is_grounded_ || other_group.is_grounded_)
@@ -304,11 +323,11 @@ bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group, s
 	// Make sure to only call this method with the root nodes.
 	if (link_ != NULL)
 	{
-		return this_root_node.tryToMergeWith(other_root_node, affected_groups);
+		return this_root_node.tryToMergeWith(other_root_node, affected_groups, iteration);
 	}
 	else if (other_group.link_ != NULL)
 	{
-		return tryToMergeWith(other_root_node, affected_groups);
+		return tryToMergeWith(other_root_node, affected_groups, iteration);
 	}
 
 	// Only allow to merge two equivalent object groups if the fingerprints are equal!
@@ -354,6 +373,7 @@ bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group, s
 	if (!can_merge) return false;
 	
 	merge(other_group, affected_groups);
+	other_group.merged_at_iteration_ = iteration;
 	return true;
 }
 
@@ -385,6 +405,28 @@ void EquivalentObjectGroup::printObjects(std::ostream& os) const
 	}
 }
 
+void EquivalentObjectGroup::printObjects(std::ostream& os, unsigned int iteration) const
+{
+	// Check if we were merged with another EOG.
+	if (merged_at_iteration_ <= iteration)
+	{
+		assert (link_ != NULL);
+		link_->printObjects(os, iteration);
+	}
+	else
+	{
+		assert (size_per_iteration_.size() > iteration);
+		for (unsigned int i = 0; i < size_per_iteration_[iteration]; i++)
+		{
+			os << equivalent_objects_[i]->getObject();
+			if (i + 1 != size_per_iteration_[iteration])
+			{
+				os << ", ";
+			}
+		}
+	}
+}
+
 void EquivalentObjectGroup::printGrounded(std::ostream& os) const
 {
 //	for (std::multimap<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*>, ReachableFact*>::const_iterator ci = reachable_facts_.begin(); ci != reachable_facts_.end(); ci++)
@@ -401,7 +443,7 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group, std::vecto
 	std::cout << "Merging " << *this << " with " << other_group << "." << std::endl;
 #endif
 	
-	equivalent_objects_.insert(equivalent_objects_.begin(), other_group.equivalent_objects_.begin(), other_group.equivalent_objects_.end());
+	equivalent_objects_.insert(equivalent_objects_.end(), other_group.equivalent_objects_.begin(), other_group.equivalent_objects_.end());
 	other_group.link_ = this;
 	
 	// TODO: Need to make sure we do not end up with multiple reachable facts which are identical!
@@ -526,6 +568,24 @@ void EquivalentObjectGroup::deleteRemovedFacts()
 	}
 }
 
+void EquivalentObjectGroup::updateEquivalences(const std::vector<EquivalentObjectGroup*>& all_eogs, std::vector<EquivalentObjectGroup*>& affected_groups, unsigned int iteration)
+{
+	// If we are not a root node, we cannot merge this EOG.
+	if (isRootNode())
+	{
+		// Try to merge this EOG with any other root EOG.
+		for (std::vector<EquivalentObjectGroup*>::const_iterator ci = all_eogs.begin(); ci != all_eogs.end(); ci++)
+		{
+			EquivalentObjectGroup* eog = *ci;
+			if (!eog->isRootNode()) continue;
+			
+			tryToMergeWith(*eog, affected_groups, iteration);
+		}
+	}
+	
+	size_per_iteration_.push_back(equivalent_objects_.size());
+}
+
 EquivalentObjectGroup& EquivalentObjectGroup::getRootNode()
 {
 	if (link_ == NULL)
@@ -633,23 +693,15 @@ void EquivalentObjectGroupManager::initialise(const std::vector<ReachableFact*>&
 }
 
 
-void EquivalentObjectGroupManager::updateEquivalences()
+void EquivalentObjectGroupManager::updateEquivalences(unsigned int iteration)
 {
 	std::vector<EquivalentObjectGroup*> affected_groups;
-	
-	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end() - 1; ci++)
+	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
 	{
-		EquivalentObjectGroup* eog1 = *ci;
-		if (!eog1->isRootNode()) continue;
-		
-		for (std::vector<EquivalentObjectGroup*>::const_iterator ci2 = ci + 1; ci2 != equivalent_groups_.end(); ci2++)
-		{
-			EquivalentObjectGroup* eog2 = *ci2;
-			if (!eog2->isRootNode()) continue;
-			eog1->tryToMergeWith(*eog2, affected_groups);
-		}
+		EquivalentObjectGroup* eog = *ci;
+		eog->updateEquivalences(equivalent_groups_, affected_groups, iteration);
 	}
-	
+
 	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = affected_groups.begin(); ci != affected_groups.end(); ci++)
 	{
 		EquivalentObjectGroup* eog = *ci;

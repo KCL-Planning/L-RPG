@@ -67,6 +67,7 @@ int main(int argc,char * argv[])
 	setitimer ( ITIMER_PROF, &timer, NULL );
 
 	bool validate = false;
+	bool calculate_heuristic = false;
 	// Read in commandline options.
 	for (int i = 1; i < argc - 2; i++)
 	{
@@ -75,6 +76,11 @@ int main(int argc,char * argv[])
 		{
 			validate = true;
 			std::cerr << "Enable validation!" << std::endl;
+		}
+		else if (command_line == "-h")
+		{
+			calculate_heuristic = true;
+			std::cerr << "Calculate heuristic!" << std::endl;
 		}
 		else
 		{
@@ -207,7 +213,6 @@ int main(int argc,char * argv[])
 #endif
 	std::vector<const REACHABILITY::ReachableFact*> lifted_reachable_facts;
 	{
-
 		REACHABILITY::DTGReachability analyst(*dtg_manager, combined_graph, term_manager, predicate_manager);
 #ifdef MYPOP_KEEP_TIME
 		struct timeval end_time_prepare_reachability;
@@ -392,6 +397,24 @@ int main(int argc,char * argv[])
 				exit(1);
 			}
 		}
+		
+		if (calculate_heuristic)
+		{
+			std::vector<const Atom*> goal_facts;
+			Utility::convertFormula(goal_facts, goal);
+			
+			std::vector<const SAS_Plus::BoundedAtom*> bounded_goal_facts;
+			for (std::vector<const Atom*>::const_iterator ci = goal_facts.begin(); ci != goal_facts.end(); ci++)
+			{
+				bounded_goal_facts.push_back(new SAS_Plus::BoundedAtom(Step::GOAL_STEP, **ci));
+			}
+			unsigned int heuristic_value = analyst.getHeuristic(bounded_goal_facts, combined_graph.getBindings(), predicate_manager);
+			std::cerr << "Heuristic value: " << heuristic_value << std::endl;
+			for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = bounded_goal_facts.begin(); ci != bounded_goal_facts.end(); ci++)
+			{
+				delete *ci;
+			}
+		}
 	}
 
 //	Graphviz::printToDot(dtg_manager);
@@ -450,7 +473,7 @@ int main(int argc,char * argv[])
 	delete plan;
 	delete propagator;
 	delete initial_action;
-	delete goal_action;
+//	delete goal_action;
 //	delete solution_plan;
 	delete VAL::current_analysis;
 //	delete MyPOP::SAS_Plus::g_reachable_fact_memory_pool;

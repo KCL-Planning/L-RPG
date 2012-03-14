@@ -282,7 +282,6 @@ void RelaxedReachabilityAnalyst::performReachabilityAnalysis(const std::vector<c
 		initial_fact.print(std::cout, initial_bindings, initial_fact_id);
 		std::cout << std::endl;
 	}
-
 	
 	/**
 	 * The first step in the algorithm is to initialize the list of values of each DTG node with the initial state.

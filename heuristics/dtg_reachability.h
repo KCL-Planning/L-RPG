@@ -44,6 +44,7 @@ class EquivalentObjectGroupManager;
 
 class ReachableTransition;
 class ReachableTreeNode;
+class ReachableFactLayer;
 	
 class ReachableFact
 {
@@ -51,6 +52,8 @@ public:
 	ReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
 	
 	ReachableFact(const Atom& atom, EquivalentObjectGroup** term_domain_mapping);
+	
+	ReachableFact(const ReachableFact& reachable_fact);
 	
 	~ReachableFact();
 	
@@ -85,8 +88,6 @@ public:
 	 */
 	bool isIdenticalTo(const ReachableFact& other) const;
 	
-//	void printGrounded(std::ostream& os) const;
-	
 	EquivalentObjectGroup& getTermDomain(unsigned int index) const;
 	
 	EquivalentObjectGroup** getTermDomains() const { return term_domain_mapping_; }
@@ -110,6 +111,8 @@ public:
 	 * @return The reachable fact which has subsumed this fact, or this if it has not been subsumed.
 	 */
 	const ReachableFact& getReplacement() const;
+	
+	void print(std::ostream& os, unsigned int iteration) const;
 	
 private:
 
@@ -288,6 +291,12 @@ public:
 		return cached_reachability_tree_size_;
 	}
 	
+	void resetCachedReachableTreesSize()
+	{
+		cache_is_valid_ = false;
+		getCachedReachableTreesSize();
+	}
+	
 	const std::vector<std::list<ReachableFact*>* >& getReachableSets() const { return reachable_set_; }
 	
 	const std::vector<const ResolvedBoundedAtom*>& getFactsSet() const { return facts_set_; }
@@ -394,7 +403,7 @@ public:
 	
 	void addReachableTransition(ReachableTransition& reachable_transition);
 	
-	bool propagateReachableFacts();
+	bool propagateReachableFacts(ReachableFactLayer& current_fact_layer);
 
 	void equivalencesUpdated(unsigned int iteration);
 	
@@ -465,7 +474,7 @@ public:
 	 * Generate all the possible new reachable facts by combining the full sets of this reachable transition with those
 	 * of its from node.
 	 */
-	bool generateReachableFacts();
+	bool generateReachableFacts(ReachableFactLayer& fact_layer);
 	
 	void equivalencesUpdated(unsigned int iteration);
 	
@@ -513,7 +522,7 @@ private:
 	 * @param transition_reachable_set The full set of assignments to the facts in the transition.
 	 * @return True if a new effect could be created (i.e. it wasn't already created previously), false otherwise.
 	 */
-	bool createNewReachableFact(const ResolvedEffect& effect, unsigned int effect_index, const ReachableTreeNode& from_reachable_node, const ReachableTreeNode* transition_reachable_node);
+	bool createNewReachableFact(const ResolvedEffect& effect, unsigned int effect_index, const ReachableTreeNode& from_reachable_node, const ReachableTreeNode* transition_reachable_node, ReachableFactLayer& current_fact_layer);
 	
 	// To speed up the createNewReachableFact method we keep track of all the combinations of sets we have already combined 
 	// in the past so we don't redo the same thing.
@@ -532,26 +541,75 @@ private:
 };
 
 std::ostream& operator<<(std::ostream& os, const ReachableTransition& reachable_transition);
-
-class FactLayer {
+/*
+class ActionLayerItem
+{
 public:
-	FactLayer(unsigned int nr);
+	
+private:
+	const ReachableTransition* achiever_;
+	const std::vector<const ReachableFactLayerItem*> effects_;
+};
+
+class ActionLayer
+{
+public:
+	
+private:
+	
+};
+*/
+
+class ReachableFactLayerItem
+{
+public:
+	ReachableFactLayerItem(const ReachableFactLayer& reachable_fact_layer, const ReachableFact& reachable_fact);
+	~ReachableFactLayerItem();
+	
+	void addAchiever(const ReachableTransition& achiever, const ReachableTreeNode& from_tree_node, const ReachableTreeNode* transition_tree_node);
+	const std::vector<std::pair<const ReachableTransition*, std::vector<const ReachableFactLayerItem*>* > >& getAchievers() const { return achievers_; }
+	
+	const ReachableFact& getReachableFactCopy() const { return *reachable_fact_copy_; }
+	const ReachableFact& getActualReachableFact() const { return *link_to_actual_reachable_fact_; }
+	
+	const ReachableFactLayer& getReachableFactLayer() const { return *reachable_fact_layer_; }
+	
+private:
+	const ReachableFactLayer* reachable_fact_layer_;
+	const ReachableFact* reachable_fact_copy_;
+	const ReachableFact* link_to_actual_reachable_fact_;
+	
+	std::vector<std::pair<const ReachableTransition*, std::vector<const ReachableFactLayerItem*>* > > achievers_;
+};
+
+class ReachableFactLayer
+{
+public:
+	ReachableFactLayer(unsigned int nr, const ReachableFactLayer* previous_layer);
 	void addFact(const ReachableFact& reachable_fact);
-	
+	void addFact(const ReachableFact& reachable_fact, const ReachableTransition& achiever, const ReachableTreeNode& from_tree_node, const ReachableTreeNode* transition_tree_node, bool already_exists);
+	const std::vector<ReachableFactLayerItem*>& getReachableFacts() const;
+	const ReachableFactLayerItem* contains(const ResolvedBoundedAtom& resolved_bounded_atom) const;
+	unsigned int getLayerNumber() const;
+	const ReachableFactLayer* getPreviousLayer() const;
+	void extractPreconditions(std::vector<const ReachableFactLayerItem*>& preconditions, const ReachableTreeNode& reachable_set) const;
+	const ReachableFactLayerItem& findPrecondition(const ReachableFact& reachable_fact) const;
 private:
 	unsigned int nr_;
-	std::vector<const ReachableFact*> reachable_facts_;
+	const ReachableFactLayer* previous_layer_;
+	std::vector<ReachableFactLayerItem*> reachable_facts_;
 };
 
-class ActionLayer {
-public:
-	ActionLayer(unsigned int nr);
-	void addAction(const ReachableTransition& reachable_action);
-	
-private:
-	unsigned int nr_;
-	std::vector<const ReachableTransition*> reachable_actions_;
+class compareReachableFactLayerItem
+{
+public: 
+	bool operator() (std::pair<const ReachableFactLayerItem*, const Object**> lhs, std::pair<const ReachableFactLayerItem*, const Object**> rhs) const
+	{
+		return (lhs.first->getReachableFactLayer().getLayerNumber() < rhs.first->getReachableFactLayer().getLayerNumber());
+	}
 };
+
+std::ostream& operator<<(std::ostream& os, const ReachableFactLayer& reachable_fact_layer);
 
 /**
  * Utility class to perform relaxed reachability analysis on a given DTG.
@@ -566,7 +624,12 @@ public:
 	
 	~DTGReachability();
 	
+	/**
+	 * Perform a reachability analysis and return the heuristic value.
+	 */
 	void performReachabilityAnalysis(std::vector<const ReachableFact*>& result, const std::vector<const SAS_Plus::BoundedAtom*>& initial_facts, const Bindings& bindings);
+	
+	unsigned int getHeuristic(const std::vector<const SAS_Plus::BoundedAtom*>& bounded_goal_facts, const Bindings& bindings, PredicateManager& predicate_manager) const;
 	
 	const EquivalentObjectGroupManager& getEquivalentObjectGroupManager() const { return *equivalent_object_manager_; }
 	
@@ -582,6 +645,8 @@ private:
 	std::vector<std::vector<std::pair<ReachableSet*, unsigned int> >* >* predicate_id_to_reachable_sets_mapping_;
 
 	EquivalentObjectGroupManager* equivalent_object_manager_;
+	
+	ReachableFactLayer* current_fact_layer_;
 };
 
 };

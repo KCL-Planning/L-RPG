@@ -212,6 +212,31 @@ const ReachableFact& ReachableFact::getReplacement() const
 	return replaced_by_->getReplacement();
 }
 
+bool ReachableFact::canUnifyWith(const Atom& atom, StepID step_id, const Bindings& bindings, unsigned int iteration) const
+{
+	// Check if this effect can be unified with the goal we try to achieve.
+	if (!atom.getPredicate().canSubstitute(getAtom().getPredicate())) return false;
+	
+	for (unsigned int i = 0; i < atom.getArity(); i++)
+	{
+		bool variable_domains_overlap = false;
+		const std::vector<const Object*>& variable_domain = atom.getTerms()[i]->getDomain(step_id, bindings);
+		for (std::vector<const Object*>::const_iterator ci = variable_domain.begin(); ci != variable_domain.end(); ci++)
+		{
+			const Object* object = *ci;
+			if (getTermDomain(i).contains(*object, iteration))
+			{
+					variable_domains_overlap = true;
+					break;
+			}
+		}
+		
+		if (!variable_domains_overlap) return false;
+	}
+	
+	return true;
+}
+
 void ReachableFact::print(std::ostream& os, unsigned int iteration) const
 {
 	os << "Reachable fact: (" << atom_->getPredicate().getName() << " ";
@@ -1855,6 +1880,12 @@ std::ostream& operator<<(std::ostream& os, const ReachableFactLayerItem& reachab
 	return os;
 }
 
+ExecutedAction::ExecutedAction(const ReachableTransition& action, const Object** action_domains, const std::vector<const ReachableFactLayerItem*>& preconditions)
+	: action_(&action), action_domains_(action_domains), preconditions_(&preconditions)
+{
+	
+}
+
 ReachableFactLayer::ReachableFactLayer(unsigned int nr, const ReachableFactLayer* previous_layer)
 	: nr_(nr), previous_layer_(previous_layer)
 {
@@ -2487,7 +2518,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const SAS_Plus::Bou
 
 	unsigned int heuristic = 0;
 	//std::set<std::vector<const ReachableFactLayerItem*>*> executed_actions;
-	std::vector<std::vector<const ReachableFactLayerItem*>*> executed_actions;
+	std::vector<ExecutedAction*> executed_actions;
 	std::set<std::pair<const ReachableFact*, unsigned int> > closed_list;
 	while (!open_list.empty())
 	{
@@ -2575,24 +2606,104 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const SAS_Plus::Bou
 			// Check if this action has not already been executed.
 			// TODO: check if the action variables match up with the groundedo ones...
 			bool already_executed = false;
-			for (std::vector<std::vector<const ReachableFactLayerItem*>*>::const_iterator ci = executed_actions.begin(); ci != executed_actions.end(); ci++)
+			//for (std::vector<std::vector<const ReachableFactLayerItem*>*>::const_iterator ci = executed_actions.begin(); ci != executed_actions.end(); ci++)
+			for (std::vector<ExecutedAction*>::const_iterator ci = executed_actions.begin(); ci != executed_actions.end(); ci++)
 			{
-				std::vector<const ReachableFactLayerItem*>* executed_action = *ci;
-				if (executed_action->size() != cheapest_preconditions->size()) continue;
+				const ExecutedAction* executed_action = *ci;
+				//std::vector<const ReachableFactLayerItem*>* executed_action = *ci;
+				//if (executed_action->size() != cheapest_preconditions->size()) continue;
+				if (executed_action->getPreconditions().size() != cheapest_preconditions->size()) continue;
 				
 				bool same_action = true;
-				for (unsigned int i = 0; i < executed_action->size(); i++)
+				for (unsigned int i = 0; i < executed_action->getPreconditions().size(); i++)
 				{
-					if (&(*executed_action)[i]->getActualReachableFact() != &(*cheapest_preconditions)[i]->getActualReachableFact() ||
-					    (*executed_action)[i]->getReachableFactLayer().getLayerNumber() != (*cheapest_preconditions)[i]->getReachableFactLayer().getLayerNumber())
+					if (&executed_action->getPreconditions()[i]->getActualReachableFact() != &(*cheapest_preconditions)[i]->getActualReachableFact() ||
+					    executed_action->getPreconditions()[i]->getReachableFactLayer().getLayerNumber() != (*cheapest_preconditions)[i]->getReachableFactLayer().getLayerNumber())
 					{
 						same_action = false;
 						break;
 					}
 				}
+				
 				if (same_action)
 				{
-					already_executed = true;
+					// Check if the variables match.
+					bool found_match = false;
+					const Object* updated_variable_domains[executed_action->getAction().getTransition().getAction().getVariables().size()];
+					const Object** variable_domains = executed_action->getActionDomains();
+					for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = executed_action->getAction().getTransition().getAllEffects().begin(); ci != executed_action->getAction().getTransition().getAllEffects().end(); ci++)
+					{
+						const Atom* effect = (*ci).first;
+						bool effect_matches = false;
+						
+						for (unsigned int i = 0; i < executed_action->getAction().getTransition().getAction().getVariables().size(); i++)
+						{
+							updated_variable_domains[i] = variable_domains[i];
+						}
+						
+						if (current_goal->getReachableFactCopy().canUnifyWith(*effect, executed_action->getAction().getTransition().getStepId(), bindings, current_goal->getReachableFactLayer().getLayerNumber()))
+						{
+							effect_matches = true;
+							
+							for (unsigned int i = 0; i < effect->getArity(); i++)
+							{
+								// Effect not bounded - we're good!
+								if (object_bindings[i] == NULL) continue;
+								for (unsigned int j = 0; j < executed_action->getAction().getTransition().getAction().getVariables().size(); j++)
+								{
+									if (effect->getTerms()[i] == executed_action->getAction().getTransition().getAction().getVariables()[j])
+									{
+										// Check if the variable domains match up!
+										
+										// Variable is not bounded - we're good!
+										if (variable_domains[j] == NULL)
+										{
+											updated_variable_domains[j] = object_bindings[i];
+											break;
+										}
+										else if (object_bindings[i] != variable_domains[j])
+										{
+											effect_matches = false;
+											break;
+										}
+									}
+								}
+								if (!effect_matches) break;
+							}
+						}
+						
+						if (effect_matches)
+						{
+							found_match = true;
+							break;
+						}
+					}
+					
+					// If we found a match, update the action variables.
+					if (found_match)
+					{
+						already_executed = true;
+						
+						std::cout << "Action to achieve: ";
+						current_goal->getReachableFactCopy().print(std::cout, current_goal->getReachableFactLayer().getLayerNumber());
+						std::cout << " has already been executed!" << std::endl;
+						std::cout << "Updated the variable domains to: ";
+						
+						for (unsigned int i = 0; i < executed_action->getAction().getTransition().getAction().getVariables().size(); i++)
+						{
+							variable_domains[i] = updated_variable_domains[i];
+							if (variable_domains[i] == NULL)
+							{
+								std::cout << "FREE ";
+							}
+							else
+							{
+								std::cout << *variable_domains[i] << " ";
+							}
+						}
+						std::cout << std::endl;
+						
+					}
 				}
 			}
 
@@ -2618,45 +2729,26 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const SAS_Plus::Bou
 				const Object** action_variable_domains = new const Object*[cheapest_achiever->getTransition().getAction().getVariables().size()];
 				for (unsigned int i = 0; i < cheapest_achiever->getTransition().getAction().getVariables().size(); i++)
 				{
-					action_variable_domains[i] = NULL;
+					const std::vector<const Object*>& variable_domain = cheapest_achiever->getTransition().getAction().getVariables()[i]->getDomain(cheapest_achiever->getTransition().getStepId(), bindings);
+					
+					if (variable_domain.size() == 1)
+					{
+						action_variable_domains[i] = variable_domain[0];
+					}
+					else
+					{
+						action_variable_domains[i] = NULL;
+					}
 				}
 				
 				for (vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = cheapest_achiever->getTransition().getAllEffects().begin(); ci != cheapest_achiever->getTransition().getAllEffects().end(); ci++)
 				{
 					const Atom* effect = (*ci).first;
 					
-					// Check if this effect can be unified with the goal we try to achieve.
-					if (!effect->getPredicate().canSubstitute(current_goal->getReachableFactCopy().getAtom().getPredicate())) continue;
-					
-					bool can_unify = true;
-					for (unsigned int a = 0; a < effect->getArity(); a++)
-					{
-						bool variable_domains_overlap = false;
-						const std::vector<const Object*>& effect_variable_domain = effect->getTerms()[a]->getDomain(cheapest_achiever->getTransition().getStepId(), bindings);
-						for (std::vector<const Object*>::const_iterator ci = effect_variable_domain.begin(); ci != effect_variable_domain.end(); ci++)
-						{
-							const Object* object = *ci;
-							if (current_goal->getReachableFactCopy().getTermDomain(a).contains(*object, current_goal->getReachableFactLayer().getLayerNumber()))
-							{
-								 variable_domains_overlap = true;
-								 break;
-							}
-						}
-						
-						if (!variable_domains_overlap)
-						{
-							can_unify = false;
-							break;
-						}
-					}
-					
-					if (!can_unify) continue;
-					
-					//if (bindings.canUnify(*effect, cheapest_achiever->getTransition().getStepId(), current_goal->getReachableFactCopy().getAtom(), current_goal->getReachableFactCopy().getId()))
+					if (current_goal->getReachableFactCopy().canUnifyWith(*effect, cheapest_achiever->getTransition().getStepId(), bindings, current_goal->getReachableFactLayer().getLayerNumber()))
 					{
 						for (unsigned int i = 0; i < effect->getArity(); i++)
 						{
-//							const std::vector<const Object*>& effect_variable_domain = effect->getTerms()[i]->getDomain(cheapest_achiever->getTransition().getStepId(), bindings);
 							for (unsigned int j = 0; j < cheapest_achiever->getTransition().getAction().getVariables().size(); j++)
 							{
 								if (effect->getTerms()[i] == cheapest_achiever->getTransition().getAction().getVariables()[j])
@@ -2669,22 +2761,21 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const SAS_Plus::Bou
 					}
 				}
 				
-				std::cout << "Possible achiever: " << cheapest_achiever->getTransition().getAction().getPredicate();
+				std::cout << "Possible achiever: (" << cheapest_achiever->getTransition().getAction().getPredicate();
 				for (unsigned int i = 0; i < cheapest_achiever->getTransition().getAction().getVariables().size(); i++)
 				{
 					if (action_variable_domains[i] == NULL)
 					{
-						std::cout << "FREE ";
+						std::cout << " FREE ";
 					}
 					else
 					{
-						std::cout << *action_variable_domains[i];
+						std::cout << " " << *action_variable_domains[i];
 					}
 				}
-				std::cout << std::endl;
+				std::cout << ")" << std::endl;
 
 				// Check how the preconditions change according to the variable domain mapping.
-				//for (std::vector<const ReachableFactLayerItem*>::const_iterator ci = cheapest_preconditions->begin(); ci != cheapest_preconditions->end(); ci++)
 				for (unsigned int i = 0; i < cheapest_preconditions->size(); i++)
 				{
 					const ReachableFactLayerItem* fact = (*cheapest_preconditions)[i];
@@ -2694,72 +2785,23 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const SAS_Plus::Bou
 						precondition_object_bindings[index] = NULL;
 					}
 					
-					std::cout << "Precondition: " << fact->getReachableFactCopy().getAtom().getPredicate().getName();
-					
 					// Get matching precondition.
 					const Atom* matching_precondition = NULL;
 					for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = cheapest_achiever->getTransition().getAllPreconditions().begin(); ci != cheapest_achiever->getTransition().getAllPreconditions().end(); ci++)
 					{
 						const Atom* precondition = (*ci).first;
-						if (!precondition->getPredicate().canSubstitute(fact->getReachableFactCopy().getAtom().getPredicate())) continue;
-					
-						bool can_unify = true;
-						for (unsigned int a = 0; a < precondition->getArity(); a++)
-						{
-							bool variable_domains_overlap = false;
-							const std::vector<const Object*>& precondition_variable_domain = precondition->getTerms()[a]->getDomain(cheapest_achiever->getTransition().getStepId(), bindings);
-							for (std::vector<const Object*>::const_iterator ci = precondition_variable_domain.begin(); ci != precondition_variable_domain.end(); ci++)
-							{
-								const Object* object = *ci;
-								if (fact->getReachableFactCopy().getTermDomain(a).contains(*object, fact->getReachableFactLayer().getLayerNumber()))
-								{
-									variable_domains_overlap = true;
-									break;
-								}
-							}
-							
-							if (!variable_domains_overlap)
-							{
-								can_unify = false;
-								break;
-							}
-						}
 						
-						if (can_unify)
+						if (fact->getReachableFactCopy().canUnifyWith(*precondition, cheapest_achiever->getTransition().getStepId(), bindings, fact->getReachableFactLayer().getLayerNumber()))
 						{
 							matching_precondition = precondition;
 							break;
 						}
 					}
-
-/*
-					if (i < cheapest_achiever->getTransition().getFromNodePreconditions().size())
-					{
-						matching_precondition = cheapest_achiever->getTransition().getFromNodePreconditions()[i].first;
-					}
-					else
-					{
-						unsigned int index = cheapest_achiever->getTransition().getFromNodePreconditions().size();
-						for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = cheapest_achiever->getTransition().getAllPreconditions().begin(); ci != cheapest_achiever->getTransition().getAllPreconditions().end(); ci++)
-						{
-							const Atom* precondition = (*ci).first;
-							
-							// Check if this precondition is not contained by the from node.
-							if (std::find(cheapest_achiever->getTransition().getFromNodePreconditions().begin(), cheapest_achiever->getTransition().getFromNodePreconditions().end(), *ci) == cheapest_achiever->getTransition().getFromNodePreconditions().end())
-							{
-								if (index == i)
-								{
-									matching_precondition = precondition;
-									break;
-								}
-								++index;
-							}
-						}
-					}
-*/
+					
 					std::cout << " -= Matching precondition =- ";
 					matching_precondition->print(std::cout);
-					
+
+					std::cout << "Precondition: " << fact->getReachableFactCopy().getAtom().getPredicate().getName();
 					for (unsigned int j = 0; j < matching_precondition->getArity(); j++)
 					{
 						for (unsigned int k = 0; k < cheapest_achiever->getTransition().getAction().getVariables().size(); k++)
@@ -2768,13 +2810,13 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const SAS_Plus::Bou
 							{
 								precondition_object_bindings[j] = action_variable_domains[k];
 								
-								if (action_variable_domains[j] == NULL)
+								if (precondition_object_bindings[j] == NULL)
 								{
 									std::cout << "FREE ";
 								}
 								else
 								{
-									std::cout << *action_variable_domains[j] << " ";
+									std::cout << *precondition_object_bindings[j] << " ";
 								}
 								break;
 							}
@@ -2784,30 +2826,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const SAS_Plus::Bou
 					
 					open_list.push(std::make_pair(fact, precondition_object_bindings));
 				}
-				
-				
-				
-				
-				
-				
-				
-				
-				
-				
-				
-				
-				
-				
-				
-//				for (std::vector<const ReachableFactLayerItem*>::const_iterator ci = cheapest_preconditions->begin(); ci != cheapest_preconditions->end(); ci++)
-//				{
-//					open_list.push(std::make_pair(*ci, object_bindings));
-//				}
-				
-				// Check if any of the variables are bounded to a specific object.
-				//current_goal->
-				
-				executed_actions.push_back(cheapest_preconditions);
+				executed_actions.push_back(new ExecutedAction(*cheapest_achiever, action_variable_domains, *cheapest_preconditions));
 				++heuristic;
 			}
 			else

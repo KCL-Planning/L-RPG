@@ -112,6 +112,8 @@ public:
 	 */
 	const ReachableFact& getReplacement() const;
 	
+	bool canUnifyWith(const Atom& atom, StepID step_id, const Bindings& bindings, unsigned int iteration) const;
+	
 	void print(std::ostream& os, unsigned int iteration) const;
 	
 private:
@@ -541,24 +543,6 @@ private:
 };
 
 std::ostream& operator<<(std::ostream& os, const ReachableTransition& reachable_transition);
-/*
-class ActionLayerItem
-{
-public:
-	
-private:
-	const ReachableTransition* achiever_;
-	const std::vector<const ReachableFactLayerItem*> effects_;
-};
-
-class ActionLayer
-{
-public:
-	
-private:
-	
-};
-*/
 
 class ReachableFactLayerItem
 {
@@ -580,6 +564,19 @@ private:
 	const ReachableFact* link_to_actual_reachable_fact_;
 	
 	std::vector<std::pair<const ReachableTransition*, std::vector<const ReachableFactLayerItem*>* > > achievers_;
+};
+
+class ExecutedAction
+{
+public:
+	ExecutedAction(const ReachableTransition& action, const Object** action_domains, const std::vector<const ReachableFactLayerItem*>& preconditions);
+	const ReachableTransition& getAction() const { return *action_; }
+	const Object** getActionDomains() const { return action_domains_; }
+	const std::vector<const ReachableFactLayerItem*>& getPreconditions() const { return *preconditions_; }
+private:
+	const ReachableTransition* action_;
+	const Object** action_domains_;
+	const std::vector<const ReachableFactLayerItem*>* preconditions_;
 };
 
 class ReachableFactLayer

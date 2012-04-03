@@ -29,7 +29,7 @@
 //#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 //#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 //#define MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
-#define MYPOP_SAS_PLUS_DTG_MANAGER_KEEP_TIME
+//#define MYPOP_SAS_PLUS_DTG_MANAGER_KEEP_TIME
 
 namespace MyPOP {
 
@@ -84,26 +84,6 @@ const Atom& BoundedAtom::getAtom() const
 {
 	return *atom_;
 }
-
-/*InvariableIndex BoundedAtom::getIndex(StepID id, const Term& term, const Bindings& bindings) const
-{
-	for (InvariableIndex i = 0; i < atom_->getArity(); i++)
-	{
-		const Term* bounded_term = atom_->getTerms()[i];
-		
-		if (bounded_term->isTheSameAs(id_, term, id, bindings))
-		{
-			return i;
-		}
-	}
-	
-	assert (false);
-}*/
-
-/*const Property* BoundedAtom::getProperty() const
-{
-	return property_;
-}*/
 
 const std::vector<const Property*>& BoundedAtom::getProperties() const
 {
@@ -340,28 +320,6 @@ bool BoundedAtom::canUnifyWith(const BoundedAtom& other, const Bindings& binding
 {
 	return bindings.canUnify(getAtom(), getId(), other.getAtom(), other.getId());
 }
-
-/*bool BoundedAtom::shareSameProperties(const BoundedAtom& other) const
-{
-	if (properties_.size() != other.properties_.size()) return false;
-	
-	for (std::vector<const Property*>::const_iterator ci = properties_.begin(); ci != properties_.end(); ci++)
-	{
-		const Property* property = *ci;
-		bool found = false;
-		for (std::vector<const Property*>::const_iterator ci = other.properties_.begin(); ci != other.properties_.end(); ci++)
-		{
-			if (*property == **ci)
-			{
-				found = true;
-				break;
-			}
-		}
-		
-		if (!found) return false;
-	}
-	return true;
-}*/
 
 void BoundedAtom::print(std::ostream& os, const Bindings& bindings, bool verbal) const
 {
@@ -750,11 +708,11 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 				std::cout << "Process the transition: " << *transition << std::endl;
 #endif
 				// Inspect the transition and add all preconditions which shares a term with the positive achieved fact.
-				bool precondition_added = true;
+				bool done_adding_preconditions = false;
 				std::set<const Atom*> closed_list;
-				while (precondition_added)
+				while (!done_adding_preconditions)
 				{
-					precondition_added = false;
+					done_adding_preconditions = true;
 					const std::vector<std::pair<const Atom*, InvariableIndex> >& preconditions = transition->getAllPreconditions();
 					for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ci++)
 					{
@@ -786,6 +744,7 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 #endif
 										closed_list.insert(precondition);
 										precondition_added = true;
+										done_adding_preconditions = false;
 										
 										// Get the properties attached to this DTG node.
 										std::vector<const Property*>* properties = new std::vector<const Property*>();
@@ -981,7 +940,7 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 					
 					delete from_dtg_node_clone;
 					delete to_dtg_node_clone;
-					delete transition;
+//					delete transition;
 				}
 			}
 			

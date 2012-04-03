@@ -434,7 +434,10 @@ bool TrajectoryConstraintsMonitor::checkAtState(const State & s)
 	
 	for(Propositions::const_iterator i = always.begin();i != always.end();++i)
 	{
-		if(always.size() < 10) MESSAGE("Checking " << **i);
+		if(always.size() < 10)
+		{
+			MESSAGE("Checking " << **i);
+		}
 		if(!(*i)->evaluate(&s))
 		{
 			*report << "Failure to satisfy: " << **i << "\n";
@@ -459,7 +462,9 @@ bool TrajectoryConstraintsMonitor::checkAtState(const State & s)
 	for(Deadlines::const_iterator i = within.begin();i != within.end();++i)
 	{
 		if(within.size() < 10)
+		{
 			MESSAGE("Checking deadline goal: " << *(i->second) << " by " << i->first);
+		}
 		if(s.getTime() > i->first)
 		{
 			MESSAGE("Failed to meet deadline on " << *(i->second) << " (" << 

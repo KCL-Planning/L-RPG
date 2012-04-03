@@ -1006,7 +1006,7 @@ const CtsFunction * ActiveCtsEffects::buildExp(const ActiveFE * afe)
 {
                                 
    const Polynomial * expPoly; // p(t)
-   CoScalar kValue, cValue = 0; // for f(t) = K e^{p(t)} + c
+   CoScalar kValue = 0, cValue = 0; // for f(t) = K e^{p(t)} + c
 	const expression* rateExprn;
 	const expression* constExprn = 0;
 	const expression* FEExprn = 0;

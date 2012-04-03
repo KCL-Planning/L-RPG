@@ -53,7 +53,7 @@ foreach my $domain_name (@domain_names)
 		for (my $i = 0; $i < $nr_iterations; $i++)
 		{
 #			my $time = substr(`./mypop $example_path/domain.pddl $example_path/pfile$count.pddl 2>&1 | grep "Reachability analysis" | awk '{print \$3}'`, 0, -1);
-			$total_time += substr(`./mypop $example_path/domain.pddl $example_path/pfile$count.pddl 2>&1 | grep "Reachability analysis" | awk '{print \$3}'`, 0, -1);
+			$total_time += substr(`ulimit -m 2000 ./mypop $example_path/domain.pddl $example_path/pfile$count.pddl 2>&1 | grep "Reachability analysis" | awk '{print \$3}'`, 0, -1);
 		}
 		my $time = $total_time / $nr_iterations;
 		print "$count - $time\n";

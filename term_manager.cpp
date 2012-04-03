@@ -2,6 +2,8 @@
 #include "type_manager.h"
 #include "plan_bindings.h"
 
+#include <boost/algorithm/string.hpp>
+
 ///#define MYPOP_TERM_MANAGER_COMMENTS
 ///#define MYPOP_TERM_MANAGER_DEBUG
 
@@ -518,6 +520,25 @@ const Term* TermManager::getTerm(const VAL::symbol& symbol) const
 const Term* TermManager::getTerm(const std::string& name) const
 {
 	return (*term_string_indexing_)[name];
+}
+
+const Object& TermManager::getObject(const std::string& name) const
+{
+	for (std::vector<const Object*>::const_iterator ci = domain_objects_.begin(); ci != domain_objects_.end(); ci++)
+	{
+		const Object* object = *ci;
+		if (boost::iequals(object->getName(), name))
+		{
+			return *object;
+		}
+	}
+	std::cerr << "Cannot find an object with the name " << name << std::endl;
+	for (std::vector<const Object*>::const_iterator ci = domain_objects_.begin(); ci != domain_objects_.end(); ci++)
+	{
+		std::cerr << "* " << **ci << std::endl;
+	}
+	assert(false);
+	exit(1);
 }
 
 std::ostream& operator<<(std::ostream& os, const TermManager& term_manager)

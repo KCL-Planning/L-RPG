@@ -584,6 +584,9 @@ public:
 	// Get all the objects in the domain.
 	const std::vector<const Object*>& getAllObjects() const { return domain_objects_; }
 	
+	// Get the object with the given name.
+	const Object& getObject(const std::string& name) const;
+	
 	// Return the type manager.
 	const TypeManager& getTypeManager() const { return *type_manager_; }
 

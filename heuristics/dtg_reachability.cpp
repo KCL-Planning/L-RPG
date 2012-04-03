@@ -17,9 +17,52 @@
 #include "term_manager.h"
 
 //#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+//#define MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 //#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 //#define DTG_REACHABILITY_KEEP_TIME
+//#define MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_SHOW_PLAN
 namespace MyPOP {
+
+void printVariableDomain(ostream& os, const std::vector<const Object*>& result)
+{
+	os << "{ ";
+	for (std::vector<const Object*>::const_iterator ci = result.begin(); ci != result.end(); ci++)
+	{
+		os << **ci;
+		if (ci + 1 != result.end())
+		{
+			os << ", ";
+		}
+	}
+	os << "} ";
+}
+
+void takeIntersection(std::vector<const Object*>& result, const std::vector<const Object*>& set1, const std::vector<const Object*>& set2)
+{
+	for (std::vector<const Object*>::const_iterator ci = set1.begin(); ci != set1.end(); ci++)
+	{
+		for (std::vector<const Object*>::const_iterator ci2 = set2.begin(); ci2 != set2.end(); ci2++)
+		{
+			if (*ci == *ci2)
+			{
+				result.push_back(*ci);
+				break;
+			}
+		}
+	}
+}
+
+bool doVariableDomainsOverlap(const std::vector<const Object*>& set1, const std::vector<const Object*>& set2)
+{
+	for (std::vector<const Object*>::const_iterator ci = set1.begin(); ci != set1.end(); ci++)
+	{
+		for (std::vector<const Object*>::const_iterator ci2 = set2.begin(); ci2 != set2.end(); ci2++)
+		{
+			if (*ci == *ci2) return true;
+		}
+	}
+	return false;
+}
 
 namespace REACHABILITY {
 	
@@ -29,7 +72,8 @@ unsigned int ReachableTransition::accepted_new_reachable_facts = 0;
 ReachableFact::ReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager)
 	: atom_(&bounded_atom.getAtom()), replaced_by_(NULL)
 {
-	term_domain_mapping_ = new EquivalentObjectGroup*[bounded_atom.getAtom().getArity()];
+	//term_domain_mapping_ = new EquivalentObjectGroup*[bounded_atom.getAtom().getArity()];
+	term_domain_mapping_ = EquivalentObjectGroup::allocateMemory(bounded_atom.getAtom().getArity());
 	
 	for (std::vector<const Term*>::const_iterator ci = bounded_atom.getAtom().getTerms().begin(); ci != bounded_atom.getAtom().getTerms().end(); ci++)
 	{
@@ -67,7 +111,8 @@ ReachableFact::ReachableFact(const Atom& atom, EquivalentObjectGroup** term_doma
 ReachableFact::ReachableFact(const ReachableFact& reachable_fact)
 	: atom_(&reachable_fact.getAtom()), replaced_by_(NULL)
 {
-	term_domain_mapping_ = new EquivalentObjectGroup*[reachable_fact.atom_->getArity()];
+	//term_domain_mapping_ = new EquivalentObjectGroup*[reachable_fact.atom_->getArity()];
+	term_domain_mapping_ = EquivalentObjectGroup::allocateMemory(reachable_fact.atom_->getArity());
 	for (unsigned int i = 0; i < reachable_fact.atom_->getArity(); i++)
 	{
 		term_domain_mapping_[i] = reachable_fact.term_domain_mapping_[i];
@@ -76,7 +121,7 @@ ReachableFact::ReachableFact(const ReachableFact& reachable_fact)
 
 ReachableFact::~ReachableFact()
 {
-	delete[] term_domain_mapping_;
+	//delete[] term_domain_mapping_;
 }
 
 void* ReachableFact::operator new (size_t size)
@@ -107,7 +152,7 @@ bool ReachableFact::updateTermsToRoot()
 	return updated_domain;
 }
 
-bool ReachableFact::isEquivalentTo(const ReachableFact& other) const
+bool ReachableFact::isEquivalentTo(const ReachableFact& other, const EquivalentObjectGroup& variant_eog) const
 {
 //	std::cout << "Are " << *this << " and " << other << " equivalent?" << std::endl;
 	
@@ -121,8 +166,8 @@ bool ReachableFact::isEquivalentTo(const ReachableFact& other) const
 	
 	for (unsigned int i = 0; i < atom_->getArity(); i++)
 	{
-//		if (((0x1 << i) & combined_mask) != 0)
-		if (!term_domain_mapping_[i]->isGrounded())
+//		if (!term_domain_mapping_[i]->isGrounded() && term_domain_mapping_[i]->isPartOfAPropertyState())
+		if (term_domain_mapping_[i] == &variant_eog)
 		{
 			// Make sure the types match up.
 			if (!term_domain_mapping_[i]->hasSameFingerPrint(*other.term_domain_mapping_[i]))
@@ -497,6 +542,7 @@ ResolvedEffect::ResolvedEffect(StepID id, const Atom& atom, const Bindings& bind
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 				std::cout << "Variable already recorded..." << std::endl;
 #endif
+				assert (false);
 				break;
 			}
 		}
@@ -516,7 +562,7 @@ ResolvedEffect::ResolvedEffect(StepID id, const Atom& atom, const Bindings& bind
 			if (std::find(possible_eogs->begin(), possible_eogs->end(), &eog) != possible_eogs->end()) continue;
 			possible_eogs->push_back(&eog);
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-//			std::cout << "- " << eog << std::endl;
+			std::cout << "- " << eog << std::endl;
 #endif
 		}
 		free_variable_domains_.push_back(possible_eogs);
@@ -539,11 +585,49 @@ ResolvedEffect::~ResolvedEffect()
 	delete[] index_to_variable_;
 }
 
+void ResolvedEffect::reset()
+{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+	std::cout << "Reset the resolved effect..." << *this << std::endl;
+#endif
+	for (std::vector<std::vector<EquivalentObjectGroup*>* >::const_iterator ci = free_variable_domains_.begin(); ci != free_variable_domains_.end(); ci++)
+	{
+		std::vector<EquivalentObjectGroup*>* free_eogs = *ci;
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+		std::cout << "Reset the free eogs: ";
+		for (std::vector<EquivalentObjectGroup*>::const_iterator ci = free_eogs->begin(); ci != free_eogs->end(); ci++)
+		{
+			std::cout << **ci << ", ";
+		}
+		std::cout << std::endl;
+#endif
+		
+		unsigned int size = free_eogs->size();
+		for (unsigned int i = 0; i < size; i++)
+		{
+			EquivalentObjectGroup* eog = (*free_eogs)[i];
+			for (unsigned j = 1; j < eog->getEquivalentObjects().size(); j++)
+			{
+				free_eogs->push_back(&eog->getEquivalentObjects()[j]->getEquivalentObjectGroup());
+			}
+		}
+		
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+		std::cout << "Result: ";
+		for (std::vector<EquivalentObjectGroup*>::const_iterator ci = free_eogs->begin(); ci != free_eogs->end(); ci++)
+		{
+			std::cout << **ci << ", ";
+		}
+		std::cout << std::endl;
+#endif
+	}
+}
+
 void ResolvedEffect::updateVariableDomains()
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-	unsigned int counter = 0;
-	unsigned int amount = 0;
+//	unsigned int counter = 0;
+//	unsigned int amount = 0;
 #endif
 	for (std::vector<std::vector<EquivalentObjectGroup*>* >::const_iterator ci = free_variable_domains_.begin(); ci != free_variable_domains_.end(); ci++)
 	{
@@ -557,14 +641,14 @@ void ResolvedEffect::updateVariableDomains()
 			EquivalentObjectGroup* eog = *ri;
 			
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-			++amount;
+//			++amount;
 #endif
 			
 			if (!eog->isRootNode())
 			{
 				free_variable_domain->erase(ri.base() - 1);
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-				++counter;
+//				++counter;
 #endif
 			}
 		}
@@ -608,6 +692,9 @@ void ResolvedEffect::createReachableFacts(std::vector<ReachableFact*>& results, 
 	// If no variables are free we are done!
 	if (free_variables_.size() == 0)
 	{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+		std::cout << "There are no free variables..." << std::endl;
+#endif
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 		for (unsigned int i = 0; i < variable_domains_.size(); i++)
 		{
@@ -639,7 +726,8 @@ void ResolvedEffect::createReachableFacts(std::vector<ReachableFact*>& results, 
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 		std::cout << "Create a new reachable fact!" << std::endl;
 #endif
-		EquivalentObjectGroup** new_effect_domains = new EquivalentObjectGroup*[atom_->getArity()];
+		//EquivalentObjectGroup** new_effect_domains = new EquivalentObjectGroup*[atom_->getArity()];
+		EquivalentObjectGroup** new_effect_domains = EquivalentObjectGroup::allocateMemory(atom_->getArity());
 		memcpy(new_effect_domains, effect_domains, sizeof(EquivalentObjectGroup*) * atom_->getArity());
 		
 		unsigned int processed_free_variables = 0;
@@ -714,7 +802,7 @@ void ResolvedEffect::createReachableFacts(std::vector<ReachableFact*>& results, 
 #endif
 	}
 	
-	delete[] effect_domains;
+//	delete[] effect_domains;
 	
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "DONE!!!" << std::endl;
@@ -767,6 +855,22 @@ ReachableSet::ReachableSet(const EquivalentObjectGroupManager& eog_manager)
 	: eog_manager_(&eog_manager), cached_reachability_tree_size_(0), cache_is_valid_(false)
 {
 
+}
+
+void ReachableSet::reset()
+{
+	for (std::vector<ReachableTree*>::const_iterator ci = reachability_tree_.begin(); ci != reachability_tree_.end(); ci++)
+	{
+		delete *ci;
+	}
+	reachability_tree_.clear();
+	for (std::vector<std::list<ReachableFact*>* >::const_iterator ci = reachable_set_.begin(); ci != reachable_set_.end(); ci++)
+	{
+		(*ci)->clear();
+	}
+
+	cache_is_valid_ = false;
+	cached_reachability_tree_size_ = 0;
 }
 
 ReachableSet::~ReachableSet()
@@ -882,7 +986,7 @@ void ReachableSet::addBoundedAtom(StepID step_id, const Atom& atom, const Bindin
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "[ReachableSet::addBoundedAtom] Add :";
-	bounded_atom.print(std::cout, bindings);
+	atom.print(std::cout, bindings, step_id);
 	std::cout << " to :";
 	print(std::cout);
 	std::cout << "." << std::endl;
@@ -1222,6 +1326,9 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 		const Atom* precondition = (*ci).first;
 		bool precondition_part_of_from_node = false;
 		
+		ResolvedBoundedAtom* resolved_precondition = new ResolvedBoundedAtom(transition.getStepId(), *precondition, bindings, eog_manager, predicate_manager);
+		preconditions_.push_back(resolved_precondition);
+		
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 		std::cout << "Process the precondition: ";
 		precondition->print(std::cout, bindings, transition.getStepId());
@@ -1295,7 +1402,7 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 		
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 		std::cout << "Process the precondition: ";
-		bounded_precondition->print(std::cout, bindings, transition.getStepId());
+		precondition->print(std::cout, bindings, transition.getStepId());
 		std::cout << "." << std::endl;
 #endif
 		
@@ -1437,6 +1544,11 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 
 ReachableTransition::~ReachableTransition()
 {
+	for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = preconditions_.begin(); ci != preconditions_.end(); ci++)
+	{
+		delete *ci;
+	}
+	
 	for (std::vector<ResolvedEffect*>::const_iterator ci = effects_.begin(); ci != effects_.end(); ci++)
 	{
 		delete *ci;
@@ -1461,6 +1573,27 @@ ReachableTransition::~ReachableTransition()
 	if (use_previous_action_domains_)
 	{
 		delete[] action_domains_;
+	}
+}
+
+void ReachableTransition::reset()
+{
+	ReachableSet::reset();
+	for (std::vector<EquivalentObjectGroup**>::const_iterator ci = processed_groups_.begin(); ci != processed_groups_.end(); ci++)
+	{
+		delete[] *ci;
+	}
+	processed_groups_.clear();
+	if (use_previous_action_domains_)
+	{
+		delete[] action_domains_;
+	}
+	latest_processed_from_node_set_ = 0;
+	latest_processed_transition_set_ = 0;
+	use_previous_action_domains_ = false;
+	for (std::vector<ResolvedEffect*>::const_iterator ci = effects_.begin(); ci != effects_.end(); ci++)
+	{
+		(*ci)->reset();
 	}
 }
 
@@ -1615,7 +1748,8 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 		std::cout << "Transition node: " << *transition_reachable_node << std::endl;
 	}
 #endif
-	EquivalentObjectGroup** effect_domains = new EquivalentObjectGroup*[effect.getCorrectedAtom().getArity()];
+	//EquivalentObjectGroup** effect_domains = new EquivalentObjectGroup*[effect.getCorrectedAtom().getArity()];
+	EquivalentObjectGroup** effect_domains = EquivalentObjectGroup::allocateMemory(effect.getCorrectedAtom().getArity());
 	
 	if (!use_previous_action_domains_)
 	{
@@ -1676,8 +1810,9 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 	
 	if (already_processed)
 	{
+//		std::cout << "Already processed, moving on!" << std::endl;
 		use_previous_action_domains_ = true;
-		delete[] effect_domains;
+//		delete[] effect_domains;
 		return false;
 	}
 	use_previous_action_domains_ = false;
@@ -1690,20 +1825,6 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 	ReachableTransition::generated_new_reachable_facts += new_reachable_facts.size();
 #endif
 	
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-	if (effect.getCorrectedAtom().getPredicate().getName().compare(0, 10, "fuel-level") == 0)
-	{
-		std::cout << "Process the resolved effect: " << effect << " yielded " << new_reachable_facts.size() << " effects!" << std::endl;
-		std::cout << "From node tree: " << std::endl;
-		from_reachable_node.printCompleteTree(std::cout);
-		if (transition_reachable_node != NULL)
-		{
-			std::cout << "Transition node tree: " << std::endl;
-			transition_reachable_node->printCompleteTree(std::cout);
-		}
-	}
-#endif
-
 	for (std::vector<ReachableFact*>::const_iterator ci = new_reachable_facts.begin(); ci != new_reachable_facts.end(); ci++)
 	{
 		ReachableFact* new_reachable_fact = *ci;
@@ -1841,6 +1962,63 @@ ReachableFactLayerItem::~ReachableFactLayerItem()
 	}
 	delete reachable_fact_copy_;
 }
+
+bool ReachableFactLayerItem::canBeAchievedBy(const ResolvedBoundedAtom& precondition, StepID id, const Bindings& bindings, bool debug) const
+{
+	if (debug)
+	{
+		std::cout << "Can " << *reachable_fact_copy_ << " be achieved by: " << precondition << "?" << std::endl;
+	}
+	
+	if (precondition.getCorrectedAtom().getPredicate().getName() != reachable_fact_copy_->getAtom().getPredicate().getName()) return false;
+	if (precondition.getCorrectedAtom().getArity() != reachable_fact_copy_->getAtom().getArity()) return false;
+	
+	for (unsigned int i = 0; i < precondition.getCorrectedAtom().getArity(); i++)
+	{
+		const std::vector<const Object*>& precondition_variable_domain = precondition.getVariableDomain(i);
+		if (debug)
+		{
+			std::cout << "Precondition's " << i << "th variable domain: ";
+			printVariableDomain(std::cout, precondition_variable_domain);
+			std::cout << "; Compare against: ";
+			reachable_fact_copy_->getTermDomain(i).printObjects(std::cout, reachable_fact_layer_->getLayerNumber());
+			std::cout << std::endl;
+		}
+		
+		for (std::vector<EquivalentObject*>::const_iterator ci = reachable_fact_copy_->getTermDomain(i).begin(reachable_fact_layer_->getLayerNumber()); ci != reachable_fact_copy_->getTermDomain(i).end(reachable_fact_layer_->getLayerNumber()); ci++)
+		{
+			const EquivalentObject* eo = *ci;
+//			std::cout << "Check out: " << eo->getObject() << std::endl;
+			bool object_included = false;
+			for (std::vector<const Object*>::const_iterator ci = precondition_variable_domain.begin(); ci != precondition_variable_domain.end(); ci++)
+			{
+				if (&eo->getObject() == *ci)
+				{
+//					std::cout << "Found object: " << **ci << std::endl;
+					object_included = true;
+					break;
+				}
+			}
+			
+			if (!object_included)
+			{
+				if (debug)
+				{
+					assert (eo != NULL);
+					std::cout << "The object " << eo->getObject() << " of the term index " << i << " is not contained by the precondition's variable domain: {";
+					for (std::vector<const Object*>::const_iterator ci = precondition_variable_domain.begin(); ci != precondition_variable_domain.end(); ci++)
+					{
+						std::cout << **ci << ", ";
+					}
+					std::cout << "." << std::endl;
+				}
+				return false;
+			}
+		}
+	}
+	
+	return true;
+}
 	
 void ReachableFactLayerItem::addAchiever(const ReachableTransition& achiever, const ReachableTreeNode& from_tree_node, const ReachableTreeNode* transition_tree_node)
 {
@@ -1855,16 +2033,31 @@ void ReachableFactLayerItem::addAchiever(const ReachableTransition& achiever, co
 	achievers_.push_back(std::make_pair(&achiever, preconditions));
 }
 
+void ReachableFactLayerItem::addNoop(const ReachableFactLayerItem& noop)
+{
+	const ReachableTransition* reachable_transition = NULL;
+	std::vector<const ReachableFactLayerItem*>* preconditions = new std::vector<const ReachableFactLayerItem*>();
+	preconditions->push_back(&noop);
+	achievers_.push_back(std::make_pair(reachable_transition, preconditions));
+}
 
 std::ostream& operator<<(std::ostream& os, const ReachableFactLayerItem& reachable_fact_layer)
 {
 	reachable_fact_layer.getReachableFactCopy().print(os, reachable_fact_layer.getReachableFactLayer().getLayerNumber());
-	os << std::endl;
+	os << " - (" << &reachable_fact_layer.getActualReachableFact() << ")" << std::endl;
 	os << "Achieved by the preconditions: {" << std::endl;
 	for (std::vector<std::pair<const ReachableTransition*, std::vector<const ReachableFactLayerItem*>* > >::const_iterator ci = reachable_fact_layer.getAchievers().begin(); ci != reachable_fact_layer.getAchievers().end(); ci++)
 	{
 		std::vector<const ReachableFactLayerItem*>* preconditions = (*ci).second;
-		(*ci).first->getTransition().getAction().print(os, (*ci).first->getTransition().getFromNode().getDTG().getBindings(), (*ci).first->getTransition().getStepId());
+		
+		if ((*ci).first != NULL)
+		{
+			(*ci).first->getTransition().getAction().print(os, (*ci).first->getTransition().getFromNode().getDTG().getBindings(), (*ci).first->getTransition().getStepId());
+		}
+		else
+		{
+			os << "NOOP ";
+		}
 		os << "\t->\t{";
 		for (std::vector<const ReachableFactLayerItem*>::const_iterator ci = preconditions->begin(); ci != preconditions->end(); ci++)
 		{
@@ -1880,33 +2073,102 @@ std::ostream& operator<<(std::ostream& os, const ReachableFactLayerItem& reachab
 	return os;
 }
 
-ExecutedAction::ExecutedAction(const ReachableTransition& action, const Object** action_domains, const std::vector<const ReachableFactLayerItem*>& preconditions)
+/*ExecutedAction::ExecutedAction(const ReachableTransition& action, const Object** action_domains, const std::vector<const ReachableFactLayerItem*>& preconditions)
+	: action_(&action), action_domains_(action_domains), preconditions_(&preconditions)
+{
+	
+}*/
+
+ExecutedAction::ExecutedAction(const ReachableTransition& action, std::vector<const Object*>** action_domains, const std::vector<const ReachableFactLayerItem*>& preconditions)
 	: action_(&action), action_domains_(action_domains), preconditions_(&preconditions)
 {
 	
 }
 
+ExecutedAction::~ExecutedAction()
+{
+	for (unsigned int i = 0; i < action_->getTransition().getAction().getVariables().size(); i++)
+	{
+		delete action_domains_[i];
+		action_domains_[i] = NULL;
+	}
+	
+	delete[] action_domains_;
+}
+
+std::ostream& operator<<(std::ostream& os, const ExecutedAction& executed_action)
+{
+	os << "Executed action: " << executed_action.getAction().getTransition().getAction().getPredicate() << " ";
+	for (unsigned int i = 0; i < executed_action.getAction().getTransition().getAction().getVariables().size(); i++)
+	{
+		printVariableDomain(os, *executed_action.getActionDomains()[i]);
+/*
+		const Object* object = executed_action.getActionDomains()[i];
+		if (object == NULL)
+		{
+			os << "FREE ";
+		}
+		else
+		{
+			os << *object << " ";
+		}
+*/
+	}
+	os << std::endl;
+	return os;
+}
+
 ReachableFactLayer::ReachableFactLayer(unsigned int nr, const ReachableFactLayer* previous_layer)
 	: nr_(nr), previous_layer_(previous_layer)
 {
-	
+
+}
+
+ReachableFactLayer::~ReachableFactLayer()
+{
+	for (std::vector<ReachableFactLayerItem*>::const_iterator ci = reachable_facts_.begin(); ci != reachable_facts_.end(); ci++)
+	{
+		delete *ci;
+	}
+	delete previous_layer_;
+}
+
+void ReachableFactLayer::finalise()
+{
+	// Copy the facts from the previous layer and add those facts as precondition.
+	if (previous_layer_ != NULL)
+	{
+		for (std::vector<ReachableFactLayerItem*>::const_iterator ci = previous_layer_->getReachableFacts().begin(); ci != previous_layer_->getReachableFacts().end(); ci++)
+		{
+			ReachableFactLayerItem* item_copy = new ReachableFactLayerItem(*this, (*ci)->getActualReachableFact().getReplacement());
+			item_copy->addNoop(**ci);
+			reachable_facts_.push_back(item_copy);
+		}
+	}
 }
 
 void ReachableFactLayer::addFact(const ReachableFact& reachable_fact)
 {
 	ReachableFactLayerItem* reachable_item = new ReachableFactLayerItem(*this, reachable_fact);
 	reachable_facts_.push_back(reachable_item);
-///	ReachableFact* reachable_fact_copy = new ReachableFact(reachable_fact);
-	
-	// Apply a trick here, we store the original reachable fact so it becomes easier when we need to find the preconditions of facts which become reachable 
-	// in subsequent facts as we only need to compare the pointers.
-///	reachable_fact_copy->replaceBy(*const_cast<ReachableFact*>(&reachable_fact));
-///	reachable_facts_.push_back(std::make_pair(reachable_fact_copy, new std::vector<const ReachableFact*>()));
 }
 
 void ReachableFactLayer::addFact(const ReachableFact& reachable_fact, const ReachableTransition& achiever, const ReachableTreeNode& from_tree_node, const ReachableTreeNode* transition_tree_node, bool already_exists)
 {
 	// Check if this fact already exists!
+/*	std::cout << "Layer: " << nr_ << "; The reachable fact: " << reachable_fact << " is achieved by: " << std::endl;
+	for (ConstReachableTreeIterator ci = from_tree_node.cbegin(); ci != from_tree_node.cend(); ci++)
+	{
+		std::cout << "* " << *ci << std::endl;
+	}
+	if (transition_tree_node != NULL)
+	{
+		for (ConstReachableTreeIterator ci = transition_tree_node->cbegin(); ci != transition_tree_node->cend(); ci++)
+		{
+			std::cout << "* " << *ci << std::endl;
+		}
+	}
+*/
 	if (already_exists)
 	{
 		for (std::vector<ReachableFactLayerItem*>::const_iterator ci = reachable_facts_.begin(); ci != reachable_facts_.end(); ci++)
@@ -1924,46 +2186,39 @@ void ReachableFactLayer::addFact(const ReachableFact& reachable_fact, const Reac
 		reachable_facts_.push_back(reachable_item);
 		reachable_item->addAchiever(achiever, from_tree_node, transition_tree_node);
 	}
-/*
-	std::vector<const ReachableFact*>* preconditions = new std::vector<const ReachableFact*>();
-	// Search for all the reachable facts in the previous layer(s) and add it to the preconditions.
-	
-	extractPreconditions(*preconditions, from_tree_node);
-	if (transition_tree_node != NULL)
-	{
-		extractPreconditions(*preconditions, *transition_tree_node);
-	}
-	
-	ReachableFact* reachable_fact_copy = new ReachableFact(reachable_fact);
-	// Apply a trick here, we store the original reachable fact so it becomes easier when we need to find the preconditions of facts which become reachable 
-	// in subsequent facts as we only need to compare the pointers.
-	reachable_fact_copy->replaceBy(*const_cast<ReachableFact*>(&reachable_fact));
-	reachable_facts_.push_back(std::make_pair(reachable_fact_copy, preconditions));
-*/
 }
 
 void ReachableFactLayer::extractPreconditions(std::vector<const ReachableFactLayerItem*>& preconditions, const ReachableTreeNode& reachable_tree_node) const
 {
 	for (ConstReachableTreeIterator ci = reachable_tree_node.cbegin(); ci != reachable_tree_node.cend(); ci++)
 	{
+		std::cout << "Find " << *ci << " in " << *this << std::endl;
 		const ReachableFactLayerItem& precondition = findPrecondition((*ci).getReachableFact());
 		preconditions.push_back(&precondition);
 	}
 }
 
-const ReachableFactLayerItem& ReachableFactLayer::findPrecondition(const ReachableFact& reachable_fact) const
+const ReachableFactLayerItem* ReachableFactLayer::findPrecondition(const ReachableFact& reachable_fact) const
 {
+	// Always try to check the previous layer first.
+	if (previous_layer_ != NULL)
+	{
+		const ReachableFactLayerItem* found_item = previous_layer_->findPrecondition(reachable_fact);
+		if (found_item != NULL) return found_item;
+	}
+	
 	for (std::vector<ReachableFactLayerItem*>::const_iterator ci = reachable_facts_.begin(); ci != reachable_facts_.end(); ci++)
 	{
 		if (&reachable_fact == &(*ci)->getActualReachableFact())
 		{
-			return **ci;
+//			std::cout << "Found " << reachable_fact << "(" << &reachable_fact << " v.s. " << (*ci)->getActualReachableFact() << "(" << &(*ci)->getActualReachableFact() << ")" << std::endl;
+			return *ci;
 		}
+//		std::cout << "Compare " << reachable_fact << "(" << &reachable_fact << " v.s. " << (*ci)->getActualReachableFact() << "(" << &(*ci)->getActualReachableFact() << ")" << std::endl;
 	}
 	
-	// Check the previous layer!
-	assert (previous_layer_ != NULL);
-	return previous_layer_->findPrecondition(reachable_fact);
+	// Nothing found :(.
+	return NULL;
 }
 
 const std::vector<ReachableFactLayerItem*>& ReachableFactLayer::getReachableFacts() const
@@ -2032,7 +2287,7 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 #endif
 
 	// Initialise the individual groups per object.
-	equivalent_object_manager_ = new EquivalentObjectGroupManager(dtg_manager, dtg_graph, term_manager);
+	equivalent_object_manager_ = new EquivalentObjectGroupManager(dtg_manager, dtg_graph, term_manager, predicate_manager);
 	
 	std::map<const SAS_Plus::DomainTransitionGraphNode*, ReachableNode*> node_mapping;
 	std::vector<ReachableSet*> all_reachable_sets;
@@ -2194,7 +2449,8 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 		if (reachable_set_to_remove.count(reachable_set) != 0)
 		{
 			all_reachable_sets.erase(ri.base() - 1);
-			delete reachable_set;
+			// TODO: Uncommenting below segfaults. It shouldn't as the reachable set shouldn't be part of anything at this stage...
+///			delete reachable_set;
 		}
 	}
 	
@@ -2269,7 +2525,6 @@ DTGReachability::~DTGReachability()
 	}
 }
 
-
 void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFact*>& result, const std::vector<const SAS_Plus::BoundedAtom*>& initial_facts, const Bindings& bindings)
 {
 //	double time_propagating = 0;
@@ -2285,12 +2540,36 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 	struct timeval start_time_eog;
 	gettimeofday(&start_time_eog, NULL);
 #endif
+	for (std::vector<ReachableNode*>::const_iterator ci = reachable_nodes_.begin(); ci != reachable_nodes_.end(); ci++)
+	{
+		ReachableNode* reachable_node = *ci;
+		reachable_node->reset();
+		for (std::vector<ReachableTransition*>::const_iterator ci = reachable_node->getReachableTransitions().begin(); ci != reachable_node->getReachableTransitions().end(); ci++)
+		{
+			(*ci)->reset();
+		}
+	}
+	// Reset the EOGs last because the previous state of the EOGs must be accessable by the reachable sets to revert the EOGs to their original state.
+	equivalent_object_manager_->reset();
+	
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+	for (std::vector<ReachableNode*>::const_iterator ci = reachable_nodes_.begin(); ci != reachable_nodes_.end(); ci++)
+	{
+		ReachableNode* reachable_node = *ci;
+		assert (reachable_node->getReachableTrees().size() == 0);
+		for (std::vector<ReachableTransition*>::const_iterator ci = reachable_node->getReachableTransitions().begin(); ci != reachable_node->getReachableTransitions().end(); ci++)
+		{
+			assert ((*ci)->getReachableTrees().size() == 0);
+		}
+	}
+#endif
 	
 	// Transform the set of initial facts into reachable facts, which means we drop the variable domains
 	// and work solely with equivalent object groups.
 	std::vector<ReachableFact*> established_reachable_facts;
 	for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
 	{
+//		(*ci)->print(std::cout, bindings);
 		ReachableFact* initial_reachable_fact = new ReachableFact(**ci, bindings, *equivalent_object_manager_);
 		established_reachable_facts.push_back(initial_reachable_fact);
 	}
@@ -2314,6 +2593,11 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 		if ((*ci)->isMarkedForRemoval()) continue;
 		current_fact_layer_->addFact(**ci);
 	}
+	
+//	std::cout << "Current layer: " << *current_fact_layer_ << std::endl;
+//	std::cout << "EOG manager: " << std::endl;
+//	equivalent_object_manager_->printAll(std::cout);
+	
 	
 #ifdef DTG_REACHABILITY_KEEP_TIME
 	unsigned int total_number_of_eog_after_update = equivalent_object_manager_->getNumberOfEquivalentGroups();
@@ -2353,7 +2637,7 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 		reachable_node->print(std::cout);
 		std::cout << std::endl;
 	}
-	equivalent_object_manager_->print(std::cout);
+	std::cout << *equivalent_object_manager_ << std::endl;
 #endif
 	
 	// Now for every LTG node for which we have found a full set we check if their reachable transitions have the same property and we
@@ -2389,6 +2673,7 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 			{
 				(*ci)->equivalencesUpdated(iteration);
 			}
+			current_fact_layer_->finalise();
 		}
 		
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
@@ -2399,8 +2684,7 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 			std::cout << std::endl;
 		}
 		std::cout << "EOGs: ";
-		equivalent_object_manager_->print(std::cout);
-		std::cout << std::endl;
+		std::cout << *equivalent_object_manager_ << std::endl;
 #endif
 
 #ifdef DTG_REACHABILITY_KEEP_TIME
@@ -2437,8 +2721,7 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 	
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "DONE! All the equivalent objects: " << std::endl;
-	equivalent_object_manager_->printAll(std::cout);
-	std::cout << std::endl;
+	std::cout << *equivalent_object_manager_ << std::endl;
 
 	std::cout << "DONE! All resulting nodes: " << std::endl;
 	for (std::vector<ReachableNode*>::const_iterator ci = reachable_nodes_.begin(); ci != reachable_nodes_.end(); ci++)
@@ -2454,22 +2737,22 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 	std::cerr << "Compression rate " << 100 - ((double)equivalent_object_manager_->getNumberOfEquivalentGroups() / (double)total_number_of_eog) * 100 << std::endl;
 #endif
 	
-	equivalent_object_manager_->getAllReachableFacts(result);
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-	std::cout << "Reachable facts: " << std::endl;
-	const ReachableFactLayer* fact_layer_to_print = current_fact_layer;
-	do
-	{
-		std::cout << *fact_layer_to_print << std::endl;
-	} while ((fact_layer_to_print = fact_layer_to_print->getPreviousLayer()) != NULL);
-#endif
+	//equivalent_object_manager_->getAllReachableFacts(result);
 }
 
 unsigned int DTGReachability::getHeuristic(const std::vector<const SAS_Plus::BoundedAtom*>& bounded_goal_facts, const Bindings& bindings, PredicateManager& predicate_manager) const
 {
-	//std::vector<const ReachableFactLayerItem*> open_list;
-	std::priority_queue<std::pair<const ReachableFactLayerItem*, const Object**>, std::vector<std::pair<const ReachableFactLayerItem*, const Object**> >, compareReachableFactLayerItem> open_list;
-	
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+	std::cout << " ************************************************************** " << std::endl;
+	std::cout << " ********************* GET HEURISTIC ************************** " << std::endl;
+	std::cout << " ************************************************************** " << std::endl;
+#endif
+	//std::set<std::pair<const EquivalentObjectGroup*, const Object*> > combined_eogs;
+	std::set<std::pair<const EquivalentObject*, const EquivalentObject*> > combined_eogs;
+//	std::priority_queue<std::pair<const ReachableFactLayerItem*, const Object**>, std::vector<std::pair<const ReachableFactLayerItem*, const Object**> >, compareReachableFactLayerItem> open_list;
+	std::priority_queue<std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**>, std::vector<std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**> >, compareReachableFactLayerItem> open_list;
+
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 	std::cout << "Fact layers: " << std::endl;
 	const ReachableFactLayer* rfl = current_fact_layer_;
 	while (rfl != NULL)
@@ -2478,13 +2761,17 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const SAS_Plus::Bou
 		rfl = rfl->getPreviousLayer();
 	}
 	std::cout << "Get the heuristic for " << bounded_goal_facts.size() << " goals!" << std::endl;
-	
+#endif
+
+	std::vector<const std::vector<const Object*>* > variable_domains_of_goals;
 	for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = bounded_goal_facts.begin(); ci != bounded_goal_facts.end(); ci++)
 	{
 		const SAS_Plus::BoundedAtom* goal = *ci;
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 		std::cout << "Process the goal: ";
 		goal->print(std::cout, bindings);
 		std::cout << std::endl;
+#endif
 		ResolvedBoundedAtom resolved_goal(goal->getId(), goal->getAtom(), bindings, *equivalent_object_manager_, predicate_manager);
 		
 		// Find the earliest layer where this goal is present.
@@ -2503,15 +2790,31 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const SAS_Plus::Bou
 		// Goal is unattainable!
 		if (earliest_known_achiever == NULL)
 		{
-			std::cout << "No known early achiever :( " << *earliest_known_achiever << std::endl;
+			std::cerr << "No known early achiever for " << resolved_goal << " :( " << std::endl;
+			const ReachableFactLayer* tmp_fact_layer = current_fact_layer_;
+			while (tmp_fact_layer != NULL)
+			{
+				std::cerr << *tmp_fact_layer << std::endl;
+				tmp_fact_layer = tmp_fact_layer->getPreviousLayer();
+			}
+			
+			std::cerr << *equivalent_object_manager_ << std::endl;
+			
+			assert (false);
 			return std::numeric_limits<unsigned int>::max();
 		}
 		
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 		std::cout << "Earliest achiever: " << *earliest_known_achiever << std::endl;
-		const Object** grounded_objects = new const Object*[goal->getAtom().getArity()];
+#endif
+		//const Object** grounded_objects = new const Object*[goal->getAtom().getArity()];
+		std::vector<const Object*>** grounded_objects = new std::vector<const Object*>*[goal->getAtom().getArity()];
 		for (unsigned int i = 0; i < goal->getAtom().getArity(); i++)
 		{
-			grounded_objects[i] = goal->getVariableDomain(i, bindings)[0];
+			std::vector<const Object*>* new_variable_domain = new std::vector<const Object*>();
+			new_variable_domain->push_back(goal->getVariableDomain(i, bindings)[0]);
+			grounded_objects[i] = new_variable_domain;
+			variable_domains_of_goals.push_back(new_variable_domain);
 		}
 		open_list.push(std::make_pair(earliest_known_achiever, grounded_objects));
 	}
@@ -2522,61 +2825,165 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const SAS_Plus::Bou
 	std::set<std::pair<const ReachableFact*, unsigned int> > closed_list;
 	while (!open_list.empty())
 	{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+		std::cout << std::endl;
+#endif
 		//const ReachableFactLayerItem* current_goal = *open_list.erase(open_list.end() - 1);
 		const ReachableFactLayerItem* current_goal = open_list.top().first;
-		const Object** object_bindings = open_list.top().second;
+		std::vector<const Object*>** object_bindings = open_list.top().second;
 		open_list.pop();
+		
+		// If the goal has NOOPs which achieve it, backtrace all the noops until we reach a fact which does not contain a noop.
+		bool has_noop = true;
+		while (has_noop)
+		{
+			has_noop = false;
+			for (std::vector<std::pair<const ReachableTransition*, std::vector<const ReachableFactLayerItem*>* > >::const_iterator ci = current_goal->getAchievers().begin(); ci != current_goal->getAchievers().end(); ci++)
+			{
+				if ((*ci).first == NULL)
+				{
+					assert ((*ci).second->size() == 1);
+					
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+					std::cout << "Found a NOOP achieving: " << *current_goal << " >>>==--> " << *(*(*ci).second)[0] << std::endl;
+#endif
+					
+					current_goal = (*(*ci).second)[0];
+					has_noop = true;
+					break;
+				}
+			}
+		}
 		
 		// If it's part of the initial state, we're done!
 		if (current_goal->getReachableFactLayer().getLayerNumber() == 0)
 		{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 			std::cout << "The goal " << *current_goal << " is part of the initial state!" << std::endl;
 			for (unsigned int i = 0; i < current_goal->getActualReachableFact().getAtom().getArity(); i++)
 			{
-				if (object_bindings[i] != NULL)
-				{
-					std::cout << *object_bindings[i] << " ";
-				}
-				else
-				{
-					std::cout << "FREE";
-				}
+				printVariableDomain(std::cout, *object_bindings[i]);
 			}
 			std::cout << std::endl;
+#endif
 			// Check if all the objects match or if we need to find the costs of substitutions!
 			for (unsigned int i = 0; i < current_goal->getActualReachableFact().getAtom().getArity(); i++)
 			{
-				if (object_bindings[i] != NULL)
+				// Check if there is an overlap.
+				bool variable_domains_overlap = false;
+				for (std::vector<const Object*>::const_iterator ci = (object_bindings[i])->begin(); ci != (object_bindings[i])->end(); ci++)
 				{
-					if (!current_goal->getReachableFactCopy().getTermDomain(i).contains(*object_bindings[i], 0))
+					if (current_goal->getReachableFactCopy().getTermDomain(i).contains(**ci, 0))
 					{
+						variable_domains_overlap = true;
+						break;
+					}
+				}
+				
+				if (!variable_domains_overlap)
+				{
+					// Check if this subsitution has already been made.
+					bool substitution_already_made = false;
+					for (std::vector<const Object*>::const_iterator ci = (object_bindings[i])->begin(); ci != (object_bindings[i])->end(); ci++)
+					{
+						const EquivalentObject& eo = equivalent_object_manager_->getEquivalentObject(**ci);
+						for (std::vector<EquivalentObject*>::const_iterator ci = current_goal->getReachableFactCopy().getTermDomain(i).begin(current_goal->getReachableFactLayer().getLayerNumber()); ci != current_goal->getReachableFactCopy().getTermDomain(i).end(current_goal->getReachableFactLayer().getLayerNumber()); ci++)
+						{
+							if (combined_eogs.count(std::make_pair(&eo, *ci)) == 1)
+							{
+								substitution_already_made = true;
+								break;
+							}
+						}
+						if (substitution_already_made) break;
+					}
+
+					if (!substitution_already_made)
+					{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 						std::cout << "Need to make a substitution from: ";
 						current_goal->getReachableFactCopy().getTermDomain(i).printObjects(std::cout, 0);
-						std::cout << " to " << *object_bindings[i] << "!" << std::endl;
-						
+						std::cout << "to ";
+						printVariableDomain(std::cout, *object_bindings[i]);
+						std::cout << std::endl;
+#endif
+/*
+						// For now we simply take the first layer at which they become equivalent!
+						unsigned int largest_fact_layer = std::numeric_limits<unsigned int>::min();
+						unsigned int smallest_fact_layer = std::numeric_limits<unsigned int>::max();
+						for (std::vector<const Object*>::const_iterator ci = (object_bindings[i])->begin(); ci != (object_bindings[i])->end(); ci++)
+						{
+							for (unsigned int layer_number = 0; layer_number < current_fact_layer_->getLayerNumber(); layer_number++)
+							{
+								if (current_goal->getReachableFactCopy().getTermDomain(i).contains(**ci, layer_number))
+								{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+									std::cout << "Add " << layer_number << " to the heuristic!" << std::endl;
+#endif
+									if (layer_number > largest_fact_layer) largest_fact_layer = layer_number;
+									if (layer_number < smallest_fact_layer) smallest_fact_layer = layer_number;
+									break;
+								}
+							}
+						}
+						heuristic += smallest_fact_layer;
+						for (std::vector<const Object*>::const_iterator ci = (object_bindings[i])->begin(); ci != (object_bindings[i])->end(); ci++)
+						{
+							const EquivalentObject& eo = equivalent_object_manager_->getEquivalentObject(**ci);
+							for (std::vector<EquivalentObject*>::const_iterator ci = current_goal->getReachableFactCopy().getTermDomain(i).begin(current_goal->getReachableFactLayer().getLayerNumber()); ci != current_goal->getReachableFactCopy().getTermDomain(i).end(current_goal->getReachableFactLayer().getLayerNumber()); ci++)
+							{
+								combined_eogs.insert(std::make_pair(&eo, *ci));
+								combined_eogs.insert(std::make_pair(*ci, &eo));
+							}
+						}
+*/
 						// For now we simply take the first layer at which they become equivalent!
 						for (unsigned int layer_number = 0; layer_number < current_fact_layer_->getLayerNumber(); layer_number++)
 						{
-							if (current_goal->getReachableFactCopy().getTermDomain(i).contains(*object_bindings[i], layer_number))
+							bool found_layer_number = false;
+							for (std::vector<const Object*>::const_iterator ci = (object_bindings[i])->begin(); ci != (object_bindings[i])->end(); ci++)
 							{
-								std::cout << "Add " << layer_number << " to the heuristic!" << std::endl;
-								heuristic += layer_number;
-								break;
+								if (current_goal->getReachableFactCopy().getTermDomain(i).contains(**ci, layer_number))
+								{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+									std::cout << "Add " << layer_number << " to the heuristic!" << std::endl;
+#endif
+									heuristic += layer_number;
+									found_layer_number = true;
+
+									for (std::vector<const Object*>::const_iterator ci = (object_bindings[i])->begin(); ci != (object_bindings[i])->end(); ci++)
+									{
+										const EquivalentObject& eo = equivalent_object_manager_->getEquivalentObject(**ci);
+										for (std::vector<EquivalentObject*>::const_iterator ci = current_goal->getReachableFactCopy().getTermDomain(i).begin(current_goal->getReachableFactLayer().getLayerNumber()); ci != current_goal->getReachableFactCopy().getTermDomain(i).end(current_goal->getReachableFactLayer().getLayerNumber()); ci++)
+										{
+											combined_eogs.insert(std::make_pair(&eo, *ci));
+											combined_eogs.insert(std::make_pair(*ci, &eo));
+										}
+									}
+									break;
+								}
 							}
+							if (found_layer_number) break;
 						}
 					}
 				}
 			}
+			delete[] object_bindings;
 			continue;
 		}
 		
-		std::cout << "Work on the goal: " << *current_goal << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+		std::cout << "Work on the goal: " << *current_goal << "(" << current_goal->getReachableFactLayer().getLayerNumber() << ")" << std::endl;
+		std::cout << "Bindings of the variables: ";
 		for (unsigned int i = 0; i < current_goal->getActualReachableFact().getAtom().getArity(); i++)
 		{
-			if (object_bindings[i] == NULL) std::cout << "FREE ";
-			else std::cout << *object_bindings[i];
+			printVariableDomain(std::cout, *object_bindings[i]);
+			
+//			if (object_bindings[i] == NULL) std::cout << "FREE ";
+//			else std::cout << *object_bindings[i] << " ";
 		}
 		std::cout << std::endl;
+#endif
 	
 		// Select cheapest achiever.
 		const ReachableTransition* cheapest_achiever = NULL;
@@ -2587,24 +2994,30 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const SAS_Plus::Bou
 			const ReachableTransition* achiever = (*ci).first;
 			std::vector<const ReachableFactLayerItem*>* preconditions = (*ci).second;
 			unsigned int cost = 0;
+//			std::cout << "Possible achiever: ";
+//			achiever->getTransition().getAction().print(std::cout, bindings, achiever->getTransition().getStepId());
+//			std::cout << std::endl;
+			
 			for (std::vector<const ReachableFactLayerItem*>::const_iterator ci = preconditions->begin(); ci != preconditions->end(); ci++)
 			{
 				cost += (*ci)->getReachableFactLayer().getLayerNumber();
+//				std::cout << "+costs: " << (*ci)->getReachableFactLayer().getLayerNumber() << ": " << **ci << std::endl;
 			}
+			
+//			std::cout << "Total costs: " << cost << std::endl;
 			
 			if (cost < cheapest_achiever_cost)
 			{
+//				std::cout << "It's cheaper!" << std::endl;
 				cheapest_achiever = achiever;
 				cheapest_preconditions = preconditions;
 				cheapest_achiever_cost = cost;
 			}
 		}
 		
-		// Add the preconditions to the list.
+		// Check if this action has not already been executed.
 		if (cheapest_achiever != NULL)
 		{
-			// Check if this action has not already been executed.
-			// TODO: check if the action variables match up with the groundedo ones...
 			bool already_executed = false;
 			//for (std::vector<std::vector<const ReachableFactLayerItem*>*>::const_iterator ci = executed_actions.begin(); ci != executed_actions.end(); ci++)
 			for (std::vector<ExecutedAction*>::const_iterator ci = executed_actions.begin(); ci != executed_actions.end(); ci++)
@@ -2627,41 +3040,62 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const SAS_Plus::Bou
 				
 				if (same_action)
 				{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+					std::cout << "The action: " << *executed_action << " could satisfy it as well..." << std::endl;
+#endif
 					// Check if the variables match.
 					bool found_match = false;
-					const Object* updated_variable_domains[executed_action->getAction().getTransition().getAction().getVariables().size()];
-					const Object** variable_domains = executed_action->getActionDomains();
+					//const Object* updated_variable_domains[executed_action->getAction().getTransition().getAction().getVariables().size()];
+					//const Object** variable_domains = executed_action->getActionDomains();
+					std::vector<const Object*>** variable_domains = executed_action->getActionDomains();
+					std::vector<const Object*>* updated_variable_domains[executed_action->getAction().getTransition().getAction().getVariables().size()];
 					for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = executed_action->getAction().getTransition().getAllEffects().begin(); ci != executed_action->getAction().getTransition().getAllEffects().end(); ci++)
 					{
 						const Atom* effect = (*ci).first;
+						if (effect->isNegative() != current_goal->getReachableFactCopy().getAtom().isNegative())
+						{
+							continue;
+						}
 						bool effect_matches = false;
 						
 						for (unsigned int i = 0; i < executed_action->getAction().getTransition().getAction().getVariables().size(); i++)
 						{
-							updated_variable_domains[i] = variable_domains[i];
+							updated_variable_domains[i] = new std::vector<const Object*>();
+							updated_variable_domains[i]->insert(updated_variable_domains[i]->end(), variable_domains[i]->begin(), variable_domains[i]->end());
 						}
 						
 						if (current_goal->getReachableFactCopy().canUnifyWith(*effect, executed_action->getAction().getTransition().getStepId(), bindings, current_goal->getReachableFactLayer().getLayerNumber()))
 						{
 							effect_matches = true;
 							
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+							std::cout << "The effect: ";
+							effect->print(std::cout, bindings, executed_action->getAction().getTransition().getStepId());
+							std::cout << " achieves the precondition." << std::endl;
+#endif
+							
 							for (unsigned int i = 0; i < effect->getArity(); i++)
 							{
 								// Effect not bounded - we're good!
-								if (object_bindings[i] == NULL) continue;
+								if (object_bindings[i] == NULL)
+								{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+									std::cout << "The " << i << "th term is free." << std::endl;
+#endif
+									continue;
+								}
 								for (unsigned int j = 0; j < executed_action->getAction().getTransition().getAction().getVariables().size(); j++)
 								{
 									if (effect->getTerms()[i] == executed_action->getAction().getTransition().getAction().getVariables()[j])
 									{
 										// Check if the variable domains match up!
+										const std::vector<const Object*>* goal_variable_domain = object_bindings[i];
+										const std::vector<const Object*>* action_variable_domain = variable_domains[j];
 										
-										// Variable is not bounded - we're good!
-										if (variable_domains[j] == NULL)
-										{
-											updated_variable_domains[j] = object_bindings[i];
-											break;
-										}
-										else if (object_bindings[i] != variable_domains[j])
+										updated_variable_domains[j]->clear();
+										takeIntersection(*updated_variable_domains[j], *goal_variable_domain, *action_variable_domain);
+										// If the intersection is empty we cannot execute the action to achieve the same effect!
+										if (updated_variable_domains[j]->empty())
 										{
 											effect_matches = false;
 											break;
@@ -2677,6 +3111,13 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const SAS_Plus::Bou
 							found_match = true;
 							break;
 						}
+						else
+						{
+							for (unsigned int i = 0; i < executed_action->getAction().getTransition().getAction().getVariables().size(); i++)
+							{
+								delete updated_variable_domains[i];
+							}
+						}
 					}
 					
 					// If we found a match, update the action variables.
@@ -2684,31 +3125,32 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const SAS_Plus::Bou
 					{
 						already_executed = true;
 						
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 						std::cout << "Action to achieve: ";
 						current_goal->getReachableFactCopy().print(std::cout, current_goal->getReachableFactLayer().getLayerNumber());
 						std::cout << " has already been executed!" << std::endl;
 						std::cout << "Updated the variable domains to: ";
-						
+#endif
 						for (unsigned int i = 0; i < executed_action->getAction().getTransition().getAction().getVariables().size(); i++)
 						{
-							variable_domains[i] = updated_variable_domains[i];
-							if (variable_domains[i] == NULL)
-							{
-								std::cout << "FREE ";
-							}
-							else
-							{
-								std::cout << *variable_domains[i] << " ";
-							}
+//							variable_domains[i] = updated_variable_domains[i];
+							variable_domains[i]->clear();
+							variable_domains[i]->insert(variable_domains[i]->end(), updated_variable_domains[i]->begin(), updated_variable_domains[i]->end());
+							delete updated_variable_domains[i];
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+							printVariableDomain(std::cout, *variable_domains[i]);
+#endif
 						}
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 						std::cout << std::endl;
-						
+#endif
 					}
 				}
 			}
 
 			if (!already_executed)
 			{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 				std::cout << "Execute: ";
 				cheapest_achiever->getTransition().getAction().print(std::cout, bindings, cheapest_achiever->getTransition().getStepId());
 				std::cout << " with preconditions: " << std::endl;
@@ -2721,129 +3163,416 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const SAS_Plus::Bou
 				std::cout << "to achieve: ";
 				current_goal->getReachableFactCopy().print(std::cout, current_goal->getReachableFactLayer().getLayerNumber());
 				std::cout << "." << std::endl;
-				
+#endif
 				// Update the variable domains to take into account the grounded variables.
-				
-				
-				
-				const Object** action_variable_domains = new const Object*[cheapest_achiever->getTransition().getAction().getVariables().size()];
+				std::vector<const Object*>** action_variable_domains = new std::vector<const Object*>*[cheapest_achiever->getTransition().getAction().getVariables().size()];
 				for (unsigned int i = 0; i < cheapest_achiever->getTransition().getAction().getVariables().size(); i++)
 				{
-					const std::vector<const Object*>& variable_domain = cheapest_achiever->getTransition().getAction().getVariables()[i]->getDomain(cheapest_achiever->getTransition().getStepId(), bindings);
-					
-					if (variable_domain.size() == 1)
-					{
-						action_variable_domains[i] = variable_domain[0];
-					}
-					else
-					{
-						action_variable_domains[i] = NULL;
-					}
+					std::vector<const Object*>* variable_domain = new std::vector<const Object*>();
+					variable_domain->insert(variable_domain->end(), cheapest_achiever->getTransition().getAction().getVariables()[i]->getDomain(cheapest_achiever->getTransition().getStepId(), bindings).begin(), cheapest_achiever->getTransition().getAction().getVariables()[i]->getDomain(cheapest_achiever->getTransition().getStepId(), bindings).end());
+					action_variable_domains[i] = variable_domain;
 				}
-				
+
 				for (vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = cheapest_achiever->getTransition().getAllEffects().begin(); ci != cheapest_achiever->getTransition().getAllEffects().end(); ci++)
 				{
 					const Atom* effect = (*ci).first;
 					
 					if (current_goal->getReachableFactCopy().canUnifyWith(*effect, cheapest_achiever->getTransition().getStepId(), bindings, current_goal->getReachableFactLayer().getLayerNumber()))
 					{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+						std::cout << "The effect: ";
+						effect->print(std::cout, bindings, cheapest_achiever->getTransition().getStepId());
+						std::cout << " unifies with: ";
+						current_goal->getReachableFactCopy().print(std::cout, current_goal->getReachableFactLayer().getLayerNumber());
+						std::cout << std::endl;
+#endif
 						for (unsigned int i = 0; i < effect->getArity(); i++)
 						{
 							for (unsigned int j = 0; j < cheapest_achiever->getTransition().getAction().getVariables().size(); j++)
 							{
 								if (effect->getTerms()[i] == cheapest_achiever->getTransition().getAction().getVariables()[j])
 								{
-									action_variable_domains[j] = object_bindings[i];
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+									std::cout << "Change the " << j << "th action variable :";
+									printVariableDomain(std::cout, *action_variable_domains[j]);
+									std::cout << " to ";
+									printVariableDomain(std::cout, *object_bindings[i]);
+									std::cout << std::endl;
+#endif
+/*									if ((*action_variable_domains[j])[0]->getType() != (*object_bindings[i])[0]->getType())
+									{
+										std::cout << object_bindings << std::endl;
+										assert (false);
+									}*/
+//									action_variable_domains[j] = object_bindings[i];
+									action_variable_domains[j]->clear();
+									action_variable_domains[j]->insert(action_variable_domains[j]->end(), object_bindings[i]->begin(), object_bindings[i]->end());
 								}
 							}
 						}
 						break;
 					}
 				}
+
+				// Update variable domains to confirm to the static variables.
+				for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = cheapest_achiever->getPreconditions().begin(); ci != cheapest_achiever->getPreconditions().end(); ci++)
+				{
+					const ResolvedBoundedAtom* precondition = *ci;
+					if (!precondition->getOriginalAtom().getPredicate().isStatic()) continue;
+					
+					std::vector<const Object*>* static_precondition_variable_domain[precondition->getOriginalAtom().getArity()];
+					for (unsigned int i = 0; i < precondition->getOriginalAtom().getArity(); i++)
+					{
+						static_precondition_variable_domain[i] = new std::vector<const Object*>();
+					}
+					
+					const ReachableFactLayer* initial_fact_layer = current_fact_layer_;
+					while (initial_fact_layer->getPreviousLayer() != NULL) initial_fact_layer = initial_fact_layer->getPreviousLayer();
+					
+					for (std::vector<ReachableFactLayerItem*>::const_iterator ci = initial_fact_layer->getReachableFacts().begin(); ci != initial_fact_layer->getReachableFacts().end(); ci++)
+					{
+						ReachableFactLayerItem* item = *ci;
+						if (!item->getActualReachableFact().getAtom().getPredicate().isStatic()) continue;
+						
+						if (item->getActualReachableFact().canUnifyWith(precondition->getOriginalAtom(), cheapest_achiever->getTransition().getStepId(), bindings, 0))
+						{
+							bool terms_match = true;
+							for (unsigned int i = 0; i < precondition->getOriginalAtom().getArity(); i++)
+							{
+								for (unsigned int j = 0; j < cheapest_achiever->getTransition().getAction().getVariables().size(); j++)
+								{
+									if (precondition->getOriginalAtom().getTerms()[i] == cheapest_achiever->getTransition().getAction().getVariables()[j])
+									{
+										bool terms_overlap = false;
+										for (std::vector<const Object*>::const_iterator ci = action_variable_domains[j]->begin(); ci != action_variable_domains[j]->end(); ci++)
+										{
+											if (item->getReachableFactCopy().getTermDomain(i).contains(**ci, 0))
+											{
+												terms_overlap = true;
+												break;
+											}
+										}
+										
+										
+										if (!terms_overlap)
+										{
+											terms_match = false;
+											break;
+										}
+									}
+								}
+								if (!terms_match) break;
+							}
+							
+							if (terms_match)
+							{
+//								std::cout << "Applicable precondition: " << *item << std::endl;
+								for (unsigned int i = 0; i < precondition->getOriginalAtom().getArity(); i++)
+								{
+									for (std::vector<EquivalentObject*>::const_iterator ci = item->getActualReachableFact().getTermDomain(i).getEquivalentObjects().begin(); ci != item->getActualReachableFact().getTermDomain(i).getEquivalentObjects().end(); ci++)
+									{
+										const EquivalentObject* eo = *ci;
+										if (std::find(static_precondition_variable_domain[i]->begin(), static_precondition_variable_domain[i]->end(), &eo->getObject()) == static_precondition_variable_domain[i]->end())
+										{
+											static_precondition_variable_domain[i]->push_back(&eo->getObject());
+										}
+									}
+									
+//									if (std::find(static_precondition_variable_domain[i]->begin(), static_precondition_variable_domain[i]->end(), &item->getActualReachableFact().getTermDomain(i).getEquivalentObjects()[0]->getObject()) == static_precondition_variable_domain[i]->end())
+//									{
+//										static_precondition_variable_domain[i]->push_back(&item->getActualReachableFact().getTermDomain(i).getEquivalentObjects()[0]->getObject());
+//									}
+								}
+							}
+						}
+					}
+					
+					// Reduce the variable domains to the objects which conform to the static preconditions.
+					for (unsigned int i = 0; i < precondition->getOriginalAtom().getArity(); i++)
+					{
+						for (unsigned int j = 0; j < cheapest_achiever->getTransition().getAction().getVariables().size(); j++)
+						{
+							if (precondition->getOriginalAtom().getTerms()[i] == cheapest_achiever->getTransition().getAction().getVariables()[j] && !static_precondition_variable_domain[i]->empty())
+							{
+								std::vector<const Object*> restricted_domain;
+								takeIntersection(restricted_domain, *action_variable_domains[j], *static_precondition_variable_domain[i]);
+								
+								action_variable_domains[j]->clear();
+								action_variable_domains[j]->insert(action_variable_domains[j]->end(), restricted_domain.begin(), restricted_domain.end());
+								assert (action_variable_domains[j]->size() != 0);
+							}
+						}
+					}
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+					std::cout << "Static precondition: " << precondition->getOriginalAtom().getPredicate().getName() << " ";
+					for (unsigned int i = 0; i < precondition->getOriginalAtom().getArity(); i++)
+					{
+						printVariableDomain(std::cout, *static_precondition_variable_domain[i]);
+					}
+					std::cout << std::endl;
+#endif
+					for (unsigned int i = 0; i < precondition->getOriginalAtom().getArity(); i++)
+					{
+						delete static_precondition_variable_domain[i];
+					}
+				}
 				
+				
+				for (std::vector<const ReachableFactLayerItem*>::const_iterator ci = cheapest_preconditions->begin(); ci != cheapest_preconditions->end(); ci++)
+				{
+					const ReachableFactLayerItem* fact_layer_precondition = *ci;
+					
+					for (vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = cheapest_achiever->getTransition().getAllPreconditions().begin(); ci != cheapest_achiever->getTransition().getAllPreconditions().end(); ci++)
+					{
+						const Atom* precondition = (*ci).first;
+						
+						if (fact_layer_precondition->getReachableFactCopy().canUnifyWith(*precondition, cheapest_achiever->getTransition().getStepId(), bindings, fact_layer_precondition->getReachableFactLayer().getLayerNumber()))
+						{
+//							bool terms_match = true;
+							for (unsigned int i = 0; i < precondition->getArity(); i++)
+							{
+								for (unsigned int j = 0; j < cheapest_achiever->getTransition().getAction().getVariables().size(); j++)
+								{
+									if (precondition->getTerms()[i] == cheapest_achiever->getTransition().getAction().getVariables()[j])
+									{
+										bool terms_overlap = false;
+										for (std::vector<const Object*>::const_iterator ci = action_variable_domains[j]->begin(); ci != action_variable_domains[j]->end(); ci++)
+										{
+											if (fact_layer_precondition->getReachableFactCopy().getTermDomain(i).contains(**ci, fact_layer_precondition->getReachableFactLayer().getLayerNumber()))
+											{
+												terms_overlap = true;
+												break;
+											}
+										}
+										
+										if (!terms_overlap)
+										{
+											// Check if this subsitution has already been made.
+											bool substitution_already_made = false;
+											for (std::vector<const Object*>::const_iterator ci = (action_variable_domains[j])->begin(); ci != (action_variable_domains[j])->end(); ci++)
+											{
+												const EquivalentObject& eo = equivalent_object_manager_->getEquivalentObject(**ci);
+												for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition->getReachableFactCopy().getTermDomain(i).begin(fact_layer_precondition->getReachableFactLayer().getLayerNumber()); ci != fact_layer_precondition->getReachableFactCopy().getTermDomain(i).end(fact_layer_precondition->getReachableFactLayer().getLayerNumber()); ci++)
+												{
+													if (combined_eogs.count(std::make_pair(&eo, *ci)) == 1)
+													{
+														substitution_already_made = true;
+														break;
+													}
+												}
+												if (substitution_already_made) break;
+											}
+
+											if (!substitution_already_made)
+											{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+												std::cout << "Need to make a substitution from: ";
+												fact_layer_precondition->getReachableFactCopy().getTermDomain(i).printObjects(std::cout, 0);
+												std::cout << "to ";
+												printVariableDomain(std::cout, *action_variable_domains[i]);
+												std::cout << std::endl;
+#endif
+/*
+												unsigned int largest_layer_number = std::numeric_limits<unsigned int>::min();
+												unsigned int smallest_layer_number = std::numeric_limits<unsigned int>::max();
+												// For now we simply take the first layer at which they become equivalent!
+												for (unsigned int layer_number = 0; layer_number < fact_layer_precondition->getReachableFactLayer().getLayerNumber(); layer_number++)
+												{
+													for (std::vector<const Object*>::const_iterator ci = (action_variable_domains[i])->begin(); ci != (action_variable_domains[i])->end(); ci++)
+													{
+														if (fact_layer_precondition->getReachableFactCopy().getTermDomain(i).contains(**ci, layer_number))
+														{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+															std::cout << "Add " << layer_number << " to the heuristic!" << std::endl;
+#endif
+															if (largest_layer_number < layer_number) largest_layer_number = layer_number;
+															if (smallest_layer_number > layer_number) smallest_layer_number = layer_number;
+															break;
+														}
+													}
+												}
+												//heuristic += largest_layer_number;
+												heuristic += smallest_layer_number;
+												for (std::vector<const Object*>::const_iterator ci = (action_variable_domains[i])->begin(); ci != (action_variable_domains[i])->end(); ci++)
+												{
+													const EquivalentObject& eo = equivalent_object_manager_->getEquivalentObject(**ci);
+													for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition->getReachableFactCopy().getTermDomain(i).begin(fact_layer_precondition->getReachableFactLayer().getLayerNumber()); ci != fact_layer_precondition->getReachableFactCopy().getTermDomain(i).end(fact_layer_precondition->getReachableFactLayer().getLayerNumber()); ci++)
+													{
+														combined_eogs.insert(std::make_pair(&eo, *ci));
+														combined_eogs.insert(std::make_pair(*ci, &eo));
+													}
+												}
+*/
+
+												// For now we simply take the first layer at which they become equivalent!
+												for (unsigned int layer_number = 0; layer_number < fact_layer_precondition->getReachableFactLayer().getLayerNumber(); layer_number++)
+												{
+													bool found_layer_number = false;
+													for (std::vector<const Object*>::const_iterator ci = (action_variable_domains[i])->begin(); ci != (action_variable_domains[i])->end(); ci++)
+													{
+														if (fact_layer_precondition->getReachableFactCopy().getTermDomain(i).contains(**ci, layer_number))
+														{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+															std::cout << "Add " << layer_number << " to the heuristic!" << std::endl;
+#endif
+															heuristic += layer_number;
+															found_layer_number = true;
+															
+															for (std::vector<const Object*>::const_iterator ci = (action_variable_domains[i])->begin(); ci != (action_variable_domains[i])->end(); ci++)
+															{
+																const EquivalentObject& eo = equivalent_object_manager_->getEquivalentObject(**ci);
+																for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition->getReachableFactCopy().getTermDomain(i).begin(fact_layer_precondition->getReachableFactLayer().getLayerNumber()); ci != fact_layer_precondition->getReachableFactCopy().getTermDomain(i).end(fact_layer_precondition->getReachableFactLayer().getLayerNumber()); ci++)
+																{
+																	combined_eogs.insert(std::make_pair(&eo, *ci));
+																	combined_eogs.insert(std::make_pair(*ci, &eo));
+																}
+															}
+															break;
+														}
+													}
+													if (found_layer_number) break;
+												}
+											}
+										}
+										else
+										{
+											std::vector<const Object*> restricted_domain;
+											std::vector<const Object*> precondition_domain;
+											
+											for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition->getReachableFactCopy().getTermDomain(i).begin(fact_layer_precondition->getReachableFactLayer().getLayerNumber()); ci != fact_layer_precondition->getReachableFactCopy().getTermDomain(i).end(fact_layer_precondition->getReachableFactLayer().getLayerNumber()); ci++)
+											{
+												precondition_domain.push_back(&(*ci)->getObject());
+											}
+											
+											takeIntersection(restricted_domain, *action_variable_domains[j], precondition_domain);
+											
+											action_variable_domains[j]->clear();
+											action_variable_domains[j]->insert(action_variable_domains[j]->end(), restricted_domain.begin(), restricted_domain.end());
+											assert (action_variable_domains[j]->size() != 0);
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+
+				
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 				std::cout << "Possible achiever: (" << cheapest_achiever->getTransition().getAction().getPredicate();
 				for (unsigned int i = 0; i < cheapest_achiever->getTransition().getAction().getVariables().size(); i++)
 				{
-					if (action_variable_domains[i] == NULL)
-					{
-						std::cout << " FREE ";
-					}
-					else
-					{
-						std::cout << " " << *action_variable_domains[i];
-					}
+					printVariableDomain(std::cout, *action_variable_domains[i]);
 				}
 				std::cout << ")" << std::endl;
+#endif
 
 				// Check how the preconditions change according to the variable domain mapping.
 				for (unsigned int i = 0; i < cheapest_preconditions->size(); i++)
 				{
 					const ReachableFactLayerItem* fact = (*cheapest_preconditions)[i];
-					const Object** precondition_object_bindings = new const Object*[fact->getReachableFactCopy().getAtom().getArity()];
-					for (unsigned int index = 0; index < fact->getReachableFactCopy().getAtom().getArity(); index++)
-					{
-						precondition_object_bindings[index] = NULL;
-					}
+					std::vector<const Object*>** precondition_object_bindings = new std::vector<const Object*>*[fact->getReachableFactCopy().getAtom().getArity()];
 					
 					// Get matching precondition.
 					const Atom* matching_precondition = NULL;
-					for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = cheapest_achiever->getTransition().getAllPreconditions().begin(); ci != cheapest_achiever->getTransition().getAllPreconditions().end(); ci++)
+					for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = cheapest_achiever->getPreconditions().begin(); ci != cheapest_achiever->getPreconditions().end(); ci++)
 					{
-						const Atom* precondition = (*ci).first;
-						
-						if (fact->getReachableFactCopy().canUnifyWith(*precondition, cheapest_achiever->getTransition().getStepId(), bindings, fact->getReachableFactLayer().getLayerNumber()))
+						const ResolvedBoundedAtom* precondition = *ci;
+						if (fact->canBeAchievedBy(*precondition, cheapest_achiever->getTransition().getStepId(), bindings, false))
 						{
-							matching_precondition = precondition;
+							matching_precondition = &precondition->getOriginalAtom();
 							break;
 						}
 					}
 					
+					if (matching_precondition == NULL)
+					{
+						std::cerr << "Oh, dear!" << std::endl;
+						std::cout << "Should not find a precondition which matches: " << *fact << "(" << fact->getReachableFactCopy() << ")" << std::endl;
+						std::cout << "******)==> ";
+						fact->getReachableFactCopy().print(std::cout, fact->getReachableFactLayer().getLayerNumber());
+						std::cout << std::endl;
+						std::cout << "Cheapest achiever: " << *cheapest_achiever << std::endl;
+						std::cout << "Preconditions: " << std::endl;
+						for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = cheapest_achiever->getPreconditions().begin(); ci != cheapest_achiever->getPreconditions().end(); ci++)
+						{
+							const ResolvedBoundedAtom* precondition = *ci;
+							std::cout << "* " << precondition << " t3h same?" << std::endl;
+						}
+						assert (false);
+						exit(1);
+					}
+					
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 					std::cout << " -= Matching precondition =- ";
 					matching_precondition->print(std::cout);
+					std::cout << " -> ";
+					fact->getReachableFactCopy().print(std::cout, fact->getReachableFactLayer().getLayerNumber());
 
-					std::cout << "Precondition: " << fact->getReachableFactCopy().getAtom().getPredicate().getName();
+					std::cout << "; Precondition: " << fact->getReachableFactCopy().getAtom().getPredicate().getName();
+#endif
 					for (unsigned int j = 0; j < matching_precondition->getArity(); j++)
 					{
 						for (unsigned int k = 0; k < cheapest_achiever->getTransition().getAction().getVariables().size(); k++)
 						{
 							if (cheapest_achiever->getTransition().getAction().getVariables()[k] == matching_precondition->getTerms()[j])
 							{
+								assert (cheapest_achiever->getTransition().getAction().getVariables()[k]->getType() == matching_precondition->getTerms()[j]->getType());
 								precondition_object_bindings[j] = action_variable_domains[k];
-								
-								if (precondition_object_bindings[j] == NULL)
-								{
-									std::cout << "FREE ";
-								}
-								else
-								{
-									std::cout << *precondition_object_bindings[j] << " ";
-								}
 								break;
 							}
 						}
 					}
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 					std::cout << std::endl;
-					
+#endif
 					open_list.push(std::make_pair(fact, precondition_object_bindings));
 				}
 				executed_actions.push_back(new ExecutedAction(*cheapest_achiever, action_variable_domains, *cheapest_preconditions));
+				
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_SHOW_PLAN
+				std::cout << "* Action: (" << cheapest_achiever->getTransition().getAction().getPredicate();
+				for (unsigned int i = 0; i < cheapest_achiever->getTransition().getAction().getVariables().size(); i++)
+				{
+					printVariableDomain(std::cout, *action_variable_domains[i]);
+				}
+				std::cout << ")" << std::endl;
+#endif
 				++heuristic;
 			}
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 			else
 			{
 				std::cout << "Action to achieve: ";
 				current_goal->getReachableFactCopy().print(std::cout, current_goal->getReachableFactLayer().getLayerNumber());
 				std::cout << " has already been executed!" << std::endl;
 			}
+#endif
 		}
 		// Cannot achieve the precondition!
 		else
 		{
-			std::cout << "Could not find an action achieving: ";
-			current_goal->getReachableFactCopy().print(std::cout, current_goal->getReachableFactLayer().getLayerNumber());
-			std::cout << " :(." << std::endl;
+			std::cerr << "Could not find an action achieving: ";
+			current_goal->getReachableFactCopy().print(std::cerr, current_goal->getReachableFactLayer().getLayerNumber());
+			std::cerr << " :(." << std::endl;
+			for (std::vector<ExecutedAction*>::const_iterator ci = executed_actions.begin(); ci != executed_actions.end(); ci++)
+			{
+				delete *ci;
+			}
+			delete[] object_bindings;
 			return std::numeric_limits<unsigned int>::max();
 		}
+		delete[] object_bindings;
+	}
+	
+	for (std::vector<const std::vector<const Object*>* >::const_iterator ci = variable_domains_of_goals.begin(); ci != variable_domains_of_goals.end(); ci++)
+	{
+		delete *ci;
+	}
+	
+	for (std::vector<ExecutedAction*>::const_iterator ci = executed_actions.begin(); ci != executed_actions.end(); ci++)
+	{
+		delete *ci;
 	}
 
 	return heuristic;

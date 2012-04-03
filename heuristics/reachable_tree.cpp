@@ -261,11 +261,11 @@ std::ostream& operator<<(std::ostream& os, const ReachableTreeNode& reachable_tr
 {
 	assert (reachable_tree_node.reachable_fact_ != NULL);
 	//assert (!reachable_tree_node.reachable_fact_->isMarkedForRemoval());
-	os << "[" << reachable_tree_node.level_ << "/" << reachable_tree_node.max_level_of_children_ << "] " << *reachable_tree_node.reachable_fact_ << std::endl;
+	os << "[" << reachable_tree_node.level_ << "/" << reachable_tree_node.max_level_of_children_ << "] " << *reachable_tree_node.reachable_fact_ << "(" << reachable_tree_node.reachable_fact_ << ")" << std::endl;
 	os << "Children:" << std::endl;
 	for (std::vector<ReachableTreeNode*>::const_iterator ci = reachable_tree_node.children_.begin(); ci != reachable_tree_node.children_.end(); ci++)
 	{
-		os << "+ [" << (*ci)->level_ << "] " << *(*ci)->reachable_fact_ << std::endl;
+		os << "+ [" << (*ci)->level_ << "] " << *(*ci)->reachable_fact_ << "(" << (*ci)->reachable_fact_ << ")" << std::endl;
 	}
 	for (std::vector<ReachableTreeNode*>::const_iterator ci = reachable_tree_node.children_.begin(); ci != reachable_tree_node.children_.end(); ci++)
 	{

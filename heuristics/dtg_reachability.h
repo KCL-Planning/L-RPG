@@ -22,7 +22,11 @@ class Object;
 class Predicate;
 class TermManager;
 class PredicateManager;
-	
+
+void printVariableDomain(ostream& os, const std::vector<const Object*>& result);
+void takeIntersection(std::vector<const Object*>& result, const std::vector<const Object*>& set1, const std::vector<const Object*>& set2);
+bool doVariableDomainsOverlap(const std::vector<const Object*>& set1, const std::vector<const Object*>& set2);
+
 namespace SAS_Plus {
 
 class Property;
@@ -77,9 +81,9 @@ public:
 	/**
 	 * Two reachable facts are equivalent iff:
 	 * 1) All the objects have the same signature.
-	 * 2) Those variables which have been labeled as unbalanced must be identical.
+	 * 2) Those variables which do not have the same index as @ref variant_eog or are unbalanced must be identical.
 	 */
-	bool isEquivalentTo(const ReachableFact& other) const;
+	bool isEquivalentTo(const ReachableFact& other, const EquivalentObjectGroup& variant_eog) const;
 	
 	/**
 	 * Two reachable facts are identical iff:
@@ -147,6 +151,7 @@ private:
 std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact);
 
 static MyPOP::UTILITY::MemoryPool* g_reachable_fact_memory_pool = new MyPOP::UTILITY::MemoryPool(sizeof(ReachableFact));
+//static MyPOP::UTILITY::MemoryPool* g_reachable_fact_memory_pool = NULL;
 
 
 /**
@@ -212,6 +217,8 @@ public:
 	
 	~ResolvedEffect();
 	
+	void reset();
+	
 	/**
 	 * After the EOGs have been updated, we need to update the free variables to point to the merged EOGs.
 	 */
@@ -266,6 +273,8 @@ public:
 	 * Default constructor.
 	 */
 	ReachableSet(const EquivalentObjectGroupManager& eog_manager);
+	
+	virtual void reset();
 	
 	virtual ~ReachableSet();
 	
@@ -460,6 +469,8 @@ public:
 	
 	virtual ~ReachableTransition();
 	
+	virtual void reset();
+	
 	/**
 	 * After all the reachable nodes and reachable transitions have been created we do one more post analysis and
 	 * determine for every effect that can be generated which preconditions are satisfied by that.
@@ -487,7 +498,9 @@ public:
 	
 	static unsigned int generated_new_reachable_facts;
 	static unsigned int accepted_new_reachable_facts;
-
+	const std::vector<const ResolvedBoundedAtom*>& getPreconditions() const { return preconditions_; }
+	
+	const std::vector<const ResolvedBoundedAtom*>& getPreconditions() const { return preconditions_; }
 	
 	void print(std::ostream& os) const;
 private:
@@ -497,7 +510,8 @@ private:
 	
 	const SAS_Plus::Transition* transition_;
 	
-	// To speed up the process we resolve all the variable domains of all the effects.
+	// To speed up the process we resolve all the variable domains of all the preconditions and effects.
+	std::vector<const ResolvedBoundedAtom*> preconditions_;
 	std::vector<ResolvedEffect*> effects_;
 	
 	// Mapping from a variable to a reachable set containing its possible values.
@@ -537,7 +551,7 @@ private:
 	EquivalentObjectGroup** action_domains_;
 	
 	// Instead of putting a new vector on the stack for a function call to createNewReachableFact, we simply use this one :).
-	const std::vector<ReachableFact*> empty_transition_reachable_set_;
+	//const std::vector<ReachableFact*> empty_transition_reachable_set_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const ReachableTransition& reachable_transition);
 };
@@ -550,7 +564,10 @@ public:
 	ReachableFactLayerItem(const ReachableFactLayer& reachable_fact_layer, const ReachableFact& reachable_fact);
 	~ReachableFactLayerItem();
 	
+	bool canBeAchievedBy(const ResolvedBoundedAtom& precondition, StepID id, const Bindings& bindings, bool debug) const;
+	
 	void addAchiever(const ReachableTransition& achiever, const ReachableTreeNode& from_tree_node, const ReachableTreeNode* transition_tree_node);
+	void addNoop(const ReachableFactLayerItem& noop);
 	const std::vector<std::pair<const ReachableTransition*, std::vector<const ReachableFactLayerItem*>* > >& getAchievers() const { return achievers_; }
 	
 	const ReachableFact& getReachableFactCopy() const { return *reachable_fact_copy_; }
@@ -569,20 +586,28 @@ private:
 class ExecutedAction
 {
 public:
-	ExecutedAction(const ReachableTransition& action, const Object** action_domains, const std::vector<const ReachableFactLayerItem*>& preconditions);
+	//ExecutedAction(const ReachableTransition& action, const Object** action_domains, const std::vector<const ReachableFactLayerItem*>& preconditions);
+	ExecutedAction(const ReachableTransition& action, std::vector<const Object*>** action_domains, const std::vector<const ReachableFactLayerItem*>& preconditions);
+	~ExecutedAction();
 	const ReachableTransition& getAction() const { return *action_; }
-	const Object** getActionDomains() const { return action_domains_; }
+	//const Object** getActionDomains() const { return action_domains_; }
+	std::vector<const Object*>** getActionDomains() const { return action_domains_; }
 	const std::vector<const ReachableFactLayerItem*>& getPreconditions() const { return *preconditions_; }
 private:
 	const ReachableTransition* action_;
-	const Object** action_domains_;
+	//const Object** action_domains_;
+	std::vector<const Object*>** action_domains_;
 	const std::vector<const ReachableFactLayerItem*>* preconditions_;
 };
+
+std::ostream& operator<<(std::ostream& os, const ExecutedAction& executed_action);
 
 class ReachableFactLayer
 {
 public:
 	ReachableFactLayer(unsigned int nr, const ReachableFactLayer* previous_layer);
+	~ReachableFactLayer();
+	void finalise();
 	void addFact(const ReachableFact& reachable_fact);
 	void addFact(const ReachableFact& reachable_fact, const ReachableTransition& achiever, const ReachableTreeNode& from_tree_node, const ReachableTreeNode* transition_tree_node, bool already_exists);
 	const std::vector<ReachableFactLayerItem*>& getReachableFacts() const;
@@ -590,7 +615,7 @@ public:
 	unsigned int getLayerNumber() const;
 	const ReachableFactLayer* getPreviousLayer() const;
 	void extractPreconditions(std::vector<const ReachableFactLayerItem*>& preconditions, const ReachableTreeNode& reachable_set) const;
-	const ReachableFactLayerItem& findPrecondition(const ReachableFact& reachable_fact) const;
+	const ReachableFactLayerItem* findPrecondition(const ReachableFact& reachable_fact) const;
 private:
 	unsigned int nr_;
 	const ReachableFactLayer* previous_layer_;
@@ -600,7 +625,8 @@ private:
 class compareReachableFactLayerItem
 {
 public: 
-	bool operator() (std::pair<const ReachableFactLayerItem*, const Object**> lhs, std::pair<const ReachableFactLayerItem*, const Object**> rhs) const
+	//bool operator() (std::pair<const ReachableFactLayerItem*, const Object**> lhs, std::pair<const ReachableFactLayerItem*, const Object**> rhs) const
+	bool operator() (std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**> lhs, std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**> rhs) const
 	{
 		return (lhs.first->getReachableFactLayer().getLayerNumber() < rhs.first->getReachableFactLayer().getLayerNumber());
 	}

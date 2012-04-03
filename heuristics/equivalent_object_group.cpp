@@ -28,6 +28,11 @@ EquivalentObject::EquivalentObject(const Object& object, EquivalentObjectGroup& 
 {
 	
 }
+
+void EquivalentObject::reset()
+{
+	initial_facts_.clear();
+}
 	
 void EquivalentObject::addInitialFact(ReachableFact& reachable_fact)
 {
@@ -62,7 +67,7 @@ bool EquivalentObject::areEquivalent(const EquivalentObject& other) const
 		{
 			const ReachableFact* other_reachable_fact = *ci;
 			
-			if (this_reachable_fact->isEquivalentTo(*other_reachable_fact))
+			if (this_reachable_fact->isEquivalentTo(*other_reachable_fact, getEquivalentObjectGroup()))
 			{
 				is_fact_reachable = true;
 				break;
@@ -88,7 +93,7 @@ bool EquivalentObject::isInitialStateReachable(const std::vector<ReachableFact*>
 		const ReachableFact* initial_fact = *ci;
 
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-//		std::cout << "Compare: " << *initial_fact << "." << std::endl;
+		std::cout << "Compare: " << *initial_fact << "." << std::endl;
 #endif
 		
 		bool is_initial_fact_reachable = false;
@@ -97,13 +102,13 @@ bool EquivalentObject::isInitialStateReachable(const std::vector<ReachableFact*>
 			const ReachableFact* reachable_fact = *ci;
 			
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-//		std::cout << " with: " << *reachable_fact<< "." << std::endl;
+		std::cout << " with: " << *reachable_fact<< "." << std::endl;
 #endif
 			
-			if (initial_fact->isEquivalentTo(*reachable_fact))
+			if (initial_fact->isEquivalentTo(*reachable_fact, getEquivalentObjectGroup()))
 			{
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-//				std::cout << *initial_fact << " is equivalent to " << *reachable_fact << std::endl;
+				std::cout << *initial_fact << " is equivalent to " << *reachable_fact << std::endl;
 #endif
 				is_initial_fact_reachable = true;
 				break;
@@ -137,12 +142,32 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_ob
 MyPOP::UTILITY::MemoryPool** EquivalentObjectGroup::g_eog_arrays_memory_pool_;
 
 unsigned int EquivalentObjectGroup::max_arity_;
-EquivalentObjectGroup::EquivalentObjectGroup(const SAS_Plus::DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded)
-	: is_grounded_(is_grounded), link_(NULL), finger_print_(NULL), merged_at_iteration_(std::numeric_limits<unsigned int>::max())
+bool EquivalentObjectGroup::memory_pool_initialised_;
+unsigned int EquivalentObjectGroup::max_finger_print_id_ = 0;
+EquivalentObjectGroup::EquivalentObjectGroup(const std::vector<EquivalentObjectGroup*>& all_eogs, const SAS_Plus::DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded)
+	: is_grounded_(is_grounded), is_not_part_of_property_state_(false), link_(NULL), finger_print_(NULL), merged_at_iteration_(std::numeric_limits<unsigned int>::max())
 {
+	finger_print_id_ = std::numeric_limits<unsigned int>::max();
 	if (object != NULL)
 	{
 		initialiseFingerPrint(dtg_graph, *object);
+		
+		// Check if another EOG exists with the same finger print.
+		for (std::vector<EquivalentObjectGroup*>::const_iterator ci = all_eogs.begin(); ci != all_eogs.end(); ci++)
+		{
+			//if (hasSameFingerPrint(**ci))
+			if (finger_print_size_ == (*ci)->finger_print_size_ &&
+			    memcmp(finger_print_, (*ci)->finger_print_, finger_print_size_ * sizeof(bool)) == 0)
+			{
+				finger_print_id_ = (*ci)->finger_print_id_;
+				break;
+			}
+		}
+		
+		if (finger_print_id_ == std::numeric_limits<unsigned int>::max())
+		{
+			finger_print_id_ = ++max_finger_print_id_;
+		}
 	}
 }
 
@@ -151,37 +176,77 @@ EquivalentObjectGroup::~EquivalentObjectGroup()
 	delete[] finger_print_;
 	
 	// Only delete the equivalent object if this EOG is root. Otherwise the object groups are used and contained by another EOG.
-	//delete *equivalent_objects_.begin();
-	if (link_ == NULL)
+	if (finger_print_ != NULL)
+	{
+		delete *equivalent_objects_.begin();
+	}
+/*	if (link_ == NULL)
 	{
 		for (std::vector<EquivalentObject*>::const_iterator ci = equivalent_objects_.begin(); ci != equivalent_objects_.end(); ci++)
 		{
 			delete *ci;
 		}
-	}
+	}*/
 }
 
-void EquivalentObjectGroup::initMemoryPool(unsigned int max_arity)
+void EquivalentObjectGroup::reset()
 {
-	g_eog_arrays_memory_pool_ = new MyPOP::UTILITY::MemoryPool*[max_arity];
-	for (unsigned int i = 0; i < max_arity; i++)
+	if (finger_print_ != NULL)
 	{
-		g_eog_arrays_memory_pool_[i] = new MyPOP::UTILITY::MemoryPool(sizeof(EquivalentObjectGroup*) * i);
+		equivalent_objects_.erase(equivalent_objects_.begin() + 1, equivalent_objects_.end());
+		(*equivalent_objects_.begin())->reset();
+		link_ = NULL;
 	}
+	
+	merged_at_iteration_ = std::numeric_limits<unsigned int>::max();
+	reachable_facts_.clear();
+	size_per_iteration_.clear();
+}
+
+void EquivalentObjectGroup::setMaxArity(unsigned int max_arity)
+{
 	max_arity_ = max_arity;
+	memory_pool_initialised_ = false; 
+	std::cout << "Set max arity to: " << max_arity << std::endl;
+}
+
+void EquivalentObjectGroup::initMemoryPool()
+{
+	if (memory_pool_initialised_) return;
+	g_eog_arrays_memory_pool_ = new MyPOP::UTILITY::MemoryPool*[max_arity_];
+	for (unsigned int i = 0; i < max_arity_; i++)
+	{
+		g_eog_arrays_memory_pool_[i] = new MyPOP::UTILITY::MemoryPool(sizeof(EquivalentObjectGroup*) * (i + 1));
+	}
+	memory_pool_initialised_ = true;
 }
 
 void EquivalentObjectGroup::deleteMemoryPool()
 {
+	if (!memory_pool_initialised_) return;
 	for (unsigned int i = 0; i < max_arity_; i++)
 	{
 		delete g_eog_arrays_memory_pool_[i];
 	}
 	delete[] g_eog_arrays_memory_pool_;
+	memory_pool_initialised_ = false;
 }
 
-void* EquivalentObjectGroup::operator new[](size_t size)
+EquivalentObjectGroup** EquivalentObjectGroup::allocateMemory(unsigned int number_of_elements)
 {
+	assert (memory_pool_initialised_);
+	if (number_of_elements == 0) return NULL;
+	if (number_of_elements > max_arity_)
+	{
+		std::cout << "Try to get an equivalent object group of size: " << number_of_elements << " but we can only handle up to: " << max_arity_ << std::endl;
+		assert (false);
+	}
+	return static_cast<EquivalentObjectGroup**>(g_eog_arrays_memory_pool_[number_of_elements - 1]->allocate(number_of_elements * sizeof(EquivalentObjectGroup*)));
+}
+
+/*void* EquivalentObjectGroup::operator new[](size_t size)
+{
+	std::cerr << "..." << std::endl;
 	// Check which memory pool to use.
 	return g_eog_arrays_memory_pool_[size / sizeof(EquivalentObjectGroup*)]->allocate(size);
 }
@@ -189,7 +254,7 @@ void* EquivalentObjectGroup::operator new[](size_t size)
 void EquivalentObjectGroup::operator delete[](void* p)
 {
 	// We don't know where it is stored :X.
-}
+}*/
 
 bool EquivalentObjectGroup::contains(const Object& object) const
 {
@@ -227,7 +292,18 @@ bool EquivalentObjectGroup::isIdenticalTo(EquivalentObjectGroup& other)
 
 bool EquivalentObjectGroup::hasSameFingerPrint(const EquivalentObjectGroup& other) const
 {
-	return memcmp(finger_print_, other.finger_print_, finger_print_size_ * sizeof(bool)) == 0;
+//	if (finger_print_id_ == other.finger_print_id_ &&
+//	    memcmp(finger_print_, other.finger_print_, finger_print_size_ * sizeof(bool)) != 0)
+//	{
+//		std::cerr << "WRONG!" << std::endl;
+//	} else if (finger_print_id_ != other.finger_print_id_ &&
+//	    memcmp(finger_print_, other.finger_print_, finger_print_size_ * sizeof(bool)) == 0)
+//	{
+//		std::cerr << "WRONG AGAIN!" << std::endl;
+//	}
+	
+	return finger_print_id_ == other.finger_print_id_;
+//	return memcmp(finger_print_, other.finger_print_, finger_print_size_ * sizeof(bool)) == 0;
 //	for (unsigned int i = 0; i < finger_print_size_; i++)
 //	{
 //		if (finger_print_[i] != other.finger_print_[i]) return false;
@@ -262,10 +338,18 @@ void EquivalentObjectGroup::initialiseFingerPrint(const SAS_Plus::DomainTransiti
 			for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
 			{
 				const Term* term = *ci;
+				unsigned int term_index = std::distance(bounded_atom->getAtom().getTerms().begin(), ci);
 				
 				if (object.getType()->isSubtypeOf(*term->getType()) || object.getType()->isEqual(*term->getType()))
 				{
 					finger_print_[number_of_facts] = true;
+					for (std::vector<const MyPOP::SAS_Plus::Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
+					{
+						if ((*ci)->getIndex() == term_index)
+						{
+							is_not_part_of_property_state_ = true;
+						}
+					}
 				}
 				++number_of_facts;
 			}
@@ -275,7 +359,15 @@ void EquivalentObjectGroup::initialiseFingerPrint(const SAS_Plus::DomainTransiti
 
 void EquivalentObjectGroup::addEquivalentObject(EquivalentObject& eo)
 {
+	assert (finger_print_ != NULL);
 	equivalent_objects_.push_back(&eo);
+
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+	if (!is_grounded_ && !is_not_part_of_property_state_)
+	{
+		std::cerr << "We should reevaluate " << eo.getObject()<< std::endl;
+	}
+#endif
 }
 
 void EquivalentObjectGroup::addReachableFact(ReachableFact& reachable_fact)
@@ -307,7 +399,7 @@ void EquivalentObjectGroup::addReachableFact(ReachableFact& reachable_fact)
 bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group, std::vector<EquivalentObjectGroup*>& affected_groups, unsigned int iteration)
 {
 	// If the object has been grounded it cannot be merged!
-	if (is_grounded_ || other_group.is_grounded_)
+	if (is_grounded_ || other_group.is_grounded_ || !is_not_part_of_property_state_ || !other_group.is_not_part_of_property_state_)
 	{
 		return false;
 	}
@@ -332,7 +424,9 @@ bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group, s
 
 	// Only allow to merge two equivalent object groups if the fingerprints are equal!
 	assert (finger_print_size_ == other_group.finger_print_size_);
-	if (memcmp(finger_print_, other_group.finger_print_, finger_print_size_) != 0)
+//	if (memcmp(finger_print_, other_group.finger_print_, finger_print_size_) != 0)
+	//if (finger_print_id_ != other_group.finger_print_id_)
+	if (!hasSameFingerPrint(other_group))
 	{
 		return false;
 	}
@@ -415,7 +509,11 @@ void EquivalentObjectGroup::printObjects(std::ostream& os, unsigned int iteratio
 	}
 	else
 	{
-		assert (size_per_iteration_.size() > iteration);
+		if (size_per_iteration_.size() <= iteration)
+		{
+			std::cout << "Check for the objects at iteration: " << iteration << " but " << *this << " only has " << size_per_iteration_.size() << " iterations!" << std::endl;
+			assert (false);
+		}
 		for (unsigned int i = 0; i < size_per_iteration_[iteration]; i++)
 		{
 			os << equivalent_objects_[i]->getObject();
@@ -426,7 +524,7 @@ void EquivalentObjectGroup::printObjects(std::ostream& os, unsigned int iteratio
 		}
 	}
 }
-
+/*
 void EquivalentObjectGroup::printGrounded(std::ostream& os) const
 {
 //	for (std::multimap<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*>, ReachableFact*>::const_iterator ci = reachable_facts_.begin(); ci != reachable_facts_.end(); ci++)
@@ -434,15 +532,15 @@ void EquivalentObjectGroup::printGrounded(std::ostream& os) const
 //		(*ci).second->printGrounded(os);
 //	}
 }
-
+*/
 void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group, std::vector<EquivalentObjectGroup*>& affected_groups)
 {
 	assert (other_group.link_ == NULL);
 	
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-	std::cout << "Merging " << *this << " with " << other_group << "." << std::endl;
+	std::cout << "Merging " << *this << "(" << this << ") with " << other_group << "." << std::endl;
 #endif
-	
+	assert (finger_print_ != NULL);
 	equivalent_objects_.insert(equivalent_objects_.end(), other_group.equivalent_objects_.begin(), other_group.equivalent_objects_.end());
 	other_group.link_ = this;
 	
@@ -583,7 +681,68 @@ void EquivalentObjectGroup::updateEquivalences(const std::vector<EquivalentObjec
 		}
 	}
 	
+	assert (size_per_iteration_.size() == iteration);
 	size_per_iteration_.push_back(equivalent_objects_.size());
+}
+
+std::vector<EquivalentObject*>::const_iterator EquivalentObjectGroup::begin(unsigned int layer_level) const
+{
+	if (merged_at_iteration_ <= layer_level)
+	{
+		assert (link_ != NULL);
+		return link_->begin(layer_level);
+	}
+	else
+	{
+		if (size_per_iteration_.size() <= layer_level)
+		{
+			std::cout << "Check for the objects at iteration: " << layer_level << " but " << *this << " only has " << size_per_iteration_.size() << " iterations!" << std::endl;
+			assert (false);
+		}
+		return equivalent_objects_.begin();
+	}
+}
+
+std::vector<EquivalentObject*>::const_iterator EquivalentObjectGroup::end(unsigned int layer_level) const
+{
+	if (merged_at_iteration_ <= layer_level)
+	{
+		assert (link_ != NULL);
+		return link_->end(layer_level);
+	}
+	else
+	{
+		if (size_per_iteration_.size() <= layer_level)
+		{
+			std::cout << "Check for the objects at iteration: " << layer_level << " but " << *this << " only has " << size_per_iteration_.size() << " iterations!" << std::endl;
+			assert (false);
+		}
+		if (equivalent_objects_.size() < size_per_iteration_[layer_level])
+		{
+			std::cout << "Problem with: " << *this << std::endl;
+			printObjects(std::cout, layer_level);
+			std::cout << "We claim to have " << size_per_iteration_[layer_level] << " but in actuality there are " << equivalent_objects_.size() << std::endl;
+			assert (false);
+		}
+		return equivalent_objects_.begin() + size_per_iteration_[layer_level];
+	}
+}
+
+const EquivalentObjectGroup& EquivalentObjectGroup::getEOGAtLayer(unsigned int layer_level) const
+{
+	if (merged_at_iteration_ <= layer_level)
+	{
+		return link_->getEOGAtLayer(layer_level);
+	}
+	else
+	{
+		if (size_per_iteration_.size() <= layer_level)
+		{
+			std::cout << "Check for the objects at iteration: " << layer_level << " but " << *this << " only has " << size_per_iteration_.size() << " iterations!" << std::endl;
+			assert (false);
+		}
+		return *this;
+	}
 }
 
 EquivalentObjectGroup& EquivalentObjectGroup::getRootNode()
@@ -602,19 +761,30 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group)
 	}
 	
 //	os << " -= EquivalentObjectGroup =- " << std::endl;
-	os << "{ ";
+	os << "|EOs| = " << group.equivalent_objects_.size() << " { ";
 	for (std::vector<EquivalentObject*>::const_iterator ci = group.equivalent_objects_.begin(); ci != group.equivalent_objects_.end(); ci++)
 	{
-		const EquivalentObject* eo = *ci;
-		os << eo->getObject() << std::endl;
-		
-//		os << eo->getObject();
-//		if (ci + 1 != group.equivalent_objects_.end())
-//		{
-//			os << ", ";
-//		}
+		for (std::vector<EquivalentObject*>::const_iterator ci = group.equivalent_objects_.begin(); ci != group.equivalent_objects_.end(); ci++)
+		{
+			const EquivalentObject* eo = *ci;
+			if (eo == NULL) os << " WHUT " << std::endl;
+			else os << eo->getObject() << std::endl;
+			
+	//		os << eo->getObject();
+	//		if (ci + 1 != group.equivalent_objects_.end())
+	//		{
+	//			os << ", ";
+	//		}
+		}
 	}
 	os << " }" << std::endl;
+	
+	os << "Merged at iteration: " << group.merged_at_iteration_ << std::endl;
+	for (std::vector<unsigned int>::const_iterator ci = group.size_per_iteration_.begin(); ci != group.size_per_iteration_.end(); ci++)
+	{
+		std::cout << "PI: " << *ci << std::endl;
+	}
+	
 
 	std::cout << "Reachable facts: " << std::endl;
 	for (std::vector<ReachableFact*>::const_iterator ci = group.reachable_facts_.begin(); ci != group.reachable_facts_.end(); ci++)
@@ -624,25 +794,28 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group)
 	return os;
 }
 
+
 /**
  * Equivalent Object Group Manager.
  */
-EquivalentObjectGroupManager::EquivalentObjectGroupManager(const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const SAS_Plus::DomainTransitionGraph& dtg_graph, const TermManager& term_manager)
+EquivalentObjectGroupManager::EquivalentObjectGroupManager(const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const SAS_Plus::DomainTransitionGraph& dtg_graph, const TermManager& term_manager, const PredicateManager& predicate_manager)
 {
 	unsigned int max_arity = 0;
-	for (std::vector<const SAS_Plus::Property*>::const_iterator ci = dtg_graph.getPredicates().begin(); ci != dtg_graph.getPredicates().end(); ci++)
+	for (std::vector<Predicate*>::const_iterator ci = predicate_manager.getManagableObjects().begin(); ci != predicate_manager.getManagableObjects().end(); ci++)
 	{
-		const SAS_Plus::Property* property = *ci;
-		if (property->getPredicate().getArity() > max_arity) max_arity = property->getPredicate().getArity();
+		const Predicate* predicate = *ci;
+		if (predicate->getArity() > max_arity) max_arity = predicate->getArity();
 	}
+	std::cout << max_arity << std::endl;
+	EquivalentObjectGroup::setMaxArity(max_arity);
 	
-	EquivalentObjectGroup::initMemoryPool(max_arity);
+	//EquivalentObjectGroup::initMemoryPool(max_arity);
 	
 	// Create initial data structures.
 	for (std::vector<const Object*>::const_iterator ci = term_manager.getAllObjects().begin(); ci != term_manager.getAllObjects().end(); ci++)
 	{
 		const Object* object = *ci;
-		EquivalentObjectGroup* equivalent_object_group = new EquivalentObjectGroup(dtg_graph, object, dtg_manager.isObjectGrounded(*object));
+		EquivalentObjectGroup* equivalent_object_group = new EquivalentObjectGroup(equivalent_groups_, dtg_graph, object, dtg_manager.isObjectGrounded(*object));
 		EquivalentObject* equivalent_object = new EquivalentObject(*object, *equivalent_object_group);
 		equivalent_object_group->addEquivalentObject(*equivalent_object);
 		
@@ -650,7 +823,7 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const SAS_Plus::Domai
 		object_to_equivalent_object_mapping_[object] = equivalent_object;
 	}
 
-	zero_arity_equivalent_object_group_ = new EquivalentObjectGroup(dtg_graph, NULL, true);
+	zero_arity_equivalent_object_group_ = new EquivalentObjectGroup(equivalent_groups_, dtg_graph, NULL, true);
 	equivalent_groups_.push_back(zero_arity_equivalent_object_group_);
 	
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
@@ -660,11 +833,22 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const SAS_Plus::Domai
 
 EquivalentObjectGroupManager::~EquivalentObjectGroupManager()
 {
-	EquivalentObjectGroup::deleteMemoryPool();
+	//EquivalentObjectGroup::deleteMemoryPool();
 	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
 	{
 		delete *ci;
 	}
+}
+
+void EquivalentObjectGroupManager::reset()
+{
+	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
+	{
+		(*ci)->reset();
+	}
+	zero_arity_equivalent_object_group_->reset();
+	EquivalentObjectGroup::deleteMemoryPool();
+	EquivalentObjectGroup::initMemoryPool();
 }
 
 void EquivalentObjectGroupManager::initialise(const std::vector<ReachableFact*>& initial_facts)
@@ -769,7 +953,19 @@ unsigned int EquivalentObjectGroupManager::getNumberOfEquivalentGroups() const
 	}
 	return index;
 }
+/*
+std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroupManager& group)
+{
+	os << "All equivalence groups:" << std::endl;
+	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = group.equivalent_groups_.begin(); ci != group.equivalent_groups_.end(); ci++)
+	{
+		if (!(*ci)->isRootNode()) continue;
+		os << **ci << std::endl;
+	}
+	return os;
+}
 
+/*
 void EquivalentObjectGroupManager::print(std::ostream& os) const
 {
 	os << "All equivalence groups:" << std::endl;
@@ -791,7 +987,18 @@ void EquivalentObjectGroupManager::printAll(std::ostream& os) const
 //		os << **ci << std::endl;
 	}
 }
+*/
 
+std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroupManager& group)
+{
+	os << "All equivalence groups:" << std::endl;
+	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = group.equivalent_groups_.begin(); ci != group.equivalent_groups_.end(); ci++)
+	{
+		if (!(*ci)->isRootNode()) continue;
+		os << **ci << std::endl;
+	}
+	return os;
+}
 };
 
 };

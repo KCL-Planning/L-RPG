@@ -121,8 +121,11 @@ void Intervals::write(ostream & o) const
 
 			if(i->second.second) o << " ]"; else o << " )";
 
-			if(++i != intervals.end()) if(LaTeX) o << "\\cup"; else o << " U ";
-
+			if(++i != intervals.end())
+			{
+				if(LaTeX) o << "\\cup";
+				else o << " U ";
+			}
 		};
          if(LaTeX) o << "$";
 
@@ -151,8 +154,11 @@ void Intervals::writeOffset(double t) const
 			if(i->second.second) *report << " ]"; else cout << " )";
 
 
-			if(++i != intervals.end()) if(LaTeX) *report << "\\cup"; else cout << " U ";
-
+			if(++i != intervals.end())
+			{
+				if(LaTeX) *report << "\\cup";
+				else cout << " U ";
+			}
 		};
        if(LaTeX) *report << "$";
 	};
@@ -1247,7 +1253,11 @@ pair<vector<pair<intervalEnd,intervalEnd> >,vector<CoScalar> > Polynomial::isola
 //do roots exist on the open interval (0,t)?
 bool Polynomial::rootsExist(CoScalar t) const
 {
-   if(getDegree() < 3) if(getRoots(t).size() > 0) return true; else return false;
+   if(getDegree() < 3)
+   {
+      if(getRoots(t).size() > 0) return true;
+      else return false;
+   }
    
 	pair<vector<pair<intervalEnd,intervalEnd> >,vector<CoScalar> > isolExact;
 	bool ans = false;
@@ -1785,16 +1795,16 @@ if( (greater && (j->second - offSet < 0)) ||
 for( ; j != points.end(); )
 {
   ++j; if( j->first == t) break;
-  if( (greater && (j->second - offSet < 0) || (j->second - offSet <= 0 && !strict)) ||
-      (!greater && (j->second - offSet > 0) || (j->second - offSet >= 0 && !strict))) return false;
+  if( ((greater && (j->second - offSet < 0)) || (j->second - offSet <= 0 && !strict)) ||
+      ((!greater && (j->second - offSet > 0)) || (j->second - offSet >= 0 && !strict))) return false;
 
      
 };
 //check end point
 if(j != points.end())
 {              
-if( (greater && (j->second - offSet < 0) || (j->second - offSet <= 0 && !strict && !rhsIntervalOpen)) ||
-      (!greater && (j->second - offSet > 0) || (j->second - offSet >= 0 && !strict && !rhsIntervalOpen))) return false;
+if( ((greater && (j->second - offSet < 0)) || (j->second - offSet <= 0 && !strict && !rhsIntervalOpen)) ||
+      ((!greater && (j->second - offSet > 0)) || (j->second - offSet >= 0 && !strict && !rhsIntervalOpen))) return false;
 };
       
 return true;

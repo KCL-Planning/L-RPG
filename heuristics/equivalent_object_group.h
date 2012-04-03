@@ -13,6 +13,7 @@ namespace MyPOP {
 class Object;
 class Predicate;
 class TermManager;
+class PredicateManager;
 
 namespace UTILITY {
 class MemoryPool;
@@ -35,6 +36,8 @@ class EquivalentObject
 {
 public:
 	EquivalentObject(const Object& object, EquivalentObjectGroup& equivalent_object_group);
+	
+	void reset();
 	
 	EquivalentObjectGroup& getEquivalentObjectGroup() const { return *equivalent_group_; }
 	
@@ -80,17 +83,24 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_ob
 class EquivalentObjectGroup
 {
 public:
-	EquivalentObjectGroup(const SAS_Plus::DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded);
+	EquivalentObjectGroup(const std::vector<EquivalentObjectGroup*>& all_eogs, const SAS_Plus::DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded);
 
 	~EquivalentObjectGroup();
 	
-	static void initMemoryPool(unsigned int max_arity);
+	void reset();
+	
+	static void setMaxArity(unsigned int max_arity);
+	
+	//static void initMemoryPool(unsigned int max_arity);
+	static void initMemoryPool();
 	
 	static void deleteMemoryPool();
 	
-	void* operator new[](size_t size);
+	static EquivalentObjectGroup** allocateMemory(unsigned int size);
 	
-	void operator delete[](void* p);
+//	void* operator new[](size_t size);
+	
+//	void operator delete[](void* p);
 
 	void addEquivalentObject(EquivalentObject& eo);
 	
@@ -99,6 +109,7 @@ public:
 	bool isRootNode() const;
 	
 	inline bool isGrounded() const { return is_grounded_; }
+	inline bool isPartOfAPropertyState() const { return is_not_part_of_property_state_; }
 	
 	bool contains(const Object& object) const;
 	bool contains(const Object& object, unsigned int iteration) const;
@@ -129,6 +140,11 @@ public:
 	
 	void updateEquivalences(const std::vector<EquivalentObjectGroup*>& all_eogs, std::vector<EquivalentObjectGroup*>& affected_groups, unsigned int iteration);
 	
+	std::vector<EquivalentObject*>::const_iterator begin(unsigned int layer_level) const;
+	std::vector<EquivalentObject*>::const_iterator end(unsigned int layer_level) const;
+	//unsigned int getNumberOfEquivalentObjects(unsigned int layer_level) const;
+	const EquivalentObjectGroup& getEOGAtLayer(unsigned int layer_level) const;
+	
 	void printObjects(std::ostream& os) const;
 	void printObjects(std::ostream& os, unsigned int iteration) const;
 	
@@ -149,11 +165,14 @@ private:
 	
 	static unsigned int max_arity_;
 	
+	static bool memory_pool_initialised_;
+	
 	// The set of objects which are equivalent.
 	std::vector<EquivalentObject*> equivalent_objects_;
 
 	// Flag to indicate if the object is grounded.
 	bool is_grounded_;
+	bool is_not_part_of_property_state_;
 	
 	// If the EOG is in use link_ is equal to NULL. Once it is made obsolete due to being merged with
 	// another Equivalent Object Group link will link to that object instead.
@@ -173,8 +192,13 @@ private:
 	 */
 	void merge(EquivalentObjectGroup& other_group, std::vector<EquivalentObjectGroup*>& affected_groups);
 	
+	// We only allow objects to be made equivalent if their finger prints match. The finger print is based on the object's membership in the 
+	// lifted transition graph nodes.
 	bool* finger_print_;
 	unsigned int finger_print_size_;
+	
+	static unsigned int max_finger_print_id_;
+	unsigned int finger_print_id_;
 	
 	// We keep track of both the size and when this EOG was merged. That way we can reconstruct the reachable facts 
 	// which have been made true during each iteration.
@@ -200,9 +224,11 @@ public:
 	/**
 	 * Initialise the individual groups.
 	 */
-	EquivalentObjectGroupManager(const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const SAS_Plus::DomainTransitionGraph& dtg_graph, const TermManager& term_manager);
+	EquivalentObjectGroupManager(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, const MyPOP::SAS_Plus::DomainTransitionGraph& dtg_graph, const MyPOP::TermManager& term_manager, const MyPOP::PredicateManager& predicate_manager);
 	
 	~EquivalentObjectGroupManager();
+	
+	void reset();
 	
 	void initialise(const std::vector<ReachableFact*>& initial_facts);
 	
@@ -221,9 +247,9 @@ public:
 	unsigned int getNumberOfEquivalentGroups() const;
 	
 	// Output methods.
-	void print(std::ostream& os) const;
+	//void print(std::ostream& os) const;
 	
-	void printAll(std::ostream& os) const;
+	//void printAll(std::ostream& os) const;
 	
 private:
 	
@@ -236,7 +262,11 @@ private:
 	std::vector<EquivalentObjectGroup*> equivalent_groups_;
 	
 	EquivalentObjectGroup* zero_arity_equivalent_object_group_;
+	
+	friend std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroupManager& group);
 };
+
+std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroupManager& group);
 
 };
 

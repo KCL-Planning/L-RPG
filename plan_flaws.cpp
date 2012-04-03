@@ -8,10 +8,10 @@ namespace MyPOP {
 OpenCondition::OpenCondition(StepPtr step, const Atom& condition)
 	: step_(step), condition_(&condition)
 {
-	if (step_->getStepId() > 100)
-	{
-		assert(false);
-	}
+//	if (step_->getStepId() > 100)
+//	{
+//		assert(false);
+//	}
 }
 
 void OpenCondition::handleFlaw(std::vector<const Plan*>& refinements, Planner& planner, const Plan& plan) const 

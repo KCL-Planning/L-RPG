@@ -88,7 +88,11 @@ void UnsatPrecondition::advice() const
 
     action->displayDurationAdvice(&state);
 
-    if(ap->isAdvice()) if(LaTeX) ap->displayLaTeX(); else ap->display();  
+    if(ap->isAdvice())
+    {
+        if(LaTeX) ap->displayLaTeX(); 
+        else ap->display();
+    }
 };
 
 void UnsatDurationCondition::display() const
@@ -194,7 +198,11 @@ void UnsatInvariant::advice() const
     if(!LaTeX) *report <<"\n";
     display();
 
-    if(ap->isAdvice()) if(LaTeX) ap->displayLaTeX(); else ap->display();
+    if(ap->isAdvice())
+    {
+        if(LaTeX) ap->displayLaTeX();
+        else ap->display();
+    }
 };
 
 void ErrorLog::displayReport() const

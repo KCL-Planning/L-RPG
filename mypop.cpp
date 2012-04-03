@@ -5,6 +5,25 @@
 #include <assert.h>
 #include <sys/time.h>
 
+extern "C" {
+#include "FF-X/ff.h"
+
+#include "FF-X/memory.h"
+#include "FF-X/output.h"
+
+#include "FF-X/parse.h"
+
+#include "FF-X/inst_pre.h"
+#include "FF-X/inst_easy.h"
+#include "FF-X/inst_hard.h"
+#include "FF-X/inst_final.h"
+
+#include "FF-X/orderings.h"
+
+#include "FF-X/relax.h"
+#include "FF-X/search.h"
+};
+
 #include "VALfiles/ptree.h"
 #include "VALfiles/TIM.h"
 #include "VALfiles/ToFunction.h"
@@ -53,6 +72,332 @@ namespace VAL {
 //using namespace VAL;
 using namespace MyPOP;
 
+extern "C" {
+void load_ops_file( char *filename );
+void load_fct_file( char *filename );
+};
+
+void initialiseFF (const std::string& domain_file, const std::string& problem_file, int (*getHeuristicFunctionEHC)(State* from, State* to), int (*getHeuristicFunctionBF)(State* from, State* to))
+{
+  int i;
+  bool found_plan;
+  
+  printf("Initialise FF! %s %s\n", domain_file.c_str(), problem_file.c_str());
+
+  /* it is important for the pddl language to define the domain before 
+   * reading the problem 
+   */
+  load_ops_file( const_cast<char*>(domain_file.c_str()) );
+  
+  /* problem file (facts)
+   */
+  load_fct_file( const_cast<char*>(problem_file.c_str()) );
+
+  /* This is needed to get all types.
+   */
+  build_orig_constant_list();
+
+  /* last step of parsing: see if it's an ADL domain!
+   */
+  if ( !make_adl_domain() ) {
+    printf("\nff: this is not an ADL problem!");
+    printf("\n    can't be handled by this version.\n\n");
+    exit( 1 );
+  }
+
+  /* now instantiate operators;
+   */
+
+
+  /**************************
+   * first do PREPROCESSING * 
+   **************************/
+
+
+  /* start by collecting all strings and thereby encoding 
+   * the domain in integers.
+   */
+  encode_domain_in_integers();
+
+  /* inertia preprocessing, first step:
+   *   - collect inertia information
+   *   - split initial state into
+   *        _ arrays for individual predicates
+   *        - arrays for all static relations
+   *        - array containing non - static relations
+   */
+  do_inertia_preprocessing_step_1();
+
+  /* normalize all PL1 formulae in domain description:
+   * (goal, preconds and effect conditions)
+   *   - simplify formula
+   *   - expand quantifiers
+   *   - NOTs down
+   */
+  normalize_all_wffs();
+
+  /* translate negative preconds: introduce symmetric new predicate
+   * NOT-p(..) (e.g., not-in(?ob) in briefcaseworld)
+   */
+  translate_negative_preconds();
+
+  /* split domain in easy (disjunction of conjunctive preconds)
+   * and hard (non DNF preconds) part, to apply 
+   * different instantiation algorithms
+   */
+  split_domain();
+
+
+  /***********************************************
+   * PREPROCESSING FINISHED                      *
+   *                                             *
+   * NOW MULTIPLY PARAMETERS IN EFFECTIVE MANNER *
+   ***********************************************/
+
+  build_easy_action_templates();
+  build_hard_action_templates();
+
+  /* perform reachability analysis in terms of relaxed 
+   * fixpoint
+   */
+  perform_reachability_analysis();
+
+  /* collect the relevant facts and build final domain
+   * and problem representations.
+   */
+  collect_relevant_facts();
+
+  /* now build globally accessable connectivity graph
+   */
+  build_connectivity_graph();
+  
+
+  /***********************************************************
+   * we are finally through with preprocessing and can worry *
+   * bout finding a plan instead.                            *
+   ***********************************************************/
+
+  initialize_relax();
+  do_axiom_update( &ginitial_state );
+  
+  /* make space in plan states info, and relax
+   */
+  for ( i = 0; i < MAX_PLAN_LENGTH + 1; i++ ) {
+    make_state( &(gplan_states[i]), gnum_ft_conn );
+    gplan_states[i].max_F = gnum_ft_conn;
+  }
+ 
+//  int ehc_states_visited = 0;
+  int best_first_states_visited = 0;
+//  found_plan = do_enforced_hill_climbing( &ginitial_state, &ggoal_state, getHeuristicFunctionEHC, &ehc_states_visited );
+//  std::cerr << "EHC states visited: " << ehc_states_visited << std::endl;
+  
+// if ( !found_plan ) {
+//    printf("\n\nEnforced Hill-climbing failed !");
+//    printf("\nswitching to Best-first Search now.\n");
+    found_plan = do_best_first_search(getHeuristicFunctionBF, &best_first_states_visited);
+//  }
+  
+  std::cerr << std::endl << "Best-First states visited: " << best_first_states_visited << std::endl;
+  if ( found_plan )
+  {
+		//print_plan();
+		
+		size_t begin_problem = problem_file.find_last_of('/') + 1;
+		size_t end_problem = problem_file.find_last_of('.');
+		assert (begin_problem < end_problem);
+		assert (begin_problem > 0);
+		assert (end_problem > 0);
+		assert (end_problem < problem_file.size());
+		std::string problem_name = problem_file.substr(begin_problem, problem_file.size() - begin_problem - (problem_file.size() - end_problem));
+		
+		size_t end_domain = domain_file.find_last_of('/');
+		size_t begin_domain = domain_file.find_last_of('/', end_domain - 1) + 1;
+		assert (begin_domain < end_domain);
+		assert (begin_domain > 0);
+		assert (end_domain > 0);
+		assert (end_domain < domain_file.size());
+		std::string domain_name = domain_file.substr(begin_domain, domain_file.size() - begin_domain - (domain_file.size() - end_domain));
+		std::string solution_file_name("solution-" + domain_name + "-" + problem_name);
+	 
+		print_plan_to_file(solution_file_name.c_str());
+		std::cerr << "Plan length: " << gnum_plan_ops << std::endl;
+	}
+	else
+	{
+		std::cerr << "NO PLAN FOUND!" << std::endl;
+	}
+  
+  
+  output_planner_info();
+}
+
+REACHABILITY::DTGReachability* analyst_;
+Bindings* bindings_;
+std::vector<const SAS_Plus::BoundedAtom*> static_facts_;
+std::vector<const SAS_Plus::BoundedAtom*> bounded_goal_facts_;
+PredicateManager* predicate_manager_;
+TermManager* term_manager_;
+
+const SAS_Plus::BoundedAtom& convertFactToBoundedAtom(const Fact& fact)
+{
+	std::string predicate_name(gpredicates[fact.predicate]);
+	std::vector<const Term*>* objects = new std::vector<const Term*>();
+	std::vector<const Type*> types;
+	for ( int j = 0; j < garity[fact.predicate]; j++ )
+	{
+		const Object& object = term_manager_->getObject(std::string(gconstants[(fact.args)[j]]));
+		objects->push_back(&object);
+		types.push_back(object.getType());
+	}
+	const Predicate* predicate = predicate_manager_->getPredicate(predicate_name, types);
+	if (predicate == NULL)
+	{
+		std::cout << "Could not find a predciate with the name: " << predicate_name << " with types: ";
+		for (std::vector<const Type*>::const_iterator ci = types.begin(); ci != types.end(); ci++)
+		{
+			std::cout << **ci << " ";
+		}
+		std::cout << "." << std::endl;
+		exit(0);
+	}
+	
+	Atom* atom = new Atom(*predicate, *objects, false);
+	const SAS_Plus::BoundedAtom& bounded_atom = SAS_Plus::BoundedAtom::createBoundedAtom(*atom, *bindings_);
+/*
+	print_Fact(const_cast<Fact*>(&fact));
+	printf("%s(", gpredicates[fact.predicate]);
+	for ( int j = 0; j < garity[fact.predicate]; j++ ) {
+		printf("%s", gconstants[(fact.args)[j]]);
+		if ( j < garity[fact.predicate] - 1 ) {
+			printf(" ");
+		}
+	}
+	printf(") -=> ");
+	bounded_atom.print(std::cout, *bindings_);
+	std::cout << std::endl;
+*/
+	return bounded_atom;
+}
+
+int calculateHeuristicForFF(State* from, State* to)
+{
+	// Convert both states into something we can work with!
+	std::vector<const REACHABILITY::ReachableFact*> reachable_facts;
+	std::vector<const SAS_Plus::BoundedAtom*> initial_facts;
+	
+	delete MyPOP::REACHABILITY::g_reachable_fact_memory_pool;
+	MyPOP::REACHABILITY::g_reachable_fact_memory_pool = new MyPOP::UTILITY::MemoryPool(sizeof(MyPOP::REACHABILITY::ReachableFact));
+
+//	std::cout << "******************************************************************" << std::endl;
+//	std::cout << "*********************** The initial state ************************" << std::endl;
+//	std::cout << "******************************************************************" << std::endl;
+//	print_state(*from);
+//	std::cout << std::endl;
+	
+//	std::cout << "From facts: " << std::endl;
+//	struct timeval start_time_convert_state;
+//	gettimeofday(&start_time_convert_state, NULL);
+	for (int i = 0; i < from->num_F; i++)
+	{
+		Fact* fact = &(grelevant_facts[from->F[i]]);
+		const SAS_Plus::BoundedAtom& bounded_fact = convertFactToBoundedAtom(*fact);
+		initial_facts.push_back(&bounded_fact);
+//		std::cout << "* ";
+//		bounded_fact.print(std::cout, *bindings_);
+//		std::cout << "." << std::endl;
+		
+//		for (unsigned int j = 0; j < bounded_fact.getAtom().getArity(); j++)
+//		{
+//			bounded_fact.getAtom().getTerms()[j]->getDomain(bounded_fact.getId(), *bindings_);
+//		}
+	}
+	
+	// Add all static facts, they are not listed by FF.
+	unsigned int number_of_non_static_initial_facts = initial_facts.size();
+	initial_facts.insert(initial_facts.end(), static_facts_.begin(), static_facts_.end());
+
+//	struct timeval end_time_convert_state;
+//	gettimeofday(&end_time_convert_state, NULL);
+//	double time_spend_converting = end_time_convert_state.tv_sec - start_time_convert_state.tv_sec + (end_time_convert_state.tv_usec - start_time_convert_state.tv_usec) / 1000000.0;
+//	std::cout << "Time to convert initial state: " << time_spend_converting << " seconds" << std::endl;
+
+//	for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
+//	{
+//		(*ci)->print(std::cout, *bindings_);
+//	}
+	
+//	std::cout << "Goal facts: " << std::endl;
+//	for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = bounded_goal_facts_.begin(); ci != bounded_goal_facts_.end(); ci++)
+//	{
+//		std::cout << "* ";
+//		(*ci)->print(std::cout, *bindings_);
+//		std::cout << "." << std::endl;
+//	}
+//	struct timeval start_time_analysis;
+//	gettimeofday(&start_time_analysis, NULL);
+
+	analyst_->performReachabilityAnalysis(reachable_facts, initial_facts, *bindings_);
+	
+//	struct timeval end_time_analysis;
+//	gettimeofday(&end_time_analysis, NULL);
+//	double time_spend_analysis = end_time_analysis.tv_sec - start_time_analysis.tv_sec + (end_time_analysis.tv_usec - start_time_analysis.tv_usec) / 1000000.0;
+//	std::cout << "Time to do analysis: " << time_spend_analysis << " seconds" << std::endl;	
+//	for (std::vector<const REACHABILITY::ReachableFact*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
+//	{
+//		std::cout << "* " << **ci << std::endl;
+//	}
+/*
+//	struct timeval start_time_heuristic;
+//	gettimeofday(&start_time_heuristic, NULL);
+	std::cout << "**************************************************************" << std::endl;
+	std::cout << "***************** BEGIN HEURISTIC COMPARISON *****************" << std::endl;
+	std::cout << "**************************************************************" << std::endl;
+*/
+	unsigned int heuristic_value = analyst_->getHeuristic(bounded_goal_facts_, *bindings_, *predicate_manager_);
+//	struct timeval end_time_heuristic;
+//	gettimeofday(&end_time_heuristic, NULL);
+//	double time_spend_heuristic = end_time_heuristic.tv_sec - start_time_heuristic.tv_sec + (end_time_heuristic.tv_usec - start_time_heuristic.tv_usec) / 1000000.0;
+//	std::cout << "Time to get heuristic: " << time_spend_heuristic << " seconds" << std::endl;	
+//	std::cerr << "Heuristic value: " << heuristic_value << std::endl;
+
+	// Make sure we only return 0 if it is the actual goal state!
+	if (heuristic_value == 0 && get_1P(from, to) != 0)
+	{
+		std::cout << "We think we have reached the goal state, whereas that's not the case!" << std::endl;
+		print_state(*from);
+		std::cout << std::endl << "To: " << std::endl;
+		print_state(*to);
+		std::cout << std::endl;
+		exit(1);
+	}
+/*
+//#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_SHOW_PLAN
+	std::cout << "*************************** FF *******************************" << std::endl;
+	gcmd_line.display_info = 123;
+	int ff_heuristic_value = get_1P(from, to);
+	std::cout << std::endl << "************************ From State **************************";
+	print_state(*from);
+	std::cout << std::endl << "************************ End State ***************************";
+	print_state(*to);
+	std::cout << std::endl << "********************* Heuristic values ***********************" << std::endl;
+	std::cout << "Lifted: " << heuristic_value << std::endl;
+	std::cout << "FF: " << ff_heuristic_value << std::endl;
+//	std::cout << "**************************************************************" << std::endl;
+//	std::cout << "****************** END HEURISTIC COMPARISON ******************" << std::endl;
+//	std::cout << "**************************************************************" << std::endl;
+//#endif
+*/
+	for (unsigned int i = 0; i < number_of_non_static_initial_facts; i++)
+	{
+		delete initial_facts[i];
+	}
+	
+//	std::cout << "Heuristic for FF: " << heuristic_value<< std::endl;
+	return heuristic_value;
+	//return get_1P_and_H(const_cast<State*>(from), const_cast<State*>(to));
+}
+
 int main(int argc,char * argv[])
 {
 
@@ -68,6 +413,7 @@ int main(int argc,char * argv[])
 
 	bool validate = false;
 	bool calculate_heuristic = false;
+	bool use_ff_heuristic = false;
 	// Read in commandline options.
 	for (int i = 1; i < argc - 2; i++)
 	{
@@ -82,18 +428,30 @@ int main(int argc,char * argv[])
 			calculate_heuristic = true;
 			std::cerr << "Calculate heuristic!" << std::endl;
 		}
+		else if (command_line == "-ff")
+		{
+			use_ff_heuristic = true;
+			std::cerr << "Use the FF heuristic!" << std::endl;
+		}
 		else
 		{
 			std::cerr << "Unknown option " << command_line << std::endl;
 			exit(1);
 		}
 	}
+	
+	std::string problem_name(argv[argc - 1]);
+	std::string domain_name(argv[argc - 2]);
+	if (use_ff_heuristic)
+	{
+		initialiseFF(domain_name, problem_name, &get_1P_and_H, &get_1P);
+		exit(0);
+	}
 
 	TIM::performTIMAnalysis(&argv[argc - 2]);
 	for_each(TA->pbegin(),TA->pend(), ptrwriter<PropertySpace>(cout,"\n"));
 	for_each(TA->abegin(),TA->aend(), ptrwriter<PropertySpace>(cout,"\n"));
 	
-	std::string domain_name(argv[argc - 2]);
 	std::size_t index = domain_name.find_last_of('/');
 	std::size_t end_index = domain_name.find_last_of('.');
 	std::string real_domain_name = domain_name.substr(index + 1, end_index - index - 1);
@@ -101,7 +459,6 @@ int main(int argc,char * argv[])
 	std::cerr << real_domain_name << " " << argv[argc - 2] << std::endl;
 	
 	
-	std::string problem_name(argv[argc - 1]);
 	index = problem_name.find_last_of('/');
 	end_index = problem_name.find_last_of('.');
 	std::string real_problem_name = problem_name.substr(index + 1, end_index - index - 1);
@@ -122,6 +479,7 @@ int main(int argc,char * argv[])
 	TermManager term_manager(type_manager);
 	type_manager.processObjects(term_manager, *the_problem->objects);
 ///	term_manager.processActionVariables(*the_domain->ops);
+	term_manager_ = &term_manager;
 
 	// Process the constants (if any).
 	if (the_domain->constants != NULL)
@@ -150,11 +508,20 @@ int main(int argc,char * argv[])
 	
 	std::vector<const Atom*>* initial_facts = new std::vector<const Atom*>();	
 	Utility::convertEffects(term_manager, predicate_manager, *the_problem->initial_state, *initial_facts);
+	
+	for (std::vector<const Atom*>::const_iterator ci = initial_facts->begin(); ci != initial_facts->end(); ci++)
+	{
+		const Atom* initial_fact = *ci;
+		if (initial_fact->getPredicate().isStatic())
+		{
+			static_facts_.push_back(&SAS_Plus::BoundedAtom::createBoundedAtom(*initial_fact, plan->getBindings()));
+		}
+	}
 
 	std::vector<const Variable*>* initial_action_variables = new std::vector<const Variable*>();
 
 	// Create the initial step, which is a custom action with the atoms of the initial state as its effects.
-	Action* initial_action = new Action("Initial action", Formula::TRUE, initial_action_variables, initial_facts);
+	MyPOP::Action* initial_action = new MyPOP::Action("Initial action", Formula::TRUE, initial_action_variables, initial_facts);
 
 #ifdef MYPOP_COMMENTS
 	std::cout << "Print initial action" << std::endl;
@@ -167,7 +534,7 @@ int main(int argc,char * argv[])
 #endif
 	std::vector<const Variable*>* goal_action_variables = new std::vector<const Variable*>();
 	std::vector<const Atom*>* goal_action_effects = new std::vector<const Atom*>();
-	Action* goal_action = new Action("Goal action", *goal, goal_action_variables, goal_action_effects);
+	MyPOP::Action* goal_action = new MyPOP::Action("Goal action", *goal, goal_action_variables, goal_action_effects);
 
 
 #ifdef MYPOP_COMMENTS
@@ -188,9 +555,6 @@ int main(int argc,char * argv[])
 	std::cout << " === Creating the DTGs === " << std::endl;
 #endif
 	SAS_Plus::DomainTransitionGraphManager* dtg_manager = new SAS_Plus::DomainTransitionGraphManager(predicate_manager, type_manager, action_manager, term_manager, *initial_facts);
-	
-	// Old style, working with the lifted SAS structures.
-//	dtg_manager.generateDomainTransitionGraphs(*the_domain->types, plan->getBindings());
 
 	// New style, working directly on the TIM structure.
 	const SAS_Plus::DomainTransitionGraph& combined_graph = dtg_manager->generateDomainTransitionGraphsTIM(*the_domain->types, plan->getBindings());
@@ -211,211 +575,29 @@ int main(int argc,char * argv[])
 	struct timeval start_time_prepare_reachability;
 	gettimeofday(&start_time_prepare_reachability, NULL);
 #endif
-	std::vector<const REACHABILITY::ReachableFact*> lifted_reachable_facts;
+//	std::vector<const REACHABILITY::ReachableFact*> lifted_reachable_facts;
+	REACHABILITY::DTGReachability analyst(*dtg_manager, combined_graph, term_manager, predicate_manager);
+	analyst_ = &analyst;
+	bindings_ = &combined_graph.getBindings();
+#ifdef MYPOP_KEEP_TIME
+	struct timeval end_time_prepare_reachability;
+	gettimeofday(&end_time_prepare_reachability, NULL);	
+	
+	double time_spend_preparing = end_time_prepare_reachability.tv_sec - start_time_prepare_reachability.tv_sec + (end_time_prepare_reachability.tv_usec - start_time_prepare_reachability.tv_usec) / 1000000.0;
+	std::cerr << "Prepare reachability analysis: " << time_spend_preparing << " seconds" << std::endl;
+#endif
+
+	std::vector<const Atom*> goal_facts;
+	Utility::convertFormula(goal_facts, goal);
+	
+	for (std::vector<const Atom*>::const_iterator ci = goal_facts.begin(); ci != goal_facts.end(); ci++)
 	{
-		REACHABILITY::DTGReachability analyst(*dtg_manager, combined_graph, term_manager, predicate_manager);
-#ifdef MYPOP_KEEP_TIME
-		struct timeval end_time_prepare_reachability;
-		gettimeofday(&end_time_prepare_reachability, NULL);	
-		
-		double time_spend_preparing = end_time_prepare_reachability.tv_sec - start_time_prepare_reachability.tv_sec + (end_time_prepare_reachability.tv_usec - start_time_prepare_reachability.tv_usec) / 1000000.0;
-		std::cerr << "Prepare reachability analysis: " << time_spend_preparing << " seconds" << std::endl;
-		
-		struct timeval start_convert_time;
-		gettimeofday(&start_convert_time, NULL);
-#endif
-		std::vector<const SAS_Plus::BoundedAtom*> bounded_initial_facts;
-		for (std::vector<const Atom*>::const_iterator ci = initial_facts->begin(); ci != initial_facts->end(); ci++)
-		{
-			bounded_initial_facts.push_back(new SAS_Plus::BoundedAtom(Step::INITIAL_STEP, **ci));
-		}
-#ifdef MYPOP_KEEP_TIME
-		struct timeval end_convert_time;
-		gettimeofday(&end_convert_time, NULL);	
-
-		double time_spend_converting = end_convert_time.tv_sec - start_convert_time.tv_sec + (end_convert_time.tv_usec - start_convert_time.tv_usec) / 1000000.0;
-		std::cerr << "Converting initial facts: " << time_spend_converting << " seconds" << std::endl;
-#endif
-		std::cerr << " -= Start actual reachability!!!  =- " << std::endl;
-#ifdef MYPOP_KEEP_TIME
-		struct timeval start_time_reachability;
-		gettimeofday(&start_time_reachability, NULL);
-#endif
-		analyst.performReachabilityAnalysis(lifted_reachable_facts, bounded_initial_facts, combined_graph.getBindings());
-
-		struct timeval end_time_reachability;
-		gettimeofday(&end_time_reachability, NULL);
-#ifdef MYPOP_KEEP_TIME
-		double time_spend = end_time_reachability.tv_sec - start_time_reachability.tv_sec + (end_time_reachability.tv_usec - start_time_reachability.tv_usec) / 1000000.0;
-		std::cerr << "Reachability analysis: " << time_spend << " seconds" << std::endl;
-#endif
-
-		if (validate)
-		{
-			// Validate the result.
-			RPG::RelaxedPlanningGraph rpg(action_manager, *plan, analyst.getEquivalentObjectGroupManager(), predicate_manager);
-			//std::cout << rpg << std::endl;
-			
-			const std::vector<RPG::FactLayer*>& fact_layers = rpg.getFactLayers();
-			const RPG::FactLayer* last_layer = fact_layers[fact_layers.size() - 1];
-			const std::vector<const REACHABILITY::ResolvedBoundedAtom*>& reachable_facts = last_layer->getFacts();
-			
-			bool all_clear = true;
-			for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
-			{
-				const REACHABILITY::ResolvedBoundedAtom* rpg_bounded_atom = *ci;
-				if (rpg_bounded_atom->getOriginalAtom().isNegative()) continue;
-				bool reached = false;
-				for (std::vector<const REACHABILITY::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
-				{
-					const REACHABILITY::ReachableFact* lifted_bounded_atom = *ci;
-					
-					if (lifted_bounded_atom->getAtom().getPredicate().getName() != rpg_bounded_atom->getOriginalAtom().getPredicate().getName()) continue;
-				
-					if (lifted_bounded_atom->getAtom().getArity() != rpg_bounded_atom->getOriginalAtom().getArity()) continue;
-					
-					bool is_equivalent = true;
-					for (unsigned int i = 0; i < lifted_bounded_atom->getAtom().getArity(); i++)
-					{
-						const Object* grounded_object = rpg_bounded_atom->getVariableDomain(i)[0];
-						
-						const REACHABILITY::EquivalentObjectGroup& eog = lifted_bounded_atom->getTermDomain(i);
-						
-						if (!eog.contains(*grounded_object))
-						{
-							is_equivalent = false;
-							break;
-						}
-					}
-					
-					if (is_equivalent)
-					{
-						reached = true;
-						break;
-					}
-				}
-				
-				if (!reached)
-				{
-					for (std::vector<const REACHABILITY::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
-					{
-						const REACHABILITY::ReachableFact* lifted_bounded_atom = *ci;
-						std::cout << "Compare against: " << *lifted_bounded_atom << std::endl;
-						
-						if (lifted_bounded_atom->getAtom().getPredicate().getName() != rpg_bounded_atom->getOriginalAtom().getPredicate().getName())
-						{
-							std::cout << "Predicate names are not the same!" << std::endl;
-							continue;
-						}
-					
-						if (lifted_bounded_atom->getAtom().getArity() != rpg_bounded_atom->getOriginalAtom().getArity())
-						{
-							std::cout << "Arities are different!" << std::endl;
-							continue;
-						}
-						
-						bool is_equivalent = true;
-						for (unsigned int i = 0; i < lifted_bounded_atom->getAtom().getArity(); i++)
-						{
-							const Object* grounded_object = rpg_bounded_atom->getVariableDomain(i)[0];
-							
-							const REACHABILITY::EquivalentObjectGroup& eog = lifted_bounded_atom->getTermDomain(i);
-							
-							if (!eog.contains(*grounded_object))
-							{
-								std::cout << "The " << i << "th term is different!" << std::endl;
-								is_equivalent = false;
-								break;
-							}
-						}
-						
-						if (is_equivalent)
-						{
-							std::cout << "We are good anyways!" << std::endl;
-							reached = true;
-							break;
-						}
-					}
-
-					if (!reached)
-					{
-						all_clear = false;
-						std::cerr << "Fact reachable by the RPG but not by the lifted implementation: " << *rpg_bounded_atom << "." << std::endl;
-						std::cout << "Fact reachable by the RPG but not by the lifted implementation: " << *rpg_bounded_atom << "." << std::endl;
-					}
-				}
-			}
-			
-			
-			for (std::vector<const REACHABILITY::ReachableFact*>::const_iterator ci = lifted_reachable_facts.begin(); ci != lifted_reachable_facts.end(); ci++)
-			{
-				const REACHABILITY::ReachableFact* lifted_bounded_atom = *ci;
-				bool reached = false;
-				for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
-				{
-					const REACHABILITY::ResolvedBoundedAtom* rpg_bounded_atom = *ci;
-					
-					if (lifted_bounded_atom->getAtom().getPredicate().getName() != rpg_bounded_atom->getOriginalAtom().getPredicate().getName()) continue;
-				
-					if (lifted_bounded_atom->getAtom().getArity() != rpg_bounded_atom->getOriginalAtom().getArity()) continue;
-					
-					bool is_equivalent = true;
-					for (unsigned int i = 0; i < lifted_bounded_atom->getAtom().getArity(); i++)
-					{
-						const Object* grounded_object = rpg_bounded_atom->getVariableDomain(i)[0];
-						
-						const REACHABILITY::EquivalentObjectGroup& eog = lifted_bounded_atom->getTermDomain(i);
-						
-						if (!eog.contains(*grounded_object))
-						{
-							is_equivalent = false;
-							break;
-						}
-					}
-					
-					if (is_equivalent)
-					{
-						reached = true;
-						break;
-					}
-				}
-				
-				if (!reached)
-				{
-					std::cerr << "Fact reachable by the lifted implementation but not by the RPG: " << *lifted_bounded_atom << "." << std::endl;
-					all_clear = false;
-				}
-			}
-			
-			if (!all_clear)
-			{
-				for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
-				{
-					std::cout << "* Reachable lifted fact: " << **ci << std::endl;
-				}
-				
-				exit(1);
-			}
-		}
-		
-		if (calculate_heuristic)
-		{
-			std::vector<const Atom*> goal_facts;
-			Utility::convertFormula(goal_facts, goal);
-			
-			std::vector<const SAS_Plus::BoundedAtom*> bounded_goal_facts;
-			for (std::vector<const Atom*>::const_iterator ci = goal_facts.begin(); ci != goal_facts.end(); ci++)
-			{
-				bounded_goal_facts.push_back(new SAS_Plus::BoundedAtom(Step::GOAL_STEP, **ci));
-			}
-			unsigned int heuristic_value = analyst.getHeuristic(bounded_goal_facts, combined_graph.getBindings(), predicate_manager);
-			std::cerr << "Heuristic value: " << heuristic_value << std::endl;
-			for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = bounded_goal_facts.begin(); ci != bounded_goal_facts.end(); ci++)
-			{
-				delete *ci;
-			}
-		}
+		bounded_goal_facts_.push_back(new SAS_Plus::BoundedAtom(Step::GOAL_STEP, **ci));
 	}
+	
+	predicate_manager_ = &predicate_manager;
+
+	initialiseFF(domain_name, problem_name, &calculateHeuristicForFF, &calculateHeuristicForFF);
 
 //	Graphviz::printToDot(dtg_manager);
 //	for (std::vector<SAS_Plus::DomainTransitionGraph*>::const_iterator ci = dtg_manager.getManagableObjects().begin(); ci != dtg_manager.getManagableObjects().end(); ci++)
@@ -473,8 +655,9 @@ int main(int argc,char * argv[])
 	delete plan;
 	delete propagator;
 	delete initial_action;
-//	delete goal_action;
+	delete goal_action;
 //	delete solution_plan;
 	delete VAL::current_analysis;
-//	delete MyPOP::SAS_Plus::g_reachable_fact_memory_pool;
+	delete MyPOP::REACHABILITY::g_reachable_fact_memory_pool;
+	MyPOP::REACHABILITY::EquivalentObjectGroup::deleteMemoryPool();
 }

@@ -704,7 +704,7 @@ void DomainTransitionGraph::solveSubsets()
 			if (contains_similar_variable_domain)
 			{
 				nodes_.erase(ri.base() - 1);
-				delete dtg_node;
+//				delete dtg_node;
 				continue;
 			}
 		}

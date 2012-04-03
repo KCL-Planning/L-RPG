@@ -157,11 +157,10 @@ void PredicateManager::processPredicates(const VAL::pred_decl_list& predicates)
 		VAL::pred_decl* predicate_declaration = *ci;
 		VAL::holding_pred_symbol* hps = HPS(predicate_declaration->getPred());
 		const std::string& raw_predicate_name = hps->getName();
-		std::string predicate_name;
-		std::transform(raw_predicate_name.begin(), raw_predicate_name.end(), predicate_name.begin(), int(*)(int)tolower);
-		std::cout << raw_predicate_name << " -> " << predicate_name << std::endl;
+		std::string predicate_name(raw_predicate_name);
+		std::transform(raw_predicate_name.begin(), raw_predicate_name.end(), predicate_name.begin(), (int(*)(int))std::tolower);
 		assert (raw_predicate_name.size() > 0);
-
+		assert (predicate_name.size() > 0);
 		for (VAL::holding_pred_symbol::PIt i = hps->pBegin();i != hps->pEnd();++i)
 		{
 			const TIM::TIMpredSymbol* tps = static_cast<const TIM::TIMpredSymbol*>(*i);
@@ -385,8 +384,9 @@ const Predicate* PredicateManager::getPredicate(const std::string& name, const s
 const Predicate* PredicateManager::getGeneralPredicate(const std::string& name) const
 {
 //	std::cout << "Find general predicate " << name << std::endl;
-	std::cout << name << " -> " << predicate_name << std::endl;
-	
+	std::string predicate_name(name);
+	std::transform(name.begin(), name.end(), predicate_name.begin(), (int(*)(int))std::tolower);
+//	std::cout << name << " -> " << predicate_name << std::endl;
 	std::map<std::string, std::vector<const Type*>* >::const_iterator type_ci = general_predicates_.find(predicate_name);
 
 	if (type_ci == general_predicates_.end())

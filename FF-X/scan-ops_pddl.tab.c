@@ -1,9 +1,10 @@
-/* A Bison parser, made by GNU Bison 2.4.3.  */
+
+/* A Bison parser, made by GNU Bison 2.4.1.  */
 
 /* Skeleton implementation for Bison's Yacc-like parsers in C
    
-      Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
-   2009, 2010 Free Software Foundation, Inc.
+      Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+   Free Software Foundation, Inc.
    
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +46,7 @@
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "2.4.3"
+#define YYBISON_VERSION "2.4.1"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -183,7 +184,7 @@ int supported( char *str )
 
 
 /* Line 189 of yacc.c  */
-#line 187 "scan-ops_pddl.tab.c"
+#line 188 "scan-ops_pddl.tab.c"
 
 /* Enabling traces.  */
 #ifndef YYDEBUG
@@ -261,7 +262,7 @@ typedef union YYSTYPE
 
 
 /* Line 214 of yacc.c  */
-#line 265 "scan-ops_pddl.tab.c"
+#line 266 "scan-ops_pddl.tab.c"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -273,7 +274,7 @@ typedef union YYSTYPE
 
 
 /* Line 264 of yacc.c  */
-#line 277 "scan-ops_pddl.tab.c"
+#line 278 "scan-ops_pddl.tab.c"
 
 #ifdef short
 # undef short
@@ -323,7 +324,7 @@ typedef short int yytype_int16;
 #define YYSIZE_MAXIMUM ((YYSIZE_T) -1)
 
 #ifndef YY_
-# if defined YYENABLE_NLS && YYENABLE_NLS
+# if YYENABLE_NLS
 #  if ENABLE_NLS
 #   include <libintl.h> /* INFRINGES ON USER NAME SPACE */
 #   define YY_(msgid) dgettext ("bison-runtime", msgid)
@@ -804,18 +805,9 @@ static const yytype_uint8 yystos[] =
 
 /* Like YYERROR except do call yyerror.  This remains here temporarily
    to ease the transition to the new meaning of YYERROR, for GCC.
-   Once GCC version 2 has supplanted version 1, this can go.  However,
-   YYFAIL appears to be in use.  Nevertheless, it is formally deprecated
-   in Bison 2.4.2's NEWS entry, where a plan to phase it out is
-   discussed.  */
+   Once GCC version 2 has supplanted version 1, this can go.  */
 
 #define YYFAIL		goto yyerrlab
-#if defined YYFAIL
-  /* This is here to suppress warnings from the GCC cpp's
-     -Wunused-macros.  Normally we don't worry about that warning, but
-     some users do, and we want to make it easy for users to remove
-     YYFAIL uses, which will produce warnings from Bison 2.5.  */
-#endif
 
 #define YYRECOVERING()  (!!yyerrstatus)
 
@@ -872,7 +864,7 @@ while (YYID (0))
    we won't break user code: when these are the locations we know.  */
 
 #ifndef YY_LOCATION_PRINT
-# if defined YYLTYPE_IS_TRIVIAL && YYLTYPE_IS_TRIVIAL
+# if YYLTYPE_IS_TRIVIAL
 #  define YY_LOCATION_PRINT(File, Loc)			\
      fprintf (File, "%d.%d-%d.%d",			\
 	      (Loc).first_line, (Loc).first_column,	\
@@ -1611,7 +1603,7 @@ yyreduce:
     {
         case 2:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 168 "scan-ops_pddl.y"
     { 
   opserr( DOMDEF_EXPECTED, NULL ); 
@@ -1620,7 +1612,7 @@ yyreduce:
 
   case 4:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 179 "scan-ops_pddl.y"
     { 
 ;}
@@ -1628,7 +1620,7 @@ yyreduce:
 
   case 5:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 182 "scan-ops_pddl.y"
     {
   if ( gcmd_line.display_info >= 1 ) {
@@ -1639,7 +1631,7 @@ yyreduce:
 
   case 6:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 193 "scan-ops_pddl.y"
     { 
   gdomain_name = new_Token( strlen((yyvsp[(3) - (4)].string))+1 );
@@ -1649,7 +1641,7 @@ yyreduce:
 
   case 14:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 221 "scan-ops_pddl.y"
     {
 ;}
@@ -1657,7 +1649,7 @@ yyreduce:
 
   case 15:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 224 "scan-ops_pddl.y"
     { 
 ;}
@@ -1665,14 +1657,14 @@ yyreduce:
 
   case 16:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 230 "scan-ops_pddl.y"
     {;}
     break;
 
   case 17:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 233 "scan-ops_pddl.y"
     {
 
@@ -1700,7 +1692,7 @@ yyreduce:
 
   case 19:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 262 "scan-ops_pddl.y"
     { 
   opserr( REQUIREM_EXPECTED, NULL ); 
@@ -1709,7 +1701,7 @@ yyreduce:
 
   case 20:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 266 "scan-ops_pddl.y"
     { 
   if ( !supported( (yyvsp[(4) - (4)].string) ) ) {
@@ -1721,7 +1713,7 @@ yyreduce:
 
   case 23:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 281 "scan-ops_pddl.y"
     { 
   if ( !supported( (yyvsp[(1) - (1)].string) ) ) {
@@ -1733,7 +1725,7 @@ yyreduce:
 
   case 25:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 294 "scan-ops_pddl.y"
     { 
   opserr( TYPEDEF_EXPECTED, NULL ); 
@@ -1742,7 +1734,7 @@ yyreduce:
 
   case 26:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 298 "scan-ops_pddl.y"
     {
   gparse_types = (yyvsp[(4) - (5)].pTypedList);
@@ -1751,7 +1743,7 @@ yyreduce:
 
   case 27:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 307 "scan-ops_pddl.y"
     { 
   opserr( CONSTLIST_EXPECTED, NULL ); 
@@ -1760,7 +1752,7 @@ yyreduce:
 
   case 28:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 311 "scan-ops_pddl.y"
     {
   gparse_constants = (yyvsp[(4) - (5)].pTypedList);
@@ -1769,7 +1761,7 @@ yyreduce:
 
   case 29:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 322 "scan-ops_pddl.y"
     { 
   opserr( ACTION, NULL ); 
@@ -1778,7 +1770,7 @@ yyreduce:
 
   case 30:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 326 "scan-ops_pddl.y"
     { 
   scur_op = new_PlOperator( (yyvsp[(4) - (4)].string) );
@@ -1788,7 +1780,7 @@ yyreduce:
 
   case 31:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 331 "scan-ops_pddl.y"
     {
   scur_op->next = gloaded_ops;
@@ -1798,7 +1790,7 @@ yyreduce:
 
   case 32:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 343 "scan-ops_pddl.y"
     { 
   PlNode *pln;
@@ -1840,7 +1832,7 @@ yyreduce:
 
   case 33:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 385 "scan-ops_pddl.y"
     { 
   scur_op->params = NULL; 
@@ -1849,7 +1841,7 @@ yyreduce:
 
   case 34:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 390 "scan-ops_pddl.y"
     {
   TypedList *tl;
@@ -1864,7 +1856,7 @@ yyreduce:
 
   case 36:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 407 "scan-ops_pddl.y"
     {
   TypedList *tl = NULL;
@@ -1886,7 +1878,7 @@ yyreduce:
 
   case 37:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 425 "scan-ops_pddl.y"
     { 
   scur_op->preconds = (yyvsp[(2) - (2)].pPlNode); 
@@ -1895,7 +1887,7 @@ yyreduce:
 
   case 39:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 431 "scan-ops_pddl.y"
     { 
   scur_op->effects = (yyvsp[(2) - (2)].pPlNode); 
@@ -1904,7 +1896,7 @@ yyreduce:
 
   case 41:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 446 "scan-ops_pddl.y"
     { 
   if ( sis_negated ) {
@@ -1921,7 +1913,7 @@ yyreduce:
 
   case 42:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 459 "scan-ops_pddl.y"
     { 
   (yyval.pPlNode) = new_PlNode(AND);
@@ -1931,7 +1923,7 @@ yyreduce:
 
   case 43:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 465 "scan-ops_pddl.y"
     { 
   (yyval.pPlNode) = new_PlNode(OR);
@@ -1941,7 +1933,7 @@ yyreduce:
 
   case 44:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 471 "scan-ops_pddl.y"
     { 
   (yyval.pPlNode) = new_PlNode(NOT);
@@ -1951,7 +1943,7 @@ yyreduce:
 
   case 45:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 477 "scan-ops_pddl.y"
     { 
   PlNode *np = new_PlNode(NOT);
@@ -1965,7 +1957,7 @@ yyreduce:
 
   case 46:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 489 "scan-ops_pddl.y"
     { 
 
@@ -1982,7 +1974,7 @@ yyreduce:
 
   case 47:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 504 "scan-ops_pddl.y"
     { 
 
@@ -1999,7 +1991,7 @@ yyreduce:
 
   case 48:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 521 "scan-ops_pddl.y"
     {
   (yyval.pPlNode) = NULL;
@@ -2008,7 +2000,7 @@ yyreduce:
 
   case 49:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 526 "scan-ops_pddl.y"
     {
   (yyvsp[(1) - (2)].pPlNode)->next = (yyvsp[(2) - (2)].pPlNode);
@@ -2018,7 +2010,7 @@ yyreduce:
 
   case 50:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 539 "scan-ops_pddl.y"
     { 
   if ( sis_negated ) {
@@ -2035,7 +2027,7 @@ yyreduce:
 
   case 51:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 552 "scan-ops_pddl.y"
     { 
   (yyval.pPlNode) = new_PlNode(AND);
@@ -2045,7 +2037,7 @@ yyreduce:
 
   case 52:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 560 "scan-ops_pddl.y"
     { 
 
@@ -2062,7 +2054,7 @@ yyreduce:
 
   case 53:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 573 "scan-ops_pddl.y"
     {
   /* This will be conditional effects in FF representation, but here
@@ -2081,7 +2073,7 @@ yyreduce:
 
   case 54:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 591 "scan-ops_pddl.y"
     { 
   (yyval.pPlNode) = NULL; 
@@ -2090,7 +2082,7 @@ yyreduce:
 
   case 55:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 596 "scan-ops_pddl.y"
     {
   (yyvsp[(1) - (2)].pPlNode)->next = (yyvsp[(2) - (2)].pPlNode);
@@ -2100,7 +2092,7 @@ yyreduce:
 
   case 56:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 608 "scan-ops_pddl.y"
     { 
   (yyval.pTokenList) = (yyvsp[(3) - (4)].pTokenList);
@@ -2110,7 +2102,7 @@ yyreduce:
 
   case 57:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 614 "scan-ops_pddl.y"
     {
   (yyval.pTokenList) = (yyvsp[(1) - (1)].pTokenList);
@@ -2119,7 +2111,7 @@ yyreduce:
 
   case 58:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 623 "scan-ops_pddl.y"
     { 
   (yyval.pTokenList) = new_TokenList();
@@ -2130,7 +2122,7 @@ yyreduce:
 
   case 59:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 630 "scan-ops_pddl.y"
     {
   (yyval.pTokenList) = new_TokenList();
@@ -2142,14 +2134,14 @@ yyreduce:
 
   case 60:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 642 "scan-ops_pddl.y"
     { (yyval.pTokenList) = NULL; ;}
     break;
 
   case 61:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 645 "scan-ops_pddl.y"
     {
   (yyval.pTokenList) = new_TokenList();
@@ -2160,7 +2152,7 @@ yyreduce:
 
   case 62:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 656 "scan-ops_pddl.y"
     { 
   (yyval.pstring) = new_Token( strlen((yyvsp[(1) - (1)].string))+1 );
@@ -2170,7 +2162,7 @@ yyreduce:
 
   case 63:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 662 "scan-ops_pddl.y"
     { 
   (yyval.pstring) = new_Token( strlen((yyvsp[(1) - (1)].string))+1 );
@@ -2180,7 +2172,7 @@ yyreduce:
 
   case 64:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 672 "scan-ops_pddl.y"
     {
   (yyval.pTokenList) = new_TokenList();
@@ -2191,7 +2183,7 @@ yyreduce:
 
   case 65:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 679 "scan-ops_pddl.y"
     {
   (yyval.pTokenList) = new_TokenList();
@@ -2203,7 +2195,7 @@ yyreduce:
 
   case 66:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 691 "scan-ops_pddl.y"
     { 
   (yyval.pstring) = new_Token( strlen((yyvsp[(1) - (1)].string))+1 );
@@ -2213,14 +2205,14 @@ yyreduce:
 
   case 67:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 701 "scan-ops_pddl.y"
     { (yyval.pTypedList) = NULL; ;}
     break;
 
   case 68:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 704 "scan-ops_pddl.y"
     { 
 
@@ -2234,7 +2226,7 @@ yyreduce:
 
   case 69:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 714 "scan-ops_pddl.y"
     {
   (yyval.pTypedList) = new_TypedList();
@@ -2249,7 +2241,7 @@ yyreduce:
 
   case 70:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 725 "scan-ops_pddl.y"
     {
   (yyval.pTypedList) = new_TypedList();
@@ -2268,14 +2260,14 @@ yyreduce:
 
   case 71:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 744 "scan-ops_pddl.y"
     { (yyval.pTypedList) = NULL; ;}
     break;
 
   case 72:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 747 "scan-ops_pddl.y"
     { 
   (yyval.pTypedList) = new_TypedList();
@@ -2288,7 +2280,7 @@ yyreduce:
 
   case 73:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 756 "scan-ops_pddl.y"
     {
   (yyval.pTypedList) = new_TypedList();
@@ -2303,7 +2295,7 @@ yyreduce:
 
   case 74:
 
-/* Line 1464 of yacc.c  */
+/* Line 1455 of yacc.c  */
 #line 767 "scan-ops_pddl.y"
     {
   (yyval.pTypedList) = new_TypedList();
@@ -2322,8 +2314,8 @@ yyreduce:
 
 
 
-/* Line 1464 of yacc.c  */
-#line 2327 "scan-ops_pddl.tab.c"
+/* Line 1455 of yacc.c  */
+#line 2319 "scan-ops_pddl.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2534,7 +2526,7 @@ yyreturn:
 
 
 
-/* Line 1684 of yacc.c  */
+/* Line 1675 of yacc.c  */
 #line 784 "scan-ops_pddl.y"
 
 #include "lex.ops_pddl.c"

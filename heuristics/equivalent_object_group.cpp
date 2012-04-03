@@ -761,8 +761,10 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group)
 	}
 	
 //	os << " -= EquivalentObjectGroup =- " << std::endl;
-	os << "|EOs| = " << group.equivalent_objects_.size() << " { ";
-	for (std::vector<EquivalentObject*>::const_iterator ci = group.equivalent_objects_.begin(); ci != group.equivalent_objects_.end(); ci++)
+	os << "(" << &group <<") |EOs| = " << group.equivalent_objects_.size() << " { ";
+	// TODO: If the finger print is NULL we are looking at the zero arity EOG, it should not contain any 
+	// objects, but it does!
+	if (group.finger_print_ != NULL)
 	{
 		for (std::vector<EquivalentObject*>::const_iterator ci = group.equivalent_objects_.begin(); ci != group.equivalent_objects_.end(); ci++)
 		{
@@ -793,7 +795,6 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group)
 	}
 	return os;
 }
-
 
 /**
  * Equivalent Object Group Manager.
@@ -953,7 +954,7 @@ unsigned int EquivalentObjectGroupManager::getNumberOfEquivalentGroups() const
 	}
 	return index;
 }
-/*
+
 std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroupManager& group)
 {
 	os << "All equivalence groups:" << std::endl;
@@ -988,17 +989,6 @@ void EquivalentObjectGroupManager::printAll(std::ostream& os) const
 	}
 }
 */
-
-std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroupManager& group)
-{
-	os << "All equivalence groups:" << std::endl;
-	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = group.equivalent_groups_.begin(); ci != group.equivalent_groups_.end(); ci++)
-	{
-		if (!(*ci)->isRootNode()) continue;
-		os << **ci << std::endl;
-	}
-	return os;
-}
 };
 
 };

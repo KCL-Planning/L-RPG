@@ -2192,9 +2192,16 @@ void ReachableFactLayer::extractPreconditions(std::vector<const ReachableFactLay
 {
 	for (ConstReachableTreeIterator ci = reachable_tree_node.cbegin(); ci != reachable_tree_node.cend(); ci++)
 	{
-		std::cout << "Find " << *ci << " in " << *this << std::endl;
-		const ReachableFactLayerItem& precondition = findPrecondition((*ci).getReachableFact());
-		preconditions.push_back(&precondition);
+//		std::cout << "Find " << *ci << " in " << *this << std::endl;
+		const ReachableFactLayerItem* precondition = findPrecondition((*ci).getReachableFact());
+		if (precondition == NULL)
+		{
+			std::cout << "Could not find: " << *ci << std::endl;
+			std::cout << *this << std::endl;
+			assert (false);
+			exit(1);
+		}
+		preconditions.push_back(precondition);
 	}
 }
 

@@ -24,7 +24,7 @@ system ("mkdir -p latest_heuristics_results");
 #foreach my $domain_name (@domain_names)
 {
 	#my $example_path = "/home/bram/projects/domains/$domain_name";
-	my $example_path = "../../../domains/$domain_name";
+	my $example_path = "../../domains/$domain_name";
 	print "$domain_name . $from_problem_count . $problem_count";
 	print $domain_name."\n";
 

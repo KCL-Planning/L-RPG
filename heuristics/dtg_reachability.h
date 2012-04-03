@@ -498,8 +498,7 @@ public:
 	
 	static unsigned int generated_new_reachable_facts;
 	static unsigned int accepted_new_reachable_facts;
-	const std::vector<const ResolvedBoundedAtom*>& getPreconditions() const { return preconditions_; }
-	
+
 	const std::vector<const ResolvedBoundedAtom*>& getPreconditions() const { return preconditions_; }
 	
 	void print(std::ostream& os) const;

@@ -246,11 +246,6 @@ public:
 	
 	unsigned int getNumberOfEquivalentGroups() const;
 	
-	// Output methods.
-	//void print(std::ostream& os) const;
-	
-	//void printAll(std::ostream& os) const;
-	
 private:
 	
 	/**

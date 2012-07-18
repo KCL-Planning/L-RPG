@@ -115,6 +115,10 @@ Transition* Transition::createTransition(const Action& action, DomainTransitionG
 
 Transition* Transition::createSimpleTransition(const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node)
 {
+#ifdef ENABLE_MYPOP_SAS_TRANSITION_COMMENTS
+	std::cout << "[Transition::createSimpleTransition] " << from_node << " >>>==-> " << to_node << std::endl;
+#endif
+	
 	// Search for the effect achieving the fact in the to node.
 	StepID action_step_id = action_step->getStepId();
 	const Action& action = action_step->getAction();
@@ -132,10 +136,11 @@ Transition* Transition::createSimpleTransition(const StepPtr action_step, Domain
 	std::vector<std::pair<const Atom*, InvariableIndex> >* effects_in_to_node = new std::vector<std::pair<const Atom*, InvariableIndex> >();
 	for (std::vector<const Atom*>::const_iterator ci = effects.begin(); ci != effects.end(); ci++)
 	{
-		if (bindings.canUnify(**ci, action_step_id, effect_to_achieve->getAtom(), effect_to_achieve->getId()))
+		if ((*ci)->isNegative() == effect_to_achieve->getAtom().isNegative() && bindings.canUnify(**ci, action_step_id, effect_to_achieve->getAtom(), effect_to_achieve->getId()))
 		{
 			bindings.unify(**ci, action_step_id, effect_to_achieve->getAtom(), effect_to_achieve->getId());
 			effects_in_to_node->push_back(std::make_pair(*ci, NO_INVARIABLE_INDEX));
+			break;
 		}
 	}
 	

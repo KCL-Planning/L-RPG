@@ -491,7 +491,6 @@ std::ostream& operator<<(std::ostream& os, const ReachableTree& reachable_tree)
 	os << "[ReachableTree - " << &reachable_tree << "^" << reachable_tree.constraints_set_ << "] " << *reachable_tree.getRoot();
 	return os;
 }
-    const ReachableTree* reachable_tree_;
 
 };
 

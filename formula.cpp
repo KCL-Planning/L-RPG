@@ -201,15 +201,15 @@ void Conjunction::print(std::ostream& os, const Bindings& bindings, StepID step_
 /*************************
  * The Equality class
  *************************/
-Equality::Equality(const Term& variable, const Term& term, bool make_equal)
-	: variable_(&variable), term_(&term), make_equal_(make_equal)
+Equality::Equality(const Term& lhs_term, const Term& rhs_term, bool make_equal)
+	: Formula(!make_equal), lhs_term_(&lhs_term), rhs_term_(&rhs_term)//, make_equal_(make_equal)
 {
 
 }
 
 void Equality::print(std::ostream& os) const
 {
-	os << *variable_ << (make_equal_ ? " == " : " != ") << *term_;
+	os << *lhs_term_ << (is_negative_ ? " != " : " == ") << *rhs_term_;
 }
 
 void Equality::print(std::ostream& os, const Bindings& bindings, StepID step_id) const
@@ -219,7 +219,7 @@ void Equality::print(std::ostream& os, const Bindings& bindings, StepID step_id)
 
 void Equality::addAsPrecondition(Plan& plan, StepPtr step) const
 {
-	if (make_equal_)
+	if (!is_negative_)
 	{
 //		variable_->unify(step->getStepId(), *term_, step->getStepId(), plan.getBindings());
 	}

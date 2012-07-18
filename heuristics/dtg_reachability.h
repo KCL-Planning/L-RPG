@@ -649,17 +649,25 @@ public:
 	/**
 	 * Perform a reachability analysis and return the heuristic value.
 	 */
-	void performReachabilityAnalysis(std::vector<const ReachableFact*>& result, const std::vector<const SAS_Plus::BoundedAtom*>& initial_facts, const Bindings& bindings);
+	//void performReachabilityAnalysis(std::vector<const ReachableFact*>& result, const std::vector<const SAS_Plus::BoundedAtom*>& initial_facts, const Bindings& bindings);
 	
-	unsigned int getHeuristic(const std::vector<const SAS_Plus::BoundedAtom*>& bounded_goal_facts, const Bindings& bindings, PredicateManager& predicate_manager) const;
+	//unsigned int getHeuristic(const std::vector<const SAS_Plus::BoundedAtom*>& bounded_goal_facts, const Bindings& bindings, PredicateManager& predicate_manager) const;
 	
-	const EquivalentObjectGroupManager& getEquivalentObjectGroupManager() const { return *equivalent_object_manager_; }
+	unsigned int getHeuristic(const std::vector< MyPOP::REACHABILITY::ReachableFact* >& initial_facts, const std::vector< const MyPOP::SAS_Plus::BoundedAtom* >& bounded_goal_facts, const MyPOP::Bindings& bindings, bool ground);
+	
+	/*const */EquivalentObjectGroupManager& getEquivalentObjectGroupManager() const { return *equivalent_object_manager_; }
 	
 private:
 	
+	void performReachabilityAnalysis(const std::vector< MyPOP::REACHABILITY::ReachableFact* >& initial_facts, const MyPOP::Bindings& bindings, bool ground);
+	
 	void mapInitialFactsToReachableSets(const std::vector<ReachableFact*>& initial_facts);
 	
+	//unsigned int getCostForSubstitution(const Object& from, const Object& to) const;
+	
 	const TermManager* term_manager_;
+	
+	PredicateManager* predicate_manager_;
 	
 	// The set of nodes we are working on.
 	std::vector<ReachableNode*> reachable_nodes_;

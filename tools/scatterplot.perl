@@ -14,17 +14,18 @@ my @domain_names = ("driverlog", "satellite", "zeno", "gripper", "rovers", "stor
 #my $problem_count = shift(@ARGV);
 
 open (TEMP_FILE, '>tmp_plot');
-print TEMP_FILE "set xrange [0.00001:0.1]\n";
-print TEMP_FILE "set yrange [0.00001:0.1]\n";
+print TEMP_FILE "set xrange [1:10000]\n";
+print TEMP_FILE "set yrange [1:10000]\n";
 print TEMP_FILE "set log x\n";
 print TEMP_FILE "set size 0.8\n";
 print TEMP_FILE "set log y\n";
-print TEMP_FILE "set title \"Time to do a single reachability analysis from the initial state.\"\n";
-print TEMP_FILE "set ylabel \"Grounded reachability Time (s)\"\n";
-print TEMP_FILE "set xlabel \"Lifted reachability Time (s)\"\n";
+print TEMP_FILE "set title \"Number of states explored.\"\n";
+print TEMP_FILE "set xlabel \"Grounded\"\n";
+print TEMP_FILE "set ylabel \"Lifted\"\n";
 print TEMP_FILE "set term postscript enhanced colour\n";
 print TEMP_FILE "set output \"scatterplot.ps\"\n";
 print TEMP_FILE "set datafile missing \"?\"\n";
+print TEMP_FILE "set key right bottom\n";
 print TEMP_FILE "plot ";
 my $index = 0;
 foreach my $domain_name (@domain_names)

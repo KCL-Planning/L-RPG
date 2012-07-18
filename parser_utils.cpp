@@ -57,10 +57,7 @@ Formula* Utility::convertPrecondition(const TermManager& term_manager, const Pre
 	{
 		assert (action_parameters->size() == 2);
 		const Term* variable = term_manager.getTerm(*action_parameters->front());
-///		assert (variable->isVariable());
 		const Term* term = term_manager.getTerm(*action_parameters->back());
-
-///		return new Equality(*variable->asVariable(), *term, !make_negative);
 		return new Equality(*variable, *term, !make_negative);
 	}
 	else
@@ -131,51 +128,33 @@ void Utility::convertFormula(std::vector<const Atom*>& atoms, const Formula* for
 
 	// Other cases ignored.
 }
-/*
-std::pair<unsigned int, const Predicate*> Utility::getPredicate(const TypeManager& type_manager, const PredicateManager& predicate_manager, const TIM::PropertyState& property_state)
+
+void Utility::convertFormula(std::vector<const Atom*>& atoms, std::vector<const Equality*>& equalities, const Formula* formula)
 {
-	std::cout << "getPredicate: ";
-	property_state.write(std::cout);
-	std::cout << std::endl;
-	std::vector<const Type*> predicate_types;
-	const Predicate* found_predicate = NULL;
-	unsigned int predicate_index = -1;
-	for (std::multiset<TIM::Property*>::const_iterator property_i = property_state.begin(); property_i != property_state.end(); ++property_i)
+	assert (formula != NULL);
+	const Atom* atom = dynamic_cast<const Atom*>(formula);
+	if (atom != NULL)
 	{
-		const TIM::Property* property = *property_i;
-		const VAL::extended_pred_symbol* extended_property = property->root();
-
-		const std::string& predicate_name = extended_property->getName();
-		std::cout << "[" << predicate_name << "] Types: ";
-		for(std::vector<VAL::pddl_typed_symbol*>::const_iterator esp_i = extended_property->tcBegin(); esp_i != extended_property->tcEnd(); ++esp_i)
-		{
-			std::cout << (*esp_i)->type->getName() << ", ";
-			const Type* type = type_manager.getType((*esp_i)->type->getName());
-			assert (type != NULL);
-			predicate_types.push_back(type);
-		}
-		std::cout << std::endl;
-
-		const Predicate* predicate = predicate_manager.getPredicate(predicate_name, predicate_types);
-		if (predicate == NULL)
-		{
-			continue;
-		}
-		// Only a single predicate should be found.
-		if (found_predicate != NULL)
-		{
-			std::cout << "Found predicate: " << *predicate << std::endl;
-			std::cout << "Previously found predicate: " << *found_predicate << std::endl;
-			assert (false);
-		}
-		found_predicate = predicate;
-		predicate_index = property->aPosn();
+		atoms.push_back(atom);
+		return;
 	}
 
-	assert (found_predicate != NULL);
-	std::cout << "Found predicate: " << *found_predicate << std::endl;
-	return std::make_pair(predicate_index, found_predicate);
-}*/
+	const Conjunction* conjunction = dynamic_cast<const Conjunction*>(formula);
+	if (conjunction != NULL)
+	{
+		for (std::vector<const Formula*>::const_iterator ci = conjunction->getFormulea().begin(); ci != conjunction->getFormulea().end(); ci++)
+		{
+			convertFormula(atoms, equalities, *ci);
+		}
+		return;
+	}
+
+	const Equality* equality = dynamic_cast<const Equality*>(formula);
+	if (equality != NULL)
+	{
+		equalities.push_back(equality);
+	}
+}
 
 const Predicate& Utility::getPredicate(const TypeManager& type_manager, const PredicateManager& predicate_manager, const TIM::Property& property)
 {
@@ -190,13 +169,6 @@ const Predicate& Utility::getPredicate(const TypeManager& type_manager, const Pr
 	{
 		const Type* type = type_manager.getType((*esp_i)->type->getName());
 		assert (type != NULL);
-
-		// Get the most general type available! Because TIM doesn't always succeed in getting the right type...
-		//while (type->getSupertype() != NULL)
-		//{
-		//	type = type->getSupertype();
-		//}
-		//std::cout << "type: " << *type << std::endl;
 		predicate_types.push_back(type);
 	}
 

@@ -70,6 +70,9 @@ private:
 
 	// The effects.
 	const std::vector<const Atom*>* effects_;
+	
+	// Pairs of variables which must be equal or unequal.
+	std::vector<std::pair<const Variable*, const Variable*> > equal_variables_, unequal_variables_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Action& action);

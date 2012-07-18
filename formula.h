@@ -138,17 +138,13 @@ protected:
 class Equality : public Formula
 {
 public:
-///	Equality(const Variable& variable, const Term& term, bool make_unequal);
 	Equality(const Term& variable, const Term& term, bool make_unequal);
 
-	// The variable to make equal or unequal to.
-///	const Variable& getVariable() const { return *variable_; }
-
-	// The term to assign to the variable.
-///	const Term& getTerm() const { return *term_; }
-
+	const Term& getLHSTerm() const { return *lhs_term_; }
+	const Term& getRHSTerm() const { return *rhs_term_; }
+	
 	// Check if this relationship is a equal or unequal one.
-	bool isMakeEqual() const { return make_equal_; }
+	//bool isMakeEqual() const { return make_equal_; }
 
 	// Print the formula to the ostream.
 	virtual void print(std::ostream& os) const;
@@ -162,15 +158,12 @@ public:
 	virtual void addAsPrecondition(Plan& plan, StepPtr step) const;
 
 private:
-	// The variable which needs to be made equal or unequal.
-///	const Variable* variable_;
-	const Term* variable_;
-
-	// The term the variable must be made equal or unequal to.
-	const Term* term_;
+	// The variables which needs to be made equal or unequal.
+	const Term* lhs_term_;
+	const Term* rhs_term_;
 
 	// Make the variable equal or unequal to the term.
-	bool make_equal_;
+	//bool make_equal_;
 };
 
 };

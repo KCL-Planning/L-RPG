@@ -24,11 +24,10 @@
 #include "../bindings_propagator.h"
 #include "../plan.h"
 #include "recursive_function.h"
-//#include "../heuristics/dtg_reachability.h"
 
 //#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 //#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
-//#define MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
+#define MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
 //#define MYPOP_SAS_PLUS_DTG_MANAGER_KEEP_TIME
 
 namespace MyPOP {
@@ -382,7 +381,7 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 //	property_spaces.insert(property_spaces.end(), TIM::TA->abegin(), TIM::TA->aend());
 //	property_spaces.insert(property_spaces.end(), TIM::TA->sbegin(), TIM::TA->send());
 
-	assert (property_spaces.size() > 0);
+//	assert (property_spaces.size() > 0);
 	
 	std::set<const Predicate*> state_valued_predicates;
 
@@ -619,7 +618,6 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 		}
 		Atom* possitive_atom = new Atom(*predicate, *new_terms, false, true);
 
-		assert (objects_.size() > 0);
 		unsupported_predicates.push_back(std::make_pair(predicate, possitive_atom));
 	}
 	
@@ -637,58 +635,86 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 		std::cout << "The predicate: " << *predicate << " is not processed yet!" << std::endl;
 #endif
+		DomainTransitionGraph* new_unprocessed_dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, *predicate_manager_, bindings, *initial_facts_);
 		
 		// 1) The predicate is static.
-		DomainTransitionGraph* new_unprocessed_dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, *predicate_manager_, bindings, *initial_facts_);
-		//std::vector<std::pair<const Predicate*, unsigned int> >* predicates_to_add = new std::vector<std::pair<const Predicate*, unsigned int> >();
-		std::vector<std::pair<const Predicate*, unsigned int> > predicates_to_add;
-		predicates_to_add.push_back(std::make_pair(predicate, NO_INVARIABLE_INDEX));
-		
-		DomainTransitionGraphNode* possitive_new_unprocessed_dtg = new DomainTransitionGraphNode(*new_unprocessed_dtg);
-		
-		StepID possitive_atom_id = new_unprocessed_dtg->getBindings().createVariableDomains(*possitive_atom);
-		
-		// Only memory leak here :P.
-		PropertySpace* property_space = new PropertySpace();
-		PropertyState* property_state = new PropertyState(*property_space, predicates_to_add);
-		property_space->addPropertyState(*property_state);
-		
-		Atom* new_possitive_atom = new Atom(*possitive_atom);
-		BoundedAtom& fact = BoundedAtom::createBoundedAtom(*new_possitive_atom, property_state->getProperties(), bindings);
-		
-		bindings.unify(*new_possitive_atom, fact.getId(), *possitive_atom, possitive_atom_id);
-		
-		possitive_new_unprocessed_dtg->addAtom(fact, NO_INVARIABLE_INDEX);
-		
-		new_unprocessed_dtg->addNode(*possitive_new_unprocessed_dtg);
+		if (predicate->isStatic())
+		{
+			//std::vector<std::pair<const Predicate*, unsigned int> >* predicates_to_add = new std::vector<std::pair<const Predicate*, unsigned int> >();
+			std::vector<std::pair<const Predicate*, unsigned int> > predicates_to_add;
+			predicates_to_add.push_back(std::make_pair(predicate, NO_INVARIABLE_INDEX));
+			
+			DomainTransitionGraphNode* possitive_new_unprocessed_dtg = new DomainTransitionGraphNode(*new_unprocessed_dtg);
+			
+			StepID possitive_atom_id = new_unprocessed_dtg->getBindings().createVariableDomains(*possitive_atom);
+			
+			// Only memory leak here :P.
+			PropertySpace* property_space = new PropertySpace();
+			PropertyState* property_state = new PropertyState(*property_space, predicates_to_add);
+			property_space->addPropertyState(*property_state);
+			
+			Atom* new_possitive_atom = new Atom(*possitive_atom);
+			BoundedAtom& fact = BoundedAtom::createBoundedAtom(*new_possitive_atom, property_state->getProperties(), bindings);
+			
+			bindings.unify(*new_possitive_atom, fact.getId(), *possitive_atom, possitive_atom_id);
+			
+			possitive_new_unprocessed_dtg->addAtom(fact, NO_INVARIABLE_INDEX);
+			
+			new_unprocessed_dtg->addNode(*possitive_new_unprocessed_dtg);
 
-		addManagableObject(new_unprocessed_dtg);
+			addManagableObject(new_unprocessed_dtg);
+		}
 		
 		// 2) The predicate is not static.
-		if (!predicate->isStatic())
+		//if (!predicate->isStatic())
+		else
 		{
-			// Add all preconditions which share a term with the unsupported predicate.
-			DomainTransitionGraphNode* negative_new_unprocessed_dtg = new DomainTransitionGraphNode(*new_unprocessed_dtg);
-			
-			Atom* negative_atom = new Atom(*possitive_atom);
-			negative_atom->makeNegative(true);
-			BoundedAtom& bounded_negative_atom = BoundedAtom::createBoundedAtom(*negative_atom, property_state->getProperties(), bindings);
-			
-			bindings.unify(*negative_atom, bounded_negative_atom.getId(), *possitive_atom, possitive_atom_id);
-			std::vector<const BoundedAtom*> atoms_add_to_from_node;
-			atoms_add_to_from_node.push_back(&bounded_negative_atom);
-			
-			new_unprocessed_dtg->addNode(*negative_new_unprocessed_dtg);
-#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-			std::cout << "Simple DTG : " << *new_unprocessed_dtg << std::endl;
-#endif
-			
 			// Find all transitions which can make this predicate true and false and add them as transitions.
 			std::vector<std::pair<const Action*, const Atom*> > achievers;
 			action_manager_->getAchievingActions(achievers, *possitive_atom);
 			
 			for (std::vector<std::pair<const Action*, const Atom*> >::const_iterator ci = achievers.begin(); ci != achievers.end(); ci++)
 			{
+				//std::vector<std::pair<const Predicate*, unsigned int> >* predicates_to_add = new std::vector<std::pair<const Predicate*, unsigned int> >();
+				std::vector<std::pair<const Predicate*, unsigned int> > predicates_to_add;
+				predicates_to_add.push_back(std::make_pair(predicate, NO_INVARIABLE_INDEX));
+				
+				DomainTransitionGraphNode* possitive_new_unprocessed_dtg = new DomainTransitionGraphNode(*new_unprocessed_dtg);
+				
+				StepID possitive_atom_id = new_unprocessed_dtg->getBindings().createVariableDomains(*possitive_atom);
+				
+				// Only memory leak here :P.
+				PropertySpace* property_space = new PropertySpace();
+				PropertyState* property_state = new PropertyState(*property_space, predicates_to_add);
+				property_space->addPropertyState(*property_state);
+				
+				Atom* new_possitive_atom = new Atom(*possitive_atom);
+				BoundedAtom& fact = BoundedAtom::createBoundedAtom(*new_possitive_atom, property_state->getProperties(), bindings);
+				
+				bindings.unify(*new_possitive_atom, fact.getId(), *possitive_atom, possitive_atom_id);
+				
+				possitive_new_unprocessed_dtg->addAtom(fact, NO_INVARIABLE_INDEX);
+				
+				new_unprocessed_dtg->addNode(*possitive_new_unprocessed_dtg);
+
+				addManagableObject(new_unprocessed_dtg);
+				
+				// Add all preconditions which share a term with the unsupported predicate.
+				DomainTransitionGraphNode* negative_new_unprocessed_dtg = new DomainTransitionGraphNode(*new_unprocessed_dtg);
+				
+				Atom* negative_atom = new Atom(*possitive_atom);
+				negative_atom->makeNegative(true);
+				BoundedAtom& bounded_negative_atom = BoundedAtom::createBoundedAtom(*negative_atom, property_state->getProperties(), bindings);
+				
+				bindings.unify(*negative_atom, bounded_negative_atom.getId(), *possitive_atom, possitive_atom_id);
+				std::vector<const BoundedAtom*> atoms_add_to_from_node;
+				atoms_add_to_from_node.push_back(&bounded_negative_atom);
+				
+				new_unprocessed_dtg->addNode(*negative_new_unprocessed_dtg);
+
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+				std::cout << "Simple DTG : " << *new_unprocessed_dtg << " - achievers: " << achievers.size() << std::endl;
+#endif
 				const Action* achieving_action = (*ci).first;
 				StepID new_action_step_id = bindings.createVariableDomains(*achieving_action);
 				StepPtr new_step(new Step(new_action_step_id, *achieving_action));
@@ -698,6 +724,10 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 				{
 					continue;
 				}
+				
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+				std::cout << "Process the action: " << *achieving_action << std::endl;
+#endif
 				
 				// Create a transition between the two nodes.
 				Transition* transition = Transition::createSimpleTransition(new_step, *negative_new_unprocessed_dtg, *possitive_new_unprocessed_dtg);
@@ -777,6 +807,9 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 										}
 										else
 										{
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+											std::cout << "Could not add the precondition!" << std::endl;
+#endif
 											delete &atom_to_add;
 										}
 										
@@ -828,9 +861,8 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 					}
 				}
 				negative_new_unprocessed_dtg->addTransition(*transition);
+				delete &bounded_negative_atom;
 			}
-			
-			delete &bounded_negative_atom;
 			
 			
 			// Do some grounding...
@@ -1023,6 +1055,9 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 #endif
 
 	std::cerr << "Number of bindings: " << bindings << std::endl;
+	
+	objects_.clear();
+	objects_.push_back(&combined_graph);
 
 	return combined_graph;
 }

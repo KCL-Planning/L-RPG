@@ -23,15 +23,46 @@ namespace REACHABILITY {
 /**
  * Equivalent Object.
  */
-EquivalentObject::EquivalentObject(const Object& object, EquivalentObjectGroup& equivalent_object_group)
-	: object_(&object), equivalent_group_(&equivalent_object_group)
+EquivalentObject::EquivalentObject(const Object& object, EquivalentObjectGroup& equivalent_object_group, unsigned int number_of_objects_in_domain)
+	: object_(&object), equivalent_group_(&equivalent_object_group), number_of_objects_in_domain_(number_of_objects_in_domain)
 {
+	is_super_set_of_at_iteration_ = new unsigned int[number_of_objects_in_domain];
+	for (unsigned int i = 0; i < number_of_objects_in_domain; i++)
+	{
+		is_super_set_of_at_iteration_[i] = std::numeric_limits<unsigned int>::max();
+	}
+}
+
+EquivalentObject::~EquivalentObject()
+{
+	delete[] is_super_set_of_at_iteration_;
+}
+
+void EquivalentObject::canReachInitialStateOf(const EquivalentObject& equivalent_object, unsigned int iteration)
+{
+	if (is_super_set_of_at_iteration_[equivalent_object.getObject().getId()] > iteration)
+	{
+		std::cout << *object_ << " is a super set of " << equivalent_object.getObject() << " at iteration " << iteration << std::endl;
+		is_super_set_of_at_iteration_[equivalent_object.getObject().getId()] = iteration;
+	}
+}
 	
+unsigned int EquivalentObject::getEquivalentIteration(const EquivalentObject& equivalent_object) const
+{
+	if (is_super_set_of_at_iteration_[equivalent_object.getObject().getId()] == std::numeric_limits<unsigned int>::max())
+	{
+		std::cout << *this << " can never reach the initial state of " << equivalent_object << std::endl;
+	}
+	return is_super_set_of_at_iteration_[equivalent_object.getObject().getId()];
 }
 
 void EquivalentObject::reset()
 {
 	initial_facts_.clear();
+	for (unsigned int i = 0; i < number_of_objects_in_domain_; i++)
+	{
+		is_super_set_of_at_iteration_[i] = std::numeric_limits<unsigned int>::max();
+	}
 }
 	
 void EquivalentObject::addInitialFact(ReachableFact& reachable_fact)
@@ -92,26 +123,30 @@ bool EquivalentObject::isInitialStateReachable(const std::vector<ReachableFact*>
 	{
 		const ReachableFact* initial_fact = *ci;
 
-#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+//#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 		std::cout << "Compare: " << *initial_fact << "." << std::endl;
-#endif
+//#endif
 		
 		bool is_initial_fact_reachable = false;
 		for (std::vector<ReachableFact*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
 		{
 			const ReachableFact* reachable_fact = *ci;
 			
-#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+//#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 		std::cout << " with: " << *reachable_fact<< "." << std::endl;
-#endif
+//#endif
 			
-			if (initial_fact->isEquivalentTo(*reachable_fact, getEquivalentObjectGroup()))
+			if (initial_fact->isEquivalentTo(*reachable_fact, getEquivalentObjectGroup().getRootNode()))
 			{
-#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+//#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 				std::cout << *initial_fact << " is equivalent to " << *reachable_fact << std::endl;
-#endif
+//#endif
 				is_initial_fact_reachable = true;
 				break;
+			}
+			else
+			{
+				std::cout << *initial_fact << " is NOT equivalent to " << *reachable_fact << std::endl;
 			}
 		}
 		
@@ -180,6 +215,7 @@ EquivalentObjectGroup::~EquivalentObjectGroup()
 	{
 		delete *equivalent_objects_.begin();
 	}
+	
 /*	if (link_ == NULL)
 	{
 		for (std::vector<EquivalentObject*>::const_iterator ci = equivalent_objects_.begin(); ci != equivalent_objects_.end(); ci++)
@@ -431,40 +467,60 @@ bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group, s
 		return false;
 	}
 	
-#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-//	std::cout << "Try to merge: " << *this << " with " << other_group << "." << std::endl;
-#endif
+//#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+	std::cout << "Try to merge: ";
+	printObjects(std::cout);
+	std::cout << " with ";
+	other_group.printObjects(std::cout);
+	std::cout << "." << std::endl;
+//#endif
 
 	// TODO: This implementation isn't fast at all...
-	bool can_merge = false;
+	bool can_merge_other_with_this = false;
 	for (std::vector<EquivalentObject*>::const_iterator ci = other_group.equivalent_objects_.begin(); ci != other_group.equivalent_objects_.end(); ci++)
 	{
-		const EquivalentObject* other_equivalent_object = *ci;
+		EquivalentObject* other_equivalent_object = *ci;
 		if (other_equivalent_object->isInitialStateReachable(reachable_facts_))
 		{
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-//			std::cout << other_group << " can reach initial state of " << *this << std::endl;
+			std::cout << other_group << " can reach initial state of " << *this << std::endl;
 #endif
-			can_merge = true;
-			break;
+			can_merge_other_with_this = true;
+			
+			for (std::vector<EquivalentObject*>::const_iterator ci = equivalent_objects_.begin(); ci != equivalent_objects_.end(); ci++)
+			{
+				const EquivalentObject* equivalent_object = *ci;
+				other_equivalent_object->canReachInitialStateOf(*equivalent_object, iteration);
+			}
+			//break;
+		}
+		else
+		{
+			std::cout << other_group << " cannot reach initial state of " << *this << " :(" << std::endl;
 		}
 	}
-	if (!can_merge) return false;
-	can_merge = false;
+	bool can_merge_this_with_other = false;
 	
 	for (std::vector<EquivalentObject*>::const_iterator ci = equivalent_objects_.begin(); ci != equivalent_objects_.end(); ci++)
 	{
-		const EquivalentObject* equivalent_object = *ci;
+		EquivalentObject* equivalent_object = *ci;
 		if (equivalent_object->isInitialStateReachable(other_group.reachable_facts_))
 		{
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 //			std::cout << *this << " can reach initial state of " << other_group << std::endl;
 #endif
-			can_merge = true;
-			break;
+			can_merge_this_with_other = true;
+			
+			for (std::vector<EquivalentObject*>::const_iterator ci = other_group.equivalent_objects_.begin(); ci != other_group.equivalent_objects_.end(); ci++)
+			{
+				const EquivalentObject* other_equivalent_object = *ci;
+				equivalent_object->canReachInitialStateOf(*other_equivalent_object, iteration);
+			}
+			//break;
 		}
 	}
-	if (!can_merge) return false;
+	
+	if (!can_merge_other_with_this || !can_merge_this_with_other) return false;
 	
 	merge(other_group, affected_groups);
 	other_group.merged_at_iteration_ = iteration;
@@ -543,9 +599,6 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group, std::vecto
 	assert (finger_print_ != NULL);
 	equivalent_objects_.insert(equivalent_objects_.end(), other_group.equivalent_objects_.begin(), other_group.equivalent_objects_.end());
 	other_group.link_ = this;
-	
-	// TODO: Need to make sure we do not end up with multiple reachable facts which are identical!
-	//std::vector<EquivalentObjectGroup*> affected_groups;
 	
 	// Facts which are already part of this EOG should already contain the updated reachable fact, so any facts which need to 
 	// be updated can safely be removed.
@@ -640,16 +693,6 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group, std::vecto
 			addReachableFact(*reachable_fact);
 		}
 	}
-
-	// Clean up all the groups which have been affected by removing all the reachable facts which have been marked for removal.
-	// NOTE: This can be done later after the whole merging is done! But this is just an optimisation we can perform
-	// later too.
-//	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = affected_groups.begin(); ci != affected_groups.end(); ci++)
-//	{
-//		EquivalentObjectGroup* eog = *ci;
-//		eog->deleteRemovedFacts();
-//	}
-	
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 	std::cout << "Result of merging: " << *this << "." << std::endl;
 #endif
@@ -666,10 +709,10 @@ void EquivalentObjectGroup::deleteRemovedFacts()
 	}
 }
 
-void EquivalentObjectGroup::updateEquivalences(const std::vector<EquivalentObjectGroup*>& all_eogs, std::vector<EquivalentObjectGroup*>& affected_groups, unsigned int iteration)
+void EquivalentObjectGroup::updateEquivalences(const std::vector<EquivalentObjectGroup*>& all_eogs, std::vector<EquivalentObjectGroup*>& affected_groups, unsigned int iteration, bool ground)
 {
 	// If we are not a root node, we cannot merge this EOG.
-	if (isRootNode())
+	if (isRootNode() && !ground)
 	{
 		// Try to merge this EOG with any other root EOG.
 		for (std::vector<EquivalentObjectGroup*>::const_iterator ci = all_eogs.begin(); ci != all_eogs.end(); ci++)
@@ -817,7 +860,7 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const SAS_Plus::Domai
 	{
 		const Object* object = *ci;
 		EquivalentObjectGroup* equivalent_object_group = new EquivalentObjectGroup(equivalent_groups_, dtg_graph, object, dtg_manager.isObjectGrounded(*object));
-		EquivalentObject* equivalent_object = new EquivalentObject(*object, *equivalent_object_group);
+		EquivalentObject* equivalent_object = new EquivalentObject(*object, *equivalent_object_group, term_manager.getAllObjects().size());
 		equivalent_object_group->addEquivalentObject(*equivalent_object);
 		
 		equivalent_groups_.push_back(equivalent_object_group);
@@ -878,13 +921,13 @@ void EquivalentObjectGroupManager::initialise(const std::vector<ReachableFact*>&
 }
 
 
-void EquivalentObjectGroupManager::updateEquivalences(unsigned int iteration)
+void EquivalentObjectGroupManager::updateEquivalences(unsigned int iteration, bool ground)
 {
 	std::vector<EquivalentObjectGroup*> affected_groups;
 	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
 	{
 		EquivalentObjectGroup* eog = *ci;
-		eog->updateEquivalences(equivalent_groups_, affected_groups, iteration);
+		eog->updateEquivalences(equivalent_groups_, affected_groups, iteration, ground);
 	}
 
 	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = affected_groups.begin(); ci != affected_groups.end(); ci++)

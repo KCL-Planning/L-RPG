@@ -13,6 +13,7 @@ class PredicateManager;
 class Atom;
 class Formula;
 class Predicate;
+class Equality;
 
 /**
  * The functions in this namespace are only used during the parsing phase when we need to translate
@@ -46,6 +47,8 @@ void convertEffects(const TermManager& term_manager, const PredicateManager& pre
 // the formula. However, not all preconditions are handled (e.g. the Equality precondition). So
 // use with care!
 void convertFormula(std::vector<const Atom*>& atoms, const Formula* formula);
+
+void convertFormula(std::vector<const Atom*>& atoms, std::vector<const Equality*>& equalities, const Formula* formula);
 
 // Take a TIM::Property and using the name of the predicate and the types of its arguments we
 // can find the Predicate object we use internally.

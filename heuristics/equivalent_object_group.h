@@ -35,8 +35,14 @@ class ReachableFact;
 class EquivalentObject
 {
 public:
-	EquivalentObject(const Object& object, EquivalentObjectGroup& equivalent_object_group);
+	EquivalentObject(const Object& object, EquivalentObjectGroup& equivalent_object_group, unsigned int number_of_objects_in_domain);
 	
+	~EquivalentObject();
+	
+	void canReachInitialStateOf(const EquivalentObject& equivalent_object, unsigned int iteration);
+	
+	unsigned int getEquivalentIteration(const EquivalentObject& equivalent_object) const;
+
 	void reset();
 	
 	EquivalentObjectGroup& getEquivalentObjectGroup() const { return *equivalent_group_; }
@@ -58,6 +64,9 @@ private:
 	EquivalentObjectGroup* equivalent_group_;
 	
 	std::vector<const ReachableFact*> initial_facts_;
+		
+	unsigned int number_of_objects_in_domain_;
+	unsigned int* is_super_set_of_at_iteration_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_object);
 };
@@ -97,10 +106,6 @@ public:
 	static void deleteMemoryPool();
 	
 	static EquivalentObjectGroup** allocateMemory(unsigned int size);
-	
-//	void* operator new[](size_t size);
-	
-//	void operator delete[](void* p);
 
 	void addEquivalentObject(EquivalentObject& eo);
 	
@@ -138,11 +143,10 @@ public:
 	 */
 	void deleteRemovedFacts();
 	
-	void updateEquivalences(const std::vector<EquivalentObjectGroup*>& all_eogs, std::vector<EquivalentObjectGroup*>& affected_groups, unsigned int iteration);
+	void updateEquivalences(const std::vector<EquivalentObjectGroup*>& all_eogs, std::vector<EquivalentObjectGroup*>& affected_groups, unsigned int iteration, bool ground);
 	
 	std::vector<EquivalentObject*>::const_iterator begin(unsigned int layer_level) const;
 	std::vector<EquivalentObject*>::const_iterator end(unsigned int layer_level) const;
-	//unsigned int getNumberOfEquivalentObjects(unsigned int layer_level) const;
 	const EquivalentObjectGroup& getEOGAtLayer(unsigned int layer_level) const;
 	
 	void printObjects(std::ostream& os) const;
@@ -236,7 +240,7 @@ public:
 	 * Try to merge as many EOGs as possible.
 	 * @param iteration The iteration we are currently at.
 	 */
-	void updateEquivalences(unsigned int iteration);
+	void updateEquivalences(unsigned int iteration, bool ground);
 	
 	EquivalentObject& getEquivalentObject(const Object& object) const;
 	

@@ -7,7 +7,7 @@
 #include "type_manager.h"
 #include "term_manager.h"
 
-///#define MYPOP_TYPE_COMMENTS
+//#define MYPOP_TYPE_COMMENTS
 
 namespace MyPOP {
 

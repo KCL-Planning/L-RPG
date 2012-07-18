@@ -62,7 +62,7 @@ public:
 	BoundedAtom(StepID id, const Atom& atom);
 	BoundedAtom(StepID id, const Atom& atom, const std::vector<const Property*>& properties);
 
-	~BoundedAtom();
+	virtual ~BoundedAtom();
 
 	StepID getId() const;
 
@@ -81,10 +81,9 @@ public:
 	const std::vector<const Property*>& getProperties() const;
 	
 	/**
-	 * Check if the bounded atom contains the given term, that is a term which shares
-	 * the same variable domain.
-	 * @param term The term domain to search for.
-	 * @return The index of the first term which matches, or std::numeric_limits< unsigned int>::max() if none do.
+	 * Check if the bounded atom contains the given variable domain.
+	 * @param term The variable domain to search for, this is a pointerwise comparison.
+	 * @return The index of the first variable domain which matches, or std::numeric_limits< unsigned int>::max() if none do.
 	 */
 	unsigned int containsVariableDomain(const std::vector<const Object*>& variable_domain, const Bindings& bindings) const;
 	
@@ -133,7 +132,7 @@ public:
 	 * @param bindings The bindings the term is bounded by.
 	 * @return The variable domain linked to the term at the term_index'th index.
 	 */
-	const std::vector<const Object*>& getVariableDomain(unsigned int term_index, const Bindings& bindings) const;
+	virtual const std::vector<const Object*>& getVariableDomain(unsigned int term_index, const Bindings& bindings) const;
 	
 	/**
 	 * Check if this bounded atom is equivalent to the other bounded atom.

@@ -202,7 +202,7 @@ void ActionManager::processActions(const VAL::operator_list& operators)
 		
 		Action* action = new Action(predicate, *action_precondition, action_variables, action_effects);
 		addManagableObject(action);
-
+		
 		// Map the operator to the constructed action object for preprocessing purposes.
 		action_indexing_[op] = action;
 	}

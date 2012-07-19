@@ -124,24 +124,25 @@ int main(int argc,char * argv[])
 	std::cout << term_manager << std::endl;
 
 	// Process the predicates.
-	PredicateManager predicate_manager(type_manager);
-	predicate_manager.processPredicates(*the_domain->predicates);
+//	PredicateManager predicate_manager(type_manager);
+//	predicate_manager.processPredicates(*the_domain->predicates);
+	Predicate::processPredicates(*the_domain->predicates, type_manager);
 
 	// Process the action schemas.
-	ActionManager action_manager(type_manager, term_manager, predicate_manager);
+	ActionManager action_manager(type_manager, term_manager);
 	action_manager.processActions(*the_domain->ops);
 
-	predicate_manager.checkStaticPredicates(action_manager);
+	Predicate::checkStaticPredicates(action_manager);
 
 	// Propagator.
 	SimpleBindingsPropagator* propagator = new SimpleBindingsPropagator();
 	
 	// Instantiate the initial plan and do the planning!
 	Plan* plan = new Plan(action_manager, term_manager, type_manager, *propagator);
-	const Formula* goal = Utility::convertGoal(term_manager, predicate_manager, the_problem->the_goal, false);
+	const Formula* goal = Utility::convertGoal(term_manager, the_problem->the_goal, false);
 	
 	std::vector<const Atom*>* initial_facts = new std::vector<const Atom*>();	
-	Utility::convertEffects(term_manager, predicate_manager, *the_problem->initial_state, *initial_facts);
+	Utility::convertEffects(term_manager, *the_problem->initial_state, *initial_facts);
 	
 	std::vector<const Variable*>* initial_action_variables = new std::vector<const Variable*>();
 
@@ -179,19 +180,23 @@ int main(int argc,char * argv[])
 #ifdef MYPOP_COMMENTS
 	std::cout << " === Creating the DTGs === " << std::endl;
 #endif
-	SAS_Plus::DomainTransitionGraphManager* dtg_manager = new SAS_Plus::DomainTransitionGraphManager(predicate_manager, type_manager, action_manager, term_manager, *initial_facts);
+	SAS_Plus::DomainTransitionGraphManager* dtg_manager = new SAS_Plus::DomainTransitionGraphManager(type_manager, action_manager, term_manager, *initial_facts);
 
 	// New style, working directly on the TIM structure.
-	const SAS_Plus::DomainTransitionGraph& combined_graph = dtg_manager->generateDomainTransitionGraphsTIM(*the_domain->types, plan->getBindings());
+	dtg_manager->generateDomainTransitionGraphsTIM(*the_domain->types, plan->getBindings());
 	Graphviz::printToDot(*dtg_manager);
 
 	unsigned int nr_transitions = 0;
-	for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = combined_graph.getNodes().begin(); ci != combined_graph.getNodes().end(); ci++)
+	for (std::vector<SAS_Plus::DomainTransitionGraph*>::const_iterator ci = dtg_manager->getManagableObjects().begin(); ci != dtg_manager->getManagableObjects().end(); ci++)
 	{
-		const SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
-		for (std::vector<const SAS_Plus::Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
+		const SAS_Plus::DomainTransitionGraph* dtg_graph = *ci;
+		for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = dtg_graph->getNodes().begin(); ci != dtg_graph->getNodes().end(); ci++)
 		{
-			++nr_transitions;
+			const SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
+			for (std::vector<const SAS_Plus::Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
+			{
+				++nr_transitions;
+			}
 		}
 	}
 	std::cerr << "Total number of transitions: " << nr_transitions << "." << std::endl;
@@ -203,7 +208,7 @@ int main(int argc,char * argv[])
 	gettimeofday(&start_time_prepare_reachability, NULL);
 #endif
 //	std::vector<const REACHABILITY::ReachableFact*> lifted_reachable_facts;
-	REACHABILITY::DTGReachability analyst(*dtg_manager, combined_graph, term_manager, predicate_manager);
+	REACHABILITY::DTGReachability analyst(*dtg_manager, term_manager);
 #ifdef MYPOP_KEEP_TIME
 	struct timeval end_time_prepare_reachability;
 	gettimeofday(&end_time_prepare_reachability, NULL);	
@@ -228,8 +233,8 @@ int main(int argc,char * argv[])
 	}
 	
 	std::vector<const GroundedAction*> found_plan;
-	ForwardChainingPlanner fcp(action_manager, predicate_manager, type_manager);
-	fcp.findPlan(found_plan, analyst, bounded_initial_facts, bounded_goal_facts, combined_graph.getBindings(), ground);
+	ForwardChainingPlanner fcp(action_manager, type_manager);
+	fcp.findPlan(found_plan, analyst, bounded_initial_facts, bounded_goal_facts, plan->getBindings(), ground);
 	
 	// Validate the plan!
 	std::stringstream plan_stream;

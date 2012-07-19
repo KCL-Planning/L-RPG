@@ -128,8 +128,8 @@ std::ostream& operator<<(std::ostream& os, const Action& action)
 /*************************
  * The ActionManager class
  *************************/
-ActionManager::ActionManager(const TypeManager& type_manager, TermManager& term_manager, const PredicateManager& predicate_manager)
-	: type_manager_(&type_manager), term_manager_(&term_manager), predicate_manager_(&predicate_manager)
+ActionManager::ActionManager(const TypeManager& type_manager, TermManager& term_manager)
+	: type_manager_(&type_manager), term_manager_(&term_manager)
 {
 
 }
@@ -187,7 +187,7 @@ void ActionManager::processActions(const VAL::operator_list& operators)
 		// * preference [not supported]
 		// * qfied_goal [not supported]
 		// * conj_goal
-		const Formula* action_precondition = Utility::convertGoal(*term_manager_, *predicate_manager_, precondition, false);
+		const Formula* action_precondition = Utility::convertGoal(*term_manager_, precondition, false);
 
 		// Parse the effects. All possible effects are:
 		// * pc_list<simple_effect*> add_effects;
@@ -198,7 +198,7 @@ void ActionManager::processActions(const VAL::operator_list& operators)
 		// * pc_list<assignment*>    assign_effects; [not supported]
 		// * pc_list<timed_effect*>  timed_effects; [not supported]
 		std::vector<const Atom*>* action_effects = new std::vector<const Atom*>();
-		Utility::convertEffects(*term_manager_, *predicate_manager_,  *effects, *action_effects);
+		Utility::convertEffects(*term_manager_, *effects, *action_effects);
 		
 		Action* action = new Action(predicate, *action_precondition, action_variables, action_effects);
 		addManagableObject(action);

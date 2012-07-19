@@ -226,7 +226,7 @@ public:
 	 */
 	bool isSubSetOf(const DomainTransitionGraphNode& dtg_node) const;
 	
-	bool isEquivalentTo(const DomainTransitionGraphNode& other) const;
+	bool isIsomorphicWith(const DomainTransitionGraphNode& other) const;
 	
 	bool isTermGrounded(const Term& term) const;
 	

@@ -27,7 +27,7 @@
 
 //#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 //#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
-#define MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
+//#define MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
 //#define MYPOP_SAS_PLUS_DTG_MANAGER_KEEP_TIME
 
 namespace MyPOP {
@@ -337,8 +337,8 @@ void BoundedAtom::print(std::ostream& os, const Bindings& bindings, bool verbal)
  * void DomainTransitionGraphManager...
  ****************************************/
 	
-DomainTransitionGraphManager::DomainTransitionGraphManager(const PredicateManager& predicate_manager, const TypeManager& type_manager, const ActionManager& action_manager, const TermManager& term_manager, const std::vector<const Atom*>& initial_facts)
-	: predicate_manager_(&predicate_manager), type_manager_(&type_manager), action_manager_(&action_manager), term_manager_(&term_manager), initial_facts_(&initial_facts)
+DomainTransitionGraphManager::DomainTransitionGraphManager(const TypeManager& type_manager, const ActionManager& action_manager, const TermManager& term_manager, const std::vector<const Atom*>& initial_facts)
+	: type_manager_(&type_manager), action_manager_(&action_manager), term_manager_(&term_manager), initial_facts_(&initial_facts)
 {
 	
 }
@@ -355,19 +355,16 @@ void DomainTransitionGraphManager::getProperties(std::vector<std::pair<const Pre
 {
 	for (std::multiset<TIM::Property*>::const_iterator lhs_properties_i = property_state.begin(); lhs_properties_i != property_state.end(); lhs_properties_i++)
 	{
-		const TIM::Property* property = *lhs_properties_i;
-
-		const VAL::extended_pred_symbol* extended_property = property->root();
-		const Predicate* predicate = predicate_manager_->getGeneralPredicate(extended_property->getName());
-		assert (predicate != NULL);
+		TIM::Property* property = *lhs_properties_i;
+		const Predicate& predicate = Predicate::getPredicate(*property, *type_manager_);
 
 		// Adding the predicate to the DTG will also create a lifted DTG node with that predicate.
 		// Further refinements can be made to this DTG by splitting these nodes.
-		predicates.push_back(std::make_pair(predicate, property->aPosn()));
+		predicates.push_back(std::make_pair(&predicate, property->aPosn()));
 	}
 }
 
-const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, Bindings& bindings)
+void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, Bindings& bindings)
 {
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_KEEP_TIME
 	struct timeval start_time_tim_translation;
@@ -395,7 +392,7 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 		std::set<std::vector<std::pair<const Predicate*, unsigned int> > > processed_expressions;
 		
 		// The DTG where all predicates will be added to.
-		DomainTransitionGraph* dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, *predicate_manager_, bindings, *initial_facts_);
+		DomainTransitionGraph* dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, bindings, *initial_facts_);
 
 		// We need to augment some rules to get the full set of properties. If a property appears in the LHS of a rule $a$ and it is a proper subset
 		// of another LHS $b$. Then add a new rule $b$ -> ($b.LHS$ \ $a.LHS$) + $a.RHS$.
@@ -451,9 +448,9 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 					for (std::multiset<TIM::Property*>::const_iterator ci = difference.begin(); ci != difference.end(); ci++)
 					{
 						TIM::Property* property = *ci;
-						const VAL::extended_pred_symbol* extended_property = property->root();
-						const Predicate* predicate = predicate_manager_->getGeneralPredicate(extended_property->getName());
-						assert (predicate != NULL);
+						const Predicate& predicate = Predicate::getPredicate(*property, *type_manager_);
+						//const Predicate* predicate = predicate_manager_->getGeneralPredicate(extended_property->getName());
+						//assert (predicate != NULL);
 						
 						// Make sure we do not add duplicates:
 						if (duplicates.count(property) != 0)
@@ -461,7 +458,7 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 							continue;
 						}
 
-						predicates_rhs.push_back(std::make_pair(predicate, property->aPosn()));
+						predicates_rhs.push_back(std::make_pair(&predicate, property->aPosn()));
 						
 //						property->write(std::cout);
 //						std::cout << " ++ ";
@@ -587,7 +584,8 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	 * end up with wrong DTGs.
 	 */
 	std::vector<std::pair<const Predicate*, const Atom*> > unsupported_predicates;
-	for (std::vector<Predicate*>::const_iterator ci = predicate_manager_->getManagableObjects().begin(); ci != predicate_manager_->getManagableObjects().end(); ci++)
+	//for (std::vector<Predicate*>::const_iterator ci = predicate_manager_->getManagableObjects().begin(); ci != predicate_manager_->getManagableObjects().end(); ci++)
+	for (std::vector<const Predicate*>::const_iterator ci = Predicate::getPredicates().begin(); ci != Predicate::getPredicates().end(); ci++)
 	{
 		const Predicate* predicate = *ci;
 
@@ -635,7 +633,7 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 		std::cout << "The predicate: " << *predicate << " is not processed yet!" << std::endl;
 #endif
-		DomainTransitionGraph* new_unprocessed_dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, *predicate_manager_, bindings, *initial_facts_);
+		DomainTransitionGraph* new_unprocessed_dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, bindings, *initial_facts_);
 		
 		// 1) The predicate is static.
 		if (predicate->isStatic())
@@ -1042,24 +1040,10 @@ const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransit
 	std::cerr << "Initialize structures: " << time_spend << " seconds" << std::endl;
 #endif
 
-#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
-	std::ofstream ofs;
-	ofs.open("combined_dtg.dot", std::ios::out);
-	
-	ofs << "digraph {" << std::endl;
-
-	Graphviz::printToDot(ofs, combined_graph);
-	
-	ofs << "}" << std::endl;
-	ofs.close();
-#endif
-
 	std::cerr << "Number of bindings: " << bindings << std::endl;
 	
 	objects_.clear();
 	objects_.push_back(&combined_graph);
-
-	return combined_graph;
 }
 
 DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings& bindings)
@@ -1291,7 +1275,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 #endif
 	
 	// Create a combined DTG.
-	DomainTransitionGraph* combined_dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, *predicate_manager_, bindings, *initial_facts_);
+	DomainTransitionGraph* combined_dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, bindings, *initial_facts_);
 	
 	// Add all the merged DTG nodes, these exist of the following nodes:
 	// 1) Nodes which have not been merged - no need to make any changes.

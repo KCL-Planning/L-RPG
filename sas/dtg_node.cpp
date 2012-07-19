@@ -668,7 +668,7 @@ bool DomainTransitionGraphNode::addAtom(BoundedAtom& bounded_atom, InvariableInd
 	
 	if (contains(bounded_atom.getId(), bounded_atom.getAtom(), index))
 	{
-		return false;
+//		return false;
 	}
 
 	if (index != NO_INVARIABLE_INDEX)
@@ -1478,12 +1478,11 @@ bool DomainTransitionGraphNode::isSubSetOf(const DomainTransitionGraphNode& dtg_
 	return dtg_node.isSuperSetOf(*this);
 }
 
-bool DomainTransitionGraphNode::isEquivalentTo(const DomainTransitionGraphNode& other) const
+bool DomainTransitionGraphNode::isIsomorphicWith(const DomainTransitionGraphNode& other) const
 {
 	for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
 	{
 		const BoundedAtom* this_fact = *ci;
-		
 		bool found_equivalent = false;
 		
 		for (std::vector<BoundedAtom*>::const_iterator ci = other.getAtoms().begin(); ci != other.getAtoms().end(); ci++)

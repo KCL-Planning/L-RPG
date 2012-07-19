@@ -21,7 +21,6 @@ class Bindings;
 class Object;
 class Predicate;
 class TermManager;
-class PredicateManager;
 
 void printVariableDomain(ostream& os, const std::vector<const Object*>& result);
 void takeIntersection(std::vector<const Object*>& result, const std::vector<const Object*>& set1, const std::vector<const Object*>& set2);
@@ -42,6 +41,7 @@ namespace REACHABILITY {
 
 class ReachableTree;
 class DTGReachability;
+class ResolvedBoundedAtom;
 
 class EquivalentObjectGroup;
 class EquivalentObjectGroupManager;
@@ -55,7 +55,7 @@ class ReachableFact
 public:
 	ReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
 	
-	ReachableFact(const Atom& atom, EquivalentObjectGroup** term_domain_mapping);
+	ReachableFact(const Predicate& predicate, bool is_negative, EquivalentObjectGroup** term_domain_mapping);
 	
 	ReachableFact(const ReachableFact& reachable_fact);
 	
@@ -96,7 +96,7 @@ public:
 	
 	EquivalentObjectGroup** getTermDomains() const { return term_domain_mapping_; }
 	
-	const Atom& getAtom() const { return *atom_; }
+	const Predicate& getPredicate() const { return *predicate_; }
 	
 	/**
 	 * When updating the Equivalent Object Group, we need to update the Reachable Facts. We pick a single ReachableFact to update its 
@@ -117,12 +117,17 @@ public:
 	const ReachableFact& getReplacement() const;
 	
 	bool canUnifyWith(const Atom& atom, StepID step_id, const Bindings& bindings, unsigned int iteration) const;
+	bool canUnifyWith(const ResolvedBoundedAtom& atom, unsigned int iteration) const;
+	
+	bool isNegative() const { return is_negative_; }
 	
 	void print(std::ostream& os, unsigned int iteration) const;
 	
 private:
 
-	const Atom* atom_;
+	const Predicate* predicate_;
+	
+	bool is_negative_;
 	
 	EquivalentObjectGroup** term_domain_mapping_;
 	
@@ -143,8 +148,6 @@ private:
 	// By marking the former for removal we can remove the remaining reachable fact.
 	ReachableFact* replaced_by_;
 	
-	//friend class ReachableFactMemoryPool;
-	
 	friend std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact);
 };
 
@@ -162,16 +165,11 @@ static MyPOP::UTILITY::MemoryPool* g_reachable_fact_memory_pool = new MyPOP::UTI
 class ResolvedBoundedAtom
 {
 public:
-	
-	ResolvedBoundedAtom(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
+	ResolvedBoundedAtom(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
 	
 	~ResolvedBoundedAtom();
 	
-	const StepID getId() const { return id_; }
-	
-	const Atom& getOriginalAtom() const { return *atom_; }
-	
-	const Atom& getCorrectedAtom() const { return *corrected_atom_; }
+	const Predicate& getPredicate() const { return *predicate_; }
 	
 	const std::vector<const Object*>& getVariableDomain(unsigned int index) const;
 	
@@ -181,17 +179,23 @@ public:
 	
 	bool canSubstitude(const ReachableFact& reachable_fact) const;
 	
+	const std::vector<const Term*>& getTerms() const { return *terms_; }
+	
+	bool isNegative() const { return is_negative_; }
+	
+	bool isIdentical(const ResolvedBoundedAtom& rhs) const;
+	
 protected:
 	
-	void init(const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
+	void init(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
 	
-	StepID id_;
-	
-	const Atom* atom_;
-	
-	const Atom* corrected_atom_;
+	const Predicate* predicate_;
 	
 	std::vector<const std::vector<const Object*>* > variable_domains_;
+	
+	const std::vector<const Term*>* terms_;
+	
+	bool is_negative_;
 	
 	bool* is_grounded_;
 };
@@ -213,7 +217,7 @@ public:
 	 * search for all EOGs in the @ref eog_manager which match the bill.
 	 * @param predicate_manager The predicate manager.
 	 */
-	ResolvedEffect(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, bool free_variables[], PredicateManager& predicate_manager);
+	ResolvedEffect(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, bool free_variables[]);
 	
 	~ResolvedEffect();
 	
@@ -338,7 +342,7 @@ protected:
 	 * All subclasses can add a set of bounded atoms which are the set or preconditions
 	 * which are part of their set.
 	 */
-	void addBoundedAtom(StepID step_id, const Atom& atom, const Bindings& bindings, PredicateManager& predicate_manager);
+	void addBoundedAtom(StepID step_id, const Atom& atom, const Bindings& bindings);
 	
 	/**
 	 * Called every time the equivalence relationships have been updated. All the ReachableFacts which 
@@ -400,7 +404,7 @@ private:
 class ReachableNode : public ReachableSet
 {
 public:
-	ReachableNode(const SAS_Plus::DomainTransitionGraphNode& dtg_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
+	ReachableNode(const SAS_Plus::DomainTransitionGraphNode& dtg_node, const EquivalentObjectGroupManager& eog_manager);
 	
 	virtual ~ReachableNode();
 
@@ -465,7 +469,7 @@ struct VariableToValues
 class ReachableTransition : public ReachableSet
 {
 public:
-	ReachableTransition(const SAS_Plus::Transition& transition, ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
+	ReachableTransition(const SAS_Plus::Transition& transition, ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager);
 	
 	virtual ~ReachableTransition();
 	
@@ -642,7 +646,7 @@ public:
 	/**
 	 * Constructor.
 	 */
-	DTGReachability(const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const SAS_Plus::DomainTransitionGraph& dtg_graph, const TermManager& term_manager, PredicateManager& predicate_manager);
+	DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, const MyPOP::TermManager& term_manager);
 	
 	~DTGReachability();
 	
@@ -666,8 +670,6 @@ private:
 	//unsigned int getCostForSubstitution(const Object& from, const Object& to) const;
 	
 	const TermManager* term_manager_;
-	
-	PredicateManager* predicate_manager_;
 	
 	// The set of nodes we are working on.
 	std::vector<ReachableNode*> reachable_nodes_;

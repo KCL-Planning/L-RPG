@@ -26,8 +26,8 @@ namespace MyPOP {
 
 namespace SAS_Plus {
 
-DomainTransitionGraph::DomainTransitionGraph(const DomainTransitionGraphManager& dtg_manager, const TypeManager& type_manager, const ActionManager& action_manager, const PredicateManager& predicate_manager, Bindings& bindings, const std::vector<const Atom*>& initial_facts)
-	: dtg_manager_(&dtg_manager), dtg_term_manager_(new TermManager(type_manager)), action_manager_(&action_manager), predicate_manager_(&predicate_manager), bindings_(&bindings), initial_facts_(&initial_facts), type_(NULL)
+DomainTransitionGraph::DomainTransitionGraph(const DomainTransitionGraphManager& dtg_manager, const TypeManager& type_manager, const ActionManager& action_manager, Bindings& bindings, const std::vector<const Atom*>& initial_facts)
+	: dtg_manager_(&dtg_manager), dtg_term_manager_(new TermManager(type_manager)), action_manager_(&action_manager), bindings_(&bindings), initial_facts_(&initial_facts), type_(NULL)
 {
 
 }
@@ -172,22 +172,11 @@ void DomainTransitionGraph::addBalancedSet(const PropertySpace& property_space, 
 			{
 				std::vector<const Type*> predicate_types = property->getPredicate().getTypes();
 				predicate_types[property->getIndex()] = type_;
-				const Predicate* new_predicate = predicate_manager_->getPredicate(property->getPredicate().getName(), predicate_types);
+				const Predicate& new_predicate = Predicate::getPredicate(property->getPredicate().getName(), predicate_types);
 
-				if (new_predicate == NULL)
-				{
-					std::cout << "Predicate: " << property->getPredicate().getName() << " of types: ";
-					for (std::vector<const Type*>::const_iterator ci = predicate_types.begin(); ci != predicate_types.end(); ci++)
-					{
-						std::cout << **ci << std::endl;
-					}
-					std::cout << std::endl;
-					assert (false);
-				}
-				
 //				std::cout << "Update predicate: " << property->getPredicate() << std::endl;
 
-				property->setPredicate(*new_predicate);
+				property->setPredicate(new_predicate);
 				
 //				std::cout << "Result: " << property->getPredicate() << std::endl;
 			}

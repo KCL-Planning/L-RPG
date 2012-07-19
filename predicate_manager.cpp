@@ -12,11 +12,14 @@
 
 namespace MyPOP {
 
-//Predicate::Predicate(const std::string& name)
-Predicate::Predicate(const std::string& name, const std::vector<const Type*>& types, bool is_static)
-	: name_(name), types_(&types), is_static_(is_static), can_substitute_(NULL)
-{
+std::vector<const Predicate*> Predicate::all_predicates_;
+std::map<std::pair<std::string, std::vector<const Type*> >, Predicate*> Predicate::predicate_map_;
 	
+//Predicate::Predicate(const std::string& name)
+Predicate::Predicate(unsigned int id, const std::string& name, const std::vector<const Type*>& types, bool is_static)
+	: id_(id), name_(name), types_(&types), is_static_(is_static), can_substitute_(NULL)
+{
+
 }
 
 Predicate::~Predicate()
@@ -26,15 +29,6 @@ Predicate::~Predicate()
 	{
 		delete[] can_substitute_;
 	}
-}
-
-void Predicate::makeStatic(bool make_static)
-{
-	if (make_static == is_static_)
-		return;
-
-	is_static_ = make_static;
-//	std::cout << "Make static: " << *this << " : " << make_static << std::endl;
 }
 
 bool Predicate::canSubstitute(const Predicate& predicate) const
@@ -92,15 +86,14 @@ bool Predicate::operator!=(const Predicate& predicate) const
 	return !(predicate == *this);
 }
 
-void Predicate::initCache(const std::vector<Predicate*>& all_predicates)
+void Predicate::initCache()
 {
-	bool* can_substitute_tmp = new bool[all_predicates.size()];
-	memset(can_substitute_tmp, false, sizeof(bool) * all_predicates.size());
+	bool* can_substitute_tmp = new bool[all_predicates_.size()];
+	memset(can_substitute_tmp, false, sizeof(bool) * all_predicates_.size());
 	
-	for (std::vector<Predicate*>::const_iterator ci = all_predicates.begin(); ci != all_predicates.end(); ci++)
+	for (unsigned int i = 0; i < all_predicates_.size(); i++)
 	{
-		unsigned int index = std::distance(all_predicates.begin(), ci);
-		can_substitute_tmp[index] = canSubstitute(**ci);
+		can_substitute_tmp[i] = canSubstitute(*all_predicates_[i]);
 	}
 	
 	can_substitute_ = can_substitute_tmp;
@@ -122,26 +115,9 @@ std::ostream& operator<<(std::ostream& os, const Predicate& predicate)
 	return os;
 }
 
-PredicateManager::PredicateManager(const TypeManager& type_manager)
-	: type_manager_(&type_manager)
+void Predicate::processPredicates(const VAL::pred_decl_list& predicates, const TypeManager& type_manager)
 {
-
-}
-
-PredicateManager::~PredicateManager()
-{
-/*	for (std::map<std::string, std::vector<const Type*>* >::iterator i = general_predicates_.begin(); i != general_predicates_.end(); i++)
-	{
-		std::string name = (*i).first;
-		if (getGeneralPredicate(name) != NULL)
-		{
-			delete (*i).second;
-		}
-	}*/
-}
-
-void PredicateManager::processPredicates(const VAL::pred_decl_list& predicates)
-{
+	std::vector<Predicate*> all_generated_predicates;
 	/**
 	 * Prior to calling this function, TIM analysis is done on the domain. To retrieve this information
 	 * we need to cast the predicate symbol of the VAL::pred_decl instances into the TIM equivalent one.
@@ -151,7 +127,6 @@ void PredicateManager::processPredicates(const VAL::pred_decl_list& predicates)
 	 * possible combination.
 	 * Note: We can reduce this, if we know that the behaviour is equal, but we leave this for future work.
 	 */
-
 	for (VAL::pred_decl_list::const_iterator ci = predicates.begin(); ci != predicates.end(); ci++)
 	{
 		VAL::pred_decl* predicate_declaration = *ci;
@@ -164,152 +139,86 @@ void PredicateManager::processPredicates(const VAL::pred_decl_list& predicates)
 		for (VAL::holding_pred_symbol::PIt i = hps->pBegin();i != hps->pEnd();++i)
 		{
 			const TIM::TIMpredSymbol* tps = static_cast<const TIM::TIMpredSymbol*>(*i);
-//			tps->write(std::cout);
-//			std::cout << "\nIs definitely static " << tps->isDefinitelyStatic() << tps->isStatic() << std::endl;
-//			std::cout << ", ";
 
 			// Build a list of all types this predicate holds.
-			std::vector<const Type*>* types = new std::vector<const Type*>();
-
+			//std::vector<const Type*>* types = new std::vector<const Type*>();
+			std::vector<const Type*> types;
 			for (VAL::Types::const_iterator tim_pred_ci = tps->tcBegin(); tim_pred_ci != tps->tcEnd(); tim_pred_ci++)
 			{
 				const VAL::pddl_typed_symbol* pts = *tim_pred_ci;
-				const Type* type = type_manager_->getType(pts->type->getName());
+				const Type* type = type_manager.getType(pts->type->getName());
 				assert(type != NULL);
 				
-				types->push_back(type);
+				types.push_back(type);
 			}
 
 			// Check if this predicate is static.
 			bool is_static = tps->isDefinitelyStatic();
-
-			Predicate* predicate = new Predicate(predicate_name, *types, is_static);
-	
-			// Store this to our table.
-			predicate_map_[std::make_pair(predicate_name, *types)] = predicate;
-			addManagableObject(predicate);
+			//Predicate* predicate = new Predicate(predicate_name, *types, is_static);
+			
+			// Create all the predicates which can be created from more generic types.
+			unsigned int type_parents[types.size()];
+			unsigned int current_type_parents[types.size()];
+			for (unsigned int i = 0; i < types.size(); i++)
+			{
+				unsigned int type_depth = 1;
+				const Type* type = types[i];
+				while ((type = type->getSupertype()) != NULL)
+				{
+					++type_depth;
+				}
+				type_parents[i] = type_depth;
+				current_type_parents[i] = 0;
+			}
+			
+			bool done = false;
+			while (!done)
+			{
+				done = true;
+				std::vector<const Type*>* new_types = new std::vector<const Type*>();
+				for (unsigned int i = 0; i < types.size(); i++)
+				{
+					const Type* type = types[i];
+					for (unsigned int depth = 0; depth < current_type_parents[i]; depth++)
+					{
+						type = type->getSupertype();
+					}
+					new_types->push_back(type);
+				}
+				
+				if (predicate_map_.find(std::make_pair(predicate_name, *new_types)) == predicate_map_.end())
+				{
+					Predicate* new_predicate = new Predicate(all_predicates_.size(), predicate_name, *new_types, is_static);
+					predicate_map_[std::make_pair(predicate_name, *new_types)] = new_predicate;
+					all_predicates_.push_back(new_predicate);
+					all_generated_predicates.push_back(new_predicate);
+				}
+				
+				for (unsigned int i = 0; i < types.size(); i++)
+				{
+					if (current_type_parents[i] + 1 != type_parents[i])
+					{
+						current_type_parents[i] = current_type_parents[i] + 1;
+						done = false;
+						break;
+					}
+					else
+					{
+						current_type_parents[i] = 0;
+					}
+				}
+			}
 
 #ifdef MYPOP_PREDICATE_COMMENTS
 			std::cout << "Predicate: " << *predicate << std::endl;
 #endif
-
-			// Find the most generalised types.
-			std::vector<const Type*>* general_types = NULL;
-			std::map<std::string, std::vector<const Type*>* >::const_iterator type_ci = general_predicates_.find(predicate_name);
-			if (type_ci == general_predicates_.end())
-			{
-				assert (predicate_name.size() > 0);
-				general_types = new std::vector<const Type*>();
-				general_predicates_[predicate_name] = general_types;
-			}
-			else
-			{
-				general_types = (*type_ci).second;
-			}
-
-#ifdef MYPOP_PREDICATE_COMMENTS
-			std::cout << "Find super types for: " << predicate_name << std::endl;
-#endif
-
-
-			if (general_types->size() == 0)
-			{
-				for (unsigned int i = 0; i < types->size(); i++)
-				{
-					const Type* current_type = (*types)[i];
-					general_types->push_back(current_type);
-				}
-			}
-
-			else
-			{
-				for (unsigned int i = 0; i < types->size(); i++)
-				{
-					const Type* current_type = (*types)[i];
-#ifdef MYPOP_PREDICATE_COMMENTS
-					std::cout << "Check " << i << "th type" << std::endl;
-					std::cout << *current_type << std::endl;
-					std::cout << " v.s. current general type: " << std::endl;
-					std::cout << *(*general_types)[i] << std::endl;
-#endif
-
-					if ((*general_types)[i]->isSubtypeOf(*current_type))
-					{
-#ifdef MYPOP_PREDICATE_COMMENTS
-						std::cout << "- " << *(*general_types)[i] << " is a subtype of " << *current_type << std::endl;
-#endif
-						(*general_types)[i] = current_type;
-					}
-					else if ((*general_types)[i] != current_type && !current_type->isSubtypeOf(*(*general_types)[i]))
-					{
-						// If this type is not the same nor the subtype, we must find for the supertype both are members of.
-						const Type* super_type = (*general_types)[i]->getSupertype();
-						
-						///std::cout << "The super type of the general type " << *(*general_types)[i] << " is " << *super_type << std::endl;
-						
-						while (super_type != NULL && !current_type->isSubtypeOf(*super_type) && current_type != super_type)
-						{
-#ifdef MYPOP_PREDICATE_COMMENTS
-							std::cout << "- " << "Is: " << *super_type << " a super type of " << *current_type << "?" << std::endl;
-#endif
-							super_type = super_type->getSupertype();
-#ifdef MYPOP_PREDICATE_COMMENTS
-							if (super_type != NULL)
-							{
-								std::cout << "- New super type: " << *super_type << std::endl;
-							}
-							else
-							{
-								std::cout << "- No supertype found!" << std::endl;
-							}
-#endif
-						}
-						assert (super_type != NULL);
-
-#ifdef MYPOP_PREDICATE_COMMENTS
-						std::cout << "- " << "Super type!!!" << *super_type << std::endl;
-#endif
-						(*general_types)[i] = super_type;
-					}
-					else
-					{
-#ifdef MYPOP_PREDICATE_COMMENTS
-						std::cout << "- The same." << std::endl;
-#endif
-					}
-				}
-			}
-
-#ifdef MYPOP_PREDICATE_COMMENTS
-			if (getGeneralPredicate(predicate_name) != NULL)
-			{
-				std::cout << "Generalised types for predicate: " << *predicate << ": " << *getGeneralPredicate(predicate_name) << std::endl;
-			}
-#endif
 		}
 	}
-
-	// Make sure all the generalised predicates have been created.
-	for (std::map<std::string, std::vector<const Type*>* >::const_iterator ci = general_predicates_.begin(); ci != general_predicates_.end(); ci++)
-	{
-		std::string name = (*ci).first;
-		assert (name.size() > 0);
-		if (getGeneralPredicate(name) == NULL)
-		{
-			assert (predicate_map_.count(std::make_pair(name, *(*ci).second)) == 0);
-			Predicate* predicate = new Predicate(name, *(*ci).second, false);
-			predicate_map_[std::make_pair(name, *(*ci).second)] = predicate;
-			addManagableObject(predicate);
-		}
-		else
-		{
-			Predicate* predicate = new Predicate(name, *(*ci).second, false);
-			addManagableObject(predicate);
-		}
-	}
+	
+	std::for_each (all_generated_predicates.begin(), all_generated_predicates.end(), std::mem_fun(&Predicate::initCache));
 }
 
-void PredicateManager::checkStaticPredicates(const ActionManager& action_manager)
+void Predicate::checkStaticPredicates(const ActionManager& action_manager)
 {
 	for (std::map<std::pair<std::string, std::vector<const Type*> >, Predicate*>::const_iterator ci = predicate_map_.begin(); ci != predicate_map_.end(); ci++)
 	{
@@ -357,44 +266,43 @@ void PredicateManager::checkStaticPredicates(const ActionManager& action_manager
 			}
 		}
 
-		predicate->makeStatic(!appears_in_effects);
+		predicate->is_static_ = !appears_in_effects;
 	}
 }
 
-const Predicate* PredicateManager::getPredicate(const std::string& name, const std::vector<const Type*>& types) const
+const Predicate& Predicate::getPredicate(const TIM::Property& property, const TypeManager& type_manager)
 {
-//	std::cout << "Find predicate " << name << " ";
-//	for (std::vector<const Type*>::const_iterator ci = types.begin(); ci != types.end(); ci++)
-//	{
-//		std::cout << **ci << ", ";
-//	}
+	const VAL::extended_pred_symbol* extended_property = property.root();
+	std::vector<const Type*> predicate_types;
+	for(std::vector<VAL::pddl_typed_symbol*>::const_iterator esp_i = extended_property->tcBegin(); esp_i != extended_property->tcEnd(); ++esp_i)
+	{
+		const Type* type = type_manager.getType((*esp_i)->type->getName());
+		assert (type != NULL);
+		predicate_types.push_back(type);
+	}
+
+	return Predicate::getPredicate(extended_property->getName(), predicate_types);
+}
+
+const Predicate& Predicate::getPredicate(const std::string& name, const std::vector<const Type*>& types)
+{
 	assert (name.size() > 0);
-//	std::cout << std::endl;
 	std::string lower_case_name(name);
 	std::transform(name.begin(), name.end(), lower_case_name.begin(), (int(*)(int))std::tolower);
 	map<std::pair<std::string, std::vector<const Type*> >, Predicate*>::const_iterator ci = predicate_map_.find(std::make_pair(lower_case_name, types));
 	if (ci == predicate_map_.end())
 	{
-		return NULL;
-		//assert (false);
+		std::cerr << "Could not find a predicate with the following characteristics: (" << name << " ";
+		for (std::vector<const Type*>::const_iterator ci = types.begin(); ci != types.end(); ci++)
+		{
+			std::cerr << **ci << " ";
+		}
+		std::cerr << ")" << std::endl;
+		assert (false);
+		exit(1);
 	}
-	return (*ci).second;
+	return *(*ci).second;
 }
 
-const Predicate* PredicateManager::getGeneralPredicate(const std::string& name) const
-{
-//	std::cout << "Find general predicate " << name << std::endl;
-	std::string predicate_name(name);
-	std::transform(name.begin(), name.end(), predicate_name.begin(), (int(*)(int))std::tolower);
-//	std::cout << name << " -> " << predicate_name << std::endl;
-	std::map<std::string, std::vector<const Type*>* >::const_iterator type_ci = general_predicates_.find(predicate_name);
+};
 
-	if (type_ci == general_predicates_.end())
-	{
-		return NULL;
-	}
-
-	return getPredicate(predicate_name, *(*type_ci).second);
-}
-
-}

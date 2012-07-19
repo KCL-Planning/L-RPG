@@ -153,7 +153,7 @@ void ReachableTreeNode::addChild(ReachableTreeNode* reachable_tree_node)
 bool ReachableTreeNode::canSatisfyConstraints(const ReachableFact& reachable_fact, unsigned int level, const std::vector<std::vector<std::pair<unsigned int, unsigned int> >** >& constraints_set) const
 {
 	std::vector<std::pair<unsigned int, unsigned int> >** constraints = constraints_set[level];
-	for (unsigned int i = 0; i < reachable_fact.getAtom().getArity(); i++)
+	for (unsigned int i = 0; i < reachable_fact.getPredicate().getArity(); i++)
 	{
 		std::vector<std::pair<unsigned int, unsigned int> >* variable_constraints = constraints[i];
 		
@@ -234,7 +234,7 @@ void ReachableTreeNode::updateChildren(const ReachableSet& reachable_set, const 
 			{
 				// Check grounded properties.
 				bool ground_properties_satisfied = true;
-				for (unsigned int i = 0; i < reachable_fact->getAtom().getArity(); i++)
+				for (unsigned int i = 0; i < reachable_fact->getPredicate().getArity(); i++)
 				{
 					if (reachable_set.getFactsSet()[level_ + 1]->isGrounded(i) &&
 					   (

@@ -445,8 +445,8 @@ bool CompareStates::operator()(const State* lhs, const State* rhs)
 	 return lhs->getHeuristic() > rhs->getHeuristic();
 }
 
-ForwardChainingPlanner::ForwardChainingPlanner(const ActionManager& action_manager, const PredicateManager& predicate_manager, const TypeManager& type_manager)
-	: action_manager_(&action_manager), predicate_manager_(&predicate_manager), type_manager_(&type_manager)
+ForwardChainingPlanner::ForwardChainingPlanner(const ActionManager& action_manager, const TypeManager& type_manager)
+	: action_manager_(&action_manager), type_manager_(&type_manager)
 {
 	
 }
@@ -567,7 +567,7 @@ void ForwardChainingPlanner::findPlan(std::vector<const GroundedAction*>& plan, 
 					variables[i] = &analyst.getEquivalentObjectGroupManager().getEquivalentObject(grounded_atom->getObject(i)).getEquivalentObjectGroup();
 				}
 				
-				reachable_facts.push_back(new REACHABILITY::ReachableFact(grounded_atom->getAtom(), variables));
+				reachable_facts.push_back(new REACHABILITY::ReachableFact(grounded_atom->getAtom().getPredicate(), grounded_atom->getAtom().isNegative(), variables));
 			}
 
 #ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
@@ -579,8 +579,13 @@ void ForwardChainingPlanner::findPlan(std::vector<const GroundedAction*>& plan, 
 #endif
 			
 			unsigned int heuristic_value = analyst.getHeuristic(reachable_facts, goal_facts, bindings, ground);
+#ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
+			std::cout << "Heuristic value: " << heuristic_value << std::endl;
+#endif
+			
 			if (heuristic_value == std::numeric_limits<unsigned int>::max())
 			{
+				exit(1);
 				continue;
 			}
 /*
@@ -599,6 +604,7 @@ void ForwardChainingPlanner::findPlan(std::vector<const GroundedAction*>& plan, 
 		}
 //		delete state;
 	}
+	std::cerr << "No plan could be found!" << std::endl;
 }
 
 };

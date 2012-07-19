@@ -70,7 +70,7 @@ unsigned int ReachableTransition::generated_new_reachable_facts = 0;
 unsigned int ReachableTransition::accepted_new_reachable_facts = 0;
 
 ReachableFact::ReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager)
-	: atom_(&bounded_atom.getAtom()), replaced_by_(NULL)
+	: predicate_(&bounded_atom.getAtom().getPredicate()), is_negative_(bounded_atom.getAtom().isNegative()), replaced_by_(NULL)
 {
 	//term_domain_mapping_ = new EquivalentObjectGroup*[bounded_atom.getAtom().getArity()];
 	term_domain_mapping_ = EquivalentObjectGroup::allocateMemory(bounded_atom.getAtom().getArity());
@@ -97,8 +97,8 @@ ReachableFact::ReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bi
 #endif
 }
 
-ReachableFact::ReachableFact(const Atom& atom, EquivalentObjectGroup** term_domain_mapping)
-	: atom_(&atom), term_domain_mapping_(term_domain_mapping), replaced_by_(NULL)
+ReachableFact::ReachableFact(const MyPOP::Predicate& predicate, bool is_negative, MyPOP::REACHABILITY::EquivalentObjectGroup** term_domain_mapping)
+	: predicate_(&predicate), is_negative_(is_negative), term_domain_mapping_(term_domain_mapping), replaced_by_(NULL)
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 	for (unsigned int i = 0; i < atom.getArity(); i++)
@@ -109,11 +109,11 @@ ReachableFact::ReachableFact(const Atom& atom, EquivalentObjectGroup** term_doma
 }
 
 ReachableFact::ReachableFact(const ReachableFact& reachable_fact)
-	: atom_(&reachable_fact.getAtom()), replaced_by_(NULL)
+	: predicate_(&reachable_fact.getPredicate()), is_negative_(reachable_fact.is_negative_), replaced_by_(NULL)
 {
 	//term_domain_mapping_ = new EquivalentObjectGroup*[reachable_fact.atom_->getArity()];
-	term_domain_mapping_ = EquivalentObjectGroup::allocateMemory(reachable_fact.atom_->getArity());
-	for (unsigned int i = 0; i < reachable_fact.atom_->getArity(); i++)
+	term_domain_mapping_ = EquivalentObjectGroup::allocateMemory(reachable_fact.getPredicate().getArity());
+	for (unsigned int i = 0; i < reachable_fact.getPredicate().getArity(); i++)
 	{
 		term_domain_mapping_[i] = reachable_fact.term_domain_mapping_[i];
 	}
@@ -137,7 +137,7 @@ void ReachableFact::operator delete (void* p)
 bool ReachableFact::updateTermsToRoot()
 {
 	bool updated_domain = false;
-	for (unsigned int i = 0; i < atom_->getArity(); i++)
+	for (unsigned int i = 0; i < predicate_->getArity(); i++)
 	{
 		EquivalentObjectGroup& root_node = term_domain_mapping_[i]->getRootNode();
 		if (&root_node != term_domain_mapping_[i])
@@ -156,7 +156,7 @@ bool ReachableFact::isEquivalentTo(const ReachableFact& other, const EquivalentO
 {
 //	std::cout << "Are " << *this << " and " << other << " equivalent?" << std::endl;
 	
-	if (atom_->getArity() != other.atom_->getArity())
+	if (predicate_->getArity() != other.predicate_->getArity())
 	{
 //		std::cout << "Arities don't match up!" << std::endl;
 		return false;
@@ -164,7 +164,7 @@ bool ReachableFact::isEquivalentTo(const ReachableFact& other, const EquivalentO
 	
 //	char combined_mask = mask_ & other.mask_;
 	
-	for (unsigned int i = 0; i < atom_->getArity(); i++)
+	for (unsigned int i = 0; i < predicate_->getArity(); i++)
 	{
 //		if (!term_domain_mapping_[i]->isGrounded() && term_domain_mapping_[i]->isPartOfAPropertyState())
 		if (term_domain_mapping_[i] == &variant_eog)
@@ -188,17 +188,17 @@ bool ReachableFact::isEquivalentTo(const ReachableFact& other, const EquivalentO
 
 bool ReachableFact::isIdenticalTo(const ReachableFact& other) const
 {
-	if (atom_->getArity() != other.atom_->getArity())
+	if (predicate_->getArity() != other.predicate_->getArity())
 	{
 		return false;
 	}
 	
-	if (atom_->getPredicate().getName() != other.atom_->getPredicate().getName())
+	if (predicate_->getName() != other.predicate_->getName())
 	{
 		return false;
 	}
 	
-	for (unsigned int i = 0; i < atom_->getArity(); i++)
+	for (unsigned int i = 0; i < predicate_->getArity(); i++)
 	{
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 		assert (term_domain_mapping_[i] != NULL);
@@ -231,7 +231,7 @@ bool ReachableFact::isIdenticalTo(const ReachableFact& other) const
 
 EquivalentObjectGroup& ReachableFact::getTermDomain(unsigned int index) const
 {
-	assert (index < atom_->getArity());
+	assert (index < predicate_->getArity());
 	EquivalentObjectGroup* eog = term_domain_mapping_[index];
 	assert (eog != NULL);
 	return *eog;
@@ -260,7 +260,7 @@ const ReachableFact& ReachableFact::getReplacement() const
 bool ReachableFact::canUnifyWith(const Atom& atom, StepID step_id, const Bindings& bindings, unsigned int iteration) const
 {
 	// Check if this effect can be unified with the goal we try to achieve.
-	if (!atom.getPredicate().canSubstitute(getAtom().getPredicate())) return false;
+	if (!atom.getPredicate().canSubstitute(*predicate_)) return false;
 	
 	for (unsigned int i = 0; i < atom.getArity(); i++)
 	{
@@ -282,16 +282,40 @@ bool ReachableFact::canUnifyWith(const Atom& atom, StepID step_id, const Binding
 	return true;
 }
 
+bool ReachableFact::canUnifyWith(const ResolvedBoundedAtom& atom, unsigned int iteration) const
+{
+	if (!atom.getPredicate().canSubstitute(*predicate_)) return false;
+	
+	for (unsigned int i = 0; i < atom.getPredicate().getArity(); i++)
+	{
+		bool variable_domains_overlap = false;
+		const std::vector<const Object*>& variable_domain = atom.getVariableDomain(i);
+		for (std::vector<const Object*>::const_iterator ci = variable_domain.begin(); ci != variable_domain.end(); ci++)
+		{
+			const Object* object = *ci;
+			if (getTermDomain(i).contains(*object, iteration))
+			{
+					variable_domains_overlap = true;
+					break;
+			}
+		}
+		
+		if (!variable_domains_overlap) return false;
+	}
+	
+	return true;
+}
+
 void ReachableFact::print(std::ostream& os, unsigned int iteration) const
 {
-	os << "Reachable fact: (" << atom_->getPredicate().getName() << " ";
-	for (unsigned int i = 0; i < atom_->getArity(); i++)
+	os << "Reachable fact: (" << predicate_->getName() << " ";
+	for (unsigned int i = 0; i < predicate_->getArity(); i++)
 	{
 		os << "{";
 		term_domain_mapping_[i]->printObjects(os, iteration);
 //		os << "(" << term_domain_mapping_[i] << ")";
 		os << "}";
-		if (i + 1 != atom_->getArity())
+		if (i + 1 != predicate_->getArity())
 		{
 			os << ", ";
 		}
@@ -300,8 +324,8 @@ void ReachableFact::print(std::ostream& os, unsigned int iteration) const
 
 std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact)
 {
-	os << "Reachable fact: (" << reachable_fact.atom_->getPredicate().getName() << " ";
-	for (unsigned int i = 0; i < reachable_fact.atom_->getArity(); i++)
+	os << "Reachable fact: (" << reachable_fact.predicate_->getName() << " ";
+	for (unsigned int i = 0; i < reachable_fact.predicate_->getArity(); i++)
 	{
 		const std::vector<EquivalentObject*>& objects = reachable_fact.term_domain_mapping_[i]->getEquivalentObjects();
 		os << "{";
@@ -314,7 +338,7 @@ std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact)
 			}
 		}
 		os << "}";
-		if (i + 1 != reachable_fact.atom_->getArity())
+		if (i + 1 != reachable_fact.predicate_->getArity())
 		{
 			os << ", ";
 		}
@@ -327,10 +351,11 @@ std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact)
 /**
  * ResolvedBoundedAtom.
  */
-ResolvedBoundedAtom::ResolvedBoundedAtom(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager)
-	: id_(id), atom_(&atom)
+ResolvedBoundedAtom::ResolvedBoundedAtom(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager)
+	: terms_(&atom.getTerms())
+//	: id_(id), atom_(&atom)
 {
-	init(bindings, eog_manager, predicate_manager);
+	init(id, atom, bindings, eog_manager);
 }
 
 /*ResolvedBoundedAtom::ResolvedBoundedAtom(const BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager)
@@ -341,17 +366,17 @@ ResolvedBoundedAtom::ResolvedBoundedAtom(StepID id, const Atom& atom, const Bind
 
 ResolvedBoundedAtom::~ResolvedBoundedAtom()
 {
-	delete corrected_atom_;
+//	delete corrected_atom_;
 	delete[] is_grounded_;
 }
 
-void ResolvedBoundedAtom::init(const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager)
+void ResolvedBoundedAtom::init(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager)
 {
-	is_grounded_ = new bool[atom_->getArity()];
-	memset(is_grounded_, false, sizeof(bool) * atom_->getArity());
-	for (unsigned int i = 0; i < atom_->getArity(); i++)
+	is_grounded_ = new bool[atom.getArity()];
+	memset(is_grounded_, false, sizeof(bool) * atom.getArity());
+	for (unsigned int i = 0; i < atom.getArity(); i++)
 	{
-		const std::vector<const Object*>& variable_domain = atom_->getTerms()[i]->getDomain(id_, bindings);
+		const std::vector<const Object*>& variable_domain = atom.getTerms()[i]->getDomain(id, bindings);
 		variable_domains_.push_back(&variable_domain);
 		if (variable_domain.size() == 1 && 
 		    eog_manager.getEquivalentObject(*variable_domain[0]).getEquivalentObjectGroup().isGrounded())
@@ -361,12 +386,12 @@ void ResolvedBoundedAtom::init(const Bindings& bindings, const EquivalentObjectG
 	}
 	
 	// May need to update the atom to get the proper types...
-	std::vector<const Type*>* best_types = new std::vector<const Type*>();
-	std::vector<const Term*>* new_variables = new std::vector<const Term*>();
-	for (unsigned int i = 0; i < atom_->getArity(); i++)
+	std::vector<const Type*> best_types;// = new std::vector<const Type*>();
+//	std::vector<const Term*>* new_variables = new std::vector<const Term*>();
+	for (unsigned int i = 0; i < atom.getArity(); i++)
 	{
 		const Type* best_type = NULL;
-		const std::vector<const Object*>& variable_domain = atom_->getTerms()[i]->getDomain(id_, bindings);
+		const std::vector<const Object*>& variable_domain = atom.getTerms()[i]->getDomain(id, bindings);
 		
 		for (std::vector<const Object*>::const_iterator ci = variable_domain.begin(); ci != variable_domain.end(); ci++)
 		{
@@ -390,14 +415,15 @@ void ResolvedBoundedAtom::init(const Bindings& bindings, const EquivalentObjectG
 			}
 		}
 		
-		best_types->push_back(best_type);
-		new_variables->push_back(new Variable(*best_type, atom_->getTerms()[i]->getName()));
+		best_types.push_back(best_type);
+//		new_variables->push_back(new Variable(*best_type, atom.getTerms()[i]->getName()));
 	}
 	
-	Predicate* new_predicate = new Predicate(atom_->getPredicate().getName(), *best_types, atom_->getPredicate().isStatic());
-	corrected_atom_ = new Atom(*new_predicate, *new_variables, atom_->isNegative(), true);
+//	Predicate* new_predicate = new Predicate(atom_->getPredicate().getName(), *best_types, atom_->getPredicate().isStatic());
+	predicate_ = &Predicate::getPredicate(atom.getPredicate().getName(), best_types);
+	//corrected_atom_ = new Atom(best_predicate, *new_variables, atom.isNegative(), true);
 	
-	predicate_manager.addManagableObject(new_predicate);
+//	predicate_manager.addManagableObject(new_predicate);
 	
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 //	std::cout << "Created a resolved atom: " << *this << std::endl;
@@ -425,10 +451,10 @@ bool ResolvedBoundedAtom::canUnifyWith(const ResolvedBoundedAtom& other) const
 //	if (!corrected_atom_->getPredicate().canSubstitute(other.getCorrectedAtom().getPredicate())) return false;
 //	if (!other.atom_->getPredicate().canSubstitute(getAtom().getPredicate())) return false;
 	
-	if (atom_->getPredicate().getName() != other.atom_->getPredicate().getName()) return false;
-	if (atom_->getArity() != other.atom_->getArity()) return false;
+	if (predicate_->getName() != other.predicate_->getName()) return false;
+	if (predicate_->getArity() != other.predicate_->getArity()) return false;
 	
-	for (unsigned int i = 0; i < atom_->getArity(); i++)
+	for (unsigned int i = 0; i < predicate_->getArity(); i++)
 	{
 		// Check if the variable domains overlap.
 		bool variable_domains_overlap = false;
@@ -466,15 +492,15 @@ bool ResolvedBoundedAtom::canUnifyWith(const ResolvedBoundedAtom& other) const
 
 bool ResolvedBoundedAtom::canSubstitude(const ReachableFact& reachable_fact) const
 {
-	if (!getCorrectedAtom().getPredicate().canSubstitute(reachable_fact.getAtom().getPredicate()))
+	if (!predicate_->canSubstitute(reachable_fact.getPredicate()))
 	{
 //		return false;
-		if (getCorrectedAtom().getPredicate().getName() != reachable_fact.getAtom().getPredicate().getName()) return false;
-		if (getCorrectedAtom().getArity() != reachable_fact.getAtom().getArity()) return false;
+		if (predicate_->getName() != reachable_fact.getPredicate().getName()) return false;
+		if (predicate_->getArity() != reachable_fact.getPredicate().getArity()) return false;
 
-		for (unsigned int i = 0; i < reachable_fact.getAtom().getArity(); i++)
+		for (unsigned int i = 0; i < reachable_fact.getPredicate().getArity(); i++)
 		{
-			const Type* fact_set_type = getCorrectedAtom().getTerms()[i]->getType();
+			const Type* fact_set_type = predicate_->getTypes()[i];
 			const Type* reachable_fact_type = reachable_fact.getTermDomain(i).getEquivalentObjects()[0]->getObject().getType();
 			
 			//if (!fact_set_type->isCompatible(*reachable_fact_type))
@@ -488,10 +514,21 @@ bool ResolvedBoundedAtom::canSubstitude(const ReachableFact& reachable_fact) con
 	return true;
 }
 
+bool ResolvedBoundedAtom::isIdentical(const ResolvedBoundedAtom& rhs) const
+{
+	if (predicate_->getName() != rhs.predicate_->getName()) return false;
+	if (predicate_->getArity() != rhs.predicate_->getArity()) return false;
+	for (unsigned int i = 0; i < predicate_->getArity(); i++)
+	{
+		if (variable_domains_[i] != rhs.variable_domains_[i]) return false;
+	}
+	return true;
+}
+
 std::ostream& operator<<(std::ostream& os, const ResolvedBoundedAtom& resolved_bounded_atom)
 {
-	os << "(" << resolved_bounded_atom.getCorrectedAtom().getPredicate().getName();
-	for (unsigned int i = 0; i < resolved_bounded_atom.getCorrectedAtom().getArity(); i++)
+	os << "(" << resolved_bounded_atom.getPredicate().getName();
+	for (unsigned int i = 0; i < resolved_bounded_atom.getPredicate().getArity(); i++)
 	{
 		const std::vector<const Object*>& domain = resolved_bounded_atom.getVariableDomain(i);
 		os << " { ";
@@ -512,8 +549,8 @@ std::ostream& operator<<(std::ostream& os, const ResolvedBoundedAtom& resolved_b
 /**
  * ResolvedEffect.
  */
-ResolvedEffect::ResolvedEffect(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, bool free_variables[], PredicateManager& predicate_manager)
-	: ResolvedBoundedAtom(id, atom, bindings, eog_manager, predicate_manager)
+ResolvedEffect::ResolvedEffect(StepID id, const Atom& atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager, bool free_variables[])
+	: ResolvedBoundedAtom(id, atom, bindings, eog_manager)
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "Process the resolved effect: ";
@@ -706,7 +743,7 @@ void ResolvedEffect::createReachableFacts(std::vector<ReachableFact*>& results, 
 			assert (is_free_variable_[i] == false);
 		}
 #endif
-		results.push_back(new ReachableFact(getCorrectedAtom(), effect_domains));
+		results.push_back(new ReachableFact(*predicate_, is_negative_, effect_domains));
 		return;
 	}
 	
@@ -732,12 +769,12 @@ void ResolvedEffect::createReachableFacts(std::vector<ReachableFact*>& results, 
 		std::cout << "Create a new reachable fact!" << std::endl;
 #endif
 		//EquivalentObjectGroup** new_effect_domains = new EquivalentObjectGroup*[atom_->getArity()];
-		EquivalentObjectGroup** new_effect_domains = EquivalentObjectGroup::allocateMemory(atom_->getArity());
-		memcpy(new_effect_domains, effect_domains, sizeof(EquivalentObjectGroup*) * atom_->getArity());
+		EquivalentObjectGroup** new_effect_domains = EquivalentObjectGroup::allocateMemory(predicate_->getArity());
+		memcpy(new_effect_domains, effect_domains, sizeof(EquivalentObjectGroup*) * predicate_->getArity());
 		
 		unsigned int processed_free_variables = 0;
 		
-		for (unsigned int i = 0; i < atom_->getArity(); i++)
+		for (unsigned int i = 0; i < predicate_->getArity(); i++)
 		{
 			if (!is_free_variable_[i])
 			{
@@ -760,7 +797,7 @@ void ResolvedEffect::createReachableFacts(std::vector<ReachableFact*>& results, 
 			++processed_free_variables;
 		}
 		
-		ReachableFact* new_reachable_fact = new ReachableFact(getCorrectedAtom(), new_effect_domains);
+		ReachableFact* new_reachable_fact = new ReachableFact(*predicate_, is_negative_, new_effect_domains);
 		
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 		std::cout << "New reachable fact with free variables: " << *new_reachable_fact << "." << std::endl;
@@ -832,8 +869,8 @@ void ResolvedEffect::createReachableFacts(std::vector<ReachableFact*>& results, 
 
 std::ostream& operator<<(std::ostream& os, const ResolvedEffect& resolved_effect)
 {
-	os << "Resolved Effect (" << resolved_effect.getCorrectedAtom().getPredicate().getName();
-	for (unsigned int i = 0; i < resolved_effect.getCorrectedAtom().getArity(); i++)
+	os << "Resolved Effect (" << resolved_effect.getPredicate().getName();
+	for (unsigned int i = 0; i < resolved_effect.getPredicate().getArity(); i++)
 	{
 		const std::vector<const Object*>& domain = resolved_effect.getVariableDomain(i);
 		os << " { ";
@@ -883,7 +920,7 @@ ReachableSet::~ReachableSet()
 	for (std::vector<const ResolvedBoundedAtom*>::iterator ci = facts_set_.begin(); ci != facts_set_.end(); ci++)
 	{
 		unsigned int fact_index = std::distance(facts_set_.begin(), ci);
-		for (unsigned int i = 0; i < (*ci)->getCorrectedAtom().getArity(); i++)
+		for (unsigned int i = 0; i < (*ci)->getPredicate().getArity(); i++)
 		{
 			delete (constraints_set_[fact_index])[i];
 		}
@@ -987,7 +1024,7 @@ void ReachableSet::initialiseInitialFacts(const std::vector< ReachableFact* >& i
 	}
 }
 
-void ReachableSet::addBoundedAtom(StepID step_id, const Atom& atom, const Bindings& bindings, PredicateManager& predicate_manager)
+void ReachableSet::addBoundedAtom(StepID step_id, const Atom& atom, const Bindings& bindings)
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "[ReachableSet::addBoundedAtom] Add :";
@@ -997,7 +1034,7 @@ void ReachableSet::addBoundedAtom(StepID step_id, const Atom& atom, const Bindin
 	std::cout << "." << std::endl;
 #endif
 
-	ResolvedBoundedAtom* new_resolved_bounded_atom = new ResolvedBoundedAtom(step_id, atom, bindings, *eog_manager_, predicate_manager);
+	ResolvedBoundedAtom* new_resolved_bounded_atom = new ResolvedBoundedAtom(step_id, atom, bindings, *eog_manager_);
 	facts_set_.push_back(new_resolved_bounded_atom);
 	reachable_set_.push_back(new std::list<ReachableFact*>());
 	
@@ -1012,9 +1049,9 @@ void ReachableSet::addBoundedAtom(StepID step_id, const Atom& atom, const Bindin
 	{
 		const ResolvedBoundedAtom* previous_resolved_bounded_atom = facts_set_[i];
 		
-		for (unsigned int j = 0; j < new_resolved_bounded_atom->getCorrectedAtom().getArity(); j++)
+		for (unsigned int j = 0; j < new_resolved_bounded_atom->getPredicate().getArity(); j++)
 		{
-			for (unsigned int k = 0; k < previous_resolved_bounded_atom->getCorrectedAtom().getArity(); k++)
+			for (unsigned int k = 0; k < previous_resolved_bounded_atom->getPredicate().getArity(); k++)
 			{
 				if (&previous_resolved_bounded_atom->getVariableDomain(k) == &new_resolved_bounded_atom->getVariableDomain(j))
 				{
@@ -1096,7 +1133,7 @@ bool ReachableSet::canSatisfyConstraints(const ReachableFact& reachable_fact, st
 	
 	unsigned int index = reachable_set.size();
 	std::vector<std::pair<unsigned int, unsigned int> >** constraints = constraints_set_[index];
-	for (unsigned int i = 0; i < reachable_fact.getAtom().getArity(); i++)
+	for (unsigned int i = 0; i < reachable_fact.getPredicate().getArity(); i++)
 	{
 		std::vector<std::pair<unsigned int, unsigned int> >* variable_constraints = constraints[i];
 		
@@ -1128,7 +1165,7 @@ bool ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsign
 	}
 	
 	// Check if the grounded constraints are satisfied.
-	for (unsigned int i = 0; i < reachable_fact.getAtom().getArity(); i++)
+	for (unsigned int i = 0; i < reachable_fact.getPredicate().getArity(); i++)
 	{
 		if (facts_set_[index]->isGrounded(i) && 
 			(
@@ -1174,12 +1211,12 @@ bool ReachableSet::processNewReachableFact(ReachableFact& reachable_fact, unsign
 /**
  * ReachableNode
  */
-ReachableNode::ReachableNode(const SAS_Plus::DomainTransitionGraphNode& dtg_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager)
+ReachableNode::ReachableNode(const SAS_Plus::DomainTransitionGraphNode& dtg_node, const EquivalentObjectGroupManager& eog_manager)
 	: ReachableSet(eog_manager), dtg_node_(&dtg_node)
 {
 	for (std::vector<SAS_Plus::BoundedAtom*>::const_iterator ci = dtg_node.getAtoms().begin(); ci != dtg_node.getAtoms().end(); ci++)
 	{
-		addBoundedAtom((*ci)->getId(), (*ci)->getAtom(), dtg_node.getDTG().getBindings(), predicate_manager);
+		addBoundedAtom((*ci)->getId(), (*ci)->getAtom(), dtg_node.getDTG().getBindings());
 	}
 }
 
@@ -1269,7 +1306,7 @@ std::ostream& operator<<(std::ostream& os, const ReachableNode& reachable_node)
 /**
  * Reachable Transition.
  */
-ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& transition, ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager)
+ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& transition, ReachableNode& from_node, const ReachableNode& to_node, const EquivalentObjectGroupManager& eog_manager)
 	: ReachableSet(eog_manager), from_node_(&from_node), to_node_(&to_node), transition_(&transition), latest_processed_from_node_set_(0), latest_processed_transition_set_(0), use_previous_action_domains_(false), action_domains_(NULL)
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
@@ -1320,7 +1357,7 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 		const Atom* precondition = (*ci).first;
 		bool precondition_part_of_from_node = false;
 		
-		ResolvedBoundedAtom* resolved_precondition = new ResolvedBoundedAtom(transition.getStepId(), *precondition, bindings, eog_manager, predicate_manager);
+		ResolvedBoundedAtom* resolved_precondition = new ResolvedBoundedAtom(transition.getStepId(), *precondition, bindings, eog_manager);
 		preconditions_.push_back(resolved_precondition);
 		
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
@@ -1348,7 +1385,8 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 			}
 #endif
 			
-			if (bindings.areIdentical(resolved_bounded_atom->getOriginalAtom(), resolved_bounded_atom->getId(), *precondition, transition.getStepId()))
+			//if (bindings.areIdentical(resolved_bounded_atom->getOriginalAtom(), resolved_bounded_atom->getId(), *precondition, transition.getStepId()))
+			if (resolved_precondition->isIdentical(*resolved_bounded_atom))
 			{
 				precondition_part_of_from_node = true;
 				
@@ -1365,7 +1403,7 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 					
 					const std::vector<const Object*>* variable_domain = transition_variable_domains[i];
 					
-					for (unsigned int j = 0; j < resolved_bounded_atom->getCorrectedAtom().getArity(); j++)
+					for (unsigned int j = 0; j < resolved_bounded_atom->getPredicate().getArity(); j++)
 					{
 						if (from_node_precondition->getTerms()[j] == transition.getAction().getVariables()[i])
 						{
@@ -1392,7 +1430,7 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 		// Convert the precondition into a bounded atom.
 		//BoundedAtom* bounded_precondition = new BoundedAtom(transition.getStepId(), *precondition);
 		//addBoundedAtom(*bounded_precondition, bindings, predicate_manager);
-		addBoundedAtom(transition.getStepId(), *precondition, bindings, predicate_manager);
+		addBoundedAtom(transition.getStepId(), *precondition, bindings);
 		
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 		std::cout << "Process the precondition: ";
@@ -1490,7 +1528,7 @@ ReachableTransition::ReachableTransition(const MyPOP::SAS_Plus::Transition& tran
 			}
 		}
 		
-		ResolvedEffect* resolved_effect = new ResolvedEffect(transition.getStepId(), *effect, bindings, eog_manager, free_variables, predicate_manager);
+		ResolvedEffect* resolved_effect = new ResolvedEffect(transition.getStepId(), *effect, bindings, eog_manager, free_variables);
 		effects_.push_back(resolved_effect);
 	}
 	
@@ -1743,7 +1781,7 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 	}
 #endif
 	//EquivalentObjectGroup** effect_domains = new EquivalentObjectGroup*[effect.getCorrectedAtom().getArity()];
-	EquivalentObjectGroup** effect_domains = EquivalentObjectGroup::allocateMemory(effect.getCorrectedAtom().getArity());
+	EquivalentObjectGroup** effect_domains = EquivalentObjectGroup::allocateMemory(effect.getPredicate().getArity());
 	
 	if (!use_previous_action_domains_)
 	{
@@ -1753,7 +1791,7 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 
 	bool new_facts_reached = false;
 	
-	for (unsigned int i = 0; i < effect.getCorrectedAtom().getArity(); i++)
+	for (unsigned int i = 0; i < effect.getPredicate().getArity(); i++)
 	{
 		if (effect.isFreeVariable(i))
 		{
@@ -1824,10 +1862,10 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 
 		// Make sure the fact hasn't been reached before!
 		const EquivalentObjectGroup* best_eog = NULL;
-		bool zero_arity_reached_fact = new_reachable_fact->getAtom().getArity() == 0;
+		bool zero_arity_reached_fact = new_reachable_fact->getPredicate().getArity() == 0;
 		if (!zero_arity_reached_fact)
 		{
-			for (unsigned int i = 0; i < new_reachable_fact->getAtom().getArity(); i++)
+			for (unsigned int i = 0; i < new_reachable_fact->getPredicate().getArity(); i++)
 			{
 				const EquivalentObjectGroup& eog = new_reachable_fact->getTermDomain(i);
 				if (best_eog == NULL)
@@ -1883,7 +1921,7 @@ bool ReachableTransition::createNewReachableFact(const ResolvedEffect& effect, u
 		// Update the relevant equivalent object groups.
 		if (!zero_arity_reached_fact)
 		{
-			for (unsigned int i = 0; i < new_reachable_fact->getAtom().getArity(); i++)
+			for (unsigned int i = 0; i < new_reachable_fact->getPredicate().getArity(); i++)
 			{
 				// Make sure not to add the fact to the same EOG!
 				EquivalentObjectGroup& to_add_to = new_reachable_fact->getTermDomain(i);
@@ -1973,10 +2011,10 @@ bool ReachableFactLayerItem::canBeAchievedBy(const ResolvedBoundedAtom& precondi
 		std::cout << "Can " << *reachable_fact_copy_ << " be achieved by: " << precondition << "?" << std::endl;
 	}
 	
-	if (precondition.getCorrectedAtom().getPredicate().getName() != reachable_fact_copy_->getAtom().getPredicate().getName()) return false;
-	if (precondition.getCorrectedAtom().getArity() != reachable_fact_copy_->getAtom().getArity()) return false;
+	if (precondition.getPredicate().getName() != reachable_fact_copy_->getPredicate().getName()) return false;
+	if (precondition.getPredicate().getArity() != reachable_fact_copy_->getPredicate().getArity()) return false;
 	
-	for (unsigned int i = 0; i < precondition.getCorrectedAtom().getArity(); i++)
+	for (unsigned int i = 0; i < precondition.getPredicate().getArity(); i++)
 	{
 		const std::vector<const Object*>& precondition_variable_domain = precondition.getVariableDomain(i);
 		if (debug)
@@ -2241,11 +2279,11 @@ const ReachableFactLayerItem* ReachableFactLayer::contains(const ResolvedBounded
 	for (std::vector<ReachableFactLayerItem*>::const_iterator ci = reachable_facts_.begin(); ci != reachable_facts_.end(); ci++)
 	{
 		const ReachableFactLayerItem* reachable_item = *ci;
-		if (resolved_bounded_atom.getCorrectedAtom().getPredicate().getName() != reachable_item->getReachableFactCopy().getAtom().getPredicate().getName()) continue;
-		if (resolved_bounded_atom.getCorrectedAtom().getPredicate().getArity() != reachable_item->getReachableFactCopy().getAtom().getArity()) continue;
+		if (resolved_bounded_atom.getPredicate().getName() != reachable_item->getReachableFactCopy().getPredicate().getName()) continue;
+		if (resolved_bounded_atom.getPredicate().getArity() != reachable_item->getReachableFactCopy().getPredicate().getArity()) continue;
 		
 		bool domain_match = true;
-		for (unsigned int i = 0; i < reachable_item->getReachableFactCopy().getAtom().getArity(); i++)
+		for (unsigned int i = 0; i < reachable_item->getReachableFactCopy().getPredicate().getArity(); i++)
 		{
 			const std::vector<const Object*>& variable_domain = resolved_bounded_atom.getVariableDomain(i);
 			for (std::vector<const Object*>::const_iterator ci = variable_domain.begin(); ci != variable_domain.end(); ci++)
@@ -2289,32 +2327,37 @@ std::ostream& operator<<(std::ostream& os, const ReachableFactLayer& reachable_f
  * DTGReachability
 *******************************/
 
-DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, const MyPOP::SAS_Plus::DomainTransitionGraph& dtg_graph, const MyPOP::TermManager& term_manager, PredicateManager& predicate_manager)
-	: term_manager_(&term_manager), predicate_manager_(&predicate_manager), current_fact_layer_(NULL)
+DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, const MyPOP::TermManager& term_manager)
+	: term_manager_(&term_manager), current_fact_layer_(NULL)
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 	std::cout << "DTG Reachability on graph: " << dtg_graph << "." << std::endl;
 #endif
 
 	// Initialise the individual groups per object.
-	equivalent_object_manager_ = new EquivalentObjectGroupManager(dtg_manager, dtg_graph, term_manager, predicate_manager);
+	equivalent_object_manager_ = new EquivalentObjectGroupManager(dtg_manager, term_manager);
 	
 	std::map<const SAS_Plus::DomainTransitionGraphNode*, ReachableNode*> node_mapping;
 	std::vector<ReachableSet*> all_reachable_sets;
 	std::vector<ReachableTransition*> all_reachable_transitions;
-	for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = dtg_graph.getNodes().begin(); ci != dtg_graph.getNodes().end(); ci++)
+	
+	for (std::vector<SAS_Plus::DomainTransitionGraph*>::const_iterator ci = dtg_manager.getManagableObjects().begin(); ci != dtg_manager.getManagableObjects().end(); ci++)
 	{
-		SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
-		
+		const SAS_Plus::DomainTransitionGraph* dtg = *ci;
+		for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ci++)
+		{
+			SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
+			
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-		std::cout << *dtg_node << std::endl;
-		dtg_node->print(std::cout);
+			std::cout << *dtg_node << std::endl;
+			dtg_node->print(std::cout);
 #endif
-		ReachableNode* reachable_node = new ReachableNode(*dtg_node, *equivalent_object_manager_, predicate_manager);
-		node_mapping[dtg_node] = reachable_node;
-		
-		// DTG nodes which have no transitions, we do not care what facts can be made true for them.
-		all_reachable_sets.push_back(reachable_node);
+			ReachableNode* reachable_node = new ReachableNode(*dtg_node, *equivalent_object_manager_);
+			node_mapping[dtg_node] = reachable_node;
+			
+			// DTG nodes which have no transitions, we do not care what facts can be made true for them.
+			all_reachable_sets.push_back(reachable_node);
+		}
 	}
 	
 	for (std::map<const SAS_Plus::DomainTransitionGraphNode*, ReachableNode*>::const_iterator ci = node_mapping.begin(); ci != node_mapping.end(); ci++)
@@ -2326,7 +2369,7 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 		{
 			const SAS_Plus::Transition* transition = *ci;
 			ReachableNode* reachable_to_node = node_mapping[&transition->getToNode()];
-			ReachableTransition* reachable_transition = new ReachableTransition(**ci, *reachable_from_node, *reachable_to_node, *equivalent_object_manager_, predicate_manager);
+			ReachableTransition* reachable_transition = new ReachableTransition(**ci, *reachable_from_node, *reachable_to_node, *equivalent_object_manager_);
 			 
 			reachable_from_node->addReachableTransition(*reachable_transition);
 
@@ -2472,16 +2515,19 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 	}
 	
 	// All predicate should have number at this point. Next we record which predicate can substitute other predicates.
-	for (std::vector<Predicate*>::const_iterator ci = predicate_manager.getManagableObjects().begin(); ci != predicate_manager.getManagableObjects().end(); ci++)
+/*	for (std::vector<Predicate*>::const_iterator ci = predicate_manager.getManagableObjects().begin(); ci != predicate_manager.getManagableObjects().end(); ci++)
 	{
 		(*ci)->initCache(predicate_manager.getManagableObjects());
-	}
+	}*/
 	
-	predicate_id_to_reachable_sets_mapping_ = new std::vector<std::vector<std::pair<ReachableSet*, unsigned int> >* >(predicate_manager.getManagableObjects().size());
-	for (unsigned int i = 0; i < predicate_manager.getManagableObjects().size(); i++)
+//	predicate_id_to_reachable_sets_mapping_ = new std::vector<std::vector<std::pair<ReachableSet*, unsigned int> >* >(predicate_manager.getManagableObjects().size());
+	predicate_id_to_reachable_sets_mapping_ = new std::vector<std::vector<std::pair<ReachableSet*, unsigned int> >* >(Predicate::getPredicates().size());
+//	for (unsigned int i = 0; i < predicate_manager.getManagableObjects().size(); i++)
+	for (unsigned int i = 0; i < Predicate::getPredicates().size(); i++)
 	{
 		(*predicate_id_to_reachable_sets_mapping_)[i] = new std::vector<std::pair<ReachableSet*, unsigned int> >();
-		Predicate* corresponding_predicate = predicate_manager.getManagableObjects()[i];
+		//Predicate* corresponding_predicate = predicate_manager.getManagableObjects()[i];
+		const Predicate* corresponding_predicate = Predicate::getPredicates()[i];
 		
 		// Find all facts of the reachable sets whose predicate can substitute for this predicate.
 		for (std::vector<ReachableNode*>::const_iterator ci = reachable_nodes_.begin(); ci != reachable_nodes_.end(); ci++)
@@ -2494,8 +2540,8 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 				
 //				if (resolved_bounded_atom->getCorrectedAtom().getPredicate().canSubstitute(*corresponding_predicate) ||
 //				    corresponding_predicate->canSubstitute(resolved_bounded_atom->getCorrectedAtom().getPredicate()))
-				if (resolved_bounded_atom->getCorrectedAtom().getPredicate().getName() == corresponding_predicate->getName() &&
-				    resolved_bounded_atom->getCorrectedAtom().getArity() == corresponding_predicate->getArity())
+				if (resolved_bounded_atom->getPredicate().getName() == corresponding_predicate->getName() &&
+				    resolved_bounded_atom->getPredicate().getArity() == corresponding_predicate->getArity())
 				{
 					(*predicate_id_to_reachable_sets_mapping_)[i]->push_back(std::make_pair(reachable_node, index));
 				}
@@ -2511,8 +2557,8 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 				unsigned int index = std::distance(reachable_transition->getFactsSet().begin(), ci);
 				const ResolvedBoundedAtom* resolved_bounded_atom = *ci;
 				//if (resolved_bounded_atom->getCorrectedAtom().getPredicate().canSubstitute(*corresponding_predicate) || corresponding_predicate->canSubstitute(resolved_bounded_atom->getCorrectedAtom().getPredicate()))
-				if (resolved_bounded_atom->getCorrectedAtom().getPredicate().getName() == corresponding_predicate->getName() &&
-				    resolved_bounded_atom->getCorrectedAtom().getArity() == corresponding_predicate->getArity())
+				if (resolved_bounded_atom->getPredicate().getName() == corresponding_predicate->getName() &&
+				    resolved_bounded_atom->getPredicate().getArity() == corresponding_predicate->getArity())
 				{
 					(*predicate_id_to_reachable_sets_mapping_)[i]->push_back(std::make_pair(reachable_transition, index));
 				}
@@ -2795,7 +2841,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<ReachableFact*>& in
 		goal->print(std::cout, bindings);
 		std::cout << std::endl;
 #endif
-		ResolvedBoundedAtom resolved_goal(goal->getId(), goal->getAtom(), bindings, *equivalent_object_manager_, *predicate_manager_);
+		ResolvedBoundedAtom resolved_goal(goal->getId(), goal->getAtom(), bindings, *equivalent_object_manager_);
 		
 		// Find the earliest layer where this goal is present.
 		const ReachableFactLayer* tmp_fact_layer = current_fact_layer_;
@@ -2892,7 +2938,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<ReachableFact*>& in
 			std::cout << std::endl;
 #endif
 			// Check if all the objects match or if we need to find the costs of substitutions!
-			for (unsigned int i = 0; i < current_goal->getActualReachableFact().getAtom().getArity(); i++)
+			for (unsigned int i = 0; i < current_goal->getActualReachableFact().getPredicate().getArity(); i++)
 			{
 				// Check if there is an overlap.
 				bool variable_domains_overlap = false;
@@ -3047,7 +3093,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<ReachableFact*>& in
 					for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = executed_action->getAction().getTransition().getAllEffects().begin(); ci != executed_action->getAction().getTransition().getAllEffects().end(); ci++)
 					{
 						const Atom* effect = (*ci).first;
-						if (effect->isNegative() != current_goal->getReachableFactCopy().getAtom().isNegative())
+						if (effect->isNegative() != current_goal->getReachableFactCopy().isNegative())
 						{
 							continue;
 						}
@@ -3213,10 +3259,10 @@ unsigned int DTGReachability::getHeuristic(const std::vector<ReachableFact*>& in
 				for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = cheapest_achiever->getPreconditions().begin(); ci != cheapest_achiever->getPreconditions().end(); ci++)
 				{
 					const ResolvedBoundedAtom* precondition = *ci;
-					if (!precondition->getOriginalAtom().getPredicate().isStatic()) continue;
+					if (!precondition->getPredicate().isStatic()) continue;
 					
-					std::vector<const Object*>* static_precondition_variable_domain[precondition->getOriginalAtom().getArity()];
-					for (unsigned int i = 0; i < precondition->getOriginalAtom().getArity(); i++)
+					std::vector<const Object*>* static_precondition_variable_domain[precondition->getPredicate().getArity()];
+					for (unsigned int i = 0; i < precondition->getPredicate().getArity(); i++)
 					{
 						static_precondition_variable_domain[i] = new std::vector<const Object*>();
 					}
@@ -3227,16 +3273,16 @@ unsigned int DTGReachability::getHeuristic(const std::vector<ReachableFact*>& in
 					for (std::vector<ReachableFactLayerItem*>::const_iterator ci = initial_fact_layer->getReachableFacts().begin(); ci != initial_fact_layer->getReachableFacts().end(); ci++)
 					{
 						ReachableFactLayerItem* item = *ci;
-						if (!item->getActualReachableFact().getAtom().getPredicate().isStatic()) continue;
+						if (!item->getActualReachableFact().getPredicate().isStatic()) continue;
 						
-						if (item->getActualReachableFact().canUnifyWith(precondition->getOriginalAtom(), cheapest_achiever->getTransition().getStepId(), bindings, 0))
+						if (item->getActualReachableFact().canUnifyWith(*precondition, 0))
 						{
 							bool terms_match = true;
-							for (unsigned int i = 0; i < precondition->getOriginalAtom().getArity(); i++)
+							for (unsigned int i = 0; i < precondition->getPredicate().getArity(); i++)
 							{
 								for (unsigned int j = 0; j < cheapest_achiever->getTransition().getAction().getVariables().size(); j++)
 								{
-									if (precondition->getOriginalAtom().getTerms()[i] == cheapest_achiever->getTransition().getAction().getVariables()[j])
+									if (precondition->getTerms()[i] == cheapest_achiever->getTransition().getAction().getVariables()[j])
 									{
 										bool terms_overlap = false;
 										for (std::vector<const Object*>::const_iterator ci = action_variable_domains[j]->begin(); ci != action_variable_domains[j]->end(); ci++)
@@ -3262,7 +3308,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<ReachableFact*>& in
 							if (terms_match)
 							{
 //								std::cout << "Applicable precondition: " << *item << std::endl;
-								for (unsigned int i = 0; i < precondition->getOriginalAtom().getArity(); i++)
+								for (unsigned int i = 0; i < precondition->getPredicate().getArity(); i++)
 								{
 									for (std::vector<EquivalentObject*>::const_iterator ci = item->getActualReachableFact().getTermDomain(i).getEquivalentObjects().begin(); ci != item->getActualReachableFact().getTermDomain(i).getEquivalentObjects().end(); ci++)
 									{
@@ -3283,11 +3329,11 @@ unsigned int DTGReachability::getHeuristic(const std::vector<ReachableFact*>& in
 					}
 					
 					// Reduce the variable domains to the objects which conform to the static preconditions.
-					for (unsigned int i = 0; i < precondition->getOriginalAtom().getArity(); i++)
+					for (unsigned int i = 0; i < precondition->getPredicate().getArity(); i++)
 					{
 						for (unsigned int j = 0; j < cheapest_achiever->getTransition().getAction().getVariables().size(); j++)
 						{
-							if (precondition->getOriginalAtom().getTerms()[i] == cheapest_achiever->getTransition().getAction().getVariables()[j] && !static_precondition_variable_domain[i]->empty())
+							if (precondition->getTerms()[i] == cheapest_achiever->getTransition().getAction().getVariables()[j] && !static_precondition_variable_domain[i]->empty())
 							{
 								std::vector<const Object*> restricted_domain;
 								takeIntersection(restricted_domain, *action_variable_domains[j], *static_precondition_variable_domain[i]);
@@ -3306,7 +3352,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<ReachableFact*>& in
 					}
 					std::cout << std::endl;
 #endif
-					for (unsigned int i = 0; i < precondition->getOriginalAtom().getArity(); i++)
+					for (unsigned int i = 0; i < precondition->getPredicate().getArity(); i++)
 					{
 						delete static_precondition_variable_domain[i];
 					}
@@ -3434,16 +3480,16 @@ unsigned int DTGReachability::getHeuristic(const std::vector<ReachableFact*>& in
 				for (unsigned int i = 0; i < cheapest_preconditions->size(); i++)
 				{
 					const ReachableFactLayerItem* fact = (*cheapest_preconditions)[i];
-					std::vector<const Object*>** precondition_object_bindings = new std::vector<const Object*>*[fact->getReachableFactCopy().getAtom().getArity()];
+					std::vector<const Object*>** precondition_object_bindings = new std::vector<const Object*>*[fact->getReachableFactCopy().getPredicate().getArity()];
 					
 					// Get matching precondition.
-					const Atom* matching_precondition = NULL;
+					const ResolvedBoundedAtom* matching_precondition = NULL;
 					for (std::vector<const ResolvedBoundedAtom*>::const_iterator ci = cheapest_achiever->getPreconditions().begin(); ci != cheapest_achiever->getPreconditions().end(); ci++)
 					{
 						const ResolvedBoundedAtom* precondition = *ci;
 						if (fact->canBeAchievedBy(*precondition, cheapest_achiever->getTransition().getStepId(), bindings, false))
 						{
-							matching_precondition = &precondition->getOriginalAtom();
+							matching_precondition = precondition;
 							break;
 						}
 					}
@@ -3474,7 +3520,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<ReachableFact*>& in
 
 					std::cout << "; Precondition: " << fact->getReachableFactCopy().getAtom().getPredicate().getName();
 #endif
-					for (unsigned int j = 0; j < matching_precondition->getArity(); j++)
+					for (unsigned int j = 0; j < matching_precondition->getPredicate().getArity(); j++)
 					{
 						for (unsigned int k = 0; k < cheapest_achiever->getTransition().getAction().getVariables().size(); k++)
 						{
@@ -3580,7 +3626,7 @@ void DTGReachability::mapInitialFactsToReachableSets(const std::vector<Reachable
 				}
 			}
 		}*/
-		std::vector<std::pair<ReachableSet*, unsigned int> >* reachable_sets = (*predicate_id_to_reachable_sets_mapping_)[initial_fact->getAtom().getPredicate().getId()];
+		std::vector<std::pair<ReachableSet*, unsigned int> >* reachable_sets = (*predicate_id_to_reachable_sets_mapping_)[initial_fact->getPredicate().getId()];
 		
 		assert (reachable_sets != NULL);
 		

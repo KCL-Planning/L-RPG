@@ -8,7 +8,6 @@ namespace MyPOP
 {
 class Action;
 class ActionManager;
-class PredicateManager;
 class TypeManager;
 
 namespace SAS_Plus
@@ -123,7 +122,7 @@ public:
 class ForwardChainingPlanner
 {
 public:
-	ForwardChainingPlanner(const ActionManager& action_manager, const PredicateManager& predicate_manager, const TypeManager& type_manager);
+	ForwardChainingPlanner(const ActionManager& action_manager, const TypeManager& type_manager);
 	
 	virtual ~ForwardChainingPlanner();
 	
@@ -139,7 +138,6 @@ private:
 	bool satisfyGoal(const State& current_state, const std::vector<const GroundedAtom*>& goal_facts) const;
 	
 	const ActionManager* action_manager_;
-	const PredicateManager* predicate_manager_;
 	const TypeManager* type_manager_;
 };
 

@@ -13,7 +13,6 @@ namespace MyPOP {
 class Object;
 class Predicate;
 class TermManager;
-class PredicateManager;
 
 namespace UTILITY {
 class MemoryPool;
@@ -92,7 +91,7 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_ob
 class EquivalentObjectGroup
 {
 public:
-	EquivalentObjectGroup(const std::vector<EquivalentObjectGroup*>& all_eogs, const SAS_Plus::DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded);
+	EquivalentObjectGroup(const std::vector<EquivalentObjectGroup*>& all_eogs, const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const Object* object, bool is_grounded);
 
 	~EquivalentObjectGroup();
 	
@@ -189,7 +188,7 @@ private:
 	 * Every equivalent object group has a finger print which correlates to the terms of the facts in the DTG nodes
 	 * the object can be a part of. At the moment we do not consider sub / super sets yet.
 	 */
-	void initialiseFingerPrint(const SAS_Plus::DomainTransitionGraph& dtg_graph, const Object& object);
+	void initialiseFingerPrint(const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const Object& object);
 	
 	/**
 	 * Merge the given group with this group.
@@ -228,7 +227,7 @@ public:
 	/**
 	 * Initialise the individual groups.
 	 */
-	EquivalentObjectGroupManager(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, const MyPOP::SAS_Plus::DomainTransitionGraph& dtg_graph, const MyPOP::TermManager& term_manager, const MyPOP::PredicateManager& predicate_manager);
+	EquivalentObjectGroupManager(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, const MyPOP::TermManager& term_manager);
 	
 	~EquivalentObjectGroupManager();
 	

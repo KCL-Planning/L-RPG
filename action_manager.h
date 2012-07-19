@@ -11,7 +11,6 @@ namespace MyPOP {
 
 class TypeManager;
 class TermManager;
-class PredicateManager;
 class Variable;
 class Formula;
 class Atom;
@@ -84,7 +83,7 @@ class ActionManager : public Manager<Action> {
 
 public:
 	// Constructor.
-	ActionManager(const TypeManager& type_manager, TermManager& term_manager, const PredicateManager& predicate_manager);
+	ActionManager(const TypeManager& type_manager, TermManager& term_manager);
 	virtual ~ActionManager();
 
 	// After parsing the domain and problem files we pass all the types to the TypeManager
@@ -105,7 +104,6 @@ public:
 private:
 	const TypeManager* type_manager_;
 	TermManager* term_manager_;
-	const PredicateManager* predicate_manager_;
 	
 
 	// For preprocess purposes we map the instances of VAL::operator to the Action objects

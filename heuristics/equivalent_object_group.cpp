@@ -176,13 +176,13 @@ MyPOP::UTILITY::MemoryPool** EquivalentObjectGroup::g_eog_arrays_memory_pool_;
 unsigned int EquivalentObjectGroup::max_arity_;
 bool EquivalentObjectGroup::memory_pool_initialised_;
 unsigned int EquivalentObjectGroup::max_finger_print_id_ = 0;
-EquivalentObjectGroup::EquivalentObjectGroup(const std::vector<EquivalentObjectGroup*>& all_eogs, const SAS_Plus::DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded)
+EquivalentObjectGroup::EquivalentObjectGroup(const std::vector<EquivalentObjectGroup*>& all_eogs, const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const Object* object, bool is_grounded)
 	: is_grounded_(is_grounded), is_not_part_of_property_state_(false), link_(NULL), finger_print_(NULL), merged_at_iteration_(std::numeric_limits<unsigned int>::max())
 {
 	finger_print_id_ = std::numeric_limits<unsigned int>::max();
 	if (object != NULL)
 	{
-		initialiseFingerPrint(dtg_graph, *object);
+		initialiseFingerPrint(dtg_manager, *object);
 		
 		// Check if another EOG exists with the same finger print.
 		for (std::vector<EquivalentObjectGroup*>::const_iterator ci = all_eogs.begin(); ci != all_eogs.end(); ci++)
@@ -344,16 +344,20 @@ bool EquivalentObjectGroup::hasSameFingerPrint(const EquivalentObjectGroup& othe
 //	return true;
 }
 	
-void EquivalentObjectGroup::initialiseFingerPrint(const SAS_Plus::DomainTransitionGraph& dtg_graph, const Object& object)
+void EquivalentObjectGroup::initialiseFingerPrint(const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const Object& object)
 {
 	// Check the DTG graph and check which DTG nodes an object can be part of based on its type.
 	unsigned int number_of_facts = 0;
-	for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = dtg_graph.getNodes().begin(); ci != dtg_graph.getNodes().end(); ci++)
+	for (std::vector<SAS_Plus::DomainTransitionGraph*>::const_iterator ci = dtg_manager.getManagableObjects().begin(); ci != dtg_manager.getManagableObjects().end(); ci++)
 	{
-		const SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
-		for (std::vector<SAS_Plus::BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
+		const SAS_Plus::DomainTransitionGraph* dtg = *ci;
+		for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ci++)
 		{
-			number_of_facts += (*ci)->getAtom().getArity();
+			const SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
+			for (std::vector<SAS_Plus::BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
+			{
+				number_of_facts += (*ci)->getAtom().getArity();
+			}
 		}
 	}
 	
@@ -362,29 +366,33 @@ void EquivalentObjectGroup::initialiseFingerPrint(const SAS_Plus::DomainTransiti
 	memset(&finger_print_[0], false, sizeof(bool) * number_of_facts);
 	
 	number_of_facts = 0;
-	for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = dtg_graph.getNodes().begin(); ci != dtg_graph.getNodes().end(); ci++)
+	for (std::vector<SAS_Plus::DomainTransitionGraph*>::const_iterator ci = dtg_manager.getManagableObjects().begin(); ci != dtg_manager.getManagableObjects().end(); ci++)
 	{
-		const SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
-		for (std::vector<SAS_Plus::BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
+		const SAS_Plus::DomainTransitionGraph* dtg = *ci;
+		for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ci++)
 		{
-			const SAS_Plus::BoundedAtom* bounded_atom = *ci;
-			for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
+			const SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
+			for (std::vector<SAS_Plus::BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
 			{
-				const Term* term = *ci;
-				unsigned int term_index = std::distance(bounded_atom->getAtom().getTerms().begin(), ci);
-				
-				if (object.getType()->isSubtypeOf(*term->getType()) || object.getType()->isEqual(*term->getType()))
+				const SAS_Plus::BoundedAtom* bounded_atom = *ci;
+				for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
 				{
-					finger_print_[number_of_facts] = true;
-					for (std::vector<const MyPOP::SAS_Plus::Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
+					const Term* term = *ci;
+					unsigned int term_index = std::distance(bounded_atom->getAtom().getTerms().begin(), ci);
+					
+					if (object.getType()->isSubtypeOf(*term->getType()) || object.getType()->isEqual(*term->getType()))
 					{
-						if ((*ci)->getIndex() == term_index)
+						finger_print_[number_of_facts] = true;
+						for (std::vector<const MyPOP::SAS_Plus::Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
 						{
-							is_not_part_of_property_state_ = true;
+							if ((*ci)->getIndex() == term_index)
+							{
+								is_not_part_of_property_state_ = true;
+							}
 						}
 					}
+					++number_of_facts;
 				}
-				++number_of_facts;
 			}
 		}
 	}
@@ -605,13 +613,13 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group, std::vecto
 	{
 		ReachableFact* reachable_fact = *ri;
 		
-		for (unsigned int i = 0; i < reachable_fact->getAtom().getArity(); i++)
+		for (unsigned int i = 0; i < reachable_fact->getPredicate().getArity(); i++)
 		{
 			EquivalentObjectGroup& eog = reachable_fact->getTermDomain(i);
 			if (!eog.isRootNode())
 			{
 				reachable_facts_.erase(ri.base() - 1);
-				for (unsigned int i = 0; i < reachable_fact->getAtom().getArity(); i++)
+				for (unsigned int i = 0; i < reachable_fact->getPredicate().getArity(); i++)
 				{
 					EquivalentObjectGroup& eog = reachable_fact->getTermDomain(i);
 					
@@ -671,7 +679,7 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group, std::vecto
 #endif
 				reachable_fact->replaceBy(*identical_fact);
 				
-				for (unsigned int i = 0; i < reachable_fact->getAtom().getArity(); i++)
+				for (unsigned int i = 0; i < reachable_fact->getPredicate().getArity(); i++)
 				{
 					EquivalentObjectGroup& eog = reachable_fact->getTermDomain(i);
 					
@@ -841,10 +849,11 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group)
 /**
  * Equivalent Object Group Manager.
  */
-EquivalentObjectGroupManager::EquivalentObjectGroupManager(const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const SAS_Plus::DomainTransitionGraph& dtg_graph, const TermManager& term_manager, const PredicateManager& predicate_manager)
+EquivalentObjectGroupManager::EquivalentObjectGroupManager(const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const TermManager& term_manager)
 {
 	unsigned int max_arity = 0;
-	for (std::vector<Predicate*>::const_iterator ci = predicate_manager.getManagableObjects().begin(); ci != predicate_manager.getManagableObjects().end(); ci++)
+//	for (std::vector<Predicate*>::const_iterator ci = predicate_manager.getManagableObjects().begin(); ci != predicate_manager.getManagableObjects().end(); ci++)
+	for (std::vector<const Predicate*>::const_iterator ci = Predicate::getPredicates().begin(); ci != Predicate::getPredicates().end(); ci++)
 	{
 		const Predicate* predicate = *ci;
 		if (predicate->getArity() > max_arity) max_arity = predicate->getArity();
@@ -858,7 +867,7 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const SAS_Plus::Domai
 	for (std::vector<const Object*>::const_iterator ci = term_manager.getAllObjects().begin(); ci != term_manager.getAllObjects().end(); ci++)
 	{
 		const Object* object = *ci;
-		EquivalentObjectGroup* equivalent_object_group = new EquivalentObjectGroup(equivalent_groups_, dtg_graph, object, dtg_manager.isObjectGrounded(*object));
+		EquivalentObjectGroup* equivalent_object_group = new EquivalentObjectGroup(equivalent_groups_, dtg_manager, object, dtg_manager.isObjectGrounded(*object));
 		EquivalentObject* equivalent_object = new EquivalentObject(*object, *equivalent_object_group, term_manager.getAllObjects().size());
 		equivalent_object_group->addEquivalentObject(*equivalent_object);
 		
@@ -866,7 +875,7 @@ EquivalentObjectGroupManager::EquivalentObjectGroupManager(const SAS_Plus::Domai
 		object_to_equivalent_object_mapping_[object] = equivalent_object;
 	}
 
-	zero_arity_equivalent_object_group_ = new EquivalentObjectGroup(equivalent_groups_, dtg_graph, NULL, true);
+	zero_arity_equivalent_object_group_ = new EquivalentObjectGroup(equivalent_groups_, dtg_manager, NULL, true);
 	equivalent_groups_.push_back(zero_arity_equivalent_object_group_);
 	
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
@@ -901,9 +910,9 @@ void EquivalentObjectGroupManager::initialise(const std::vector<ReachableFact*>&
 	{
 		ReachableFact* initial_reachable_fact = *ci;
 		
-		if (initial_reachable_fact->getAtom().getArity() > 0)
+		if (initial_reachable_fact->getPredicate().getArity() > 0)
 		{
-			for (unsigned int i = 0; i < initial_reachable_fact->getAtom().getArity(); i++)
+			for (unsigned int i = 0; i < initial_reachable_fact->getPredicate().getArity(); i++)
 			{
 				EquivalentObjectGroup& eog = initial_reachable_fact->getTermDomain(i);
 				for (std::vector<EquivalentObject*>::const_iterator ci = eog.getEquivalentObjects().begin(); ci != eog.getEquivalentObjects().end(); ci++)
@@ -966,7 +975,7 @@ void EquivalentObjectGroupManager::getAllReachableFacts(std::vector<const Reacha
 			ReachableFact* reachable_fact = *ci;
 			bool has_been_processed = false;
 			
-			for (unsigned int i = 0; i < reachable_fact->getAtom().getArity(); i++)
+			for (unsigned int i = 0; i < reachable_fact->getPredicate().getArity(); i++)
 			{
 				if (closed_list.count(&reachable_fact->getTermDomain(i)) != 0)
 				{

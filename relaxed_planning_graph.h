@@ -9,7 +9,6 @@
 
 namespace MyPOP {
 
-class PredicateManager;
 class BindingsPropagator;
 class ActionManager;
 class Plan;
@@ -33,7 +32,7 @@ namespace RPG {
 class ResolvedAction
 {
 public:
-	ResolvedAction(const Action& action, StepID step_id, const Bindings& bindings, const REACHABILITY::EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
+	ResolvedAction(const Action& action, StepID step_id, const Bindings& bindings, const REACHABILITY::EquivalentObjectGroupManager& eog_manager);
 	
 	~ResolvedAction();
 	
@@ -117,7 +116,7 @@ public:
 	 * Create a relaxed planning graph from the intial state to the goal state. These can be found in the
 	 * initial plan. The relaxed planning graph is only allowed to make use of the lifted actions.
 	 */
-	RelaxedPlanningGraph(const ActionManager& action_manager, const Plan& initial_plan, const REACHABILITY::EquivalentObjectGroupManager& eog_manager, PredicateManager& predicate_manager);
+	RelaxedPlanningGraph(const ActionManager& action_manager, const Plan& initial_plan, const REACHABILITY::EquivalentObjectGroupManager& eog_manager);
 
 	~RelaxedPlanningGraph();
 

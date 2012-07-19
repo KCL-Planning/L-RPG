@@ -21,7 +21,6 @@
 namespace MyPOP {
 
 class TypeManager;
-class PredicateManager;
 class ActionManager;
 class TermManager;
 class Type;
@@ -188,7 +187,7 @@ private:
 class DomainTransitionGraphManager : public Manager<DomainTransitionGraph>
 {
 public:
-	DomainTransitionGraphManager(const PredicateManager& predicate_manager, const TypeManager& type_manager, const ActionManager& action_manager, const TermManager& term_manager, const std::vector<const Atom*>& initial_facts);
+	DomainTransitionGraphManager(const TypeManager& type_manager, const ActionManager& action_manager, const TermManager& term_manager, const std::vector<const Atom*>& initial_facts);
 
 	virtual ~DomainTransitionGraphManager();
 	
@@ -199,7 +198,7 @@ public:
 	 * @param types All types as found by VAL.
 	 * @param bindings The bindings used to bind the initial facts.
 	 */
-	const DomainTransitionGraph& generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, Bindings& bindings);
+	void generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, Bindings& bindings);
 
 	/**
 	 * Get the DTGs which contains a node which actually unifies with the given atom and binding.
@@ -247,10 +246,6 @@ private:
 	bool isTermStatic(const Atom& atom, StepID step_id, InvariableIndex term_index, const Bindings& bindings) const;
 
 	unsigned int* getRelativeIndexes(const DomainTransitionGraphNode& source, const DomainTransitionGraphNode& destination, unsigned int* assignments, unsigned int index, const Bindings& bindings) const;
-
-	
-	// The predicate manager.
-	const PredicateManager* predicate_manager_;
 
 	// The type manager.
 	const TypeManager* type_manager_;

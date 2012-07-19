@@ -9,7 +9,6 @@ namespace MyPOP {
 
 class TypeManager;
 class TermManager;
-class PredicateManager;
 class Atom;
 class Formula;
 class Predicate;
@@ -23,13 +22,13 @@ class Equality;
 namespace Utility {
 
 // Translate a VAL::goal into a formula used by our planner internaly.
-const Formula* convertGoal(const TermManager& term_manager, const PredicateManager& predicate_manager, const VAL::goal* precondition, bool make_negative);
+const Formula* convertGoal(const TermManager& term_manager, const VAL::goal* precondition, bool make_negative);
 
 // Convert a VAL::proposition into an atom used by our planner internaly.
-Atom* convertToAtom(const TermManager& term_manager, const PredicateManager& predicate_manager, const VAL::proposition& prop, bool make_negative);
+Atom* convertToAtom(const TermManager& term_manager, const VAL::proposition& prop, bool make_negative);
 
 // Convert a VAL::proposition into an atom used by our planner internaly.
-Formula* convertPrecondition(const TermManager& term_manager, const PredicateManager& predicate_manager, const VAL::proposition& prop, bool make_negative);
+Formula* convertPrecondition(const TermManager& term_manager, const VAL::proposition& prop, bool make_negative);
 
 // Convert a set of effects into an array of pointers to Atoms. The return value is the size of the array.
 // All possible effects are:
@@ -40,7 +39,7 @@ Formula* convertPrecondition(const TermManager& term_manager, const PredicateMan
 // * pc_list<cond_effect*>   cond_assign_effects; [not supported]
 // * pc_list<assignment*>    assign_effects; [not supported]
 // * pc_list<timed_effect*>  timed_effects; [not supported]
-void convertEffects(const TermManager& term_manager, const PredicateManager& predicate_manager, const VAL::effect_lists& effects, std::vector<const Atom*>& action_effects);
+void convertEffects(const TermManager& term_manager, const VAL::effect_lists& effects, std::vector<const Atom*>& action_effects);
 
 // Most of the time we want to access the preconditions of an action by looking at its Atoms
 // this function will take a formula and return all the atoms which must be made true to satisfy
@@ -53,7 +52,7 @@ void convertFormula(std::vector<const Atom*>& atoms, std::vector<const Equality*
 // Take a TIM::Property and using the name of the predicate and the types of its arguments we
 // can find the Predicate object we use internally.
 //std::pair<unsigned int, const Predicate*> getPredicate(const TypeManager& type_manager, const PredicateManager& predicate_manager, const TIM::PropertyState& property_state);
-const Predicate& getPredicate(const TypeManager& type_manager, const PredicateManager& predicate_manager, const TIM::Property& property);
+const Predicate& getPredicate(const TypeManager& type_manager, const TIM::Property& property);
 };
 
 };

@@ -14,7 +14,6 @@ namespace MyPOP {
 
 class Atom;
 class TypeManager;
-class PredicateManager;
 class Predicate;
 class Object;
 class TermManager;
@@ -44,7 +43,7 @@ class PropertyState;
 class DomainTransitionGraph : public ManageableObject
 {
 public:
-	DomainTransitionGraph(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, const MyPOP::TypeManager& type_manager, const MyPOP::ActionManager& action_manager, const MyPOP::PredicateManager& predicate_manager, Bindings& bindings, const std::vector< const MyPOP::Atom* >& initial_facts);
+	DomainTransitionGraph(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, const MyPOP::TypeManager& type_manager, const MyPOP::ActionManager& action_manager, Bindings& bindings, const std::vector< const MyPOP::Atom* >& initial_facts);
 	
 	~DomainTransitionGraph();
 
@@ -174,9 +173,6 @@ private:
 	TermManager* dtg_term_manager_;
 	
 	const ActionManager* action_manager_;
-
-	// The predicate manager.
-	const PredicateManager* predicate_manager_;
 
 	// To propagate changes made to the DTGs we keep track of all bindings between them and propagate changes
 	// as necessary.

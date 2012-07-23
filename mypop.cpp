@@ -58,18 +58,12 @@ int main(int argc,char * argv[])
 	struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
 	setitimer ( ITIMER_PROF, &timer, NULL );
 
-	bool validate = false;
 	bool ground = false;
 	// Read in commandline options.
 	for (int i = 1; i < argc - 2; i++)
 	{
 		std::string command_line = std::string(argv[i]);
-		if (command_line == "-val")
-		{
-			validate = true;
-			std::cerr << "Enable validation!" << std::endl;
-		}
-		else if (command_line == "-g")
+		if (command_line == "-g")
 		{
 			ground = true;
 			std::cerr << "Ground!" << std::endl;
@@ -242,6 +236,9 @@ int main(int argc,char * argv[])
 	{
 		plan_stream << **ci << std::endl;
 	}
+	std::cerr << "=== BEGIN PLAN ====" << std::endl;
+	std::cerr << plan_stream.str() << std::endl;
+	std::cerr << "=== END PLAN ====" << std::endl;
 	if (VAL::checkPlan(domain_name, problem_name, plan_stream))
 	{
 		std::cerr << "Valid plan!" << std::endl;

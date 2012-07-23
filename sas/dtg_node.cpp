@@ -668,7 +668,7 @@ bool DomainTransitionGraphNode::addAtom(BoundedAtom& bounded_atom, InvariableInd
 	
 	if (contains(bounded_atom.getId(), bounded_atom.getAtom(), index))
 	{
-//		return false;
+		return false;
 	}
 
 	if (index != NO_INVARIABLE_INDEX)

@@ -124,6 +124,8 @@ public:
 	void print(std::ostream& os, unsigned int iteration) const;
 	
 private:
+	
+	void updatePredicate();
 
 	const Predicate* predicate_;
 	

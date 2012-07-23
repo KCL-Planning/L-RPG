@@ -161,9 +161,6 @@ void executePlan (std::stringstream& plan_to_validate, TypeChecker & tc, const D
 
 
 
-	bool showGraphs = false;
-
-
 	try
 	{
 
@@ -226,8 +223,6 @@ void executePlan (std::stringstream& plan_to_validate, TypeChecker & tc, const D
 
 			pr.getValidator().displayInvariantWarnings();
 		};
-
-		if (pr.getValidator().graphsToShow()) showGraphs = true;
 	}
 	catch (exception & e)
 	{

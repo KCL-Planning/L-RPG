@@ -95,6 +95,8 @@ ReachableFact::ReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bi
 		assert (term_domain_mapping_[i] != NULL);
 	}
 #endif
+
+	updatePredicate();
 }
 
 ReachableFact::ReachableFact(const MyPOP::Predicate& predicate, bool is_negative, MyPOP::REACHABILITY::EquivalentObjectGroup** term_domain_mapping)
@@ -106,6 +108,7 @@ ReachableFact::ReachableFact(const MyPOP::Predicate& predicate, bool is_negative
 		assert (term_domain_mapping_[i] != NULL);
 	}
 #endif
+	updatePredicate();
 }
 
 ReachableFact::ReachableFact(const ReachableFact& reachable_fact)
@@ -147,9 +150,48 @@ bool ReachableFact::updateTermsToRoot()
 		}
 	}
 	
-	// assert(updated_domain);
+	if (updated_domain)
+	{
+		updatePredicate();
+	}
 	
 	return updated_domain;
+}
+
+void ReachableFact::updatePredicate()
+{
+	std::vector<const Type*> best_types;
+	for (unsigned int i = 0; i < predicate_->getArity(); i++)
+	{
+		const Type* best_type = NULL;
+		EquivalentObjectGroup* eog = term_domain_mapping_[i];
+		
+		for (std::vector<EquivalentObject*>::const_iterator ci = eog->getEquivalentObjects().begin(); ci != eog->getEquivalentObjects().end(); ci++)
+		{
+			const Object& object = (*ci)->getObject();
+			const Type* type = object.getType();
+			
+			if (type == NULL) continue;
+			
+			if (best_type == NULL)
+			{
+				best_type = type;
+				continue;
+			}
+			
+			while (!type->isEqual(*best_type) && !type->isSubtypeOf(*best_type))
+			{
+				best_type = best_type->getSupertype();
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
+				assert (best_type != NULL);
+#endif
+			}
+		}
+		
+		best_types.push_back(best_type);
+	}
+	
+	predicate_ = &Predicate::getPredicate(predicate_->getName(), best_types);
 }
 
 bool ReachableFact::isEquivalentTo(const ReachableFact& other, const EquivalentObjectGroup& variant_eog) const
@@ -159,6 +201,11 @@ bool ReachableFact::isEquivalentTo(const ReachableFact& other, const EquivalentO
 	if (predicate_->getArity() != other.predicate_->getArity())
 	{
 //		std::cout << "Arities don't match up!" << std::endl;
+		return false;
+	}
+	
+	if (predicate_->getName() != other.predicate_->getName())
+	{
 		return false;
 	}
 	
@@ -2237,8 +2284,8 @@ void ReachableFactLayer::extractPreconditions(std::vector<const ReachableFactLay
 		const ReachableFactLayerItem* precondition = findPrecondition((*ci).getReachableFact());
 		if (precondition == NULL)
 		{
-			std::cout << "Could not find: " << *ci << std::endl;
-			std::cout << *this << std::endl;
+			std::cerr << "Could not find: " << *ci << std::endl;
+			std::cerr << *this << std::endl;
 			assert (false);
 			exit(1);
 		}
@@ -2538,10 +2585,9 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 				unsigned int index = std::distance(reachable_node->getFactsSet().begin(), ci);
 				const ResolvedBoundedAtom* resolved_bounded_atom = *ci;
 				
-//				if (resolved_bounded_atom->getCorrectedAtom().getPredicate().canSubstitute(*corresponding_predicate) ||
-//				    corresponding_predicate->canSubstitute(resolved_bounded_atom->getCorrectedAtom().getPredicate()))
 				if (resolved_bounded_atom->getPredicate().getName() == corresponding_predicate->getName() &&
 				    resolved_bounded_atom->getPredicate().getArity() == corresponding_predicate->getArity())
+//				if (resolved_bounded_atom->getPredicate().canSubstitute(*corresponding_predicate))
 				{
 					(*predicate_id_to_reachable_sets_mapping_)[i]->push_back(std::make_pair(reachable_node, index));
 				}
@@ -2556,9 +2602,9 @@ DTGReachability::DTGReachability(const MyPOP::SAS_Plus::DomainTransitionGraphMan
 			{
 				unsigned int index = std::distance(reachable_transition->getFactsSet().begin(), ci);
 				const ResolvedBoundedAtom* resolved_bounded_atom = *ci;
-				//if (resolved_bounded_atom->getCorrectedAtom().getPredicate().canSubstitute(*corresponding_predicate) || corresponding_predicate->canSubstitute(resolved_bounded_atom->getCorrectedAtom().getPredicate()))
 				if (resolved_bounded_atom->getPredicate().getName() == corresponding_predicate->getName() &&
 				    resolved_bounded_atom->getPredicate().getArity() == corresponding_predicate->getArity())
+//				if (resolved_bounded_atom->getPredicate().canSubstitute(*corresponding_predicate))
 				{
 					(*predicate_id_to_reachable_sets_mapping_)[i]->push_back(std::make_pair(reachable_transition, index));
 				}
@@ -2896,9 +2942,6 @@ unsigned int DTGReachability::getHeuristic(const std::vector<ReachableFact*>& in
 	std::set<std::pair<const ReachableFact*, unsigned int> > closed_list;
 	while (!open_list.empty())
 	{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
-		std::cout << std::endl;
-#endif
 		//const ReachableFactLayerItem* current_goal = *open_list.erase(open_list.end() - 1);
 		const ReachableFactLayerItem* current_goal = open_list.top().first;
 		std::vector<const Object*>** object_bindings = open_list.top().second;
@@ -2931,7 +2974,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<ReachableFact*>& in
 		{
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 			std::cout << "The goal " << *current_goal << " is part of the initial state!" << std::endl;
-			for (unsigned int i = 0; i < current_goal->getActualReachableFact().getAtom().getArity(); i++)
+			for (unsigned int i = 0; i < current_goal->getActualReachableFact().getPredicate().getArity(); i++)
 			{
 				printVariableDomain(std::cout, *object_bindings[i]);
 			}
@@ -3016,7 +3059,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<ReachableFact*>& in
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 		std::cout << "Work on the goal: " << *current_goal << "(" << current_goal->getReachableFactLayer().getLayerNumber() << ")" << std::endl;
 		std::cout << "Bindings of the variables: ";
-		for (unsigned int i = 0; i < current_goal->getActualReachableFact().getAtom().getArity(); i++)
+		for (unsigned int i = 0; i < current_goal->getActualReachableFact().getPredicate().getArity(); i++)
 		{
 			printVariableDomain(std::cout, *object_bindings[i]);
 			
@@ -3345,8 +3388,8 @@ unsigned int DTGReachability::getHeuristic(const std::vector<ReachableFact*>& in
 						}
 					}
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
-					std::cout << "Static precondition: " << precondition->getOriginalAtom().getPredicate().getName() << " ";
-					for (unsigned int i = 0; i < precondition->getOriginalAtom().getArity(); i++)
+					std::cout << "Static precondition: " << precondition->getPredicate().getName() << " ";
+					for (unsigned int i = 0; i < precondition->getPredicate().getArity(); i++)
 					{
 						printVariableDomain(std::cout, *static_precondition_variable_domain[i]);
 					}
@@ -3513,12 +3556,9 @@ unsigned int DTGReachability::getHeuristic(const std::vector<ReachableFact*>& in
 					}
 					
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
-					std::cout << " -= Matching precondition =- ";
-					matching_precondition->print(std::cout);
-					std::cout << " -> ";
+					std::cout << " -= Matching precondition =- " << *matching_precondition << " -> ";
 					fact->getReachableFactCopy().print(std::cout, fact->getReachableFactLayer().getLayerNumber());
-
-					std::cout << "; Precondition: " << fact->getReachableFactCopy().getAtom().getPredicate().getName();
+					std::cout << "; Precondition: " << fact->getReachableFactCopy().getPredicate().getName();
 #endif
 					for (unsigned int j = 0; j < matching_precondition->getPredicate().getArity(); j++)
 					{
@@ -3589,15 +3629,15 @@ unsigned int DTGReachability::getHeuristic(const std::vector<ReachableFact*>& in
 
 void DTGReachability::mapInitialFactsToReachableSets(const std::vector<ReachableFact*>& initial_facts)
 {
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 	std::cout << "MAP INITIAL FACTS!" << std::endl;
 #endif
 	
 	for (std::vector<ReachableFact*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
 	{
 		ReachableFact* initial_fact = *ci;
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
-		std::cout << "Process the initial fact: " << *initial_fact << " - marked? " << initial_fact->isMarkedForRemoval() << ". ID: " << initial_fact->getAtom().getPredicate().getId() << std::endl;
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+		std::cout << "Process the initial fact: " << *initial_fact << " - marked? " << initial_fact->isMarkedForRemoval() << ". ID: " << initial_fact->getPredicate().getId() << std::endl;
 #endif
 		if (initial_fact->isMarkedForRemoval()) continue;
 		
@@ -3635,7 +3675,7 @@ void DTGReachability::mapInitialFactsToReachableSets(const std::vector<Reachable
 			ReachableSet* reachable_set = (*ci).first;
 			unsigned int fact_index = (*ci).second;
 			
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 			std::cout << "Add it to: ";
 			reachable_set->print(std::cout);
 			std::cout << " - index: " <<fact_index << std::endl;

@@ -3123,7 +3123,7 @@ pair<const plan_step *,pair<bool,bool> > PlanRepair::repairPlanOneAction(const p
 {
 
  const plan_step * nextFlawedAction = 0;
- bool planRepaired = false, goalSatisfied = false;
+ bool planRepaired = false;
  bool actionFixed = false;
  string actionName = getName(firstAction);
  double actionTime = firstAction->start_time;
@@ -3174,7 +3174,8 @@ pair<const plan_step *,pair<bool,bool> > PlanRepair::repairPlanOneAction(const p
 
 
             if(planRepairValidator->getErrorLog().getConditions().size() == 0)
-            {  if(planRepairValidator->checkGoal(theGoal)) goalSatisfied = true;
+            {  
+		planRepairValidator->checkGoal(theGoal);
                     //cout << "Satisfied "<< actionName << " at time "<<actionTime<<"\n";
                actionFixed = true; planRepaired = true; break;
             };

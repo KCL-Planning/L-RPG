@@ -1481,14 +1481,12 @@ Intervals NumericalSolution::getIntervals(const Comparison * comp, const State* 
 	{
 
       startPt = make_pair(0,true);
-      CoScalar lastPoint = j->second;
       double lastTime = j->first;
       j++;
 
       while( j != points.end())
       {
           if( j->second != offSet) break;
-          lastPoint = j->second;
           lastTime = j->first;
           j++;
       };

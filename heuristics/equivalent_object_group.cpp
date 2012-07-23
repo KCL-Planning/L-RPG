@@ -325,23 +325,23 @@ bool EquivalentObjectGroup::isIdenticalTo(EquivalentObjectGroup& other)
 
 bool EquivalentObjectGroup::hasSameFingerPrint(const EquivalentObjectGroup& other) const
 {
-//	if (finger_print_id_ == other.finger_print_id_ &&
-//	    memcmp(finger_print_, other.finger_print_, finger_print_size_ * sizeof(bool)) != 0)
-//	{
-//		std::cerr << "WRONG!" << std::endl;
-//	} else if (finger_print_id_ != other.finger_print_id_ &&
-//	    memcmp(finger_print_, other.finger_print_, finger_print_size_ * sizeof(bool)) == 0)
-//	{
-//		std::cerr << "WRONG AGAIN!" << std::endl;
-//	}
-	
-	return finger_print_id_ == other.finger_print_id_;
+/*	if (finger_print_id_ == other.finger_print_id_ &&
+	    memcmp(finger_print_, other.finger_print_, finger_print_size_ * sizeof(bool)) != 0)
+	{
+		std::cerr << "WRONG!" << std::endl;
+	} else if (finger_print_id_ != other.finger_print_id_ &&
+	    memcmp(finger_print_, other.finger_print_, finger_print_size_ * sizeof(bool)) == 0)
+	{
+		std::cerr << "WRONG AGAIN!" << std::endl;
+	}
+*/
+//	return finger_print_id_ == other.finger_print_id_;
 //	return memcmp(finger_print_, other.finger_print_, finger_print_size_ * sizeof(bool)) == 0;
-//	for (unsigned int i = 0; i < finger_print_size_; i++)
-//	{
-//		if (finger_print_[i] != other.finger_print_[i]) return false;
-//	}
-//	return true;
+	for (unsigned int i = 0; i < finger_print_size_; i++)
+	{
+		if (finger_print_[i] != other.finger_print_[i]) return false;
+	}
+	return true;
 }
 	
 void EquivalentObjectGroup::initialiseFingerPrint(const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const Object& object)

@@ -141,7 +141,7 @@ void State::getSuccessors(std::vector<State*>& successor_states, const ActionMan
 		
 		// Construct all grounded variants of this action which are applicable in this state.
 		const Object* assigned_variables[action->getVariables().size()];
-		memset(assigned_variables, NULL, sizeof(Object*) * action->getVariables().size());
+		memset(assigned_variables, 0, sizeof(Object*) * action->getVariables().size());
 		
 		instantiateAndExecuteAction(successor_states, *action, preconditions, equalities, 0, assigned_variables, type_manager);
 	}
@@ -582,10 +582,8 @@ void ForwardChainingPlanner::findPlan(std::vector<const GroundedAction*>& plan, 
 #ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
 			std::cout << "Heuristic value: " << heuristic_value << std::endl;
 #endif
-			
 			if (heuristic_value == std::numeric_limits<unsigned int>::max())
 			{
-				exit(1);
 				continue;
 			}
 /*

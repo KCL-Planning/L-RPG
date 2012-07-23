@@ -39,8 +39,8 @@ const Formula* Utility::convertGoal(const TermManager& term_manager, const VAL::
 		return con;
 	}
 
-	std::cout << "Unsupported goal detected, quiting!" << std::endl;
-	precondition->write(std::cout);
+	std::cerr << "Unsupported goal detected, quiting!" << std::endl;
+	precondition->write(std::cerr);
 	assert (false);
 	exit(1);
 }

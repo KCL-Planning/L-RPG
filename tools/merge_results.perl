@@ -50,7 +50,19 @@ foreach my $file (@FILES)
 		my @grounded_columns = split(' ', $grounded_line);
 		my @lifted_columns = split(' ', $lifted_line);
 
-		print OUTPUT "$grounded_columns[1] $lifted_columns[1]\n";
+		my $grounded_value = "?";
+		if (scalar (@grounded_columns) == 2)
+		{
+			$grounded_value = $grounded_columns[1];
+		}
+		my $lifted_value = "?";
+		if (scalar (@lifted_columns) == 2)
+		{
+			$lifted_value = $lifted_columns[1];
+		}
+
+#		print OUTPUT "$grounded_columns[1] $lifted_columns[1]\n";
+		print OUTPUT "$grounded_value $lifted_value\n";
 	}
 
 	close OUTPUT;

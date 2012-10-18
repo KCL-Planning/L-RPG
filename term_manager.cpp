@@ -185,7 +185,8 @@ bool Term::isProperSubSetOf(StepID lhs_id, const Term& other, StepID rhs_id, con
 
 std::ostream& operator<<(std::ostream& os, const Term& term)
 {
-	os << term.getName() << "[" << term.getId() << "]"; 
+//	os << term.getName() << "[" << term.getId() << "]";
+	os << term.getName(); 
 	return os;
 }
 

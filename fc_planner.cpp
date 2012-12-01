@@ -12,10 +12,12 @@
 
 //#define MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
 #include "type_manager.h"
+#include "heuristics/fact_set.h"
 
 namespace MyPOP {
 
 std::vector<const GroundedAction*> GroundedAction::instantiated_grounded_actions_;
+std::vector<const GroundedAtom*> GroundedAtom::instantiated_grounded_atoms_;
 
 const GroundedAction& GroundedAction::getGroundedAction(const Action& action, const Object** variables)
 {
@@ -36,15 +38,53 @@ const GroundedAction& GroundedAction::getGroundedAction(const Action& action, co
 		if (variables_match) return *instantiated_action;
 	}
 	
-	GroundedAction* new_grounded_action = new GroundedAction(action, variables);
+	const Object** copied_variables = new const Object*[action.getVariables().size()];
+	for (unsigned int i = 0; i < action.getVariables().size(); ++i)
+	{
+		copied_variables[i] = variables[i];
+	}
+	
+	GroundedAction* new_grounded_action = new GroundedAction(action, copied_variables);
 	instantiated_grounded_actions_.push_back(new_grounded_action);
 	return *new_grounded_action;
+}
+
+void GroundedAction::removeInstantiatedGroundedActions(std::vector<const GroundedAction*>::const_iterator begin, std::vector<const GroundedAction*>::const_iterator end)
+{
+	for (std::vector<const GroundedAction*>::reverse_iterator ri = instantiated_grounded_actions_.rbegin(); ri != instantiated_grounded_actions_.rend(); ++ri)
+	{
+		const GroundedAction* grounded_action = *ri;
+		if (std::find(begin, end, grounded_action) == end)
+		{
+			delete *ri;
+			instantiated_grounded_actions_.erase(ri.base() - 1);
+		}
+	}
+}
+
+void GroundedAction::removeInstantiatedGroundedActions()
+{
+	for (std::vector<const GroundedAction*>::const_iterator ci = instantiated_grounded_actions_.begin(); ci != instantiated_grounded_actions_.end(); ++ci)
+	{
+		delete *ci;
+	}
+	instantiated_grounded_actions_.clear();
+}
+
+unsigned int GroundedAction::numberOfGroundedActions()
+{
+	return instantiated_grounded_actions_.size();
 }
 	
 GroundedAction::GroundedAction(const Action& action, const Object** variables)
 	: action_(&action), variables_(variables)
 {
 	
+}
+
+GroundedAction::~GroundedAction()
+{
+	delete[] variables_;
 }
 
 std::ostream& operator<<(std::ostream& os, const GroundedAction& grounded_action)
@@ -57,7 +97,78 @@ std::ostream& operator<<(std::ostream& os, const GroundedAction& grounded_action
 	os << ")";
 	return os;
 }
+
+void GroundedAtom::removeInstantiatedGroundedAtom()
+{
+	for (std::vector<const GroundedAtom*>::const_iterator ci = instantiated_grounded_atoms_.begin(); ci != instantiated_grounded_atoms_.end(); ++ci)
+	{
+		const GroundedAtom* grounded_atom = *ci;
+		delete grounded_atom;
+	}
+	instantiated_grounded_atoms_.clear();
+}
+
+void GroundedAtom::removeInstantiatedGroundedAtom(const std::vector<const GroundedAtom*>& exceptions)
+{
+	for (std::vector<const GroundedAtom*>::reverse_iterator ri = instantiated_grounded_atoms_.rbegin(); ri != instantiated_grounded_atoms_.rend(); ++ri)
+	{
+		const GroundedAtom* grounded_atom = *ri;
+		if (std::find(exceptions.begin(), exceptions.end(), grounded_atom) == exceptions.end())
+		{
+			delete grounded_atom;
+			instantiated_grounded_atoms_.erase(ri.base() - 1);
+		}
+	}
+}
+
+const GroundedAtom& GroundedAtom::getGroundedAtom(const Atom& atom, const Object** variables)
+{
+	for (std::vector<const GroundedAtom*>::const_iterator ci = instantiated_grounded_atoms_.begin(); ci != instantiated_grounded_atoms_.end(); ++ci)
+	{
+		const GroundedAtom* grounded_atom = *ci;
+		
+		if (grounded_atom->getAtom().getArity() != atom.getArity() ||
+		    grounded_atom->getAtom().getPredicate().getName() != atom.getPredicate().getName())
+		{
+			continue;
+		}
+		
+		bool variable_domain_match = true;
+		for (unsigned int i = 0; i < grounded_atom->getAtom().getArity(); ++i)
+		{
+			if (&grounded_atom->getObject(i) != variables[i])
+			{
+				variable_domain_match = false;
+				break;
+			}
+		}
+		if (variable_domain_match)
+		{
+			delete[] variables;
+			return *grounded_atom;
+		}
+	}
 	
+	GroundedAtom* new_grounded_atom = new GroundedAtom(atom, variables);
+	instantiated_grounded_atoms_.push_back(new_grounded_atom);
+	return *new_grounded_atom;
+}
+
+const GroundedAtom& GroundedAtom::getGroundedAtom(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings)
+{
+	const Object** variables = new const Object*[bounded_atom.getAtom().getArity()];
+	for (unsigned int i = 0; i < bounded_atom.getAtom().getArity(); ++i)
+	{
+		variables[i] = bounded_atom.getVariableDomain(i, bindings)[0];
+	}
+	return getGroundedAtom(bounded_atom.getAtom(), variables);
+}
+
+unsigned int GroundedAtom::numberOfGroundedAtoms()
+{
+	return instantiated_grounded_atoms_.size();
+}
+
 GroundedAtom::GroundedAtom(const Atom& atom, const Object** variables)
 	: atom_(&atom), variables_(variables)
 {
@@ -80,7 +191,7 @@ GroundedAtom::GroundedAtom(const SAS_Plus::BoundedAtom& bounded_atom, const Bind
 
 GroundedAtom::~GroundedAtom()
 {
-//	delete[] variables_;
+	delete[] variables_;
 }
 
 bool GroundedAtom::operator==(const GroundedAtom& rhs) const
@@ -111,26 +222,34 @@ std::ostream& operator<<(std::ostream& os, const GroundedAtom& grounded_atom)
 	return os;
 }
 
-State::State(const std::vector<const GroundedAtom*>& facts)
-	: facts_(facts), distance_to_goal_(0), distance_from_start_(0)
+State::State(const std::vector<const GroundedAtom*>& facts, bool created_by_helpful_action)
+	: facts_(facts), distance_to_goal_(0), distance_from_start_(0), created_by_helpful_action_(created_by_helpful_action)
 {
-	
+	assert (facts_.size() == facts.size());
+	std::sort(facts_.begin(), facts_.end());
 }
 
-State::State(const State& rhs, const GroundedAction& grounded_action)
-	: facts_(rhs.facts_), distance_to_goal_(rhs.distance_to_goal_), distance_from_start_(rhs.distance_from_start_ + 1)
+State::State(const State& rhs, const GroundedAction& grounded_action, bool created_by_helpful_action)
+	: facts_(rhs.facts_), distance_to_goal_(rhs.distance_to_goal_), distance_from_start_(rhs.distance_from_start_ + 1), created_by_helpful_action_(created_by_helpful_action)
 {
 	achievers_.insert(achievers_.end(), rhs.achievers_.begin(), rhs.achievers_.end());
 	achievers_.push_back(&grounded_action);
+//	std::sort(facts_.begin(), facts_.end());
 }
 
 State::~State()
 {
-	
+	for (std::vector<const REACHABILITY::AchievingTransition*>::const_iterator ci = helpful_actions_.begin(); ci != helpful_actions_.end(); ++ci)
+	{
+		delete *ci;
+	}
 }
 
 void State::getSuccessors(std::vector<State*>& successor_states, const ActionManager& action_manager, const TypeManager& type_manager) const
 {
+#ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
+	std::cout << "Find successors of" << std::endl << *this << std::endl;
+#endif
 	for (std::vector<Action*>::const_iterator ci = action_manager.getManagableObjects().begin(); ci != action_manager.getManagableObjects().end(); ci++)
 	{
 		const Action* action = *ci;
@@ -146,7 +265,7 @@ void State::getSuccessors(std::vector<State*>& successor_states, const ActionMan
 		instantiateAndExecuteAction(successor_states, *action, preconditions, equalities, 0, assigned_variables, type_manager);
 	}
 #ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
-//	std::cout << "Found: " << successor_states.size() << " successors states for: " << std::endl << *this << std::endl;
+	std::cout << "Found: " << successor_states.size() << " successors states for: " << std::endl << *this << std::endl;
 #endif
 }
 
@@ -170,33 +289,68 @@ bool State::isSuperSetOf(const std::vector<const GroundedAtom*>& facts) const
 	return true;
 }
 
-void State::addFact(const GroundedAtom& fact)
+//void State::setHelpfulActions(const std::vector<std::pair<const Action*, std::vector<const Object*>**> >& helpful_actions)
+void State::setHelpfulActions(const std::vector<const REACHABILITY::AchievingTransition*>& helpful_actions)
+{
+	deleteHelpfulActions();
+	helpful_actions_ = helpful_actions;
+}
+
+bool State::addFact(const MyPOP::GroundedAtom& fact, bool remove_fact)
 {
 	// Don't add a fact twice!
 	for (std::vector<const GroundedAtom*>::iterator i = facts_.begin(); i != facts_.end(); i++)
 	{
-		if (**i == fact)
+		if (*i == &fact)
 		{
-			return;
+			return false;
 		}
 	}
 	facts_.push_back(&fact);
+	std::sort(facts_.begin(), facts_.end());
+	return true;
 }
 
 void State::removeFact(const GroundedAtom& fact)
 {
-	for (std::vector<const GroundedAtom*>::iterator i = facts_.begin(); i != facts_.end(); i++)
+	for (unsigned int i = 0; i < facts_.size(); ++i)
 	{
-		if (**i == fact)
+		if (*facts_[i] == fact)
 		{
-			facts_.erase(i);
+			facts_.erase(facts_.begin() + i);
 			break;
 		}
 	}
+	std::sort(facts_.begin(), facts_.end());
 }
 
 void State::instantiateAndExecuteAction(std::vector<State*>& successor_states, const Action& action, const std::vector<const Atom*>& preconditions, const std::vector<const Equality*>& equalities, unsigned int uninitialised_precondition_index, const Object** assigned_variables, const TypeManager& type_manager) const
 {
+/*	if (uninitialised_precondition_index == 0)
+	{
+		std::cout << "[State::instantiateAndExecuteAction]" << std::endl << *this << std::endl;
+		std::cout << "Helpful actions: " << std::endl;
+		for (std::vector<std::pair<const Action*, std::vector<const Object*>**> >::const_iterator ci = helpful_actions_.begin(); ci != helpful_actions_.end(); ++ci)
+		{
+			const Action* action = (*ci).first;
+			std::vector<const Object*>** variable = (*ci).second;
+			
+			std::cout << "(" << action->getPredicate() << " ";
+			for (unsigned int i = 0; i < action->getVariables().size(); ++i)
+			{
+				std::vector<const Object*>* variable_domain = variable[i];
+				std::cout << "{";
+				for (std::vector<const Object*>::const_iterator ci = variable_domain->begin(); ci != variable_domain->end(); ++ci)
+				{
+					std::cout << **ci << " ";
+				}
+				std::cout << "} ";
+			}
+			std::cout << ")" << std::endl;
+		}
+	}
+*/
+
 	// Find facts in the current state which can unify with the 'uninitialised_precondition_index'th precondition and does not violate the already assigned variables.
 	const Atom* precondition = preconditions[uninitialised_precondition_index];
 	for (std::vector<const GroundedAtom*>::const_iterator ci = facts_.begin(); ci != facts_.end(); ci++)
@@ -214,18 +368,6 @@ void State::instantiateAndExecuteAction(std::vector<State*>& successor_states, c
 		{
 			assert (std::find(action.getVariables().begin(), action.getVariables().end(), precondition->getTerms()[i]) != action.getVariables().end());
 			unsigned int variable_index = std::distance(action.getVariables().begin(), std::find(action.getVariables().begin(), action.getVariables().end(), precondition->getTerms()[i]));
-/*
-			unsigned int variable_index = std::numeric_limits<unsigned int>::max();
-			for (unsigned int j = 0; j < action.getVariables().size(); j++)
-			{
-				if (precondition->getTerms()[i] == action.getVariables()[j])
-				{
-					variable_index = j;
-					break;
-				}
-			}
-			assert (variable_index != std::numeric_limits<unsigned int>::max());
-*/
 			if ((assigned_variables[variable_index] != NULL && assigned_variables[variable_index] != &grounded_atom->getObject(i)) || !grounded_atom->getObject(i).getType()->isCompatible(*action.getVariables()[variable_index]->getType()))
 			{
 				constraints_satisfied = false;
@@ -270,20 +412,83 @@ void State::instantiateAndExecuteAction(std::vector<State*>& successor_states, c
 			createAllGroundedVariables(all_grounded_action_variables, grounded_action_variables_templates, action, type_manager);
 			
 			delete[] grounded_action_variables_templates;
+			
+#ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
+			std::cout << "(" << all_grounded_action_variables.size() << ") Helpful actions: " << std::endl;
+			for (std::vector<std::pair<const Action*, std::vector<const Object*>**> >::const_iterator ci = helpful_actions_.begin(); ci != helpful_actions_.end(); ++ci)
+			{
+				const Action* action = (*ci).first;
+				std::vector<const Object*>** variable = (*ci).second;
+				
+				std::cout << "(" << action->getPredicate() << " ";
+				for (unsigned int i = 0; i < action->getVariables().size(); ++i)
+				{
+					std::vector<const Object*>* variable_domain = variable[i];
+					std::cout << "{";
+					for (std::vector<const Object*>::const_iterator ci = variable_domain->begin(); ci != variable_domain->end(); ++ci)
+					{
+						std::cout << **ci << " ";
+					}
+					std::cout << "} ";
+				}
+				std::cout << ")" << std::endl;
+			}
+#endif
+			
 	
 			for (std::vector<const Object**>::const_iterator ci = all_grounded_action_variables.begin(); ci != all_grounded_action_variables.end(); ci++)
 			{
 				const Object** grounded_action_variables = *ci;
-				//GroundedAction* grounded_action = new GroundedAction(action, grounded_action_variables);
+
+				// Check if this is a helpful action or not.
+				bool is_helpful = helpful_actions_.empty();
+				for (std::vector<const REACHABILITY::AchievingTransition*>::const_iterator ci = helpful_actions_.begin(); ci != helpful_actions_.end(); ++ci)
+				{
+					const REACHABILITY::AchievingTransition* helpful_action = *ci;
+//					std::cout << "Helpful action: " << *helpful_action << std::endl;
+					
+					if (action.getPredicate() != helpful_action->getAchiever()->getTransition().getAction().getPredicate() ||
+					    action.getVariables().size() != helpful_action->getVariableAssignments().size())
+					{
+						continue;
+					}
+					
+					bool all_variable_domains_match = true;
+					for (unsigned int i = 0; i < action.getVariables().size(); ++i)
+					{
+						//std::vector<const Object*>* helpful_variable_domain = variable_domains[i];
+						const HEURISTICS::VariableDomain& helpful_variable_domain = helpful_action->getVariableAssignments()[i]->getVariableDomain();
+						if (!helpful_variable_domain.contains(*grounded_action_variables[i]))
+						{
+							all_variable_domains_match = false;
+							break;
+						}
+					}
+					if (all_variable_domains_match)
+					{
+						is_helpful = true;
+						break;
+					}
+				}
+
+//				const GroundedAction& dummy_grounded_action = GroundedAction::getGroundedAction(action, grounded_action_variables);
+/*
+				if (!is_helpful)
+				{
+//					std::cout << "Unhelpful: " << dummy_grounded_action << std::endl;
+					continue;
+				}
+//				std::cout << "Helpful: " << dummy_grounded_action << std::endl;
+*/
 				const GroundedAction& grounded_action = GroundedAction::getGroundedAction(action, grounded_action_variables);
 				
 				// Apply the action to the new state!
-				State* new_state = new State(*this, grounded_action);
+				State* new_state = new State(*this, grounded_action, is_helpful);
 #ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
 //				std::cout << "Copy the old state: " << *new_state << std::endl;
 #endif
 
-				std::vector<GroundedAtom*> to_add;
+				std::vector<const GroundedAtom*> to_add;
 				for (std::vector<const Atom*>::const_iterator ci = action.getEffects().begin(); ci != action.getEffects().end(); ci++)
 				{
 					const Atom* effect = *ci;
@@ -293,50 +498,48 @@ void State::instantiateAndExecuteAction(std::vector<State*>& successor_states, c
 					{
 						assert (std::find(action.getVariables().begin(), action.getVariables().end(), effect->getTerms()[i]) != action.getVariables().end());
 						unsigned int variable_index = std::distance(action.getVariables().begin(), std::find(action.getVariables().begin(), action.getVariables().end(), effect->getTerms()[i]));
-/*
-						unsigned int variable_index = std::numeric_limits<unsigned int>::max();
-						for (unsigned int j = 0; j < action.getVariables().size(); j++)
-						{
-							if (effect->getTerms()[i] == action.getVariables()[j])
-							{
-								variable_index = j;
-								break;
-							}
-						}
-						
-						assert (variable_index != std::numeric_limits<unsigned int>::max());
-*/
+
 						assert (grounded_action_variables[variable_index] != NULL);
 						effect_variables[i] = grounded_action_variables[variable_index];
 					}
 					
-					GroundedAtom* grounded_effect = new GroundedAtom(*effect, effect_variables);
+//					GroundedAtom* grounded_effect = new GroundedAtom(*effect, effect_variables);
+					const GroundedAtom& grounded_effect = GroundedAtom::getGroundedAtom(*effect, effect_variables);
 					if (effect->isNegative())
 					{
 #ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
 //						std::cout << "Remove: " << *grounded_effect << std::endl;
 #endif
-						new_state->removeFact(*grounded_effect);
-						delete grounded_effect;
+						new_state->removeFact(grounded_effect);
+//						delete grounded_effect;
 					}
 					else
 					{
-						to_add.push_back(grounded_effect);
+						to_add.push_back(&grounded_effect);
 					}
 				}
 				
-				for (std::vector<GroundedAtom*>::const_iterator ci = to_add.begin(); ci != to_add.end(); ci++)
+				for (std::vector<const GroundedAtom*>::const_iterator ci = to_add.begin(); ci != to_add.end(); ci++)
 				{
 #ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
 //					std::cout << "Add: " << *grounded_effect << std::endl;
 #endif
-					new_state->addFact(**ci);
+					if (!new_state->addFact(**ci, true))
+					{
+//						delete *ci;
+					}
 				}
 							
 #ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
 //				std::cout << "Successor state: " << *new_state << std::endl;
 #endif
 				successor_states.push_back(new_state);
+			}
+			
+			for (std::vector<const Object**>::const_iterator ci = all_grounded_action_variables.begin(); ci != all_grounded_action_variables.end(); ci++)
+			{
+				const Object** grounded_action_variables = *ci;
+				delete[] grounded_action_variables;
 			}
 		}
 		// Add it as a precondition and try to find atoms to satisfy the remainder of the preconditions.
@@ -397,26 +600,38 @@ void State::createAllGroundedVariables(std::vector<const Object**>& all_grounded
 	}
 }
 
+void State::deleteHelpfulActions()
+{
+	for (std::vector<const REACHABILITY::AchievingTransition*>::const_iterator ci = helpful_actions_.begin(); ci != helpful_actions_.end(); ++ci)
+	{
+		delete *ci;
+	}
+/*
+	for (std::vector<std::pair<const Action*, std::vector<const Object*>**> >::const_iterator ci = helpful_actions_.begin(); ci != helpful_actions_.end(); ++ci)
+	{
+		const Action* action = (*ci).first;
+		std::vector<const Object*>** domains = (*ci).second;
+		
+		for (unsigned int i = 0; i < action->getVariables().size(); ++i)
+		{
+			delete domains[i];
+		}
+		delete[] domains;
+	}
+*/
+	helpful_actions_.clear();
+}
+
 bool State::operator==(const State& state) const
 {
 	if (state.facts_.size() != facts_.size()) return false;
 	
-	for (std::vector<const GroundedAtom*>::const_iterator ci = facts_.begin(); ci != facts_.end(); ci++)
+	for (unsigned int i = 0; i < state.facts_.size(); ++i)
 	{
-		const GroundedAtom* fact = *ci;
-		if (fact->getAtom().getPredicate().isStatic()) continue;
-		bool found_matching = false;
-		for (std::vector<const GroundedAtom*>::const_iterator ci = state.facts_.begin(); ci != state.facts_.end(); ci++)
+		if (state.facts_[i] != facts_[i])
 		{
-			if ((*ci)->getAtom().getPredicate().isStatic()) continue;
-			if (**ci == *fact)
-			{
-				found_matching = true;
-				break;
-			}
+			return false;
 		}
-		
-		if (!found_matching) return false;
 	}
 	return true;
 }
@@ -436,17 +651,33 @@ std::ostream& operator<<(std::ostream& os, const State& state)
 		if ((*ci)->getAtom().getPredicate().isStatic()) continue;
 		os << "* " << **ci << std::endl;
 	}
+	os << " === Helpful actions === (" << state.getHelpfulActions().size() << ")" << std::endl;
+	for (std::vector<const REACHABILITY::AchievingTransition*>::const_iterator ci = state.helpful_actions_.begin(); ci != state.helpful_actions_.end(); ++ci)
+	{
+		os << **ci << std::endl;
+	}
 	os << " ***** END STATE ***** " << std::endl;
 	return os;
 }
 
 bool CompareStates::operator()(const State* lhs, const State* rhs)
 {
-	 return lhs->getHeuristic() > rhs->getHeuristic();
+	if (!lhs->isCreatedByHelpfulAction() && rhs->isCreatedByHelpfulAction())
+	{
+		return true;
+	}
+	else if (lhs->isCreatedByHelpfulAction() && !rhs->isCreatedByHelpfulAction())
+	{
+		return false;
+	}
+	else
+	{
+		return lhs->getHeuristic() > rhs->getHeuristic();
+	}
 }
 
-ForwardChainingPlanner::ForwardChainingPlanner(const ActionManager& action_manager, const TypeManager& type_manager)
-	: action_manager_(&action_manager), type_manager_(&type_manager)
+ForwardChainingPlanner::ForwardChainingPlanner(const ActionManager& action_manager, PredicateManager& predicate_manager, const TypeManager& type_manager)
+	: action_manager_(&action_manager), predicate_manager_(&predicate_manager), type_manager_(&type_manager)
 {
 	
 }
@@ -456,26 +687,83 @@ ForwardChainingPlanner::~ForwardChainingPlanner()
 	
 }
 
-void ForwardChainingPlanner::findPlan(std::vector<const GroundedAction*>& plan, REACHABILITY::DTGReachability& analyst, const std::vector<const SAS_Plus::BoundedAtom*>& initial_fact, const std::vector<const SAS_Plus::BoundedAtom*>& goal_facts, const Bindings& bindings, bool ground)
+std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedAction*>& plan, REACHABILITY::DTGReachability& analyst, const std::vector<const Atom*>& initial_facts, const std::vector<const Atom*>& goal_facts)
 {
 	std::vector<const GroundedAtom*> grounded_initial_facts;
-	for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = initial_fact.begin(); ci != initial_fact.end(); ci++)
+	for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
 	{
-		grounded_initial_facts.push_back(new GroundedAtom(**ci, bindings));
+		const Atom* initial_fact = *ci;
+		const Object** variables = new const Object*[initial_fact->getArity()];
+
+		for (unsigned int i = 0; i < initial_fact->getArity(); ++i)
+		{
+			variables[i] = static_cast<const Object*>(initial_fact->getTerms()[i]);
+		}
+		
+		grounded_initial_facts.push_back(&GroundedAtom::getGroundedAtom(**ci, variables));
 	}
 	
 	std::vector<const GroundedAtom*> grounded_goal_facts;
-	for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = goal_facts.begin(); ci != goal_facts.end(); ci++)
+	for (std::vector<const Atom*>::const_iterator ci = goal_facts.begin(); ci != goal_facts.end(); ci++)
 	{
-		grounded_goal_facts.push_back(new GroundedAtom(**ci, bindings));
+		const Atom* goal_fact = *ci;
+		const Object** variables = new const Object*[goal_fact->getArity()];
+
+		for (unsigned int i = 0; i < goal_fact->getArity(); ++i)
+		{
+			variables[i] = static_cast<const Object*>(goal_fact->getTerms()[i]);
+		}
+		
+		grounded_goal_facts.push_back(&GroundedAtom::getGroundedAtom(**ci, variables));
 	}
 	
+/*
+	std::vector<const REACHABILITY::ResolvedBoundedAtom*> resolved_grounded_goal_facts;
+	for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = goal_facts.begin(); ci != goal_facts.end(); ci++)
+	{
+		resolved_grounded_goal_facts.push_back(new REACHABILITY::ResolvedBoundedAtom((*ci)->getId(), (*ci)->getAtom(), bindings, analyst.getEquivalentObjectGroupManager(), *predicate_manager_));
+	}
+*/
 	std::vector<const State*> processed_states;
 	
-	State* initial_state = new State(grounded_initial_facts);
-	initial_state->setDistanceToGoal(std::numeric_limits<unsigned int>::max());
+	State* initial_state = new State(grounded_initial_facts, true);
+	std::vector<REACHABILITY::ReachableFact*> initial_reachable_facts;
+	for (std::vector<const GroundedAtom*>::const_iterator ci = initial_state->getFacts().begin(); ci != initial_state->getFacts().end(); ci++)
+	{
+		const GroundedAtom* grounded_atom = *ci;
+		//REACHABILITY::EquivalentObjectGroup** variables = new REACHABILITY::EquivalentObjectGroup*[grounded_atom->getAtom().getArity()];
+		std::vector<REACHABILITY::EquivalentObjectGroup*>* variables = new std::vector<REACHABILITY::EquivalentObjectGroup*>(grounded_atom->getAtom().getArity());
+		for (unsigned int i = 0; i < grounded_atom->getAtom().getArity(); i++)
+		{
+			(*variables)[i] = &analyst.getEquivalentObjectGroupManager().getEquivalentObject(grounded_atom->getObject(i)).getEquivalentObjectGroup();
+		}
+		
+		initial_reachable_facts.push_back(&REACHABILITY::ReachableFact::createReachableFact(grounded_atom->getAtom().getPredicate(), *variables));
+	}
+
+	setHeuristicForState(*initial_state, analyst, grounded_goal_facts);
+/*
+	{
+#ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
+		std::cout << " *** CALCULATE THE HEURISTIC FOR *** " << std::endl;
+		for (std::vector<REACHABILITY::ReachableFact*>::const_iterator ci = initial_reachable_facts.begin(); ci != initial_reachable_facts.end(); ci++)
+		{
+			std::cout << **ci << std::endl;
+		}
+#endif
+		
+		std::vector<const REACHABILITY::ReachableFact*> result;
+		std::vector<const GroundedAtom*> persistent_facts;
+//		analyst.performReachabilityAnalysis(result, initial_reachable_facts, bindings, persistent_facts);
+		analyst.performReachabilityAnalysis(result, initial_reachable_facts, persistent_facts);
+		unsigned int heuristic_value = analyst.getHeuristic(grounded_goal_facts, *predicate_manager_);
 	
-	std::priority_queue<const State*, std::vector<const State*>, CompareStates> queue;
+		initial_state->setDistanceToGoal(heuristic_value);
+		initial_state->setHelpfulActions(analyst.getHelpfulActions());
+		std::cout << "Heuristic: " << heuristic_value << std::endl;
+	}
+*/
+	std::priority_queue<State*, std::vector<State*>, CompareStates> queue;
 	queue.push(initial_state);
 	
 	unsigned int states_visited = 0;
@@ -485,14 +773,8 @@ void ForwardChainingPlanner::findPlan(std::vector<const GroundedAction*>& plan, 
 	
 	while (!queue.empty())
 	{
-		const State* state = queue.top();
+		State* state = queue.top();
 		queue.pop();
-		
-		if (best_heuristic_estimate > state->getHeuristic())
-		{
-			best_heuristic_estimate = state->getHeuristic();
-			std::cerr << "\t" << best_heuristic_estimate << std::endl;
-		}
 		
 		bool already_processed = false;
 		for (std::vector<const State*>::const_iterator ci = processed_states.begin(); ci != processed_states.end(); ci++)
@@ -506,15 +788,58 @@ void ForwardChainingPlanner::findPlan(std::vector<const GroundedAction*>& plan, 
 		
 		if (already_processed)
 		{
+#ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
+			std::cout << "Already processed!?" << queue.size() << std::endl;
+			std::cout << *state << std::endl;
+#endif
 			delete state;
 			continue;
+		}
+		
+		if (best_heuristic_estimate > state->getHeuristic())
+		{
+			best_heuristic_estimate = state->getHeuristic();
+			std::cerr << "\t" << best_heuristic_estimate << " state = " << processed_states.size() << "; Grounded Actions = " << GroundedAction::numberOfGroundedActions() << "; Grounded atoms: " << GroundedAtom::numberOfGroundedAtoms() << std::endl;
+//			std::cerr << *state << std::endl;
+//			std::cout << "Best new heuristic, empty the queue!" << std::endl;
+			// Try enforced hill climbing.
+			while (!queue.empty())
+			{
+				const State* dead_state = queue.top();
+				queue.pop();
+				delete dead_state;
+			}
+			
+			for (std::vector<const State*>::const_iterator ci = processed_states.begin(); ci != processed_states.end(); ci++)
+			{
+				delete *ci;
+			}
+			processed_states.clear();
+			
+			// Delete all grounded actions which are not stored in the states.
+			GroundedAction::removeInstantiatedGroundedActions(state->getAchievers().begin(), state->getAchievers().end());
+			
+			// Delete all the grounded facts which are not contained in any state.
+/*			std::vector<const GroundedAtom*> grounded_atoms_in_use;
+			grounded_atoms_in_use.insert(grounded_atoms_in_use.end(), state->getFacts().begin(), state->getFacts().end());
+			grounded_atoms_in_use.insert(grounded_atoms_in_use.end(), grounded_initial_facts.begin(), grounded_initial_facts.end());
+			grounded_atoms_in_use.insert(grounded_atoms_in_use.end(), grounded_goal_facts.begin(), grounded_goal_facts.end());
+			
+			for (std::vector<const State*>::const_iterator ci = processed_states.begin(); ci != processed_states.end(); ci++)
+			{
+				grounded_atoms_in_use.insert(grounded_atoms_in_use.end(), (*ci)->getFacts().begin(), (*ci)->getFacts().end());
+			}
+			
+			GroundedAtom::removeInstantiatedGroundedAtom(grounded_atoms_in_use);
+*/
 		}
 		
 		++states_visited;
 		processed_states.push_back(state);
 		
-		if (states_visited % 1000 == 0) std::cerr << "M";
+		if (states_visited % 1000 == 0) std::cerr << "M" << "s=" << processed_states.size() << ";g=" << GroundedAction::numberOfGroundedActions() << "q=" << queue.size();
 		else if (states_visited % 100 == 0) std::cerr << ".";
+		else std::cerr << "@";
 		
 #ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
 		std::cout << "Work on: " << std::endl;
@@ -527,8 +852,8 @@ void ForwardChainingPlanner::findPlan(std::vector<const GroundedAction*>& plan, 
 			std::cout << "Found a goal state:" << std::endl;
 			std::cout << *state << std::endl;
 #endif
-			std::cerr << "States visited: " << states_visited << std::endl;
-			std::cerr << "Generated successors: " << successors_generated << std::endl;
+//			std::cerr << "States visited: " << states_visited << std::endl;
+//			std::cerr << "Generated successors: " << successors_generated << std::endl;
 			
 			plan.insert(plan.end(), state->getAchievers().begin(), state->getAchievers().end());
 			
@@ -544,7 +869,12 @@ void ForwardChainingPlanner::findPlan(std::vector<const GroundedAction*>& plan, 
 				delete *ci;
 			}
 			
-			return;
+//			for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator ci = resolved_grounded_goal_facts.begin(); ci != resolved_grounded_goal_facts.end(); ++ci)
+//			{
+//				delete *ci;
+//			}
+			
+			return std::make_pair(states_visited, plan.size());
 		}
 		
 		std::vector<State*> successor_states;
@@ -555,54 +885,153 @@ void ForwardChainingPlanner::findPlan(std::vector<const GroundedAction*>& plan, 
 			State* successor_state = *ci;
 			++successors_generated;
 			
-			analyst.getEquivalentObjectGroupManager().reset();
+			setHeuristicForState(*successor_state, analyst, grounded_goal_facts);
 			
-			std::vector<REACHABILITY::ReachableFact*> reachable_facts;
-			for (std::vector<const GroundedAtom*>::const_iterator ci = successor_state->getFacts().begin(); ci != successor_state->getFacts().end(); ci++)
-			{
-				const GroundedAtom* grounded_atom = *ci;
-				REACHABILITY::EquivalentObjectGroup** variables = new REACHABILITY::EquivalentObjectGroup*[grounded_atom->getAtom().getArity()];
-				for (unsigned int i = 0; i < grounded_atom->getAtom().getArity(); i++)
-				{
-					variables[i] = &analyst.getEquivalentObjectGroupManager().getEquivalentObject(grounded_atom->getObject(i)).getEquivalentObjectGroup();
-				}
-				
-				reachable_facts.push_back(new REACHABILITY::ReachableFact(grounded_atom->getAtom().getPredicate(), grounded_atom->getAtom().isNegative(), variables));
-			}
-
 #ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
-			std::cout << " *** CALCULATE THE HEURISTIC FOR *** " << std::endl;
-			for (std::vector<REACHABILITY::ReachableFact*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
+			std::cout << "Sucessor state:" << std::endl;
+			std::cout << *successor_state << std::endl;
+			std::cout << " ============== Helpful actions ============== " << std::endl;
+			for (std::vector<const REACHABILITY::AchievingTransition*>::const_iterator ci = analyst.getHelpfulActions().begin(); ci != analyst.getHelpfulActions().end(); ++ci)
 			{
 				std::cout << **ci << std::endl;
 			}
 #endif
-			
-			unsigned int heuristic_value = analyst.getHeuristic(reachable_facts, goal_facts, bindings, ground);
+
+			queue.push(successor_state);
+		}
+		state->deleteHelpfulActions();
+	}
+	
+//	for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator ci = resolved_grounded_goal_facts.begin(); ci != resolved_grounded_goal_facts.end(); ++ci)
+//	{
+//		delete *ci;
+//	}
+	
+	for (std::vector<const GroundedAtom*>::const_iterator ci = grounded_goal_facts.begin(); ci != grounded_goal_facts.end(); ++ci)
+	{
+		delete *ci;
+	}
+	
+	std::cerr << "No plan found :((((((((((" << std::endl;
+	
+	return std::make_pair(-1, -1);
+}
+
+//void ForwardChainingPlanner::setHeuristicForState(MyPOP::State& state, REACHABILITY::DTGReachability& analyst, const std::vector<const GroundedAtom*>& goal_facts, const std::vector<const REACHABILITY::ResolvedBoundedAtom*>& resolved_grounded_goal_facts, const Bindings& bindings) const
+void ForwardChainingPlanner::setHeuristicForState(MyPOP::State& state, REACHABILITY::DTGReachability& analyst, const std::vector<const GroundedAtom*>& goal_facts) const
+{
+	analyst.getEquivalentObjectGroupManager().reset();
+	std::vector<REACHABILITY::ReachableFact*> reachable_facts;
+	for (std::vector<const GroundedAtom*>::const_iterator ci = state.getFacts().begin(); ci != state.getFacts().end(); ci++)
+	{
+		const GroundedAtom* grounded_atom = *ci;
+		std::vector<REACHABILITY::EquivalentObjectGroup*>* variables = new std::vector<REACHABILITY::EquivalentObjectGroup*>(grounded_atom->getAtom().getArity());
+		for (unsigned int i = 0; i < grounded_atom->getAtom().getArity(); i++)
+		{
+			(*variables)[i] = &analyst.getEquivalentObjectGroupManager().getEquivalentObject(grounded_atom->getObject(i)).getEquivalentObjectGroup();
+		}
+		
+		reachable_facts.push_back(&REACHABILITY::ReachableFact::createReachableFact(grounded_atom->getAtom().getPredicate(), *variables));
+	}
+
 #ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
-			std::cout << "Heuristic value: " << heuristic_value << std::endl;
+	std::cout << " *** CALCULATE THE HEURISTIC FOR *** " << std::endl;
+	for (std::vector<REACHABILITY::ReachableFact*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
+	{
+		std::cout << **ci << std::endl;
+	}
 #endif
-			if (heuristic_value == std::numeric_limits<unsigned int>::max())
+	std::vector<const REACHABILITY::ReachableFact*> result;
+	std::vector<const GroundedAtom*> persistent_facts;
+
+	// Check which of the facts in the state correspond to the goal facts and prevent these from being deleted.
+	for (std::vector<const GroundedAtom*>::const_iterator ci = state.getFacts().begin(); ci != state.getFacts().end(); ++ci)
+	{
+		const GroundedAtom* state_fact = *ci;
+		for (std::vector<const GroundedAtom*>::const_iterator ci = goal_facts.begin(); ci != goal_facts.end(); ++ci)
+		{
+			const GroundedAtom* goal_fact = *ci;
+			
+			if (*state_fact == *goal_fact)
+			{
+				persistent_facts.push_back(goal_fact);
+				break;
+			}
+		}
+	}
+
+	analyst.performReachabilityAnalysis(result, reachable_facts, persistent_facts);
+	
+	// Check if all the goals are reachable in the ultimate state of the lifted RPG.
+	bool all_goal_facts_are_achieved = true;
+	for (std::vector<const GroundedAtom*>::const_iterator ci = goal_facts.begin(); ci != goal_facts.end(); ++ci)
+	{
+		const GroundedAtom* goal_fact = *ci;
+		bool goal_fact_achieved = false;
+		for (std::vector<const REACHABILITY::ReachableFact*>::const_iterator ci = result.begin(); ci != result.end(); ++ci)
+		{
+			const REACHABILITY::ReachableFact* reachable_fact = *ci;
+			if (goal_fact->getAtom().getArity() != reachable_fact->getPredicate().getArity() ||
+					goal_fact->getAtom().getPredicate().getName() != goal_fact->getAtom().getPredicate().getName())
 			{
 				continue;
 			}
-/*
-			for (std::vector<REACHABILITY::ReachableFact*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
-			{
-				delete *ci;
-			}
-*/
-			successor_state->setDistanceToGoal(heuristic_value);
 			
-#ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
-			std::cout << "Sucessor state: (" << heuristic_value << ")" << std::endl;
-			std::cout << *successor_state << std::endl;
-#endif
-			queue.push(successor_state);
+			bool terms_match = true;
+			for (unsigned int i = 0; i < goal_fact->getAtom().getArity(); ++i)
+			{
+				const REACHABILITY::EquivalentObjectGroup& eog = reachable_fact->getTermDomain(i);
+				if (!eog.contains(goal_fact->getObject(i)))
+				{
+					terms_match = false;
+					break;
+				}
+			}
+			
+			if (terms_match)
+			{
+				goal_fact_achieved = true;
+				break;
+			}
 		}
-//		delete state;
+		
+		if (!goal_fact_achieved)
+		{
+			all_goal_facts_are_achieved = false;
+			break;
+		}
 	}
-	std::cerr << "No plan could be found!" << std::endl;
+	
+	if (!all_goal_facts_are_achieved)
+	{
+		persistent_facts.clear();
+		result.clear();
+		analyst.getEquivalentObjectGroupManager().reset();
+		reachable_facts.clear();
+		
+		for (std::vector<const GroundedAtom*>::const_iterator ci = state.getFacts().begin(); ci != state.getFacts().end(); ci++)
+		{
+			const GroundedAtom* grounded_atom = *ci;
+			std::vector<REACHABILITY::EquivalentObjectGroup*>* variables = new std::vector<REACHABILITY::EquivalentObjectGroup*>(grounded_atom->getAtom().getArity());
+			for (unsigned int i = 0; i < grounded_atom->getAtom().getArity(); i++)
+			{
+				(*variables)[i] = &analyst.getEquivalentObjectGroupManager().getEquivalentObject(grounded_atom->getObject(i)).getEquivalentObjectGroup();
+			}
+			
+			reachable_facts.push_back(&REACHABILITY::ReachableFact::createReachableFact(grounded_atom->getAtom().getPredicate(), *variables));
+		}
+		std::cerr << "!";
+		analyst.performReachabilityAnalysis(result, reachable_facts, persistent_facts);
+	}
+	else
+	{
+		std::cerr << "?";
+	}
+	
+	unsigned int heuristic_value = analyst.getHeuristic(goal_facts, *predicate_manager_);
+	state.setDistanceToGoal(heuristic_value);
+	state.setHelpfulActions(analyst.getHelpfulActions());
 }
+
 
 };

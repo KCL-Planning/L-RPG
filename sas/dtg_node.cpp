@@ -1252,14 +1252,6 @@ void DomainTransitionGraphNode::removeTransitions()
 	{
 		const Transition* transition = *ci;
 		delete transition;
-/*		StepID transition_id = transition->getStep()->getStepId();
-		
-		for (std::vector<const Variable*>::const_iterator ci = transition->getStep()->getAction().getVariables().begin(); ci != transition->getStep()->getAction().getVariables().end(); ci++)
-		{
-			const Variable* variable = *ci;
-			dtg_->getBindings().removeBindings(transition_id, *variable);
-		}
-*/
 	}
 	transitions_.clear();
 }
@@ -1478,11 +1470,12 @@ bool DomainTransitionGraphNode::isSubSetOf(const DomainTransitionGraphNode& dtg_
 	return dtg_node.isSuperSetOf(*this);
 }
 
-bool DomainTransitionGraphNode::isIsomorphicWith(const DomainTransitionGraphNode& other) const
+bool DomainTransitionGraphNode::isEquivalentTo(const DomainTransitionGraphNode& other) const
 {
 	for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
 	{
 		const BoundedAtom* this_fact = *ci;
+		
 		bool found_equivalent = false;
 		
 		for (std::vector<BoundedAtom*>::const_iterator ci = other.getAtoms().begin(); ci != other.getAtoms().end(); ci++)

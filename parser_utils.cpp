@@ -10,12 +10,12 @@
 
 namespace MyPOP {
 
-const Formula* Utility::convertGoal(const TermManager& term_manager, const VAL::goal* precondition, bool make_negative)
+const Formula* Utility::convertGoal(const TermManager& term_manager, const PredicateManager& predicate_manager, const VAL::goal* precondition, bool make_negative)
 {
 	const VAL::neg_goal* ng = dynamic_cast<const VAL::neg_goal*>(precondition);
 	if (ng)
 	{
-		const Formula* negFormula = convertGoal(term_manager, ng->getGoal(), !make_negative);
+		const Formula* negFormula = convertGoal(term_manager, predicate_manager, ng->getGoal(), !make_negative);
 		return negFormula;
 	}
 
@@ -23,7 +23,7 @@ const Formula* Utility::convertGoal(const TermManager& term_manager, const VAL::
 	if (sg)
 	{
 		const VAL::proposition* prop = sg->getProp();
-		return convertPrecondition(term_manager, *prop, make_negative);
+		return convertPrecondition(term_manager, predicate_manager, *prop, make_negative);
 	}
 
 	const VAL::conj_goal* cg = dynamic_cast<const VAL::conj_goal*>(precondition);
@@ -33,19 +33,19 @@ const Formula* Utility::convertGoal(const TermManager& term_manager, const VAL::
 		const VAL::goal_list* goals = cg->getGoals();
 		for (VAL::goal_list::const_iterator ci = goals->begin(); ci != goals->end(); ci++)
 		{
-			const Formula* f = convertGoal(term_manager, (*ci), make_negative);
+			const Formula* f = convertGoal(term_manager, predicate_manager, (*ci), make_negative);
 			con->addFormula(*f);
 		}
 		return con;
 	}
 
-	std::cerr << "Unsupported goal detected, quiting!" << std::endl;
-	precondition->write(std::cerr);
+	std::cout << "Unsupported goal detected, quiting!" << std::endl;
+	precondition->write(std::cout);
 	assert (false);
 	exit(1);
 }
 
-Formula* Utility::convertPrecondition(const TermManager& term_manager, const VAL::proposition& prop, bool make_negative)
+Formula* Utility::convertPrecondition(const TermManager& term_manager, const PredicateManager& predicate_manager, const VAL::proposition& prop, bool make_negative)
 {
 	VAL::pred_symbol* predicate = prop.head;
 	VAL::parameter_symbol_list* action_parameters = prop.args;
@@ -62,12 +62,12 @@ Formula* Utility::convertPrecondition(const TermManager& term_manager, const VAL
 	}
 	else
 	{
-		return Utility::convertToAtom(term_manager, prop, make_negative);
+		return Utility::convertToAtom(term_manager, predicate_manager, prop, make_negative);
 	}
 }
 
 
-Atom* Utility::convertToAtom(const TermManager& term_manager, const VAL::proposition& prop, bool make_negative)
+Atom* Utility::convertToAtom(const TermManager& term_manager, const PredicateManager& predicate_manager, const VAL::proposition& prop, bool make_negative)
 {
 	VAL::pred_symbol* predicate_symbol = prop.head;
 	VAL::parameter_symbol_list* action_parameters = prop.args;
@@ -88,19 +88,21 @@ Atom* Utility::convertToAtom(const TermManager& term_manager, const VAL::proposi
 	}
 
 	// Retrieve the predicate, this one must exist.
-	const Predicate& predicate = Predicate::getPredicate(action_predicate, types);
-	return new Atom(predicate, *variables, make_negative);
+	const Predicate* predicate = predicate_manager.getPredicate(action_predicate, types);
+	assert (predicate != NULL);
+
+	return new Atom(*predicate, *variables, make_negative);
 }
 
-void Utility::convertEffects(const TermManager& term_manager, const VAL::effect_lists& effects, std::vector<const Atom*>& action_effects)
+void Utility::convertEffects(const TermManager& term_manager, const PredicateManager& predicate_manager, const VAL::effect_lists& effects, std::vector<const Atom*>& action_effects)
 {
 	for (VAL::pc_list<VAL::simple_effect*>::const_iterator ci = effects.add_effects.begin(); ci != effects.add_effects.end(); ci++)
 	{
-		action_effects.push_back(convertToAtom(term_manager, *(*ci)->prop, false));
+		action_effects.push_back(convertToAtom(term_manager, predicate_manager, *(*ci)->prop, false));
 	}
 	for (VAL::pc_list<VAL::simple_effect*>::const_iterator ci = effects.del_effects.begin(); ci != effects.del_effects.end(); ci++)
 	{
-		action_effects.push_back(convertToAtom(term_manager, *(*ci)->prop, true));
+		action_effects.push_back(convertToAtom(term_manager, predicate_manager, *(*ci)->prop, true));
 	}
 }
 
@@ -154,7 +156,7 @@ void Utility::convertFormula(std::vector<const Atom*>& atoms, std::vector<const 
 	}
 }
 
-const Predicate& Utility::getPredicate(const TypeManager& type_manager, const TIM::Property& property)
+const Predicate& Utility::getPredicate(const TypeManager& type_manager, const PredicateManager& predicate_manager, const TIM::Property& property)
 {
 	// A property only stored the predicate symbol and the variable number this property holds.
 	// In order to get the predicate symbol and the types of the predicate we need to cast the
@@ -171,8 +173,9 @@ const Predicate& Utility::getPredicate(const TypeManager& type_manager, const TI
 	}
 
 	// Now that we know the name and type, find the predicate.
-	const Predicate& predicate = Predicate::getPredicate(predicate_name, predicate_types);
-	return predicate;
+	const Predicate* predicate = predicate_manager.getPredicate(predicate_name, predicate_types);
+	assert (predicate != NULL);
+	return *predicate;
 }
 
 };

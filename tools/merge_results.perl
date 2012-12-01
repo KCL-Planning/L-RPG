@@ -5,11 +5,14 @@ use warnings;
 
 my $from_problem_count = shift(@ARGV);
 my $problem_count = shift(@ARGV);
+my $marvin_directory = "/home/bram/projects/marvin-bram/latest_results";
+#my $marvin_directory = "/home/bram/projects/marvin-bram/results";
+#my $marvin_directory = "/home/bram/projects/MyPOP/tags/ICAPS-2012-speed-1.0/trunk/latest_results";
 my $output_directory = "merged_results";
 
 system ("mkdir -p $output_directory");
 
-opendir(DIR, "latest_heuristics_results/grounded");
+opendir(DIR, "latest_results");
 my @FILES = readdir(DIR);
 closedir(DIR);
 
@@ -17,56 +20,43 @@ foreach my $file (@FILES)
 {
 	unless ($file =~ m/.*data\Z/) { next; }
 
-	# Find the corresponding file in the lifted directory.
-	my $lifted_file_name = "latest_heuristics_results/lifted/".$file;
-	if (-e $lifted_file_name)
+	# Find the corresponding file in the marvin directory.
+	my $marvin_file_name = $marvin_directory."/".$file;
+	if (-e $marvin_file_name)
 	{
-		print "Found: $lifted_file_name!\n";
+		print "Found: $marvin_file_name!\n";
 	} else {
-		print "Could not find: $lifted_file_name - skipping!\n";
+		print "Could not find: $marvin_file_name - skipping!\n";
 		next;
 	}
 
 	# Get the 2nd column of every row in each file and concatenate them in a single file.
 	open OUTPUT, ">", $output_directory."/".$file;
-	open GROUNDED_RESULT, "<", "latest_heuristics_results/grounded/$file" or die $!;
-	open LIFTED_RESULT, "<", $lifted_file_name or die $!;
+	open LOLLIPOP_RESULT, "<", "latest_results/$file" or die $!;
+	open MARVIN_RESULT, "<", $marvin_file_name or die $!;
 
-	my @grounded_lines = <GROUNDED_RESULT>;
-	my @lifted_lines = <LIFTED_RESULT>;
+	my @lollipop_lines = <LOLLIPOP_RESULT>;
+	my @marvin_lines = <MARVIN_RESULT>;
 
-	unless (scalar (@grounded_lines) eq scalar (@lifted_lines) )
+	unless (scalar (@lollipop_lines) eq scalar (@marvin_lines) )
 	{
-		print "$file The number of data points are not equal ".scalar (@grounded_lines)." v.s. ".scalar (@lifted_lines)."!\n";
+		print "$file The number of data points are not equal ".scalar (@lollipop_lines)." v.s. ".scalar (@marvin_lines)."!\n";
 		exit;
 	}
 
-	for (my $i = 0; $i < scalar (@grounded_lines); $i++)
+	for (my $i = 0; $i < scalar (@lollipop_lines); $i++)
 	{
-		my $grounded_line = $grounded_lines[$i];
-		my $lifted_line = $lifted_lines[$i];
+		my $lollipop_line = $lollipop_lines[$i];
+		my $marvin_line = $marvin_lines[$i];
 
 		# Get the 2nd column of both lines.
-		my @grounded_columns = split(' ', $grounded_line);
-		my @lifted_columns = split(' ', $lifted_line);
+		my @lollipop_columns = split(' ', $lollipop_line);
+		my @marvin_columns = split(' ', $marvin_line);
 
-		my $grounded_value = "?";
-		if (scalar (@grounded_columns) == 2)
-		{
-			$grounded_value = $grounded_columns[1];
-		}
-		my $lifted_value = "?";
-		if (scalar (@lifted_columns) == 2)
-		{
-			$lifted_value = $lifted_columns[1];
-		}
-
-#		print OUTPUT "$grounded_columns[1] $lifted_columns[1]\n";
-		print OUTPUT "$grounded_value $lifted_value\n";
+		print OUTPUT "$lollipop_columns[1] $marvin_columns[1]\n";
 	}
 
 	close OUTPUT;
-	close GROUNDED_RESULT;
-	close LIFTED_RESULT;
+	close LOLLIPOP_RESULT;
+	close MARVIN_RESULT;
 }
-

@@ -15,6 +15,7 @@
 
 //#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 //#define MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_DEBUG
+#include "fact_set.h"
 
 namespace MyPOP {
 	
@@ -23,41 +24,15 @@ namespace REACHABILITY {
 /**
  * Equivalent Object.
  */
-EquivalentObject::EquivalentObject(const Object& object, EquivalentObjectGroup& equivalent_object_group, unsigned int number_of_objects_in_domain)
-	: object_(&object), equivalent_group_(&equivalent_object_group), number_of_objects_in_domain_(number_of_objects_in_domain)
+EquivalentObject::EquivalentObject(const Object& object, EquivalentObjectGroup& equivalent_object_group)
+	: object_(&object), equivalent_group_(&equivalent_object_group)
 {
-	is_super_set_of_at_iteration_ = new unsigned int[number_of_objects_in_domain];
-	for (unsigned int i = 0; i < number_of_objects_in_domain; i++)
-	{
-		is_super_set_of_at_iteration_[i] = std::numeric_limits<unsigned int>::max();
-	}
-}
-
-EquivalentObject::~EquivalentObject()
-{
-	delete[] is_super_set_of_at_iteration_;
-}
-
-void EquivalentObject::canReachInitialStateOf(const EquivalentObject& equivalent_object, unsigned int iteration)
-{
-	if (is_super_set_of_at_iteration_[equivalent_object.getObject().getId()] > iteration)
-	{
-		is_super_set_of_at_iteration_[equivalent_object.getObject().getId()] = iteration;
-	}
-}
 	
-unsigned int EquivalentObject::getEquivalentIteration(const EquivalentObject& equivalent_object) const
-{
-	return is_super_set_of_at_iteration_[equivalent_object.getObject().getId()];
 }
 
 void EquivalentObject::reset()
 {
 	initial_facts_.clear();
-	for (unsigned int i = 0; i < number_of_objects_in_domain_; i++)
-	{
-		is_super_set_of_at_iteration_[i] = std::numeric_limits<unsigned int>::max();
-	}
 }
 	
 void EquivalentObject::addInitialFact(ReachableFact& reachable_fact)
@@ -131,19 +106,13 @@ bool EquivalentObject::isInitialStateReachable(const std::vector<ReachableFact*>
 		std::cout << " with: " << *reachable_fact<< "." << std::endl;
 #endif
 			
-			if (initial_fact->isEquivalentTo(*reachable_fact, getEquivalentObjectGroup().getRootNode()))
+			if (initial_fact->isEquivalentTo(*reachable_fact, getEquivalentObjectGroup()))
 			{
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 				std::cout << *initial_fact << " is equivalent to " << *reachable_fact << std::endl;
 #endif
 				is_initial_fact_reachable = true;
 				break;
-			}
-			else
-			{
-#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-				std::cout << *initial_fact << " is NOT equivalent to " << *reachable_fact << std::endl;
-#endif
 			}
 		}
 		
@@ -171,23 +140,49 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_ob
 /**
  * Equivalent Object Group.
  */
-MyPOP::UTILITY::MemoryPool** EquivalentObjectGroup::g_eog_arrays_memory_pool_;
+//MyPOP::UTILITY::MemoryPool** EquivalentObjectGroup::g_eog_arrays_memory_pool_;
 
-unsigned int EquivalentObjectGroup::max_arity_;
-bool EquivalentObjectGroup::memory_pool_initialised_;
 unsigned int EquivalentObjectGroup::max_finger_print_id_ = 0;
-EquivalentObjectGroup::EquivalentObjectGroup(const std::vector<EquivalentObjectGroup*>& all_eogs, const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const Object* object, bool is_grounded)
-	: is_grounded_(is_grounded), is_not_part_of_property_state_(false), link_(NULL), finger_print_(NULL), merged_at_iteration_(std::numeric_limits<unsigned int>::max())
+/*
+EquivalentObjectGroup::EquivalentObjectGroup(const std::vector<EquivalentObjectGroup*>& all_eogs, const SAS_Plus::DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded)
+	: is_grounded_(is_grounded), is_not_part_of_property_state_(false), link_(NULL), finger_print_(NULL), merged_at_iteration_(std::numeric_limits<unsigned int>::max()), can_merge_(true)
 {
 	finger_print_id_ = std::numeric_limits<unsigned int>::max();
 	if (object != NULL)
 	{
-		initialiseFingerPrint(dtg_manager, *object);
+		initialiseFingerPrint(dtg_graph, *object);
 		
 		// Check if another EOG exists with the same finger print.
 		for (std::vector<EquivalentObjectGroup*>::const_iterator ci = all_eogs.begin(); ci != all_eogs.end(); ci++)
 		{
 			//if (hasSameFingerPrint(**ci))
+			if (finger_print_size_ == (*ci)->finger_print_size_ &&
+			    memcmp(finger_print_, (*ci)->finger_print_, finger_print_size_ * sizeof(bool)) == 0)
+			{
+				finger_print_id_ = (*ci)->finger_print_id_;
+				break;
+			}
+		}
+		
+		if (finger_print_id_ == std::numeric_limits<unsigned int>::max())
+		{
+			finger_print_id_ = ++max_finger_print_id_;
+		}
+	}
+}
+*/
+
+EquivalentObjectGroup::EquivalentObjectGroup(const std::vector<const HEURISTICS::FactSet*>& all_fact_sets, const std::vector<EquivalentObjectGroup*>& all_eogs, const Object* object)
+	: is_not_part_of_property_state_(true), link_(NULL), finger_print_(NULL), merged_at_iteration_(std::numeric_limits<unsigned int>::max()), can_merge_(true)
+{
+	finger_print_id_ = std::numeric_limits<unsigned int>::max();
+	if (object != NULL)
+	{
+		initialiseFingerPrint(all_fact_sets, *object);
+		
+		// Check if another EOG exists with the same finger print.
+		for (std::vector<EquivalentObjectGroup*>::const_iterator ci = all_eogs.begin(); ci != all_eogs.end(); ci++)
+		{
 			if (finger_print_size_ == (*ci)->finger_print_size_ &&
 			    memcmp(finger_print_, (*ci)->finger_print_, finger_print_size_ * sizeof(bool)) == 0)
 			{
@@ -212,7 +207,6 @@ EquivalentObjectGroup::~EquivalentObjectGroup()
 	{
 		delete *equivalent_objects_.begin();
 	}
-	
 /*	if (link_ == NULL)
 	{
 		for (std::vector<EquivalentObject*>::const_iterator ci = equivalent_objects_.begin(); ci != equivalent_objects_.end(); ci++)
@@ -224,7 +218,8 @@ EquivalentObjectGroup::~EquivalentObjectGroup()
 
 void EquivalentObjectGroup::reset()
 {
-	if (finger_print_ != NULL)
+//	if (finger_print_ != NULL)
+	if (!equivalent_objects_.empty())
 	{
 		equivalent_objects_.erase(equivalent_objects_.begin() + 1, equivalent_objects_.end());
 		(*equivalent_objects_.begin())->reset();
@@ -234,8 +229,9 @@ void EquivalentObjectGroup::reset()
 	merged_at_iteration_ = std::numeric_limits<unsigned int>::max();
 	reachable_facts_.clear();
 	size_per_iteration_.clear();
+	can_merge_ = true;
 }
-
+/*
 void EquivalentObjectGroup::setMaxArity(unsigned int max_arity)
 {
 	max_arity_ = max_arity;
@@ -276,7 +272,7 @@ EquivalentObjectGroup** EquivalentObjectGroup::allocateMemory(unsigned int numbe
 	}
 	return static_cast<EquivalentObjectGroup**>(g_eog_arrays_memory_pool_[number_of_elements - 1]->allocate(number_of_elements * sizeof(EquivalentObjectGroup*)));
 }
-
+*/
 /*void* EquivalentObjectGroup::operator new[](size_t size)
 {
 	std::cerr << "..." << std::endl;
@@ -325,77 +321,104 @@ bool EquivalentObjectGroup::isIdenticalTo(EquivalentObjectGroup& other)
 
 bool EquivalentObjectGroup::hasSameFingerPrint(const EquivalentObjectGroup& other) const
 {
-/*	if (finger_print_id_ == other.finger_print_id_ &&
-	    memcmp(finger_print_, other.finger_print_, finger_print_size_ * sizeof(bool)) != 0)
-	{
-		std::cerr << "WRONG!" << std::endl;
-	} else if (finger_print_id_ != other.finger_print_id_ &&
-	    memcmp(finger_print_, other.finger_print_, finger_print_size_ * sizeof(bool)) == 0)
-	{
-		std::cerr << "WRONG AGAIN!" << std::endl;
-	}
-*/
-//	return finger_print_id_ == other.finger_print_id_;
-//	return memcmp(finger_print_, other.finger_print_, finger_print_size_ * sizeof(bool)) == 0;
-	for (unsigned int i = 0; i < finger_print_size_; i++)
-	{
-		if (finger_print_[i] != other.finger_print_[i]) return false;
-	}
-	return true;
-}
+//	if (finger_print_id_ == other.finger_print_id_ &&
+//	    memcmp(finger_print_, other.finger_print_, finger_print_size_ * sizeof(bool)) != 0)
+//	{
+//		std::cerr << "WRONG!" << std::endl;
+//	} else if (finger_print_id_ != other.finger_print_id_ &&
+//	    memcmp(finger_print_, other.finger_print_, finger_print_size_ * sizeof(bool)) == 0)
+//	{
+//		std::cerr << "WRONG AGAIN!" << std::endl;
+//	}
 	
-void EquivalentObjectGroup::initialiseFingerPrint(const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const Object& object)
+	return finger_print_id_ == other.finger_print_id_;
+//	return memcmp(finger_print_, other.finger_print_, finger_print_size_ * sizeof(bool)) == 0;
+//	for (unsigned int i = 0; i < finger_print_size_; i++)
+//	{
+//		if (finger_print_[i] != other.finger_print_[i]) return false;
+//	}
+//	return true;
+}
+
+void EquivalentObjectGroup::initialiseFingerPrint(const std::vector<const HEURISTICS::FactSet*>& fact_sets, const Object& object)
 {
 	// Check the DTG graph and check which DTG nodes an object can be part of based on its type.
 	unsigned int number_of_facts = 0;
-	for (std::vector<SAS_Plus::DomainTransitionGraph*>::const_iterator ci = dtg_manager.getManagableObjects().begin(); ci != dtg_manager.getManagableObjects().end(); ci++)
+	for (std::vector<const HEURISTICS::FactSet*>::const_iterator ci = fact_sets.begin(); ci != fact_sets.end(); ++ci)
 	{
-		const SAS_Plus::DomainTransitionGraph* dtg = *ci;
-		for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ci++)
+		const HEURISTICS::FactSet* fact_set = *ci;
+		for (std::vector<const HEURISTICS::TransitionFact*>::const_iterator ci = fact_set->getFacts().begin(); ci != fact_set->getFacts().end(); ++ci)
 		{
-			const SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
-			for (std::vector<SAS_Plus::BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
-			{
-				number_of_facts += (*ci)->getAtom().getArity();
-			}
+ 			const HEURISTICS::TransitionFact* transition_fact = *ci;
+			number_of_facts += transition_fact->getPredicate().getArity();
 		}
 	}
 	
+/*
+	for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = dtg_graph.getNodes().begin(); ci != dtg_graph.getNodes().end(); ci++)
+	{
+		const SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
+		for (std::vector<SAS_Plus::BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
+		{
+			number_of_facts += (*ci)->getAtom().getArity();
+		}
+	}
+*/
+
 	finger_print_size_ = number_of_facts;
 	finger_print_ = new bool[number_of_facts];
 	memset(&finger_print_[0], false, sizeof(bool) * number_of_facts);
 	
 	number_of_facts = 0;
-	for (std::vector<SAS_Plus::DomainTransitionGraph*>::const_iterator ci = dtg_manager.getManagableObjects().begin(); ci != dtg_manager.getManagableObjects().end(); ci++)
+	
+	for (std::vector<const HEURISTICS::FactSet*>::const_iterator ci = fact_sets.begin(); ci != fact_sets.end(); ++ci)
 	{
-		const SAS_Plus::DomainTransitionGraph* dtg = *ci;
-		for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ci++)
+		const HEURISTICS::FactSet* fact_set = *ci;
+		for (std::vector<const HEURISTICS::TransitionFact*>::const_iterator ci = fact_set->getFacts().begin(); ci != fact_set->getFacts().end(); ++ci)
 		{
-			const SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
-			for (std::vector<SAS_Plus::BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
+			const HEURISTICS::TransitionFact* fact = *ci;
+			
+			for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = fact->getVariableDomains().begin(); ci != fact->getVariableDomains().end(); ++ci)
 			{
-				const SAS_Plus::BoundedAtom* bounded_atom = *ci;
-				for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
+				const HEURISTICS::VariableDomain* variable_domain = *ci;
+				if (variable_domain->contains(object))
 				{
-					const Term* term = *ci;
-					unsigned int term_index = std::distance(bounded_atom->getAtom().getTerms().begin(), ci);
-					
-					if (object.getType()->isSubtypeOf(*term->getType()) || object.getType()->isEqual(*term->getType()))
-					{
-						finger_print_[number_of_facts] = true;
-						for (std::vector<const MyPOP::SAS_Plus::Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
-						{
-							if ((*ci)->getIndex() == term_index)
-							{
-								is_not_part_of_property_state_ = true;
-							}
-						}
-					}
-					++number_of_facts;
+					finger_print_[number_of_facts] = true;
 				}
+				
+				++number_of_facts;
 			}
 		}
 	}
+	
+/*
+	for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = dtg_graph.getNodes().begin(); ci != dtg_graph.getNodes().end(); ci++)
+	{
+		const SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
+		for (std::vector<SAS_Plus::BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
+		{
+			const SAS_Plus::BoundedAtom* bounded_atom = *ci;
+			for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
+			{
+				const Term* term = *ci;
+				unsigned int term_index = std::distance(bounded_atom->getAtom().getTerms().begin(), ci);
+				
+				if (object.getType()->isSubtypeOf(*term->getType()) || object.getType()->isEqual(*term->getType()))
+				{
+					finger_print_[number_of_facts] = true;
+					for (std::vector<const MyPOP::SAS_Plus::Property*>::const_iterator ci = bounded_atom->getProperties().begin(); ci != bounded_atom->getProperties().end(); ci++)
+					{
+						if ((*ci)->getIndex() == term_index)
+						{
+							is_not_part_of_property_state_ = true;
+						}
+					}
+				}
+				++number_of_facts;
+			}
+		}
+	}
+*/
 }
 
 void EquivalentObjectGroup::addEquivalentObject(EquivalentObject& eo)
@@ -404,7 +427,7 @@ void EquivalentObjectGroup::addEquivalentObject(EquivalentObject& eo)
 	equivalent_objects_.push_back(&eo);
 
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-	if (!is_grounded_ && !is_not_part_of_property_state_)
+	if (!is_not_part_of_property_state_)
 	{
 		std::cerr << "We should reevaluate " << eo.getObject()<< std::endl;
 	}
@@ -439,9 +462,16 @@ void EquivalentObjectGroup::addReachableFact(ReachableFact& reachable_fact)
 
 bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group, std::vector<EquivalentObjectGroup*>& affected_groups, unsigned int iteration)
 {
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+	std::cout << cout << "Try to merge: " << *this << " with " << other_group << std::endl;
+#endif
 	// If the object has been grounded it cannot be merged!
-	if (is_grounded_ || other_group.is_grounded_ || !is_not_part_of_property_state_ || !other_group.is_not_part_of_property_state_)
+	if (!is_not_part_of_property_state_ || !other_group.is_not_part_of_property_state_ || !can_merge_ || !other_group.can_merge_)
 	{
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+		std::cout << cout << "Not possible!" << std::endl;
+		std::cout << " || " << !is_not_part_of_property_state_ << " || " << !other_group.is_not_part_of_property_state_ << " || " << !can_merge_ << " || " << !other_group.can_merge_ << std::endl;
+#endif
 		return false;
 	}
 	
@@ -450,6 +480,9 @@ bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group, s
 	EquivalentObjectGroup& other_root_node = other_group.getRootNode();
 	if (&this_root_node == &other_root_node)
 	{
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+		std::cout << "Are the same node!" << std::endl;
+#endif
 		return true;
 	}
 	
@@ -464,70 +497,58 @@ bool EquivalentObjectGroup::tryToMergeWith(EquivalentObjectGroup& other_group, s
 	}
 
 	// Only allow to merge two equivalent object groups if the fingerprints are equal!
-	assert (finger_print_size_ == other_group.finger_print_size_);
-//	if (memcmp(finger_print_, other_group.finger_print_, finger_print_size_) != 0)
-	//if (finger_print_id_ != other_group.finger_print_id_)
 	if (!hasSameFingerPrint(other_group))
 	{
+//		std::cout << "Finger prints do not match :(" << std::endl;
 		return false;
 	}
 	
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-	std::cout << "Try to merge: ";
-	printObjects(std::cout);
-	std::cout << " with ";
-	other_group.printObjects(std::cout);
-	std::cout << "." << std::endl;
+//	std::cout << "Try to merge: " << *this << " with " << other_group << "." << std::endl;
 #endif
 
 	// TODO: This implementation isn't fast at all...
-	bool can_merge_other_with_this = false;
+	bool can_merge = false;
 	for (std::vector<EquivalentObject*>::const_iterator ci = other_group.equivalent_objects_.begin(); ci != other_group.equivalent_objects_.end(); ci++)
 	{
-		EquivalentObject* other_equivalent_object = *ci;
+		const EquivalentObject* other_equivalent_object = *ci;
 		if (other_equivalent_object->isInitialStateReachable(reachable_facts_))
 		{
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 			std::cout << other_group << " can reach initial state of " << *this << std::endl;
 #endif
-			can_merge_other_with_this = true;
-			
-			for (std::vector<EquivalentObject*>::const_iterator ci = equivalent_objects_.begin(); ci != equivalent_objects_.end(); ci++)
-			{
-				const EquivalentObject* equivalent_object = *ci;
-				other_equivalent_object->canReachInitialStateOf(*equivalent_object, iteration);
-			}
-			//break;
+			can_merge = true;
+			break;
 		}
-#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-		else
-		{
-			std::cout << other_group << " cannot reach initial state of " << *this << " :(" << std::endl;
-		}
-#endif
 	}
-	bool can_merge_this_with_other = false;
+	if (!can_merge)
+	{
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+		std::cout << "Other cannot reach each other's initial state!" << std::endl;
+#endif
+		return false;
+	}
+	can_merge = false;
 	
 	for (std::vector<EquivalentObject*>::const_iterator ci = equivalent_objects_.begin(); ci != equivalent_objects_.end(); ci++)
 	{
-		EquivalentObject* equivalent_object = *ci;
+		const EquivalentObject* equivalent_object = *ci;
 		if (equivalent_object->isInitialStateReachable(other_group.reachable_facts_))
 		{
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-			std::cout << *this << " can reach initial state of " << other_group << std::endl;
+//			std::cout << *this << " can reach initial state of " << other_group << std::endl;
 #endif
-			can_merge_this_with_other = true;
-			
-			for (std::vector<EquivalentObject*>::const_iterator ci = other_group.equivalent_objects_.begin(); ci != other_group.equivalent_objects_.end(); ci++)
-			{
-				const EquivalentObject* other_equivalent_object = *ci;
-				equivalent_object->canReachInitialStateOf(*other_equivalent_object, iteration);
-			}
-			//break;
+			can_merge = true;
+			break;
 		}
 	}
-	
-	if (!can_merge_other_with_this || !can_merge_this_with_other) return false;
+	if (!can_merge)
+	{
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+		std::cout << "Cannot reach each other's initial state!" << std::endl;
+#endif
+		return false;
+	}
 	
 	merge(other_group, affected_groups);
 	other_group.merged_at_iteration_ = iteration;
@@ -607,6 +628,9 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group, std::vecto
 	equivalent_objects_.insert(equivalent_objects_.end(), other_group.equivalent_objects_.begin(), other_group.equivalent_objects_.end());
 	other_group.link_ = this;
 	
+	// TODO: Need to make sure we do not end up with multiple reachable facts which are identical!
+	//std::vector<EquivalentObjectGroup*> affected_groups;
+	
 	// Facts which are already part of this EOG should already contain the updated reachable fact, so any facts which need to 
 	// be updated can safely be removed.
 	for (std::vector<ReachableFact*>::reverse_iterator ri = reachable_facts_.rbegin(); ri != reachable_facts_.rend(); ri++)
@@ -646,7 +670,7 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group, std::vecto
 		if (reachable_fact->isMarkedForRemoval()) continue;
 		
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-		std::cout << "Check if " << *reachable_fact << " needs to be updated!" << std::endl;
+//		std::cout << "Check if " << *reachable_fact << " needs to be updated!" << std::endl;
 #endif
 		// If the reachable fact contains a EOG which is not a root node, it means that a merge has taken place and we need to delete this node and
 		// replace it with a reachable fact containing only root nodes.
@@ -654,14 +678,14 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group, std::vecto
 		if (reachable_fact->updateTermsToRoot())
 		{
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-			std::cout << "Updated the reachable fact: " << *reachable_fact << std::endl;
+//			std::cout << "Updated the reachable fact: " << *reachable_fact << std::endl;
 #endif
 
 			ReachableFact* identical_fact = NULL;
 			for (std::vector<ReachableFact*>::const_iterator ci = updated_facts.begin(); ci != updated_facts.end(); ci++)
 			{
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
-				std::cout << "Check if " << **ci << " and " << *reachable_fact << " are identical!" << std::endl;
+//				std::cout << "Check if " << **ci << " and " << *reachable_fact << " are identical!" << std::endl;
 #endif
 				if ((*ci)->isIdenticalTo(*reachable_fact))
 				{
@@ -700,6 +724,16 @@ void EquivalentObjectGroup::merge(EquivalentObjectGroup& other_group, std::vecto
 			addReachableFact(*reachable_fact);
 		}
 	}
+
+	// Clean up all the groups which have been affected by removing all the reachable facts which have been marked for removal.
+	// NOTE: This can be done later after the whole merging is done! But this is just an optimisation we can perform
+	// later too.
+//	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = affected_groups.begin(); ci != affected_groups.end(); ci++)
+//	{
+//		EquivalentObjectGroup* eog = *ci;
+//		eog->deleteRemovedFacts();
+//	}
+	
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
 	std::cout << "Result of merging: " << *this << "." << std::endl;
 #endif
@@ -716,10 +750,10 @@ void EquivalentObjectGroup::deleteRemovedFacts()
 	}
 }
 
-void EquivalentObjectGroup::updateEquivalences(const std::vector<EquivalentObjectGroup*>& all_eogs, std::vector<EquivalentObjectGroup*>& affected_groups, unsigned int iteration, bool ground)
+void EquivalentObjectGroup::updateEquivalences(const std::vector<EquivalentObjectGroup*>& all_eogs, std::vector<EquivalentObjectGroup*>& affected_groups, unsigned int iteration)
 {
 	// If we are not a root node, we cannot merge this EOG.
-	if (isRootNode() && !ground)
+	if (isRootNode())
 	{
 		// Try to merge this EOG with any other root EOG.
 		for (std::vector<EquivalentObjectGroup*>::const_iterator ci = all_eogs.begin(); ci != all_eogs.end(); ci++)
@@ -814,7 +848,7 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group)
 	os << "(" << &group <<") |EOs| = " << group.equivalent_objects_.size() << " { ";
 	// TODO: If the finger print is NULL we are looking at the zero arity EOG, it should not contain any 
 	// objects, but it does!
-	if (group.finger_print_ != NULL)
+	//if (group.finger_print_ != NULL)
 	{
 		for (std::vector<EquivalentObject*>::const_iterator ci = group.equivalent_objects_.begin(); ci != group.equivalent_objects_.end(); ci++)
 		{
@@ -834,48 +868,72 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group)
 	os << "Merged at iteration: " << group.merged_at_iteration_ << std::endl;
 	for (std::vector<unsigned int>::const_iterator ci = group.size_per_iteration_.begin(); ci != group.size_per_iteration_.end(); ci++)
 	{
-		std::cout << "PI: " << *ci << std::endl;
+		os << "PI: " << *ci << std::endl;
 	}
 	
 
-	std::cout << "Reachable facts: " << std::endl;
+	os << "Reachable facts: " << std::endl;
 	for (std::vector<ReachableFact*>::const_iterator ci = group.reachable_facts_.begin(); ci != group.reachable_facts_.end(); ci++)
 	{
-		std::cout << "- " << **ci << std::endl;
+		os << "- " << **ci << std::endl;
 	}
+	
+	if (group.finger_print_ != NULL)
+	{
+		os << "Finger print: ";
+		for (unsigned int i = 0; i < group.finger_print_size_; ++i)
+		{
+			os << group.finger_print_[i];
+		}
+		os << " -> " << group.finger_print_id_ << std::endl;
+	}
+	
 	return os;
 }
 
 /**
  * Equivalent Object Group Manager.
- */
-EquivalentObjectGroupManager::EquivalentObjectGroupManager(const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const TermManager& term_manager)
+ *
+EquivalentObjectGroupManager::EquivalentObjectGroupManager(const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const SAS_Plus::DomainTransitionGraph& dtg_graph, const TermManager& term_manager, const PredicateManager& predicate_manager)
 {
-	unsigned int max_arity = 0;
-//	for (std::vector<Predicate*>::const_iterator ci = predicate_manager.getManagableObjects().begin(); ci != predicate_manager.getManagableObjects().end(); ci++)
-	for (std::vector<const Predicate*>::const_iterator ci = Predicate::getPredicates().begin(); ci != Predicate::getPredicates().end(); ci++)
-	{
-		const Predicate* predicate = *ci;
-		if (predicate->getArity() > max_arity) max_arity = predicate->getArity();
-	}
-	std::cout << max_arity << std::endl;
-	EquivalentObjectGroup::setMaxArity(max_arity);
-	
 	//EquivalentObjectGroup::initMemoryPool(max_arity);
 	
 	// Create initial data structures.
 	for (std::vector<const Object*>::const_iterator ci = term_manager.getAllObjects().begin(); ci != term_manager.getAllObjects().end(); ci++)
 	{
 		const Object* object = *ci;
-		EquivalentObjectGroup* equivalent_object_group = new EquivalentObjectGroup(equivalent_groups_, dtg_manager, object, dtg_manager.isObjectGrounded(*object));
-		EquivalentObject* equivalent_object = new EquivalentObject(*object, *equivalent_object_group, term_manager.getAllObjects().size());
+		EquivalentObjectGroup* equivalent_object_group = new EquivalentObjectGroup(equivalent_groups_, dtg_graph, object, dtg_manager.isObjectGrounded(*object));
+		EquivalentObject* equivalent_object = new EquivalentObject(*object, *equivalent_object_group);
 		equivalent_object_group->addEquivalentObject(*equivalent_object);
 		
 		equivalent_groups_.push_back(equivalent_object_group);
 		object_to_equivalent_object_mapping_[object] = equivalent_object;
 	}
 
-	zero_arity_equivalent_object_group_ = new EquivalentObjectGroup(equivalent_groups_, dtg_manager, NULL, true);
+	zero_arity_equivalent_object_group_ = new EquivalentObjectGroup(equivalent_groups_, dtg_graph, NULL, true);
+	equivalent_groups_.push_back(zero_arity_equivalent_object_group_);
+	
+#ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
+	std::cout << "Done initialising data structures." << std::endl;
+#endif
+}
+*/
+
+EquivalentObjectGroupManager::EquivalentObjectGroupManager(const std::vector<const HEURISTICS::FactSet*>& all_fact_sets, const MyPOP::TermManager& term_manager, const MyPOP::PredicateManager& predicate_manager)
+{
+	// Create initial data structures.
+	for (std::vector<const Object*>::const_iterator ci = term_manager.getAllObjects().begin(); ci != term_manager.getAllObjects().end(); ci++)
+	{
+		const Object* object = *ci;
+		EquivalentObjectGroup* equivalent_object_group = new EquivalentObjectGroup(all_fact_sets, equivalent_groups_, object);
+		EquivalentObject* equivalent_object = new EquivalentObject(*object, *equivalent_object_group);
+		equivalent_object_group->addEquivalentObject(*equivalent_object);
+		
+		equivalent_groups_.push_back(equivalent_object_group);
+		object_to_equivalent_object_mapping_[object] = equivalent_object;
+	}
+
+	zero_arity_equivalent_object_group_ = new EquivalentObjectGroup(all_fact_sets, equivalent_groups_, NULL);
 	equivalent_groups_.push_back(zero_arity_equivalent_object_group_);
 	
 #ifdef MYPOP_SAS_PLUS_EQUIAVLENT_OBJECT_COMMENT
@@ -899,8 +957,6 @@ void EquivalentObjectGroupManager::reset()
 		(*ci)->reset();
 	}
 	zero_arity_equivalent_object_group_->reset();
-	EquivalentObjectGroup::deleteMemoryPool();
-	EquivalentObjectGroup::initMemoryPool();
 }
 
 void EquivalentObjectGroupManager::initialise(const std::vector<ReachableFact*>& initial_facts)
@@ -929,13 +985,13 @@ void EquivalentObjectGroupManager::initialise(const std::vector<ReachableFact*>&
 }
 
 
-void EquivalentObjectGroupManager::updateEquivalences(unsigned int iteration, bool ground)
+void EquivalentObjectGroupManager::updateEquivalences(unsigned int iteration)
 {
 	std::vector<EquivalentObjectGroup*> affected_groups;
 	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = equivalent_groups_.begin(); ci != equivalent_groups_.end(); ci++)
 	{
 		EquivalentObjectGroup* eog = *ci;
-		eog->updateEquivalences(equivalent_groups_, affected_groups, iteration, ground);
+		eog->updateEquivalences(equivalent_groups_, affected_groups, iteration);
 	}
 
 	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = affected_groups.begin(); ci != affected_groups.end(); ci++)
@@ -946,6 +1002,9 @@ void EquivalentObjectGroupManager::updateEquivalences(unsigned int iteration, bo
 			eog->deleteRemovedFacts();
 		}
 	}
+	
+//	std::cout << "[EquivalentObjectGroupManager::updateEquivalences] at iteration: " << iteration << " is : " << std::endl;
+//	std::cout << *this << std::endl;
 }
 
 EquivalentObject& EquivalentObjectGroupManager::getEquivalentObject(const Object& object) const

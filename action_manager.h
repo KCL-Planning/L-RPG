@@ -11,6 +11,7 @@ namespace MyPOP {
 
 class TypeManager;
 class TermManager;
+class PredicateManager;
 class Variable;
 class Formula;
 class Atom;
@@ -47,6 +48,9 @@ public:
 	// vector 'achieving_effects'. This is a static check and will not consider the context 
 	// (e.g. the domains of the variables).
 	void getAchievingEffects(const Atom& atom, std::vector<const Atom*>& achieving_effects) const;
+	
+	// Get the index of an effect's term.
+	unsigned int getActionVariable(unsigned int effect_index, unsigned int effect_term_index) const;
 
 	// Destructor.
 	virtual ~Action();
@@ -70,8 +74,8 @@ private:
 	// The effects.
 	const std::vector<const Atom*>* effects_;
 	
-	// Pairs of variables which must be equal or unequal.
-	std::vector<std::pair<const Variable*, const Variable*> > equal_variables_, unequal_variables_;
+	// Mapping from variables to effects.
+	std::vector<std::vector<unsigned int>* > effect_terms_to_action_variable_mappings_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Action& action);
@@ -83,7 +87,7 @@ class ActionManager : public Manager<Action> {
 
 public:
 	// Constructor.
-	ActionManager(const TypeManager& type_manager, TermManager& term_manager);
+	ActionManager(const TypeManager& type_manager, TermManager& term_manager, const PredicateManager& predicate_manager);
 	virtual ~ActionManager();
 
 	// After parsing the domain and problem files we pass all the types to the TypeManager
@@ -104,6 +108,7 @@ public:
 private:
 	const TypeManager* type_manager_;
 	TermManager* term_manager_;
+	const PredicateManager* predicate_manager_;
 	
 
 	// For preprocess purposes we map the instances of VAL::operator to the Action objects

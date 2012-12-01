@@ -13,6 +13,7 @@ namespace MyPOP {
 class Object;
 class Predicate;
 class TermManager;
+class PredicateManager;
 
 namespace UTILITY {
 class MemoryPool;
@@ -21,6 +22,10 @@ class MemoryPool;
 namespace SAS_Plus {
 class DomainTransitionGraph;
 class DomainTransitionGraphManager;
+};
+
+namespace HEURISTICS {
+class FactSet;
 };
 
 namespace REACHABILITY {
@@ -34,14 +39,8 @@ class ReachableFact;
 class EquivalentObject
 {
 public:
-	EquivalentObject(const Object& object, EquivalentObjectGroup& equivalent_object_group, unsigned int number_of_objects_in_domain);
+	EquivalentObject(const Object& object, EquivalentObjectGroup& equivalent_object_group);
 	
-	~EquivalentObject();
-	
-	void canReachInitialStateOf(const EquivalentObject& equivalent_object, unsigned int iteration);
-	
-	unsigned int getEquivalentIteration(const EquivalentObject& equivalent_object) const;
-
 	void reset();
 	
 	EquivalentObjectGroup& getEquivalentObjectGroup() const { return *equivalent_group_; }
@@ -63,9 +62,6 @@ private:
 	EquivalentObjectGroup* equivalent_group_;
 	
 	std::vector<const ReachableFact*> initial_facts_;
-		
-	unsigned int number_of_objects_in_domain_;
-	unsigned int* is_super_set_of_at_iteration_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_object);
 };
@@ -91,28 +87,19 @@ std::ostream& operator<<(std::ostream& os, const EquivalentObject& equivalent_ob
 class EquivalentObjectGroup
 {
 public:
-	EquivalentObjectGroup(const std::vector<EquivalentObjectGroup*>& all_eogs, const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const Object* object, bool is_grounded);
+	//EquivalentObjectGroup(const std::vector<EquivalentObjectGroup*>& all_eogs, const SAS_Plus::DomainTransitionGraph& dtg_graph, const Object* object, bool is_grounded);
+	EquivalentObjectGroup(const std::vector<const HEURISTICS::FactSet*>& all_fact_sets, const std::vector<EquivalentObjectGroup*>& all_eogs, const Object* object);
 
 	~EquivalentObjectGroup();
 	
 	void reset();
 	
-	static void setMaxArity(unsigned int max_arity);
-	
-	//static void initMemoryPool(unsigned int max_arity);
-	static void initMemoryPool();
-	
-	static void deleteMemoryPool();
-	
-	static EquivalentObjectGroup** allocateMemory(unsigned int size);
-
 	void addEquivalentObject(EquivalentObject& eo);
 	
 	void addReachableFact(ReachableFact& reachable_fact);
 	
 	bool isRootNode() const;
 	
-	inline bool isGrounded() const { return is_grounded_; }
 	inline bool isPartOfAPropertyState() const { return is_not_part_of_property_state_; }
 	
 	bool contains(const Object& object) const;
@@ -142,11 +129,18 @@ public:
 	 */
 	void deleteRemovedFacts();
 	
-	void updateEquivalences(const std::vector<EquivalentObjectGroup*>& all_eogs, std::vector<EquivalentObjectGroup*>& affected_groups, unsigned int iteration, bool ground);
+	void updateEquivalences(const std::vector<EquivalentObjectGroup*>& all_eogs, std::vector<EquivalentObjectGroup*>& affected_groups, unsigned int iteration);
 	
 	std::vector<EquivalentObject*>::const_iterator begin(unsigned int layer_level) const;
 	std::vector<EquivalentObject*>::const_iterator end(unsigned int layer_level) const;
+	//unsigned int getNumberOfEquivalentObjects(unsigned int layer_level) const;
 	const EquivalentObjectGroup& getEOGAtLayer(unsigned int layer_level) const;
+	
+	/**
+	 * Sometimes we do not want some EOGs to merge with others.
+	 */
+	void setMergeable(bool can_merge) { can_merge_ = can_merge; }
+	//void setMergeable(bool can_merge) { }
 	
 	void printObjects(std::ostream& os) const;
 	void printObjects(std::ostream& os, unsigned int iteration) const;
@@ -164,17 +158,11 @@ private:
 	 */
 	bool tryToMergeWith(EquivalentObjectGroup& object_group, std::vector<EquivalentObjectGroup*>& affected_groups, unsigned int iteration);
 	
-	static MyPOP::UTILITY::MemoryPool** g_eog_arrays_memory_pool_;
-	
-	static unsigned int max_arity_;
-	
-	static bool memory_pool_initialised_;
-	
 	// The set of objects which are equivalent.
 	std::vector<EquivalentObject*> equivalent_objects_;
 
 	// Flag to indicate if the object is grounded.
-	bool is_grounded_;
+//	bool is_grounded_;
 	bool is_not_part_of_property_state_;
 	
 	// If the EOG is in use link_ is equal to NULL. Once it is made obsolete due to being merged with
@@ -188,7 +176,8 @@ private:
 	 * Every equivalent object group has a finger print which correlates to the terms of the facts in the DTG nodes
 	 * the object can be a part of. At the moment we do not consider sub / super sets yet.
 	 */
-	void initialiseFingerPrint(const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const Object& object);
+	//void initialiseFingerPrint(const SAS_Plus::DomainTransitionGraph& dtg_graph, const Object& object);
+	void initialiseFingerPrint(const std::vector<const HEURISTICS::FactSet*>& fact_sets, const Object& object);
 	
 	/**
 	 * Merge the given group with this group.
@@ -207,6 +196,8 @@ private:
 	// which have been made true during each iteration.
 	unsigned int merged_at_iteration_;
 	std::vector<unsigned int> size_per_iteration_;
+	
+	bool can_merge_;
 
 	friend std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group);
 };
@@ -227,7 +218,8 @@ public:
 	/**
 	 * Initialise the individual groups.
 	 */
-	EquivalentObjectGroupManager(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, const MyPOP::TermManager& term_manager);
+	//EquivalentObjectGroupManager(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, const MyPOP::SAS_Plus::DomainTransitionGraph& dtg_graph, const MyPOP::TermManager& term_manager, const MyPOP::PredicateManager& predicate_manager);
+	EquivalentObjectGroupManager(const std::vector<const HEURISTICS::FactSet*>& all_fact_sets, const MyPOP::TermManager& term_manager, const MyPOP::PredicateManager& predicate_manager);
 	
 	~EquivalentObjectGroupManager();
 	
@@ -239,7 +231,7 @@ public:
 	 * Try to merge as many EOGs as possible.
 	 * @param iteration The iteration we are currently at.
 	 */
-	void updateEquivalences(unsigned int iteration, bool ground);
+	void updateEquivalences(unsigned int iteration);
 	
 	EquivalentObject& getEquivalentObject(const Object& object) const;
 	

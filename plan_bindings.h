@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 #include <ostream>
+#include <set>
 
 #include "plan.h"
 #include "plan_types.h"
@@ -213,6 +214,8 @@ public:
 	 */
 	void removeBindings(StepID step);
 	void removeBindings(StepID step, const Variable& variable);
+	void removeAllBut(const std::set<std::pair<StepID, const Term*> >& relevant_variable_domains);
+	void removeRedundantVariables();
 
 	/**
 	 * Check if two atoms can be unified. This function will call the function canUnify for every

@@ -26,8 +26,8 @@ namespace MyPOP {
 
 namespace SAS_Plus {
 
-DomainTransitionGraph::DomainTransitionGraph(const DomainTransitionGraphManager& dtg_manager, const TypeManager& type_manager, const ActionManager& action_manager, Bindings& bindings, const std::vector<const Atom*>& initial_facts)
-	: dtg_manager_(&dtg_manager), dtg_term_manager_(new TermManager(type_manager)), action_manager_(&action_manager), bindings_(&bindings), initial_facts_(&initial_facts), type_(NULL)
+DomainTransitionGraph::DomainTransitionGraph(const DomainTransitionGraphManager& dtg_manager, const TypeManager& type_manager, const ActionManager& action_manager, const PredicateManager& predicate_manager, Bindings& bindings, const std::vector<const Atom*>& initial_facts)
+	: dtg_manager_(&dtg_manager), dtg_term_manager_(new TermManager(type_manager)), action_manager_(&action_manager), predicate_manager_(&predicate_manager), bindings_(&bindings), initial_facts_(&initial_facts), type_(NULL)
 {
 
 }
@@ -172,11 +172,22 @@ void DomainTransitionGraph::addBalancedSet(const PropertySpace& property_space, 
 			{
 				std::vector<const Type*> predicate_types = property->getPredicate().getTypes();
 				predicate_types[property->getIndex()] = type_;
-				const Predicate& new_predicate = Predicate::getPredicate(property->getPredicate().getName(), predicate_types);
+				const Predicate* new_predicate = predicate_manager_->getPredicate(property->getPredicate().getName(), predicate_types);
 
+				if (new_predicate == NULL)
+				{
+					std::cout << "Predicate: " << property->getPredicate().getName() << " of types: ";
+					for (std::vector<const Type*>::const_iterator ci = predicate_types.begin(); ci != predicate_types.end(); ci++)
+					{
+						std::cout << **ci << std::endl;
+					}
+					std::cout << std::endl;
+					assert (false);
+				}
+				
 //				std::cout << "Update predicate: " << property->getPredicate() << std::endl;
 
-				property->setPredicate(new_predicate);
+				property->setPredicate(*new_predicate);
 				
 //				std::cout << "Result: " << property->getPredicate() << std::endl;
 			}
@@ -665,6 +676,7 @@ void DomainTransitionGraph::removeUnconnectedNodes()
 
 void DomainTransitionGraph::solveSubsets()
 {
+	//std::cout << "[DomainTransitionGraph::solveSubsets] " << *this << std::endl;
 	std::map<DomainTransitionGraphNode*, std::vector<std::pair<DomainTransitionGraphNode*, unsigned int*> >* > sub_to_super_nodes;
 	for (std::vector<DomainTransitionGraphNode*>::reverse_iterator ri = nodes_.rbegin(); ri != nodes_.rend(); ri++)
 	{
@@ -730,10 +742,12 @@ void DomainTransitionGraph::solveSubsets()
 		}
 	}
 	
+	std::cerr << "Lets go, need to replace " << sub_to_super_nodes.size() << " nodes!" << std::endl;
+	unsigned int new_transitions_added = 0;
+	unsigned int new_transitions_created = 0;
 	for (std::map<DomainTransitionGraphNode*, std::vector<std::pair<DomainTransitionGraphNode*, unsigned int*> >* >::const_iterator ci = sub_to_super_nodes.begin(); ci != sub_to_super_nodes.end(); ci++)
 	{
 		DomainTransitionGraphNode* from_node_to_replace = (*ci).first;
-		
 		for (std::vector<std::pair<DomainTransitionGraphNode*, unsigned int*> >::const_iterator ci2 = (*ci).second->begin(); ci2 != (*ci).second->end(); ci2++)
 		{
 			DomainTransitionGraphNode* super_from_node = (*ci2).first;
@@ -742,7 +756,6 @@ void DomainTransitionGraph::solveSubsets()
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 			std::cout << "[DomainTransitionGraph::solveSubsets] Try to replace " << *from_node_to_replace << " with " << *super_from_node << std::endl;
 #endif
-		
 			// Map the transition to the new nodes.
 			for (std::vector<const Transition*>::const_iterator ci = from_node_to_replace->getTransitions().begin(); ci != from_node_to_replace->getTransitions().end(); ci++)
 			{
@@ -762,6 +775,7 @@ void DomainTransitionGraph::solveSubsets()
 						std::cout << "Super set of the to node: " << *super_to_node << std::endl;
 #endif
 						Transition* new_transition = transition->migrateTransition(*super_from_node, *super_to_node, from_mapping, to_mapping);
+						++new_transitions_created;
 						if (new_transition == NULL)
 						{
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
@@ -769,7 +783,14 @@ void DomainTransitionGraph::solveSubsets()
 #endif
 							continue;
 						}
-						super_from_node->addTransition(*new_transition);
+//						if (!super_from_node->addTransition(*new_transition))
+						{
+							delete new_transition;
+						}
+//						else
+						{
+							++new_transitions_added;
+						}
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 						std::cout << "[DomainTransitionGraph::solveSubsets] Use the super node: New transition: " << *new_transition << "." << std::endl;
 #endif
@@ -788,10 +809,8 @@ void DomainTransitionGraph::solveSubsets()
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 					std::cout << "[DomainTransitionGraph::solveSubsets] Possible to node: " << transition->getToNode() << "." << std::endl;
 #endif
-					// TODO: The latter is the correct version. But it might be that the super set does not cover all the subsets, because it might 
-					// be partly grounded.
-					//Transition* new_transition = transition->migrateTransition(*sub_from_node, transition->getToNode(), from_mapping, to_mapping);
 					Transition* new_transition = transition->migrateTransition(*super_from_node, transition->getToNode(), from_mapping, to_mapping);
+					++new_transitions_created;
 					if (new_transition == NULL)
 					{
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
@@ -799,7 +818,14 @@ void DomainTransitionGraph::solveSubsets()
 #endif
 						continue;
 					}
-					super_from_node->addTransition(*new_transition);
+//					if (!super_from_node->addTransition(*new_transition))
+					{
+						delete new_transition;
+					}
+//					else
+					{
+						++new_transitions_added;
+					}
 #ifdef MYPOP_SAS_PLUS_DTG_GRAPH_COMMENTS
 					std::cout << "[DomainTransitionGraph::solveSubsets] Use org node: New transition: " << *new_transition << "." << std::endl;
 #endif
@@ -808,7 +834,10 @@ void DomainTransitionGraph::solveSubsets()
 		}
 		// Remove all the transitions from the super node so it will be marked for removal.
 		from_node_to_replace->removeTransitions();
+		bindings_->removeRedundantVariables();
 	}
+	
+	std::cerr << "END! New transitions created / added: " << "/" << new_transitions_created << "/" << new_transitions_added << std::endl;
 
 	// Free up used memory.
 	for (std::map<DomainTransitionGraphNode*, std::vector<std::pair<DomainTransitionGraphNode*, unsigned int*> >* >::const_iterator ci = sub_to_super_nodes.begin(); ci != sub_to_super_nodes.end(); ci++)
@@ -819,6 +848,7 @@ void DomainTransitionGraph::solveSubsets()
 		}
 		delete (*ci).second;
 	}
+	//std::cout << "[DomainTransitionGraph::solveSubsets] POST " << *this << std::endl;
 }
 
 void DomainTransitionGraph::separateObjects(const RecursiveFunctionManager& recursive_function_manager)

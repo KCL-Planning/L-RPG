@@ -12,8 +12,6 @@ namespace MyPOP {
 namespace REACHABILITY {
 
 class ReachableSet;
-
-
 class ReachableFact;
 class ReachableTree;
 class ReachableTreeIterator;
@@ -43,7 +41,8 @@ public:
 	
 	const std::vector<ReachableTreeNode*>& getChildren() const { return children_; }
 	
-	unsigned int addFact(unsigned int level, const ReachableFact& reachable_fact, const std::vector<std::vector<std::pair<unsigned int, unsigned int> >** >& constraints_set);
+	//unsigned int addFact(unsigned int level, const ReachableFact& reachable_fact, const std::vector<std::vector<std::pair<unsigned int, unsigned int> >** >& constraints_set);
+	unsigned int addFact(unsigned int level, const ReachableFact& reachable_fact);
 	void addChild(ReachableTreeNode* reachable_tree_node);
 	
 	void sanityCheck() const;
@@ -70,7 +69,8 @@ public:
 	 * path from the root of this tree to this node (I.E. the updated version of every node passed is identical in both 
 	 * paths).
 	 */
-	void updateChildren(const ReachableSet& reachable_set, const std::vector<std::vector<std::pair<unsigned int, unsigned int> >** >& constraints_set);
+	//void updateChildren(const ReachableSet& reachable_set, const std::vector<std::vector<std::pair<unsigned int, unsigned int> >** >& constraints_set);
+	void updateChildren(const ReachableSet& reachable_set);
 	
 	void printCompleteTree(std::ostream& os) const;
 	
@@ -82,7 +82,8 @@ public:
 	
 private:
 	
-	bool canSatisfyConstraints(const ReachableFact& reachable_fact, unsigned int level, const std::vector<std::vector<std::pair<unsigned int, unsigned int> >** >& constraints_set) const;
+	//bool canSatisfyConstraints(const ReachableFact& reachable_fact, unsigned int level, const std::vector<std::vector<std::pair<unsigned int, unsigned int> >** >& constraints_set) const;
+	bool canSatisfyConstraints(const ReachableFact& reachable_fact, unsigned int level) const;
 	
 	ReachableTree* tree_;
 	
@@ -172,7 +173,8 @@ private:
 class ReachableTree
 {
 public:
-	ReachableTree(const ReachableSet& reachable_set, const std::vector<std::vector<std::pair<unsigned int, unsigned int> >** >& constraints_set);
+	//ReachableTree(const ReachableSet& reachable_set, const std::vector<std::vector<std::pair<unsigned int, unsigned int> >** >& constraints_set);
+	ReachableTree(const ReachableSet& reachable_set);
 	
 	~ReachableTree();
 	
@@ -186,7 +188,7 @@ public:
 	
 	const std::list<ReachableFact*>& getFactsAtLevel(unsigned int level) const;
 	
-	unsigned int getMaxDepth() const { return reachable_set_->getFactsSet().size(); }
+	unsigned int getMaxDepth() const;
 	
 	void addNewLeaf(ReachableTreeNode& new_leaf);
 	
@@ -198,12 +200,15 @@ public:
 	{
 		if (!cache_is_valid_)
 		{
+//			std::cout << "Set cache of " << this << std::endl;
 			cached_size_ = leaf_nodes_.size();
 			cache_is_valid_ = true;
 		}
 		assert (cached_size_ <= leaf_nodes_.size());
 		return cached_size_;
 	}
+	
+	const ReachableSet& getReachableSet() const { return *reachable_set_; }
 	
 private:
 	const ReachableSet* reachable_set_;
@@ -214,7 +219,7 @@ private:
 	 */
 	ReachableTreeNode* find(const ReachableFact& reachable_fact, unsigned int level) const;
 	
-	const std::vector<std::vector<std::pair<unsigned int, unsigned int> >** >* constraints_set_;
+//	const std::vector<std::vector<std::pair<unsigned int, unsigned int> >* >* constraints_set_;
 	
 	// The root of the tree.
 	ReachableTreeNode* root_node_;

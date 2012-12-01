@@ -313,6 +313,49 @@ void Bindings::removeBindings(StepID step, const Variable& variable)
 	assert (binding_mapping_.erase(std::make_pair(step, &variable)) != 0);
 }
 
+void Bindings::removeAllBut(const std::set<std::pair<StepID, const Term*> >& relevant_variable_domains)
+{
+	unsigned int variable_domains_removed = 0;
+	unsigned int bindings_removed = 0;
+	std::map<const VariableDomain*, unsigned int> pointer_counter;
+	
+	for (std::vector<VariableDomain*>::const_iterator ci = variable_domains_.begin(); ci != variable_domains_.end(); ++ci)
+	{
+		pointer_counter[*ci] = 0;
+	}
+	
+	for (std::map<std::pair<StepID, const Variable*>, VariableDomain*>::const_iterator ci = binding_mapping_.begin(); ci != binding_mapping_.end(); ++ci)
+	{
+		pointer_counter[(*ci).second] = pointer_counter[(*ci).second] + 1;
+	}
+	
+	std::vector<std::pair<StepID, const Variable*> > to_delete;
+	for (std::map<std::pair<StepID, const Variable*>, VariableDomain*>::const_iterator ci = binding_mapping_.begin(); ci != binding_mapping_.end(); ++ci)
+	{
+		if (relevant_variable_domains.count((*ci).first) == 0)
+		{
+			to_delete.push_back((*ci).first);
+		}
+	}
+	
+	for (std::vector<std::pair<StepID, const Variable*> >::const_iterator ci = to_delete.begin(); ci != to_delete.end(); ++ci)
+	{
+		const VariableDomain* variable_domain = binding_mapping_[*ci];
+		binding_mapping_.erase(*ci);
+		unsigned int pointer_count = pointer_counter[variable_domain];
+		pointer_counter[variable_domain] = pointer_count - 1;
+		
+		++bindings_removed;
+		if (pointer_count - 1 == 0)
+		{
+			delete variable_domain;
+			++variable_domains_removed;
+		}
+	}
+	
+	std::cerr << "Removed " << bindings_removed << " bindings and " << variable_domains_removed << " variable domains!" << std::endl;
+}
+
 void VariableDomain::setObjects(std::vector<const Object*>& objects)
 {
 	domain_.clear();
@@ -509,44 +552,66 @@ StepID Bindings::createVariableDomains(const Atom& atom, StepID step_id)
 void Bindings::removeBindings(StepID step)
 {
 	return;
-//	if (binding_mapping_.size() > 100000) assert (false);
-	bool changed = true;
-	
-	// N^2 algorithm, but I'm not caring. reverse iterator doesn't play nice :(.
-//	std::set<VariableDomain*> domains_to_remove;
-	while (changed)
+	std::set<VariableDomain*> variable_domains_to_delete;
+	std::vector<std::pair<StepID, const Variable*> > mappings_to_delete;
+//	std::set<VariableDomain*> shared_variable_domains;
+	for (std::map<std::pair<StepID, const Variable*>, VariableDomain*>::const_iterator ci = binding_mapping_.begin(); ci != binding_mapping_.end(); ++ci)
 	{
-		changed = false;
-		for (std::map<std::pair<StepID, const Variable*>, VariableDomain*>::iterator i = binding_mapping_.begin(); i != binding_mapping_.end(); i++)
+		if ((*ci).first.first == step)
 		{
-			std::pair<StepID, const Variable*> key = (*i).first;
-			VariableDomain* variable_domain = (*i).second;
-			if (key.first == step)
+			variable_domains_to_delete.insert((*ci).second);
+		}
+//		else
+//		{
+//			variable_domains_to_delete.insert((*ci).second);
+//		}
+	}
+	
+	for (std::vector<std::pair<StepID, const Variable*> >::const_iterator ci = mappings_to_delete.begin(); ci != mappings_to_delete.end(); ++ci)
+	{
+		binding_mapping_.erase(*ci);
+	}
+	
+	for (std::vector<VariableDomain*>::reverse_iterator ri = variable_domains_.rbegin(); ri != variable_domains_.rend(); ++ri)
+	{
+		VariableDomain* variable_domain = *ri;
+		if (variable_domains_to_delete.find(*ri) == variable_domains_to_delete.end())
+		{
+			for (std::vector<VariableDomain*>::const_iterator ci = variable_domain->getUnequalVariables().begin(); ci != variable_domain->getUnequalVariables().end(); ci++)
 			{
-				// Remove this entry from the variable domain.
-//				domains_to_remove.insert((*i).second);
-				variable_domain->removeVariable(step);
-				
-				// If the variable domain not equal to anything else anymore, delete it!
-				if (variable_domain->getEqualVariables().empty())
-				{
-					for (std::vector<VariableDomain*>::reverse_iterator ri = variable_domains_.rbegin(); ri != variable_domains_.rend(); ri++)
-					{
-						variable_domains_.erase(ri.base() - 1);
-					}
-					
-					for (std::vector<VariableDomain*>::const_iterator ci = variable_domain->getUnequalVariables().begin(); ci != variable_domain->getUnequalVariables().end(); ci++)
-					{
-						(*ci)->variableDomainRemoved(*variable_domain);
-					}
-					delete variable_domain;
-//					std::cerr << "DELETE!" << std::endl;
-				}
-				
-				binding_mapping_.erase(i);
-				changed = true;
-				break;
+				(*ci)->variableDomainRemoved(*variable_domain);
 			}
+			
+			delete variable_domain;
+			variable_domains_.erase(ri.base() - 1);
+		}
+	}
+}
+
+void Bindings::removeRedundantVariables()
+{
+	// Remove all the bindings which are linked to the given step.
+	//std::vector<VariableDomain*> variable_domains_to_remove;
+	std::set<VariableDomain*> mapped_variable_domains;
+	std::vector<std::pair<StepID, const Variable*> > mappings_to_remove;
+	
+	for (std::map<std::pair<StepID, const Variable*>, VariableDomain*>::const_iterator ci = binding_mapping_.begin(); ci != binding_mapping_.end(); ++ci)
+	{
+		mapped_variable_domains.insert((*ci).second);
+	}
+	
+	for (std::vector<VariableDomain*>::reverse_iterator ri = variable_domains_.rbegin(); ri != variable_domains_.rend(); ++ri)
+	{
+		VariableDomain* variable_domain = *ri;
+		if (mapped_variable_domains.find(*ri) == mapped_variable_domains.end())
+		{
+			for (std::vector<VariableDomain*>::const_iterator ci = variable_domain->getUnequalVariables().begin(); ci != variable_domain->getUnequalVariables().end(); ci++)
+			{
+				(*ci)->variableDomainRemoved(*variable_domain);
+			}
+			
+			delete variable_domain;
+			variable_domains_.erase(ri.base() - 1);
 		}
 	}
 }

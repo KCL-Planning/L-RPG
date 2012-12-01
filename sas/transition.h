@@ -203,6 +203,7 @@ private:
 	 * @return The generated transition or NULL if the action cannot be applied.
 	 */
 	static Transition* createTransition(const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, std::map<const PropertySpace*, BalancedPropertySet*>& property_space_balanced_sets);
+	static bool canCreateTransition(const Action& action, const std::vector<std::vector<const Object*>* > variable_domains, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, std::map<const PropertySpace*, BalancedPropertySet*>& property_space_balanced_sets);
 	
 	/**
 	 * Check if any of the facts in @ref facts is mutex with any of the preconditions. In order to be mutex, both need to have a term whose variable domain
@@ -216,6 +217,7 @@ private:
 	 * @return True if there exists a mutex relationship, false otherwise.
 	 */
 	static bool areMutex(const std::vector<BoundedAtom*>& facts, const std::vector<const Atom*>& preconditions, StepID action_step_id, const PropertySpace& balanced_property_space, const Bindings& bindings, const Variable& balanced_action_variable);
+	static bool canBeMutex(const std::map<const Term*, unsigned int>& term_to_action_variable_index,  const std::vector<std::vector<const Object*>* >& variable_domains, const std::vector<BoundedAtom*>& facts, const std::vector<const Atom*>& preconditions, const PropertySpace& balanced_property_space, const Bindings& bindings, const Variable& balanced_action_variable);
 
 	/**
 	 * @param step The action, id pair the transition is.
@@ -247,6 +249,7 @@ private:
 	 * @return The actual transition which is constructed by cloning this one, this always succeeds or the program quits!
 	 */
 	Transition* performBindings(MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, unsigned int from_fact_ordering[], unsigned int to_fact_ordering[], MyPOP::Bindings& bindings) const;
+	bool canPerformBindings(std::vector<std::vector<const Object*>* >& action_variable_domains, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, unsigned int from_fact_ordering[], unsigned int to_fact_ordering[], Bindings& bindings) const;
 
 	unsigned int isFactContainedByNode(const Atom& fact, const DomainTransitionGraphNode& node) const;
 	
@@ -286,6 +289,20 @@ private:
 	
 	friend std::ostream& operator<<(std::ostream& os, const Transition& transition);
 };
+
+std::ostream& operator<<(std::ostream& os, const Transition& transition);
+
+/**
+ * Utility function which reduces the content of the lhs list such that it only contains objects which are also present in the rhs.
+ */
+void reduceToIntersection(std::vector<const Object*>& lhs, const std::vector<const Object*>& rhs);
+
+void getTheIntersection(std::vector<const Object*>& result, const std::vector<const Object*>& lhs, const std::vector<const Object*>& rhs);
+
+bool evaluateIntersections(const std::vector<std::vector<const Object*>* >& action_variable_domains, const Atom& effect_or_precondition, const SAS_Plus::BoundedAtom& other_atom, const std::map<const Term*, unsigned int>& term_to_action_variable_index, const Bindings& bindings, bool modify_action_variables);
+
+bool canBeMutexWith(const std::vector<std::vector<const Object*>* >& action_variable_domains, const std::map<const Term*, unsigned int>& term_to_action_variable_index, const BoundedAtom& fact, const Atom& precondition_or_effect, const Bindings& bindings, InvariableIndex invariable_index);
+
 /*
 class RecursivePreconditions
 {
@@ -301,7 +318,6 @@ private:
 	const std::map<const Atom*, InvariableIndex> dtg_node_atoms_to_recursive_terms;
 };
 */
-std::ostream& operator<<(std::ostream& os, const Transition& transition);
 
 };
 

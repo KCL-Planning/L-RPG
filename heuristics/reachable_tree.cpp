@@ -5,6 +5,7 @@
 
 //#define MYPOP_SAS_PLUS_REACHABLE_TREE_COMMENT
 //#define MYPOP_SAS_PLUS_REACHABLE_TREE_DEBUG
+#include "fact_set.h"
 
 namespace MyPOP {
 
@@ -62,10 +63,89 @@ ReachableTreeIterator ReachableTreeNode::end() const
 	return ReachableTreeIterator(NULL);
 }
 
+unsigned int ReachableTreeNode::addFact(unsigned int level, const ReachableFact& reachable_fact)
+{
+#ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_COMMENT
+	std::cout << "Try to add " << reachable_fact << " at level " << level << " to the node: " << *this << std::endl;
+#endif
+	
+	// Check if the tree is deep enough to accommodate the new reachable fact.
+	if (max_level_of_children_ + 1 < level)
+	{
+#ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_COMMENT
+		std::cout << "* Tree is not deep enough :(." << std::endl;
+#endif
+		return std::numeric_limits<unsigned int>::max();
+	}
+	
+	// Check if the fact should be added here as a child.
+	if (level_ + 1 == level)
+	{
+		if (!canSatisfyConstraints(reachable_fact, level))
+		{
+#ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_COMMENT
+			std::cout << "* Tree deep enough, but constraints cannot be satisfied :(." << std::endl;
+#endif
+			return std::numeric_limits<unsigned int>::max();
+		}
+		
+		ReachableTreeNode* new_reachable_node = new ReachableTreeNode(*tree_, this, level, reachable_fact);
+		
+		children_.push_back(new_reachable_node);
+#ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_COMMENT
+		std::cout << "* Succes! :D Number of leaves: " << tree_->getLeaves().size() << std::endl;
+#endif
+		if (max_level_of_children_ < level_ + 1)
+		{
+			max_level_of_children_ = level_ + 1;
+		}
+		
+		// Try to build the next layer (if possible!).
+		if (level + 1 == tree_->getMaxDepth())
+		{
+#ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_COMMENT
+			std::cout << "* Reached the last layer, we're done!" << std::endl;
+#endif
+			return level;
+		}
+		
+		const std::list<ReachableFact*>& potential_new_facts = tree_->getFactsAtLevel(level + 1);
+#ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_COMMENT
+		std::cout << "Found " << potential_new_facts.size() << " fact for the " << (level + 1) << "th layer!" << std::endl;
+#endif
+		for (std::list<ReachableFact*>::const_iterator ci = potential_new_facts.begin(); ci != potential_new_facts.end(); ci++)
+		{
+			assert (!(*ci)->isMarkedForRemoval());
+			unsigned int deepest_level = new_reachable_node->addFact(level + 1, **ci);
+			if (deepest_level != std::numeric_limits<unsigned int>::max() &&
+			    deepest_level > max_level_of_children_)
+			{
+				max_level_of_children_ = deepest_level;
+			}
+		}
+		return max_level_of_children_;
+	}
+	else
+	{
+		for (std::vector<ReachableTreeNode*>::const_iterator ci = children_.begin(); ci != children_.end(); ci++)
+		{
+			unsigned int added_level = (*ci)->addFact(level, reachable_fact);
+			if (added_level != std::numeric_limits<unsigned int>::max() &&
+			    added_level > max_level_of_children_)
+			{
+				max_level_of_children_ = added_level;
+			}
+		}
+		return max_level_of_children_;
+	}
+	
+	return std::numeric_limits<unsigned int>::max();
+}
+/*
 unsigned int ReachableTreeNode::addFact(unsigned int level, const ReachableFact& reachable_fact, const std::vector<std::vector<std::pair<unsigned int, unsigned int> >** >& constraints_set)
 {
 #ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_COMMENT
-	std::cout << "Add " << reachable_fact << " at level " << level << " to the node: " << *this << std::endl;
+	std::cout << "Try to add " << reachable_fact << " at level " << level << " to the node: " << *this << std::endl;
 #endif
 	
 	// Check if the tree is deep enough to accommodate the new reachable fact.
@@ -92,7 +172,7 @@ unsigned int ReachableTreeNode::addFact(unsigned int level, const ReachableFact&
 		
 		children_.push_back(new_reachable_node);
 #ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_COMMENT
-		std::cout << "* Succes! :D" << std::endl;
+		std::cout << "* Succes! :D Number of leaves: " << tree_->getLeaves().size() << std::endl;
 #endif
 		if (max_level_of_children_ < level_ + 1)
 		{
@@ -140,7 +220,7 @@ unsigned int ReachableTreeNode::addFact(unsigned int level, const ReachableFact&
 	
 	return std::numeric_limits<unsigned int>::max();
 }
-
+*/
 void ReachableTreeNode::addChild(ReachableTreeNode* reachable_tree_node)
 {
 	children_.push_back(reachable_tree_node);
@@ -150,10 +230,76 @@ void ReachableTreeNode::addChild(ReachableTreeNode* reachable_tree_node)
 	}
 }
 
+bool ReachableTreeNode::canSatisfyConstraints(const ReachableFact& reachable_fact, unsigned int level) const
+{
+//	std::cout << "[ReachableTreeNode::canSatisfyConstraints] " << reachable_fact << "; level=" << level << std::endl;
+	const std::vector<std::vector<std::pair<unsigned int, unsigned int> >* >& constraints = tree_->getReachableSet().getConstraints();
+/*
+	std::cout << "Constraints to be imposed: " << std::endl;
+	for (std::vector<std::vector<std::pair<unsigned int, unsigned int> >* >::const_iterator ci = constraints.begin(); ci != constraints.end(); ++ci)
+	{
+		std::vector<std::pair<unsigned int, unsigned int> >* constraint = *ci;
+		std::cout << std::distance(constraints.begin(), ci) << ", ";
+		for (std::vector<std::pair<unsigned int, unsigned int> >::const_iterator ci = constraint->begin(); ci != constraint->end(); ++ci)
+		{
+			std::cout << (*ci).first << ", " << (*ci).second << ", ";
+		}
+		std::cout << "." << std::endl;
+	}
+	
+	for (std::vector<EquivalentObjectGroup*>::const_iterator ci = reachable_fact.getTermDomains().begin(); ci != reachable_fact.getTermDomains().end(); ++ci)
+	{
+		std::cout << *ci << " ";
+	}
+	std::cout << "." << std::endl;
+*/
+	for (unsigned int reachable_fact_term_index = 0; reachable_fact_term_index < reachable_fact.getTermDomains().size(); ++reachable_fact_term_index)
+	{
+		unsigned int fact_index = (*constraints[level])[reachable_fact_term_index].first;
+		unsigned int variable_index = (*constraints[level])[reachable_fact_term_index].second;
+		
+		const ReachableTreeNode* cur_node = this;
+		
+		//std::cout << "Check that the constraint of " << reachable_fact << "; level=" << level << "." << std::endl;
+		//std::cout << "The " << reachable_fact_term_index << "th variable should match up with the " << fact_index << " fact and its " << variable_index << "th variable." << std::endl;
+		//std::cout << "Fact in question: " << cur_node->getReachableFact() << std::endl;
+		
+		// Get the correct node to match the fact index.
+		//std::cout << "Search for the " << fact_index << " fact!" << std::endl;
+		
+		// If the constraint is part of the fact level itself it is only constrained by itself and we can ignore it.
+		if (fact_index == level)
+		{
+			continue;
+		}
+		
+		while (fact_index != cur_node->getLevel())
+		{
+			//std::cout << "! " << cur_node->getLevel() << std::endl;
+			cur_node = cur_node->getParent();
+			assert (cur_node != NULL);
+		}
+		
+		//for (std::vector<EquivalentObjectGroup*>::const_iterator ci = cur_node->getReachableFact().getTermDomains().begin(); ci != cur_node->getReachableFact().getTermDomains().end(); ++ci)
+		//{
+		//	std::cout << *ci << " ";
+		//}
+		//std::cout << "." << std::endl;
+		
+		// Check if the relationship holds.
+		if (&reachable_fact.getTermDomain(reachable_fact_term_index) != &cur_node->getReachableFact().getTermDomain(variable_index))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+/*
 bool ReachableTreeNode::canSatisfyConstraints(const ReachableFact& reachable_fact, unsigned int level, const std::vector<std::vector<std::pair<unsigned int, unsigned int> >** >& constraints_set) const
 {
 	std::vector<std::pair<unsigned int, unsigned int> >** constraints = constraints_set[level];
-	for (unsigned int i = 0; i < reachable_fact.getPredicate().getArity(); i++)
+	for (unsigned int i = 0; i < reachable_fact.getAtom().getArity(); i++)
 	{
 		std::vector<std::pair<unsigned int, unsigned int> >* variable_constraints = constraints[i];
 		
@@ -179,7 +325,7 @@ bool ReachableTreeNode::canSatisfyConstraints(const ReachableFact& reachable_fac
 	}
 	return true;
 }
-
+*/
 void ReachableTreeNode::sanityCheck() const
 {
 	for (std::vector<ReachableTreeNode*>::const_iterator ci = children_.begin(); ci != children_.end(); ci++)
@@ -190,7 +336,8 @@ void ReachableTreeNode::sanityCheck() const
 	}
 }
 
-void ReachableTreeNode::updateChildren(const ReachableSet& reachable_set, const std::vector<std::vector<std::pair<unsigned int, unsigned int> >** >& constraints_set)
+//void ReachableTreeNode::updateChildren(const ReachableSet& reachable_set, const std::vector<std::vector<std::pair<unsigned int, unsigned int> >** >& constraints_set)
+void ReachableTreeNode::updateChildren(const ReachableSet& reachable_set)
 {
 	// Remove all children which are redundant.
 	for (std::vector<ReachableTreeNode*>::reverse_iterator ri = children_.rbegin(); ri != children_.rend(); ri++)
@@ -204,7 +351,8 @@ void ReachableTreeNode::updateChildren(const ReachableSet& reachable_set, const 
 		}
 		else
 		{
-			child->updateChildren(reachable_set, constraints_set);
+//			child->updateChildren(reachable_set, constraints_set);
+			child->updateChildren(reachable_set);
 			assert (&child->getTree() == tree_);
 		}
 	}
@@ -232,9 +380,10 @@ void ReachableTreeNode::updateChildren(const ReachableSet& reachable_set, const 
 			// If it is not part of a child yet, try to add it!
 			if (!is_child_of)
 			{
+				addFact(level_ + 1, *reachable_fact);
 				// Check grounded properties.
-				bool ground_properties_satisfied = true;
-				for (unsigned int i = 0; i < reachable_fact->getPredicate().getArity(); i++)
+/*				bool ground_properties_satisfied = true;
+				for (unsigned int i = 0; i < reachable_fact->getAtom().getArity(); i++)
 				{
 					if (reachable_set.getFactsSet()[level_ + 1]->isGrounded(i) &&
 					   (
@@ -250,8 +399,10 @@ void ReachableTreeNode::updateChildren(const ReachableSet& reachable_set, const 
 				
 				if (ground_properties_satisfied)
 				{
+
 					addFact(level_ + 1, *reachable_fact, constraints_set);
 				}
+*/
 			}
 		}
 	}
@@ -261,6 +412,16 @@ std::ostream& operator<<(std::ostream& os, const ReachableTreeNode& reachable_tr
 {
 	assert (reachable_tree_node.reachable_fact_ != NULL);
 	//assert (!reachable_tree_node.reachable_fact_->isMarkedForRemoval());
+	
+	os << *reachable_tree_node.reachable_fact_;
+
+	os << "Parents: ";
+	const ReachableTreeNode* current_node = &reachable_tree_node;
+	while (current_node != NULL)
+	{
+		os << "+ [" << current_node->level_ << "] " << *current_node->reachable_fact_ << "(" << current_node->reachable_fact_ << ")" << std::endl;
+		current_node = current_node->getParent();
+	}	
 	os << "[" << reachable_tree_node.level_ << "/" << reachable_tree_node.max_level_of_children_ << "] " << *reachable_tree_node.reachable_fact_ << "(" << reachable_tree_node.reachable_fact_ << ")" << std::endl;
 	os << "Children:" << std::endl;
 	for (std::vector<ReachableTreeNode*>::const_iterator ci = reachable_tree_node.children_.begin(); ci != reachable_tree_node.children_.end(); ci++)
@@ -271,11 +432,20 @@ std::ostream& operator<<(std::ostream& os, const ReachableTreeNode& reachable_tr
 	{
 		os << **ci << std::endl;
 	}
+
 	return os;
 }
-
+/*
 ReachableTree::ReachableTree(const ReachableSet& reachable_set, const std::vector<std::vector<std::pair<unsigned int, unsigned int> >** >& constraints_set)
 	: reachable_set_(&reachable_set), constraints_set_(&constraints_set), root_node_(NULL), cache_is_valid_(false), cached_size_(0)
+{
+#ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_DEBUG
+	sanityCheck();
+#endif
+}
+*/
+ReachableTree::ReachableTree(const ReachableSet& reachable_set)
+	: reachable_set_(&reachable_set), root_node_(NULL), cache_is_valid_(false), cached_size_(0)
 {
 #ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_DEBUG
 	sanityCheck();
@@ -296,7 +466,7 @@ void ReachableTree::addFact(unsigned int level, const ReachableFact& reachable_f
 #ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_COMMENT
 	std::cout << "[ReachableTree::addFact] Level=" << level << " add=" << reachable_fact << std::endl;
 	std::cout << " === Tree facts " << this << " === " << std::endl;
-	reachable_set_->print(std::cout);
+	std::cout << *reachable_set_ << std::endl;
 	std::cout << " /// Tree facts /// " << std::endl;
 #endif
 
@@ -315,14 +485,16 @@ void ReachableTree::addFact(unsigned int level, const ReachableFact& reachable_f
 		{
 			for (std::list<ReachableFact*>::const_iterator ci = reachable_set_->getReachableSets()[level + 1]->begin(); ci != reachable_set_->getReachableSets()[level + 1]->end(); ci++)
 			{
-				root_node_->addFact(level + 1, **ci, *constraints_set_);
+//				root_node_->addFact(level + 1, **ci, *constraints_set_);
+				root_node_->addFact(level + 1, **ci);
 			}
 		}
 	}
 	else
 	{
 		assert (root_node_ != NULL);
-		root_node_->addFact(level, reachable_fact, *constraints_set_);
+//		root_node_->addFact(level, reachable_fact, *constraints_set_);
+		root_node_->addFact(level, reachable_fact);
 	}
 #ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_DEBUG
 	sanityCheck();
@@ -342,6 +514,7 @@ void ReachableTree::equivalencesUpdated(unsigned int iteration, const std::vecto
 		}
 	}
 	cache_is_valid_ = false;
+//	std::cout << "Reset cache!" << std::endl;
 
 #ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_DEBUG
 	sanityCheck();
@@ -368,7 +541,8 @@ void ReachableTree::equivalencesUpdated(unsigned int iteration, const std::vecto
 	// root which was not up to date, by doing so we might have "lost" nodes which must be included in this tree. Therefore, by going through the set 
 	// of all reachable facts, we need to reconstruct these potential lost nodes.
 	// Another way of doing it is by merging the trees that are to be removed with those which stay and copying all the relevant information.
-	root_node_->updateChildren(*reachable_set_, *constraints_set_);
+//	root_node_->updateChildren(*reachable_set_, *constraints_set_);
+	root_node_->updateChildren(*reachable_set_);
 	
 	// Determine which leaf nodes are already processed and do not need to be processed again.
 	for (unsigned int leaf_index = 0; leaf_index < leaf_nodes_.size(); ++leaf_index)
@@ -458,19 +632,25 @@ const std::list<ReachableFact*>& ReachableTree::getFactsAtLevel(unsigned int lev
 	return *reachable_set_->getReachableSets()[level];
 }
 
+unsigned int ReachableTree::getMaxDepth() const
+{
+//	return reachable_set_->getFactsSet().size();
+	return reachable_set_->getFactSet().getFacts().size();
+}
+
 void ReachableTree::addNewLeaf(ReachableTreeNode& new_leaf)
 {
 	assert (new_leaf.getLevel() == getMaxDepth() - 1);
 	leaf_nodes_.push_back(&new_leaf);
 	
-/*#ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_DEBUG
+#ifdef MYPOP_SAS_PLUS_REACHABLE_TREE_DEBUG
 	std::cout << this << "[ReachableTree] New leaf node:" << std::endl;
 	ReachableTreeNode* leaf = &new_leaf;
 	do
 	{
-		std::cout << "* " << *leaf << std::endl;
+		std::cout << "* " << *leaf << "(" << leaf << ")" << std::endl;
 	} while ((leaf = leaf->getParent()) != NULL);
-#endif*/
+#endif
 }
 
 void ReachableTree::sanityCheck() const
@@ -488,9 +668,10 @@ void ReachableTree::sanityCheck() const
 
 std::ostream& operator<<(std::ostream& os, const ReachableTree& reachable_tree)
 {
-	os << "[ReachableTree - " << &reachable_tree << "^" << reachable_tree.constraints_set_ << "] " << *reachable_tree.getRoot();
+	os << "[ReachableTree - " << &reachable_tree << "^" << &reachable_tree.getReachableSet().getConstraints() << "] " << *reachable_tree.getRoot();
 	return os;
 }
+    const ReachableTree* reachable_tree_;
 
 };
 

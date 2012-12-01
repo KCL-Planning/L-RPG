@@ -24,11 +24,12 @@
 #include "../bindings_propagator.h"
 #include "../plan.h"
 #include "recursive_function.h"
+//#include "../heuristics/dtg_reachability.h"
 
 //#define MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 //#define MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
 //#define MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
-//#define MYPOP_SAS_PLUS_DTG_MANAGER_KEEP_TIME
+#define MYPOP_SAS_PLUS_DTG_MANAGER_KEEP_TIME
 
 namespace MyPOP {
 
@@ -337,8 +338,8 @@ void BoundedAtom::print(std::ostream& os, const Bindings& bindings, bool verbal)
  * void DomainTransitionGraphManager...
  ****************************************/
 	
-DomainTransitionGraphManager::DomainTransitionGraphManager(const TypeManager& type_manager, const ActionManager& action_manager, const TermManager& term_manager, const std::vector<const Atom*>& initial_facts)
-	: type_manager_(&type_manager), action_manager_(&action_manager), term_manager_(&term_manager), initial_facts_(&initial_facts)
+DomainTransitionGraphManager::DomainTransitionGraphManager(const PredicateManager& predicate_manager, const TypeManager& type_manager, const ActionManager& action_manager, const TermManager& term_manager, const std::vector<const Atom*>& initial_facts)
+	: predicate_manager_(&predicate_manager), type_manager_(&type_manager), action_manager_(&action_manager), term_manager_(&term_manager), initial_facts_(&initial_facts)
 {
 	
 }
@@ -355,16 +356,19 @@ void DomainTransitionGraphManager::getProperties(std::vector<std::pair<const Pre
 {
 	for (std::multiset<TIM::Property*>::const_iterator lhs_properties_i = property_state.begin(); lhs_properties_i != property_state.end(); lhs_properties_i++)
 	{
-		TIM::Property* property = *lhs_properties_i;
-		const Predicate& predicate = Predicate::getPredicate(*property, *type_manager_);
+		const TIM::Property* property = *lhs_properties_i;
+
+		const VAL::extended_pred_symbol* extended_property = property->root();
+		const Predicate* predicate = predicate_manager_->getGeneralPredicate(extended_property->getName());
+		assert (predicate != NULL);
 
 		// Adding the predicate to the DTG will also create a lifted DTG node with that predicate.
 		// Further refinements can be made to this DTG by splitting these nodes.
-		predicates.push_back(std::make_pair(&predicate, property->aPosn()));
+		predicates.push_back(std::make_pair(predicate, property->aPosn()));
 	}
 }
 
-void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, Bindings& bindings)
+const DomainTransitionGraph& DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, Bindings& bindings)
 {
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_KEEP_TIME
 	struct timeval start_time_tim_translation;
@@ -378,7 +382,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 //	property_spaces.insert(property_spaces.end(), TIM::TA->abegin(), TIM::TA->aend());
 //	property_spaces.insert(property_spaces.end(), TIM::TA->sbegin(), TIM::TA->send());
 
-//	assert (property_spaces.size() > 0);
+	assert (property_spaces.size() > 0);
 	
 	std::set<const Predicate*> state_valued_predicates;
 
@@ -392,7 +396,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 		std::set<std::vector<std::pair<const Predicate*, unsigned int> > > processed_expressions;
 		
 		// The DTG where all predicates will be added to.
-		DomainTransitionGraph* dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, bindings, *initial_facts_);
+		DomainTransitionGraph* dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, *predicate_manager_, bindings, *initial_facts_);
 
 		// We need to augment some rules to get the full set of properties. If a property appears in the LHS of a rule $a$ and it is a proper subset
 		// of another LHS $b$. Then add a new rule $b$ -> ($b.LHS$ \ $a.LHS$) + $a.RHS$.
@@ -448,9 +452,9 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 					for (std::multiset<TIM::Property*>::const_iterator ci = difference.begin(); ci != difference.end(); ci++)
 					{
 						TIM::Property* property = *ci;
-						const Predicate& predicate = Predicate::getPredicate(*property, *type_manager_);
-						//const Predicate* predicate = predicate_manager_->getGeneralPredicate(extended_property->getName());
-						//assert (predicate != NULL);
+						const VAL::extended_pred_symbol* extended_property = property->root();
+						const Predicate* predicate = predicate_manager_->getGeneralPredicate(extended_property->getName());
+						assert (predicate != NULL);
 						
 						// Make sure we do not add duplicates:
 						if (duplicates.count(property) != 0)
@@ -458,7 +462,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 							continue;
 						}
 
-						predicates_rhs.push_back(std::make_pair(&predicate, property->aPosn()));
+						predicates_rhs.push_back(std::make_pair(predicate, property->aPosn()));
 						
 //						property->write(std::cout);
 //						std::cout << " ++ ";
@@ -584,8 +588,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	 * end up with wrong DTGs.
 	 */
 	std::vector<std::pair<const Predicate*, const Atom*> > unsupported_predicates;
-	//for (std::vector<Predicate*>::const_iterator ci = predicate_manager_->getManagableObjects().begin(); ci != predicate_manager_->getManagableObjects().end(); ci++)
-	for (std::vector<const Predicate*>::const_iterator ci = Predicate::getPredicates().begin(); ci != Predicate::getPredicates().end(); ci++)
+	for (std::vector<Predicate*>::const_iterator ci = predicate_manager_->getManagableObjects().begin(); ci != predicate_manager_->getManagableObjects().end(); ci++)
 	{
 		const Predicate* predicate = *ci;
 
@@ -616,6 +619,7 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 		}
 		Atom* possitive_atom = new Atom(*predicate, *new_terms, false, true);
 
+		assert (objects_.size() > 0);
 		unsupported_predicates.push_back(std::make_pair(predicate, possitive_atom));
 	}
 	
@@ -633,86 +637,58 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 		std::cout << "The predicate: " << *predicate << " is not processed yet!" << std::endl;
 #endif
-		DomainTransitionGraph* new_unprocessed_dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, bindings, *initial_facts_);
 		
 		// 1) The predicate is static.
-		if (predicate->isStatic())
-		{
-			//std::vector<std::pair<const Predicate*, unsigned int> >* predicates_to_add = new std::vector<std::pair<const Predicate*, unsigned int> >();
-			std::vector<std::pair<const Predicate*, unsigned int> > predicates_to_add;
-			predicates_to_add.push_back(std::make_pair(predicate, NO_INVARIABLE_INDEX));
-			
-			DomainTransitionGraphNode* possitive_new_unprocessed_dtg = new DomainTransitionGraphNode(*new_unprocessed_dtg);
-			
-			StepID possitive_atom_id = new_unprocessed_dtg->getBindings().createVariableDomains(*possitive_atom);
-			
-			// Only memory leak here :P.
-			PropertySpace* property_space = new PropertySpace();
-			PropertyState* property_state = new PropertyState(*property_space, predicates_to_add);
-			property_space->addPropertyState(*property_state);
-			
-			Atom* new_possitive_atom = new Atom(*possitive_atom);
-			BoundedAtom& fact = BoundedAtom::createBoundedAtom(*new_possitive_atom, property_state->getProperties(), bindings);
-			
-			bindings.unify(*new_possitive_atom, fact.getId(), *possitive_atom, possitive_atom_id);
-			
-			possitive_new_unprocessed_dtg->addAtom(fact, NO_INVARIABLE_INDEX);
-			
-			new_unprocessed_dtg->addNode(*possitive_new_unprocessed_dtg);
+		DomainTransitionGraph* new_unprocessed_dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, *predicate_manager_, bindings, *initial_facts_);
+		//std::vector<std::pair<const Predicate*, unsigned int> >* predicates_to_add = new std::vector<std::pair<const Predicate*, unsigned int> >();
+		std::vector<std::pair<const Predicate*, unsigned int> > predicates_to_add;
+		predicates_to_add.push_back(std::make_pair(predicate, NO_INVARIABLE_INDEX));
+		
+		DomainTransitionGraphNode* possitive_new_unprocessed_dtg = new DomainTransitionGraphNode(*new_unprocessed_dtg);
+		
+		StepID possitive_atom_id = new_unprocessed_dtg->getBindings().createVariableDomains(*possitive_atom);
+		
+		// Only memory leak here :P.
+		PropertySpace* property_space = new PropertySpace();
+		PropertyState* property_state = new PropertyState(*property_space, predicates_to_add);
+		property_space->addPropertyState(*property_state);
+		
+		Atom* new_possitive_atom = new Atom(*possitive_atom);
+		BoundedAtom& fact = BoundedAtom::createBoundedAtom(*new_possitive_atom, property_state->getProperties(), bindings);
+		
+		bindings.unify(*new_possitive_atom, fact.getId(), *possitive_atom, possitive_atom_id);
+		
+		possitive_new_unprocessed_dtg->addAtom(fact, NO_INVARIABLE_INDEX);
+		
+		new_unprocessed_dtg->addNode(*possitive_new_unprocessed_dtg);
 
-			addManagableObject(new_unprocessed_dtg);
-		}
+		addManagableObject(new_unprocessed_dtg);
 		
 		// 2) The predicate is not static.
-		//if (!predicate->isStatic())
-		else
+		if (!predicate->isStatic())
 		{
+			// Add all preconditions which share a term with the unsupported predicate.
+			DomainTransitionGraphNode* negative_new_unprocessed_dtg = new DomainTransitionGraphNode(*new_unprocessed_dtg);
+			
+			Atom* negative_atom = new Atom(*possitive_atom);
+			negative_atom->makeNegative(true);
+			BoundedAtom& bounded_negative_atom = BoundedAtom::createBoundedAtom(*negative_atom, property_state->getProperties(), bindings);
+			
+			bindings.unify(*negative_atom, bounded_negative_atom.getId(), *possitive_atom, possitive_atom_id);
+			std::vector<const BoundedAtom*> atoms_add_to_from_node;
+			atoms_add_to_from_node.push_back(&bounded_negative_atom);
+			
+			new_unprocessed_dtg->addNode(*negative_new_unprocessed_dtg);
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+			std::cout << "Simple DTG : " << *new_unprocessed_dtg << std::endl;
+#endif
+			
 			// Find all transitions which can make this predicate true and false and add them as transitions.
 			std::vector<std::pair<const Action*, const Atom*> > achievers;
 			action_manager_->getAchievingActions(achievers, *possitive_atom);
 			
 			for (std::vector<std::pair<const Action*, const Atom*> >::const_iterator ci = achievers.begin(); ci != achievers.end(); ci++)
 			{
-				//std::vector<std::pair<const Predicate*, unsigned int> >* predicates_to_add = new std::vector<std::pair<const Predicate*, unsigned int> >();
-				std::vector<std::pair<const Predicate*, unsigned int> > predicates_to_add;
-				predicates_to_add.push_back(std::make_pair(predicate, NO_INVARIABLE_INDEX));
-				
-				DomainTransitionGraphNode* possitive_new_unprocessed_dtg = new DomainTransitionGraphNode(*new_unprocessed_dtg);
-				
-				StepID possitive_atom_id = new_unprocessed_dtg->getBindings().createVariableDomains(*possitive_atom);
-				
-				// Only memory leak here :P.
-				PropertySpace* property_space = new PropertySpace();
-				PropertyState* property_state = new PropertyState(*property_space, predicates_to_add);
-				property_space->addPropertyState(*property_state);
-				
-				Atom* new_possitive_atom = new Atom(*possitive_atom);
-				BoundedAtom& fact = BoundedAtom::createBoundedAtom(*new_possitive_atom, property_state->getProperties(), bindings);
-				
-				bindings.unify(*new_possitive_atom, fact.getId(), *possitive_atom, possitive_atom_id);
-				
-				possitive_new_unprocessed_dtg->addAtom(fact, NO_INVARIABLE_INDEX);
-				
-				new_unprocessed_dtg->addNode(*possitive_new_unprocessed_dtg);
-
-				addManagableObject(new_unprocessed_dtg);
-				
-				// Add all preconditions which share a term with the unsupported predicate.
-				DomainTransitionGraphNode* negative_new_unprocessed_dtg = new DomainTransitionGraphNode(*new_unprocessed_dtg);
-				
-				Atom* negative_atom = new Atom(*possitive_atom);
-				negative_atom->makeNegative(true);
-				BoundedAtom& bounded_negative_atom = BoundedAtom::createBoundedAtom(*negative_atom, property_state->getProperties(), bindings);
-				
-				bindings.unify(*negative_atom, bounded_negative_atom.getId(), *possitive_atom, possitive_atom_id);
-				std::vector<const BoundedAtom*> atoms_add_to_from_node;
-				atoms_add_to_from_node.push_back(&bounded_negative_atom);
-				
-				new_unprocessed_dtg->addNode(*negative_new_unprocessed_dtg);
-
-#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-				std::cout << "Simple DTG : " << *new_unprocessed_dtg << " - achievers: " << achievers.size() << std::endl;
-#endif
 				const Action* achieving_action = (*ci).first;
 				StepID new_action_step_id = bindings.createVariableDomains(*achieving_action);
 				StepPtr new_step(new Step(new_action_step_id, *achieving_action));
@@ -722,10 +698,6 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 				{
 					continue;
 				}
-				
-#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-				std::cout << "Process the action: " << *achieving_action << std::endl;
-#endif
 				
 				// Create a transition between the two nodes.
 				Transition* transition = Transition::createSimpleTransition(new_step, *negative_new_unprocessed_dtg, *possitive_new_unprocessed_dtg);
@@ -805,9 +777,6 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 										}
 										else
 										{
-#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
-											std::cout << "Could not add the precondition!" << std::endl;
-#endif
 											delete &atom_to_add;
 										}
 										
@@ -859,8 +828,9 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 					}
 				}
 				negative_new_unprocessed_dtg->addTransition(*transition);
-				delete &bounded_negative_atom;
 			}
+			
+			delete &bounded_negative_atom;
 			
 			
 			// Do some grounding...
@@ -1040,10 +1010,29 @@ void DomainTransitionGraphManager::generateDomainTransitionGraphsTIM(const VAL::
 	std::cerr << "Initialize structures: " << time_spend << " seconds" << std::endl;
 #endif
 
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DOT_OUTPUT
+	std::ofstream ofs;
+	ofs.open("combined_dtg.dot", std::ios::out);
+	
+	ofs << "digraph {" << std::endl;
+
+	Graphviz::printToDot(ofs, combined_graph);
+	
+	ofs << "}" << std::endl;
+	ofs.close();
+#endif
+
 	std::cerr << "Number of bindings: " << bindings << std::endl;
 	
+	for (std::vector<DomainTransitionGraph*>::const_iterator ci = getManagableObjects().begin(); ci != getManagableObjects().end(); ++ci)
+	{
+		delete *ci;
+	}
 	objects_.clear();
-	objects_.push_back(&combined_graph);
+	combined_graph.setId(0);
+	addManagableObject(&combined_graph);
+
+	return combined_graph;
 }
 
 DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings& bindings)
@@ -1275,7 +1264,7 @@ DomainTransitionGraph& DomainTransitionGraphManager::mergeIdenticalDTGs(Bindings
 #endif
 	
 	// Create a combined DTG.
-	DomainTransitionGraph* combined_dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, bindings, *initial_facts_);
+	DomainTransitionGraph* combined_dtg = new DomainTransitionGraph(*this, *type_manager_, *action_manager_, *predicate_manager_, bindings, *initial_facts_);
 	
 	// Add all the merged DTG nodes, these exist of the following nodes:
 	// 1) Nodes which have not been merged - no need to make any changes.
@@ -1715,7 +1704,10 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 #endif
 				// Migrate the original transition to the cloned nodes.
 				Transition* transition = org_transition->migrateTransition(*from_dtg_node_clone, *to_dtg_node_clone);
-				from_dtg_node_clone->addTransition(*transition);
+				if (transition != NULL)
+				{
+					from_dtg_node_clone->addTransition(*transition);
+				}
 
 				// Remove all the atoms from a node if they are not linked to a precondition and effect of the transition.
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
@@ -1729,101 +1721,16 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 					}
 				}
 #endif
-				transition->pruneNodes();
+				if (transition != NULL)
+				{
+					transition->pruneNodes();
+				}
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 				if (needs_prune)
 				{
 					std::cout << "After pruning: " << *transition << std::endl;
 				}
 #endif
-				
-#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
-				assert (transition != org_transition);
-				
-				for (std::vector<BoundedAtom*>::const_iterator ci = from_dtg_node_clone->getAtoms().begin(); ci != from_dtg_node_clone->getAtoms().end(); ci++)
-				{
-					const BoundedAtom* bounded_atom = *ci;
-					
-					for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
-					{
-						const Term* node_term = *ci;
-					
-						for (std::vector<const Variable*>::const_iterator ci = transition->getAction().getVariables().begin(); ci != transition->getAction().getVariables().end(); ci++)
-						{
-							const Variable* variable = *ci;
-							assert (node_term != variable);
-						}
-					}
-				}
-				
-				for (std::vector<BoundedAtom*>::const_iterator ci = to_dtg_node_clone->getAtoms().begin(); ci != to_dtg_node_clone->getAtoms().end(); ci++)
-				{
-					const BoundedAtom* bounded_atom = *ci;
-					
-					for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
-					{
-						const Term* node_term = *ci;
-					
-						for (std::vector<const Variable*>::const_iterator ci = transition->getAction().getVariables().begin(); ci != transition->getAction().getVariables().end(); ci++)
-						{
-							const Variable* variable = *ci;
-							assert (node_term != variable);
-						}
-					}
-				}
-
-				
-				for (std::vector<BoundedAtom*>::const_iterator ci = from_dtg_node_clone->getAtoms().begin(); ci != from_dtg_node_clone->getAtoms().end(); ci++)
-				{
-					const BoundedAtom* clone = *ci;
-					for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
-					{
-						const BoundedAtom* org = *ci;
-						assert (clone != org);
-						assert (&clone->getAtom() != &org->getAtom());
-						assert (&clone->getAtom().getTerms() != &org->getAtom().getTerms());
-					}
-					
-					for (std::vector<BoundedAtom*>::const_iterator ci = org_transition->getToNode().getAtoms().begin(); ci != org_transition->getToNode().getAtoms().end(); ci++)
-					{
-						const BoundedAtom* org = *ci;
-						assert (clone != org);
-						assert (&clone->getAtom() != &org->getAtom());
-						assert (&clone->getAtom().getTerms() != &org->getAtom().getTerms());
-					}
-					
-					for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = transition->getAllPreconditions().begin(); ci != transition->getAllPreconditions().end(); ci++)
-					{
-						assert ((*ci).first != &clone->getAtom());
-					}
-				}
-				
-				for (std::vector<BoundedAtom*>::const_iterator ci = to_dtg_node_clone->getAtoms().begin(); ci != to_dtg_node_clone->getAtoms().end(); ci++)
-				{
-					const BoundedAtom* clone = *ci;
-					for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
-					{
-						const BoundedAtom* org = *ci;
-						assert (clone != org);
-						assert (&clone->getAtom() != &org->getAtom());
-						assert (&clone->getAtom().getTerms() != &org->getAtom().getTerms());
-					}
-					
-					for (std::vector<BoundedAtom*>::const_iterator ci = org_transition->getToNode().getAtoms().begin(); ci != org_transition->getToNode().getAtoms().end(); ci++)
-					{
-						const BoundedAtom* org = *ci;
-						assert (clone != org);
-						assert (&clone->getAtom() != &org->getAtom());
-						assert (&clone->getAtom().getTerms() != &org->getAtom().getTerms());
-					}
-					
-					for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = transition->getAllPreconditions().begin(); ci != transition->getAllPreconditions().end(); ci++)
-					{
-						assert ((*ci).first != &clone->getAtom());
-					}
-				}
-#endif
-				
 				if (transition == NULL)
 				{
 					std::cout << "Could not migrate the transition: " << std::endl;
@@ -2349,92 +2256,6 @@ void DomainTransitionGraphManager::createPointToPointTransitions()
 					}
 					delete variable_domain_to_object_mapping;
 				}
-				
-#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_DEBUG
-				assert (from_dtg_node_clone->getTransitions().empty());
-				assert (to_dtg_node_clone->getTransitions().empty());
-				
-				// Make sure none of the created nodes refer to any of the node's transitions or facts.
-				for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_nodes_to_add.begin(); ci != dtg_nodes_to_add.end(); ci++)
-				{
-					const DomainTransitionGraphNode* dtg_node = *ci;
-					
-					for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
-					{
-						const BoundedAtom* atom_to_add = *ci;
-						
-						for (std::vector<BoundedAtom*>::const_iterator ci = from_dtg_node_clone->getAtoms().begin(); ci != from_dtg_node_clone->getAtoms().end(); ci++)
-						{
-							assert (atom_to_add != *ci);
-							assert (&atom_to_add->getAtom() != &(*ci)->getAtom());
-							assert (&atom_to_add->getAtom().getTerms() != &(*ci)->getAtom().getTerms());
-						}
-						
-						for (std::vector<BoundedAtom*>::const_iterator ci = to_dtg_node_clone->getAtoms().begin(); ci != to_dtg_node_clone->getAtoms().end(); ci++)
-						{
-							assert (atom_to_add != *ci);
-							assert (&atom_to_add->getAtom() != &(*ci)->getAtom());
-							assert (&atom_to_add->getAtom().getTerms() != &(*ci)->getAtom().getTerms());
-						}
-					}
-				}
-				
-				for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ci++)
-				{
-					const DomainTransitionGraphNode* dtg_node = *ci;
-					
-					for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ci++)
-					{
-						const BoundedAtom* atom_to_add = *ci;
-						
-						for (std::vector<BoundedAtom*>::const_iterator ci = from_dtg_node_clone->getAtoms().begin(); ci != from_dtg_node_clone->getAtoms().end(); ci++)
-						{
-							assert (atom_to_add != *ci);
-							assert (&atom_to_add->getAtom() != &(*ci)->getAtom());
-							assert (&atom_to_add->getAtom().getTerms() != &(*ci)->getAtom().getTerms());
-						}
-						
-						for (std::vector<BoundedAtom*>::const_iterator ci = to_dtg_node_clone->getAtoms().begin(); ci != to_dtg_node_clone->getAtoms().end(); ci++)
-						{
-							assert (atom_to_add != *ci);
-							assert (&atom_to_add->getAtom() != &(*ci)->getAtom());
-							assert (&atom_to_add->getAtom().getTerms() != &(*ci)->getAtom().getTerms());
-						}
-					}
-				}
-				
-				for (std::vector<BoundedAtom*>::const_iterator ci = from_dtg_node_clone->getAtoms().begin(); ci != from_dtg_node_clone->getAtoms().end(); ci++)
-				{
-					const BoundedAtom* bounded_atom = *ci;
-					
-					for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
-					{
-						const Term* node_term = *ci;
-					
-						for (std::vector<const Variable*>::const_iterator ci = transition->getAction().getVariables().begin(); ci != transition->getAction().getVariables().end(); ci++)
-						{
-							const Variable* variable = *ci;
-							assert (node_term != variable);
-						}
-					}
-				}
-				
-				for (std::vector<BoundedAtom*>::const_iterator ci = to_dtg_node_clone->getAtoms().begin(); ci != to_dtg_node_clone->getAtoms().end(); ci++)
-				{
-					const BoundedAtom* bounded_atom = *ci;
-					
-					for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
-					{
-						const Term* node_term = *ci;
-					
-						for (std::vector<const Variable*>::const_iterator ci = transition->getAction().getVariables().begin(); ci != transition->getAction().getVariables().end(); ci++)
-						{
-							const Variable* variable = *ci;
-							assert (node_term != variable);
-						}
-					}
-				}
-#endif
 				
 				// Delete the stubs.
 				delete from_dtg_node_clone;

@@ -17,7 +17,7 @@ class TermManager;
  * of the total number of types. Checks for super- / subtypes are done by bitcomparison,
  * check the relevant methods for a detailed explanation.
  */
-class Type : public ManageableObject {
+class Type : public ManageableObject {//<Type> {
 
 public:
 	// Construct a type with the given name and supertype.

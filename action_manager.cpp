@@ -20,17 +20,41 @@ Action* Action::dummy_action = new Action("", Formula::TRUE, NULL, NULL);
 Action::Action(const std::string& predicate, const Formula& precondition, const std::vector<const Variable*>* variables, const std::vector<const Atom*>* effects)
 	: predicate_(predicate), precondition_(&precondition), variables_(variables), effects_(effects)
 {
-
+	if (effects != NULL)
+	{
+		for (std::vector<const Atom*>::const_iterator ci = effects->begin(); ci != effects->end(); ++ci)
+		{
+			const Atom* effect = *ci;
+			std::vector<unsigned int>* effect_mappings = new std::vector<unsigned int>();
+			
+			for (std::vector<const Term*>::const_iterator ci = effect->getTerms().begin(); ci != effect->getTerms().end(); ++ci)
+			{
+				const Term* effect_term = *ci;
+				unsigned int action_variable_index = std::distance(variables->begin(), std::find(variables->begin(), variables->end(), effect_term));
+				effect_mappings->push_back(action_variable_index);
+			}
+			effect_terms_to_action_variable_mappings_.push_back(effect_mappings);
+		}
+	}
 }
 
 Action::~Action()
 {
 	if (precondition_ != &Formula::TRUE &&
 	    precondition_ != &Formula::FALSE)
+	{
 		delete precondition_;
+	}
 
 	for (std::vector<const Atom*>::const_iterator ci = effects_->begin(); ci != effects_->end(); ci++)
+	{
 		delete *ci;
+	}
+	
+	for (std::vector<std::vector<unsigned int>* >::const_iterator ci = effect_terms_to_action_variable_mappings_.begin(); ci != effect_terms_to_action_variable_mappings_.end(); ++ci)
+	{
+		delete *ci;
+	}
 
 	delete effects_;
 	delete variables_;
@@ -74,6 +98,11 @@ void Action::getAchievingEffects(const Atom& atom, std::vector<const Atom*>& ach
 	}
 }
 
+unsigned int Action::getActionVariable(unsigned int effect_index, unsigned int effect_term_index) const
+{
+	return (*effect_terms_to_action_variable_mappings_[effect_index])[effect_term_index];
+}
+
 void Action::print(std::ostream& os, const Bindings& bindings, StepID step_id) const
 {
 	os << "(" << predicate_ << " ";
@@ -113,23 +142,33 @@ std::ostream& operator<<(std::ostream& os, const Action& action)
 {
 	os << "(" << action.predicate_ << " ";
 
-	for (std::vector<const Variable*>::const_iterator ci = action.variables_->begin(); ci != action.variables_->end(); ci++)
+	for (std::vector<const Variable*>::const_iterator ci = action.variables_->begin(); ci != action.variables_->end(); ++ci)
 	{
-		os << **ci;
+		os << **ci << "(" << *ci << ")";
 		if (ci + 1 != action.variables_->end())
 		{
 			os << " ";
 		}
 	}
-	os << ")";
+	os << ") effects " << std::endl;
+	for (std::vector<const Atom*>::const_iterator ci = action.effects_->begin(); ci != action.effects_->end(); ++ci)
+	{
+		const Atom* effect = *ci;
+		(*ci)->print(std::cout);
+		for (std::vector<const Term*>::const_iterator ci = effect->getTerms().begin(); ci != effect->getTerms().end(); ++ci)
+		{
+			os << *ci << ",";
+		}
+		os << std::endl;
+	}
 	return os;
 }
 
 /*************************
  * The ActionManager class
  *************************/
-ActionManager::ActionManager(const TypeManager& type_manager, TermManager& term_manager)
-	: type_manager_(&type_manager), term_manager_(&term_manager)
+ActionManager::ActionManager(const TypeManager& type_manager, TermManager& term_manager, const PredicateManager& predicate_manager)
+	: type_manager_(&type_manager), term_manager_(&term_manager), predicate_manager_(&predicate_manager)
 {
 
 }
@@ -187,7 +226,7 @@ void ActionManager::processActions(const VAL::operator_list& operators)
 		// * preference [not supported]
 		// * qfied_goal [not supported]
 		// * conj_goal
-		const Formula* action_precondition = Utility::convertGoal(*term_manager_, precondition, false);
+		const Formula* action_precondition = Utility::convertGoal(*term_manager_, *predicate_manager_, precondition, false);
 
 		// Parse the effects. All possible effects are:
 		// * pc_list<simple_effect*> add_effects;
@@ -198,11 +237,11 @@ void ActionManager::processActions(const VAL::operator_list& operators)
 		// * pc_list<assignment*>    assign_effects; [not supported]
 		// * pc_list<timed_effect*>  timed_effects; [not supported]
 		std::vector<const Atom*>* action_effects = new std::vector<const Atom*>();
-		Utility::convertEffects(*term_manager_, *effects, *action_effects);
+		Utility::convertEffects(*term_manager_, *predicate_manager_,  *effects, *action_effects);
 		
 		Action* action = new Action(predicate, *action_precondition, action_variables, action_effects);
 		addManagableObject(action);
-		
+
 		// Map the operator to the constructed action object for preprocessing purposes.
 		action_indexing_[op] = action;
 	}

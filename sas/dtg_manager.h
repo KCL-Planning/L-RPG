@@ -21,6 +21,7 @@
 namespace MyPOP {
 
 class TypeManager;
+class PredicateManager;
 class ActionManager;
 class TermManager;
 class Type;
@@ -61,7 +62,7 @@ public:
 	BoundedAtom(StepID id, const Atom& atom);
 	BoundedAtom(StepID id, const Atom& atom, const std::vector<const Property*>& properties);
 
-	virtual ~BoundedAtom();
+	~BoundedAtom();
 
 	StepID getId() const;
 
@@ -80,9 +81,10 @@ public:
 	const std::vector<const Property*>& getProperties() const;
 	
 	/**
-	 * Check if the bounded atom contains the given variable domain.
-	 * @param term The variable domain to search for, this is a pointerwise comparison.
-	 * @return The index of the first variable domain which matches, or std::numeric_limits< unsigned int>::max() if none do.
+	 * Check if the bounded atom contains the given term, that is a term which shares
+	 * the same variable domain.
+	 * @param term The term domain to search for.
+	 * @return The index of the first term which matches, or std::numeric_limits< unsigned int>::max() if none do.
 	 */
 	unsigned int containsVariableDomain(const std::vector<const Object*>& variable_domain, const Bindings& bindings) const;
 	
@@ -131,7 +133,7 @@ public:
 	 * @param bindings The bindings the term is bounded by.
 	 * @return The variable domain linked to the term at the term_index'th index.
 	 */
-	virtual const std::vector<const Object*>& getVariableDomain(unsigned int term_index, const Bindings& bindings) const;
+	const std::vector<const Object*>& getVariableDomain(unsigned int term_index, const Bindings& bindings) const;
 	
 	/**
 	 * Check if this bounded atom is equivalent to the other bounded atom.
@@ -187,7 +189,7 @@ private:
 class DomainTransitionGraphManager : public Manager<DomainTransitionGraph>
 {
 public:
-	DomainTransitionGraphManager(const TypeManager& type_manager, const ActionManager& action_manager, const TermManager& term_manager, const std::vector<const Atom*>& initial_facts);
+	DomainTransitionGraphManager(const PredicateManager& predicate_manager, const TypeManager& type_manager, const ActionManager& action_manager, const TermManager& term_manager, const std::vector<const Atom*>& initial_facts);
 
 	virtual ~DomainTransitionGraphManager();
 	
@@ -198,7 +200,7 @@ public:
 	 * @param types All types as found by VAL.
 	 * @param bindings The bindings used to bind the initial facts.
 	 */
-	void generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, Bindings& bindings);
+	const DomainTransitionGraph& generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, Bindings& bindings);
 
 	/**
 	 * Get the DTGs which contains a node which actually unifies with the given atom and binding.
@@ -246,6 +248,10 @@ private:
 	bool isTermStatic(const Atom& atom, StepID step_id, InvariableIndex term_index, const Bindings& bindings) const;
 
 	unsigned int* getRelativeIndexes(const DomainTransitionGraphNode& source, const DomainTransitionGraphNode& destination, unsigned int* assignments, unsigned int index, const Bindings& bindings) const;
+
+	
+	// The predicate manager.
+	const PredicateManager* predicate_manager_;
 
 	// The type manager.
 	const TypeManager* type_manager_;

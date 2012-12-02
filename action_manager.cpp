@@ -269,11 +269,11 @@ void ActionManager::getAchievingActions(std::vector<std::pair<const Action*, con
 	}
 }
 
-const Action* ActionManager::getAction(const VAL::operator_& val_operator) const
+const Action& ActionManager::getAction(const VAL::operator_& val_operator) const
 {
 	std::map<const VAL::operator_*, const Action*>::const_iterator ci = action_indexing_.find(&val_operator);
 	assert(ci != action_indexing_.end());
-	return (*ci).second;
+	return *(*ci).second;
 }
 
 void ActionManager::ground(Bindings& bindings, std::vector<const Step*>& grounded_actions, const Action& action) const

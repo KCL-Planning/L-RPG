@@ -94,14 +94,9 @@ public:
 	/**
 	 * Migrate a transition from a pair of nodes to their clones.
 	 */
-	Transition* migrateTransition(DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node) const;
+	Transition* migrateTransition(DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, const std::vector<const Atom*>& initial_facts) const;
 	
-	Transition* migrateTransition(MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, unsigned int from_fact_ordering[], unsigned int to_fact_ordering[]) const;
-
-	/**
-	 * Remove all facts from the from and to node which are not a precondition or persistent / effect, respectively.
-	 */
-	void pruneNodes();
+	Transition* migrateTransition(MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, unsigned int from_fact_ordering[], unsigned int to_fact_ordering[], const std::vector<const Atom*>& initial_facts) const;
 	
 	/**
 	 * As we update the from and to nodes of the transition with new nodes we need to update the lists of preconditions linking to the from
@@ -117,11 +112,15 @@ public:
 	 */
 	void addedToNodeFact(const Atom& fact);
 	
-	void markFromNodeForRemoval(unsigned int index);
+	/**
+	 * Called when an atom is removed from a DTG node. The transition must be updated accordingly.
+	 */
+	void deletedFact(unsigned int removed_fact_index, const MyPOP::SAS_Plus::DomainTransitionGraphNode& affected_node);
 	
-	void markToNodeForRemoval(unsigned int index);
-	
-	void markToNodeAsPersistent(unsigned int index);
+	/**
+	 * Ground this transition and return all grounded transitions.
+	 */
+	void ground(std::vector< MyPOP::SAS_Plus::Transition* >& grounded_transitions, const std::vector< const MyPOP::Atom* >& initial_facts, const std::vector<const std::vector<const Object*>*>& excluded_variable_domains) const;
 	
 	/**
 	 * Get the Step ID how the action is bound.
@@ -164,6 +163,11 @@ public:
 	 * If a fact is not linked to an effect then the value will be equal to <NULL, NO_INVARIABLE_INDEX>.
 	 */
 	inline const std::vector<std::pair<const Atom*, InvariableIndex> >& getToNodeEffects() const { return *to_node_effects_; }
+	
+	/**
+	 * Get the pair indexes of the facts in the from and to nodes which are persistent.
+	 */
+	inline const std::vector<std::pair<unsigned int, unsigned int> >& getPersistentSets() const { return *persistent_sets_; }
 
 	/**
 	 * Check if a given term is free, i.e. is not present in any of the preconditions.
@@ -181,6 +185,14 @@ public:
 	 * @return True if the precondition is removed, false otherwise.
 	 */
 	bool isPreconditionRemoved(const Atom& precondition) const;
+	
+	/**
+	 * Remove a precondition from this transition.
+	 * @param precondition The precondition to remove.
+	 * @note This implementation only works if the precondition 
+	 * @return True if the precondition could be removed, false otherwise.
+	 */
+	bool removePrecondition(const Atom& precondition);
 	
 	/**
 	 * After the transition has been updated with the latest effects / preconditions and the from and to nodes are stable and will no longer change,
@@ -203,7 +215,6 @@ private:
 	 * @return The generated transition or NULL if the action cannot be applied.
 	 */
 	static Transition* createTransition(const StepPtr action_step, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, std::map<const PropertySpace*, BalancedPropertySet*>& property_space_balanced_sets);
-	static bool canCreateTransition(const Action& action, const std::vector<std::vector<const Object*>* > variable_domains, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, std::map<const PropertySpace*, BalancedPropertySet*>& property_space_balanced_sets);
 	
 	/**
 	 * Check if any of the facts in @ref facts is mutex with any of the preconditions. In order to be mutex, both need to have a term whose variable domain
@@ -217,7 +228,6 @@ private:
 	 * @return True if there exists a mutex relationship, false otherwise.
 	 */
 	static bool areMutex(const std::vector<BoundedAtom*>& facts, const std::vector<const Atom*>& preconditions, StepID action_step_id, const PropertySpace& balanced_property_space, const Bindings& bindings, const Variable& balanced_action_variable);
-	static bool canBeMutex(const std::map<const Term*, unsigned int>& term_to_action_variable_index,  const std::vector<std::vector<const Object*>* >& variable_domains, const std::vector<BoundedAtom*>& facts, const std::vector<const Atom*>& preconditions, const PropertySpace& balanced_property_space, const Bindings& bindings, const Variable& balanced_action_variable);
 
 	/**
 	 * @param step The action, id pair the transition is.
@@ -232,11 +242,12 @@ private:
 	Transition(StepPtr step, 
 	           SAS_Plus::DomainTransitionGraphNode& from_node,
 	           SAS_Plus::DomainTransitionGraphNode& to_node,
-	           const std::vector< std::pair< const Atom*, InvariableIndex > >& all_precondition_mappings,
+	           std::vector< std::pair< const Atom*, InvariableIndex > >& all_precondition_mappings,
 	           std::vector< std::pair< const Atom*, InvariableIndex > >& from_node_preconditions,
 	           const std::vector< std::pair< const Atom*, InvariableIndex > >& all_effect_mappings,
 	           std::vector< std::pair< const Atom*, InvariableIndex > >& to_node_effects,
-	           std::vector< std::pair< unsigned int, unsigned int > > & persistent_sets,
+	           std::vector< std::pair< unsigned int, unsigned int > >& persistent_sets,
+				  std::vector<std::pair<unsigned int, unsigned int> >& precondition_index_to_to_node,
 	           const std::set<const Term*>& free_variables);
 	
 	/**
@@ -248,8 +259,7 @@ private:
 	 * @param bindings The bindings where all the bindings will be stored.
 	 * @return The actual transition which is constructed by cloning this one, this always succeeds or the program quits!
 	 */
-	Transition* performBindings(MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, unsigned int from_fact_ordering[], unsigned int to_fact_ordering[], MyPOP::Bindings& bindings) const;
-	bool canPerformBindings(std::vector<std::vector<const Object*>* >& action_variable_domains, DomainTransitionGraphNode& from_node, DomainTransitionGraphNode& to_node, unsigned int from_fact_ordering[], unsigned int to_fact_ordering[], Bindings& bindings) const;
+	Transition* performBindings(MyPOP::StepPtr step, MyPOP::SAS_Plus::DomainTransitionGraphNode& from_node, MyPOP::SAS_Plus::DomainTransitionGraphNode& to_node, unsigned int from_fact_ordering[], unsigned int to_fact_ordering[], MyPOP::Bindings& bindings, const std::vector<const Atom*>& initial_facts) const;
 
 	unsigned int isFactContainedByNode(const Atom& fact, const DomainTransitionGraphNode& node) const;
 	
@@ -265,7 +275,7 @@ private:
 	DomainTransitionGraphNode* to_node_;
 
 	// All preconditions.
-	const std::vector<std::pair<const Atom*, InvariableIndex> >* all_preconditions_;
+	std::vector<std::pair<const Atom*, InvariableIndex> >* all_preconditions_;
 	
 	// For every DTG node we store a <precondition, invariable> pair, NULL if no precondition was found.
 	std::vector<std::pair<const Atom*, InvariableIndex> >* from_node_preconditions_;
@@ -279,7 +289,8 @@ private:
 	// The index of the facts in from node and to node which are persistent.
 	std::vector<std::pair<unsigned int, unsigned int> >* persistent_sets_;
 	
-	std::vector<unsigned int> to_facts_marked_as_persistent_;
+	// The index of facts in the preconditions which have been added to the to node but are not part of the from node.
+	std::vector<std::pair<unsigned int, unsigned int> >* precondition_index_to_to_node_;
 	
 	// An array of action variables which are considered to be 'free'.
 	const std::set<const Term*>* free_variables_;
@@ -289,20 +300,6 @@ private:
 	
 	friend std::ostream& operator<<(std::ostream& os, const Transition& transition);
 };
-
-std::ostream& operator<<(std::ostream& os, const Transition& transition);
-
-/**
- * Utility function which reduces the content of the lhs list such that it only contains objects which are also present in the rhs.
- */
-void reduceToIntersection(std::vector<const Object*>& lhs, const std::vector<const Object*>& rhs);
-
-void getTheIntersection(std::vector<const Object*>& result, const std::vector<const Object*>& lhs, const std::vector<const Object*>& rhs);
-
-bool evaluateIntersections(const std::vector<std::vector<const Object*>* >& action_variable_domains, const Atom& effect_or_precondition, const SAS_Plus::BoundedAtom& other_atom, const std::map<const Term*, unsigned int>& term_to_action_variable_index, const Bindings& bindings, bool modify_action_variables);
-
-bool canBeMutexWith(const std::vector<std::vector<const Object*>* >& action_variable_domains, const std::map<const Term*, unsigned int>& term_to_action_variable_index, const BoundedAtom& fact, const Atom& precondition_or_effect, const Bindings& bindings, InvariableIndex invariable_index);
-
 /*
 class RecursivePreconditions
 {
@@ -318,6 +315,7 @@ private:
 	const std::map<const Atom*, InvariableIndex> dtg_node_atoms_to_recursive_terms;
 };
 */
+std::ostream& operator<<(std::ostream& os, const Transition& transition);
 
 };
 

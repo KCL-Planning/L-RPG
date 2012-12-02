@@ -31,6 +31,7 @@ mypop_SOURCES = VALfiles/DebugWriteController.cpp VALfiles/FastEnvironment.cpp \
 	VALfiles/PrettyPrinter.cpp VALfiles/random.cpp VALfiles/LaTeXSupport.cpp VALfiles/Utils.cpp \
 	sas/dtg_manager.cpp sas/dtg_node.cpp sas/transition.cpp sas/causal_graph.cpp \
 	sas/dtg_graph.cpp sas/property_space.cpp sas/recursive_function.cpp \
+	sas/lifted_dtg.cpp \
 	heuristics/dtg_reachability.cpp heuristics/equivalent_object_group.cpp heuristics/reachable_tree.cpp \
 	heuristics/fact_set.cpp \
 	utility/memory_pool.cpp \

@@ -26,230 +26,22 @@ namespace MyPOP {
 namespace SAS_Plus {
 
 DomainTransitionGraphNode::DomainTransitionGraphNode(DomainTransitionGraph& dtg)
-	: dtg_(&dtg)
+	: dtg_(&dtg), dtg_node_copy_(NULL)
 {
 
 }
 
 DomainTransitionGraphNode::DomainTransitionGraphNode(const DomainTransitionGraphNode& dtg_node)
-	: dtg_(dtg_node.dtg_)
+	: dtg_(dtg_node.dtg_), dtg_node_copy_(NULL)
 {
 	// We take the same atom and bindings as the template we copy all the information from.
 	copyAtoms(dtg_node);
 }
 
 DomainTransitionGraphNode::DomainTransitionGraphNode(const DomainTransitionGraphNode& dtg_node, DomainTransitionGraph& dtg)
-	: dtg_(&dtg)
+	: dtg_(&dtg), dtg_node_copy_(NULL)
 {
 	copyAtoms(dtg_node);
-}
-
-void DomainTransitionGraphNode::postProcessNode(const DomainTransitionGraphNode& linked_dtg_node, Transition& transition)
-{
-#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
-	std::cout << "[DomainTransitionGraphNode::postProcessNode] Post process " << *this << std::endl;
-	std::cout << "[DomainTransitionGraphNode::postProcessNode] Grounded variables: " << std::endl;
-#endif
-	for (std::vector<BoundedAtom*>::const_iterator ci = linked_dtg_node.atoms_.begin(); ci != linked_dtg_node.atoms_.end(); ci++)
-	{
-		const BoundedAtom* bounded_atom = *ci;
-		for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
-		{
-			if (linked_dtg_node.isTermGrounded(**ci))
-			{
-				const std::vector<const Object*>& grounded_variable_domain = bounded_atom->getVariableDomain(std::distance(bounded_atom->getAtom().getTerms().begin(), ci), dtg_->getBindings());
-#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
-				std::cout << "!* " << &grounded_variable_domain << std::endl;
-#endif
-				
-				// Update these terms too!
-				for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
-				{
-					const BoundedAtom* bounded_atom = *ci;
-					unsigned int term_index = bounded_atom->containsVariableDomain(grounded_variable_domain, dtg_->getBindings());
-					if (term_index != std::numeric_limits<unsigned int>::max())
-					{
-						grounded_terms_.insert(bounded_atom->getAtom().getTerms()[term_index]);
-					}
-				}
-			}
-		}
-	}
-	
-#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
-	for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
-	{
-		const BoundedAtom* bounded_atom = *ci;
-		for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
-		{
-			if (isTermGrounded(**ci))
-			{
-				std::cout << "* " << &bounded_atom->getVariableDomain(std::distance(bounded_atom->getAtom().getTerms().begin(), ci), dtg_->getBindings()) << std::endl;
-			}
-		}
-	}
-#endif
-
-	/**
-	 * Now that we know which variables need to be grounded, check if there are facts among the from and to node which are redundant. I.e. if a fact only
-	 * consists of grounded variables which have no relation to an ungrounded variable and do not connect two grounded facts from two different facts which 
-	 * should not be removed - remove that fact!
-	 */
-	std::set<const std::vector<const Object*>* > relevant_variable_domains;
-	bool relevant_facts[getAtoms().size()];
-	memset (relevant_facts, false, sizeof(bool) * getAtoms().size());
-	relevant_variable_domains.insert(&transition.getBalancedTerm()->getDomain(transition.getStepId(), getDTG().getBindings()));
-	relevant_facts[0] = true;
-
-	bool done_removing_nodes = false;
-	while (!done_removing_nodes)
-	{
-		done_removing_nodes = true;
-		for (std::vector<BoundedAtom*>::const_iterator ci = getAtoms().begin() + 1; ci != getAtoms().end(); ci++)
-		{
-			unsigned int from_node_atom_index = std::distance(getAtoms().begin(), ci);
-			if (relevant_facts[from_node_atom_index]) continue;
-			
-			const BoundedAtom* bounded_atom = *ci;
-			
-			// If a static fact includes a balanced variable, we include it. However, if the balanced variable is grounded we do not need 
-			// to, because the constraints should have been encoded in the graph structure.
-			if (bounded_atom->getAtom().getPredicate().isStatic())
-			{
-#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
-				std::cout << "[DomainTransitionGraphNode::postProcessNode] Handeling a static precondition: ";
-				bounded_atom->print(std::cout, dtg_->getBindings());
-				std::cout << std::endl;
-#endif
-				bool contains_relevant_variable = false;
-				for (unsigned int i = 0; i < bounded_atom->getAtom().getArity(); i++)
-				{
-					if (relevant_variable_domains.count(&bounded_atom->getVariableDomain(i, dtg_->getBindings())) != 0 &&
-					    !isTermGrounded(*bounded_atom->getAtom().getTerms()[i]) &&
-					    !linked_dtg_node.isTermGrounded(*bounded_atom->getAtom().getTerms()[i]))
-					{
-#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
-						std::cout << "The " << i << "th term is relevant and not grounded!" << std::endl;
-#endif
-						
-						contains_relevant_variable = true;
-						break;
-					}
-				}
-				
-				if (!contains_relevant_variable) continue;
-			}
-			
-			// Check if this node contains:
-			// 1) A variable domain which is relevant;
-			// 2) Two grounded variable domains which refer to two different facts which contain a relevant variable domain.
-			bool contains_relevant_variable_domain = false;
-			for (unsigned int i = 0; i < bounded_atom->getAtom().getArity(); i++)
-			{
-				const std::vector<const Object*>& variable_domain = bounded_atom->getVariableDomain(i, getDTG().getBindings());
-				if (relevant_variable_domains.count(&variable_domain) != 0)
-				{
-#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
-					std::cout << "[" << from_node_atom_index << "] Add because of: " << &variable_domain << " contained by: " << std::distance(getAtoms().begin(), ci) << std::endl;
-#endif
-					contains_relevant_variable_domain = true;
-					break;
-				}
-				
-				//if (std::find(variable_domains_to_ground.begin(), variable_domains_to_ground.end(), &variable_domain) != variable_domains_to_ground.end())
-				if (isTermGrounded(*bounded_atom->getAtom().getTerms()[i]) || linked_dtg_node.isTermGrounded(*bounded_atom->getAtom().getTerms()[i]))
-				{
-					continue;
-				}
-				
-				// Check if this variable is balanced and contained in one of the bounded atoms already included, but not grounded.
-				std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
-				dtg_->getDTGManager().getDTGNodes(found_nodes, bounded_atom->getId(), bounded_atom->getAtom(), getDTG().getBindings(), i);
-				
-				if (!found_nodes.empty())
-				{
-					for (std::vector<BoundedAtom*>::const_iterator ci = getAtoms().begin(); ci != getAtoms().end(); ci++)
-					{
-						const BoundedAtom* relevant_fact = *ci;
-						if (!relevant_facts[std::distance(getAtoms().begin(), ci)]) continue;
-						
-						if (relevant_fact->containsVariableDomain(variable_domain, getDTG().getBindings()) != std::numeric_limits<unsigned int>::max())
-						{
-#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
-							std::cout << "[" << from_node_atom_index << "]Special variable: " << &variable_domain << " contained by: " << std::distance(getAtoms().begin(), ci) << std::endl;
-#endif
-							contains_relevant_variable_domain = true;
-							break;
-						}
-					}
-					
-					if (contains_relevant_variable_domain) break;
-				}
-			}
-
-
-			if (contains_relevant_variable_domain)
-			{
-				done_removing_nodes = false;
-				relevant_facts[from_node_atom_index] = true;
-				
-				// Mark all variables which are balanced and not grounded as relevant.
-				for (unsigned int i = 0; i < bounded_atom->getAtom().getArity(); i++)
-				{
-					std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > found_nodes;
-					dtg_->getDTGManager().getDTGNodes(found_nodes, bounded_atom->getId(), bounded_atom->getAtom(), getDTG().getBindings(), i);
-					
-					if (!bounded_atom->getAtom().getPredicate().isStatic() && !found_nodes.empty())
-					{
-						// Check if this variable domain is due to be grounded.
-						if (!isTermGrounded(*bounded_atom->getAtom().getTerms()[i]) &&
-						    !linked_dtg_node.isTermGrounded(*bounded_atom->getAtom().getTerms()[i]))
-						{
-							const std::vector<const Object*>& variable_domain = bounded_atom->getVariableDomain(i, getDTG().getBindings());
-							relevant_variable_domains.insert(&variable_domain);
-						}
-					}
-				}
-			}
-		}
-	}
-
-	for (std::vector<BoundedAtom*>::reverse_iterator ri = atoms_.rbegin(); ri != atoms_.rend(); ri++)
-	{
-		unsigned int index = std::distance(atoms_.begin(), ri.base() - 1);
-		if (!relevant_facts[index])
-		{
-#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
-			std::cout << "Remove the " << index << "th atom!" << std::endl;
-#endif
-			if (&transition.getFromNode() == this)
-			{
-				//const_cast<std::vector<std::pair<const Atom*, InvariableIndex> >&>(transition.getFromNodePreconditions())[index].first = NULL;
-				transition.markFromNodeForRemoval(index);
-			}
-			else if (&transition.getToNode() == this)
-			{
-				//const_cast<std::vector<std::pair<const Atom*, InvariableIndex> >&>(transition.getToNodeEffects())[index].first = NULL;
-				// Also remove all persistence pairs.
-				transition.markToNodeForRemoval(index);
-			}
-			else
-			{
-				assert (false);
-			}
-		}
-		else
-		{
-#ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_COMMENTS
-			std::cout << "Keep the " << index << "th atom!" << std::endl;
-#endif
-
-			if (&transition.getToNode() == this)
-			{
-				transition.markToNodeAsPersistent(index);
-			}
-		}
-	}
 }
 
 void DomainTransitionGraphNode::copyAtoms(const DomainTransitionGraphNode& dtg_node)
@@ -340,7 +132,7 @@ DomainTransitionGraphNode::~DomainTransitionGraphNode()
 	}
 	
 	// Delete the transitions.
-	for (std::vector<const Transition*>::const_iterator ci = transitions_.begin(); ci != transitions_.end(); ci++)
+	for (std::vector<Transition*>::const_iterator ci = transitions_.begin(); ci != transitions_.end(); ci++)
 	{
 		delete *ci;
 	}
@@ -362,46 +154,32 @@ unsigned int* DomainTransitionGraphNode::getMapping(const DomainTransitionGraphN
 	return findMapping(other_dtg_node, 0, mask);
 }
 
-bool DomainTransitionGraphNode::containsDoubleVariableDomains() const
+void DomainTransitionGraphNode::getBalancedTerms(std::vector<const Term*>& balanced_terms) const
 {
-	// Test for depots...
-	for (std::vector<BoundedAtom*>::const_iterator bounded_atom_ci = getAtoms().begin(); bounded_atom_ci != getAtoms().end(); bounded_atom_ci++)
+	for (std::vector<Transition*>::const_iterator ci = transitions_.begin(); ci != transitions_.end(); ci++)
 	{
-		BoundedAtom* bounded_atom = *bounded_atom_ci;
-		for (unsigned int i = 0; i < bounded_atom->getAtom().getArity(); i++)
+		const Term* balanced_term = (*ci)->getBalancedTerm();
+		if (balanced_term != NULL && std::find(balanced_terms.begin(), balanced_terms.end(), balanced_term) == balanced_terms.end())
 		{
-			const std::vector<const Object*>& variable_domain1 = bounded_atom->getVariableDomain(i, dtg_->getBindings());
-			for (unsigned int j = i + 1; j < bounded_atom->getAtom().getArity(); j++)
-			{
-				const std::vector<const Object*>& variable_domain2 = bounded_atom->getVariableDomain(j, dtg_->getBindings());
-				
-				if (&variable_domain1 == &variable_domain2)
-				{
-					return true;
-				}
-			}
+			balanced_terms.push_back(balanced_term);
 		}
 	}
-	return false;
 }
 
-bool DomainTransitionGraphNode::containsDoubleVariableDomains(const BoundedAtom& bounded_atom) const
+void DomainTransitionGraphNode::getBalancedVariableDomains(std::vector<const std::vector<const Object*>* >& balanced_terms) const
 {
-	// Test for depots...
-	for (unsigned int i = 0; i < bounded_atom.getAtom().getArity(); i++)
+	for (std::vector<Transition*>::const_iterator ci = transitions_.begin(); ci != transitions_.end(); ci++)
 	{
-		const std::vector<const Object*>& variable_domain1 = bounded_atom.getVariableDomain(i, dtg_->getBindings());
-		for (unsigned int j = i + 1; j < bounded_atom.getAtom().getArity(); j++)
+		const Term* balanced_term = (*ci)->getBalancedTerm();
+		if (balanced_term != NULL)
 		{
-			const std::vector<const Object*>& variable_domain2 = bounded_atom.getVariableDomain(j, dtg_->getBindings());
-			
-			if (&variable_domain1 == &variable_domain2)
+			const std::vector<const Object*>& variable_domain = balanced_term->getDomain((*ci)->getStepId(), (*ci)->getFromNode().getDTG().getBindings());
+			if (std::find(balanced_terms.begin(), balanced_terms.end(), &variable_domain) == balanced_terms.end())
 			{
-				return true;
+				balanced_terms.push_back(&variable_domain);
 			}
 		}
 	}
-	return false;
 }
 
 unsigned int* DomainTransitionGraphNode::findMapping(const DomainTransitionGraphNode& dtg_node, unsigned int index, unsigned int mask[]) const
@@ -657,12 +435,8 @@ bool DomainTransitionGraphNode::addAtom(BoundedAtom& bounded_atom, InvariableInd
 			std::cout << " and ";
 			(*ci)->print(std::cout, dtg_->getBindings());
 			std::cout << " are mutex!" << std::endl;
-//			bounded_atom->getAtom().print(std::cout);
-//			std::cout << "(" << index << ") and ";
-//			(*ci)->getAtom().print(std::cout);
-//			std::cout << "(" << getIndex(**ci) << ") are mutex!" << std::endl;
 			assert (false);
-//			exit(1);
+			exit(1);
 		}
 	}
 	
@@ -705,12 +479,6 @@ bool DomainTransitionGraphNode::addAtom(BoundedAtom& bounded_atom, InvariableInd
 						
 						if (!reference_term->isTheSameAs(reference_bounded_atom->getId(), *domain_term, bounded_atom.getId(), dtg_->getBindings()))
 						{
-				//			std::cout << "Bind: ";
-				//			reference->print(std::cout, dtg_->getBindings());
-				//			std::cout << "(" << getIndex(*reference) << ") with: ";
-				//			bounded_atom->print(std::cout, dtg_->getBindings());
-				//			std::cout << "(" << index << ")" << std::endl;
-
 #ifdef MYPOP_SAS_PLUS_DOMAIN_TRANSITION_GRAPH_NODE_DEBUG
 							assert (reference_term->unify(reference_bounded_atom->getId(), *domain_term, bounded_atom.getId(), dtg_->getBindings()));
 #else
@@ -736,7 +504,27 @@ void DomainTransitionGraphNode::removeAtom(const BoundedAtom& bounded_atom)
 		const BoundedAtom* ba = *i;
 		if (ba == &bounded_atom)
 		{
+			unsigned int to_delete_index = std::distance(atoms_.begin(), i);
 			atoms_.erase(i);
+			
+			// Update all the transitions which have this node as a from or to node.
+			std::vector<Transition*> affected_transitions(transitions_);
+			dtg_->findTransitionsWithEndNode(affected_transitions, *this);
+			for (std::vector<Transition*>::const_iterator ci = affected_transitions.begin(); ci != affected_transitions.end(); ci++)
+			{
+				(*ci)->deletedFact(to_delete_index, *this);
+				
+				if (&(*ci)->getFromNode() == this)
+				{
+					assert ((*ci)->getFromNodePreconditions().size() == atoms_.size());
+				}
+				else
+				{
+					assert (&(*ci)->getToNode() == this);
+					assert ((*ci)->getToNodeEffects().size() == atoms_.size());
+				}
+			}
+			
 			delete ba;
 			break;
 		}
@@ -789,42 +577,7 @@ InvariableIndex DomainTransitionGraphNode::getIndex(StepID id, const Atom& atom)
 	//assert (false);
 	return NO_INVARIABLE_INDEX;
 }
-/*
-bool DomainTransitionGraphNode::canMap(const std::vector<const BoundedAtom*>& mapping) const
-{
-	bool mask[atoms_.size()];
-	memset(&mask[0], false, sizeof(bool) * atoms_.size());
-	
-	return findMapping(mapping, 0, mask);
-}
 
-bool DomainTransitionGraphNode::findMapping(const std::vector<const BoundedAtom*>& mapping, unsigned int index, bool mask[]) const
-{
-	const BoundedAtom* atom_to_search_for = mapping[index];
-	
-	for (std::vector<BoundedAtom*>::const_iterator ci = atoms_.begin(); ci != atoms_.end(); ci++)
-	{
-		unsigned int atom_index = std::distance(atoms_.begin(), ci);
-		if (mask[atom_index]) continue;
-		
-		const BoundedAtom* dtg_node_fact = *ci;
-//		if (dtg_->getBindings().canUnifyBoundedAtoms(*atom_to_search_for, *dtg_node_fact))
-		if (atom_to_search_for->canUnifyWith(*dtg_node_fact, dtg_->getBindings()))
-		{
-			// If we have found a mapping for the last node we are done!
-			if (index + 1 == mapping.size()) return true;
-			
-			// Otherwise bind the found mapping and try to find a mapping for the other nodes.
-			bool new_mask[atoms_.size()];
-			memcpy(new_mask, mask, sizeof(bool) * atoms_.size());
-			new_mask[atom_index] = true;
-			return findMapping(mapping, index + 1, new_mask);
-		}
-	}
-	
-	return false;
-}
-*/
 bool DomainTransitionGraphNode::canUnifyWith(const DomainTransitionGraphNode& other) const
 {
 //	std::cout << "Can unify: " << *this << " and " << node2 << "?" << std::endl;
@@ -1054,7 +807,6 @@ bool DomainTransitionGraphNode::groundTerms(std::vector<DomainTransitionGraphNod
 #endif
 	}
 	grounded_nodes.insert(grounded_nodes.end(), open_list.begin(), open_list.end());
-
 	return did_ground_a_term;
 }
 
@@ -1169,18 +921,16 @@ bool DomainTransitionGraphNode::addTransition(const Action& action, DomainTransi
 }
 
 
-bool DomainTransitionGraphNode::addTransition(const Transition& transition)
+bool DomainTransitionGraphNode::addTransition(Transition& transition)
 {
 	assert (&transition != NULL);
 //	std::cout << "[DomainTransitionGraphNode::addTransition] " << transition.getStep()->getAction() << std::endl;
 	assert (&transition.getFromNode().getDTG() == &transition.getToNode().getDTG());
-
-	// Make sure this transition is actually valid.
-
+	
 	// Make sure a transition with the same action doesn't already exist!
 	StepID new_transition_step_id = transition.getStepId();
 	const Bindings& bindings = transition.getFromNode().getDTG().getBindings();
-	for (std::vector<const Transition*>::const_iterator ci = transitions_.begin(); ci != transitions_.end(); ci++)
+	for (std::vector<Transition*>::const_iterator ci = transitions_.begin(); ci != transitions_.end(); ci++)
 	{
 		const Transition* existing_transition = *ci;
 		StepID existing_transition_step_id = existing_transition->getStepId();
@@ -1190,7 +940,6 @@ bool DomainTransitionGraphNode::addTransition(const Transition& transition)
 //		std::cout << " v.s. ";
 //		transition.getStep()->getAction().print(std::cout, bindings, transition.getStep()->getStepId());
 //		std::cout << std::endl;
-
 		if (&existing_transition->getAction() == &transition.getAction() &&
 		    &existing_transition->getToNode() == &transition.getToNode())
 		{
@@ -1201,8 +950,7 @@ bool DomainTransitionGraphNode::addTransition(const Transition& transition)
 			bool are_identical = true;
 			for (unsigned int i = 0; i < existing_action_variables.size(); i++)
 			{
-//				if (!bindings.canUnify(*existing_action_variables[i], existing_transition_step_id, *transition_action_variables[i], new_transition_step_id)
-				if (existing_action_variables[i]->canUnify(existing_transition_step_id, *transition_action_variables[i], new_transition_step_id, bindings) ||
+				if (!existing_action_variables[i]->canUnify(existing_transition_step_id, *transition_action_variables[i], new_transition_step_id, bindings) ||
 				    bindings.getVariableDomain(existing_transition_step_id, *existing_action_variables[i]).getDomain().size() != bindings.getVariableDomain(new_transition_step_id, *transition_action_variables[i]).getDomain().size())
 				{
 					are_identical = false;
@@ -1212,26 +960,59 @@ bool DomainTransitionGraphNode::addTransition(const Transition& transition)
 
 			if (are_identical)
 			{
-//				std::cout << "[DomainTransitionGraphNode::addTransition] FAIL! Transition already exists..." << *this << std::endl;
+//				std::cerr << "[DomainTransitionGraphNode::addTransition] " << *existing_transition << " is the same as the new: " << transition << std::endl;
 				return false;
 			}
 		}
 	}
+
 	// NOTE: SolveSubSets actually adds transitions without cahnging the from node...
 	//assert (&transition.getFromNode() == this);
 	transitions_.push_back(&transition);
-	
 	return true;
+}
+
+void DomainTransitionGraphNode::getAchievingTransitions(std::vector<const Transition*>& achievers) const
+{
+	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_->getNodes().begin(); ci != dtg_->getNodes().end(); ++ci)
+	{
+		const DomainTransitionGraphNode* dtg_node = *ci;
+		for (std::vector<Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ++ci)
+		{
+			const Transition* transition = *ci;
+			if (&transition->getToNode() == this)
+			{
+				achievers.push_back(transition);
+			}
+		}
+	}
 }
 
 bool DomainTransitionGraphNode::removeTransition(const Transition& transition)
 {
-	for (std::vector<const Transition*>::iterator i = transitions_.begin(); i != transitions_.end(); i++)
+	unsigned int counter = 0;
+	for (std::vector<DomainTransitionGraphNode*>::const_iterator ci = dtg_->getNodes().begin(); ci != dtg_->getNodes().end(); ci++)
+	{
+		DomainTransitionGraphNode* dtg_node = *ci;
+		for (std::vector<Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
+		{
+			if (*ci == &transition)
+			{
+				++counter;
+			}
+		}
+	}
+	
+	assert (counter == 1);
+	
+	for (std::vector<Transition*>::iterator i = transitions_.begin(); i != transitions_.end(); i++)
 	{
 		if (*i == &transition)
 		{
 			transitions_.erase(i);
-			delete *i;
+			
+			// TODO: Fix this memory leak.
+//			delete *i;
 /*			for (std::vector<const Variable*>::const_iterator ci = transition.getStep()->getAction().getVariables().begin(); ci != transition.getStep()->getAction().getVariables().end(); ci++)
 			{
 				const Variable* variable = *ci;
@@ -1248,31 +1029,20 @@ void DomainTransitionGraphNode::removeTransitions()
 {
 	// Remove all bindings as well!
 	// TODO: Memory leak if not uncommented!
-	for (std::vector<const Transition*>::iterator ci = transitions_.begin(); ci != transitions_.end(); ci++)
+	for (std::vector<Transition*>::iterator ci = transitions_.begin(); ci != transitions_.end(); ci++)
 	{
 		const Transition* transition = *ci;
 		delete transition;
+/*		StepID transition_id = transition->getStep()->getStepId();
+		
+		for (std::vector<const Variable*>::const_iterator ci = transition->getStep()->getAction().getVariables().begin(); ci != transition->getStep()->getAction().getVariables().end(); ci++)
+		{
+			const Variable* variable = *ci;
+			dtg_->getBindings().removeBindings(transition_id, *variable);
+		}
+*/
 	}
 	transitions_.clear();
-}
-
-bool DomainTransitionGraphNode::containsEmptyVariableDomain() const
-{
-	for (std::vector<BoundedAtom*>::const_iterator ci = getAtoms().begin(); ci != getAtoms().end(); ci++)
-	{
-		const BoundedAtom* bounded_atom = *ci;
-		
-		for (std::vector<const Term*>::const_iterator ci = bounded_atom->getAtom().getTerms().begin(); ci != bounded_atom->getAtom().getTerms().end(); ci++)
-		{
-			const Term* term = *ci;
-			if (term->getDomain(bounded_atom->getId(), dtg_->getBindings()).empty())
-			{
-				return true;
-			}
-		}
-	}
-	
-	return false;
 }
 
 // Recursive function.
@@ -1542,11 +1312,17 @@ std::ostream& operator<<(std::ostream& os, const DomainTransitionGraphNode& node
 		}
 */
 	}
-
-	for (std::vector<const Transition*>::const_iterator ci = node.transitions_.begin(); ci != node.transitions_.end(); ci++)
+/*
+	for (std::vector<Transition*>::const_iterator ci = node.transitions_.begin(); ci != node.transitions_.end(); ci++)
 	{
 		const Transition* transition = *ci;
 		os << "\t -> ";
+		
+		unsigned int nr_static_preconditions = 0;
+		for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = transition->getAllPreconditions().begin(); ci != transition->getAllPreconditions().end(); ci++)
+		{
+			if ((*ci).first->getPredicate().isStatic()) ++nr_static_preconditions;
+		}
 
 		for (std::vector<BoundedAtom*>::const_iterator ci2 = transition->getToNode().getAtoms().begin(); ci2 != transition->getToNode().getAtoms().end(); ci2++)
 		{
@@ -1558,24 +1334,15 @@ std::ostream& operator<<(std::ostream& os, const DomainTransitionGraphNode& node
 		os << " [";
 		transition->getAction().print(os, node.getDTG().getBindings(), transition->getStepId());
 		//os << transition->getStep()->getAction();
-		os << "]";
+		os << "] STATIC: " << nr_static_preconditions;
 
-/*		const std::vector<BoundedAtom>& enablers = transition->getEnablers();
-		os << "; Enablers: ";
-		for (std::vector<BoundedAtom>::const_iterator enabler_ci = enablers.begin(); enabler_ci != enablers.end(); enabler_ci++)
-		{
-			(*enabler_ci).second->print(os);
-			if (enabler_ci + 1 != enablers.end())
-			{
-				os << ", ";
-			}
-		}*/
 
 //		if (ci + 1!= node.transitions_.end())
 		{
 			os << std::endl;
 		}
 	}
+*/
 	return os;
 }
 

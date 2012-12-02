@@ -59,10 +59,11 @@ public:
 	static BoundedAtom& createBoundedAtom(const Atom& atom, const Property& property, Bindings& bindings);
 	static BoundedAtom& createBoundedAtom(const Atom& atom, const std::vector<const Property*>& properties, Bindings& bindings);
 
+	BoundedAtom(const BoundedAtom& other, Bindings& bindings);
 	BoundedAtom(StepID id, const Atom& atom);
 	BoundedAtom(StepID id, const Atom& atom, const std::vector<const Property*>& properties);
 
-	~BoundedAtom();
+	virtual ~BoundedAtom();
 
 	StepID getId() const;
 
@@ -78,22 +79,19 @@ public:
 	 */
 	InvariableIndex getIndex(StepID id, const Term& term, const Bindings& bindings) const;
 	
+	/**
+	 * Given the atom, find all properties which apply to this bounded atom.
+	 */
+	void resolveProperties();
+	
 	const std::vector<const Property*>& getProperties() const;
 	
 	/**
-	 * Check if the bounded atom contains the given term, that is a term which shares
-	 * the same variable domain.
-	 * @param term The term domain to search for.
-	 * @return The index of the first term which matches, or std::numeric_limits< unsigned int>::max() if none do.
+	 * Check if the bounded atom contains the given variable domain.
+	 * @param term The variable domain to search for, this is a pointerwise comparison.
+	 * @return The index of the first variable domain which matches, or std::numeric_limits< unsigned int>::max() if none do.
 	 */
 	unsigned int containsVariableDomain(const std::vector<const Object*>& variable_domain, const Bindings& bindings) const;
-	
-	/**
-	 * Add a property this bounded atom is part of.
-	 * @param property The property to add.
-	 * @return True if the property was added, false otherwise; The latter indicates that property was already part of this bounded atom.
-	 */
-	bool addProperty(const Property& property);
 	
 	/**
 	 * Check if the term at the given index is balanced. This is done by checking if any property's index matches
@@ -133,7 +131,14 @@ public:
 	 * @param bindings The bindings the term is bounded by.
 	 * @return The variable domain linked to the term at the term_index'th index.
 	 */
-	const std::vector<const Object*>& getVariableDomain(unsigned int term_index, const Bindings& bindings) const;
+	virtual const std::vector<const Object*>& getVariableDomain(unsigned int term_index, const Bindings& bindings) const;
+	
+	/**
+	 * Check if it contains an empty variable domain.
+	 * @param bindings The bindings the terms are bounded by.
+	 * @return True if this fact contains an empty variable domain, false otherwise.
+	 */
+	bool containsEmptyVariableDomain(const Bindings& bindings) const;
 	
 	/**
 	 * Check if this bounded atom is equivalent to the other bounded atom.
@@ -176,6 +181,15 @@ public:
 	 */
 	bool canUnifyWith(const BoundedAtom& other, const Bindings& bindings) const;
 	
+	/**
+	 * Check if this bounded atom can be unified with the given bounded atom.
+	 * @param step_id The step id the given atom is bounded by.
+	 * @param atom The atom to check against.
+	 * @param bindings The bindings both bounded atoms are bounded by.
+	 * @return True if both bounded atoms can be unified, false otherwise.
+	 */
+	bool canUnifyWith(StepID step_id, const Atom& atom, const Bindings& bindings) const;
+	
 	//bool shareSameProperties(const BoundedAtom& other) const;
 	
 	void print(std::ostream& os, const Bindings& bindings, bool verbal = true) const;
@@ -200,7 +214,7 @@ public:
 	 * @param types All types as found by VAL.
 	 * @param bindings The bindings used to bind the initial facts.
 	 */
-	const DomainTransitionGraph& generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, Bindings& bindings);
+	void generateDomainTransitionGraphsTIM(const VAL::pddl_type_list& types, Bindings& bindings);
 
 	/**
 	 * Get the DTGs which contains a node which actually unifies with the given atom and binding.
@@ -210,7 +224,7 @@ public:
 	 * @param bindings The binding which hold the atom's bindings.
 	 * @param index At which the given atom is invariable. This should match up with a DTG node contained by the returned DTGs.
 	 */
-	void getDTGs(std::vector<const DomainTransitionGraph*>& found_dtgs, StepID binding_id, const Atom& atom, const Bindings& bindings, unsigned int index = ALL_INVARIABLE_INDEXES) const;
+	void getDTGs(std::vector<const DomainTransitionGraph*>& found_dtgs, StepID step_id, const Atom& atom, const Bindings& bindings, unsigned int index = ALL_INVARIABLE_INDEXES) const;
 
 	/**
 	 * Get the DTG nodes which can be unified with the given atom and bindings.
@@ -234,7 +248,7 @@ private:
 	
 	void resolveAllProperties();
 	
-	void resolveAllProperties(BoundedAtom& bounded_atom, const Bindings& bindings);
+//	void resolveAllProperties(BoundedAtom& bounded_atom, const Bindings& bindings);
 
 	
 	/**
@@ -243,7 +257,8 @@ private:
 	 */
 	void createPointToPointTransitions();
 	
-	DomainTransitionGraph& mergeIdenticalDTGs(Bindings& bindings);
+	void finaliseDTGs(Bindings& bindings);
+	void mergeIdenticalDTGs(Bindings& bindings);
 	
 	bool isTermStatic(const Atom& atom, StepID step_id, InvariableIndex term_index, const Bindings& bindings) const;
 

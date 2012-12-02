@@ -99,7 +99,7 @@ public:
 
 	// For preprocessing purposes only! After the preprocessing is done this function should
 	// not be called again. It retrieves the constructed action based on the given VAL::operator_.
-	const Action* getAction(const VAL::operator_& val_operator) const;
+	const Action& getAction(const VAL::operator_& val_operator) const;
 
 	// Do the unthinkable! Ground an action. A grounded action will only have a single object
 	// assigned to each of its variable domains.

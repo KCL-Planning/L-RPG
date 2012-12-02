@@ -53,10 +53,7 @@ public:
 	DomainTransitionGraphNode(const DomainTransitionGraphNode& dtg_node, DomainTransitionGraph& dtg);
 	
 	~DomainTransitionGraphNode();
-	
-	void postProcessNode(const DomainTransitionGraphNode& linked_dtg_node, MyPOP::SAS_Plus::Transition& transition);
 
-	
 	unsigned int* getMapping(const DomainTransitionGraphNode& other_dtg_node) const;
 
 	/**
@@ -100,14 +97,6 @@ public:
 	InvariableIndex getIndex(StepID id, const Atom& atom) const;
 	
 	/**
-	 * Check if a one-to-one mapping can be made between the facts in this DTG node and the provided
-	 * mapping.
-	 * @param mapping The set of facts which we need to map to the facts of the DTG node.
-	 * @return True if such a mapping can be found, false otherwise.
-	 */
-	//bool canMap(const std::vector<const BoundedAtom*>& mapping) const;
-	
-	/**
 	 * Add a transition from this node to to_node, without checking for static preconditions.
 	 */
 	bool addTransition(const Action& action, DomainTransitionGraphNode& to_node);
@@ -115,7 +104,7 @@ public:
 	/**
 	 * Add a transition to this node.
 	 */
-	bool addTransition(const Transition& transition);
+	bool addTransition(MyPOP::SAS_Plus::Transition& transition);
 
 	/**
 	 * Get the atoms linked to this node.
@@ -131,8 +120,13 @@ public:
 	/**
 	 * Get all transition from this node.
 	 */
-	const std::vector<const Transition*>& getTransitions() const { return transitions_; }
-	std::vector<const Transition*>& getTransitionsNonConst() { return transitions_; }
+	const std::vector<Transition*>& getTransitions() const { return transitions_; }
+	std::vector<Transition*>& getTransitionsNonConst() { return transitions_; }
+	
+	/**
+	 * Get all the transitions which achieve this node.
+	 */
+	void getAchievingTransitions(std::vector<const Transition*>& achievers) const;
 	
 	/**
 	 * Remove a transition from this node.
@@ -175,13 +169,6 @@ public:
 	 * @return True if a term was grounded, false otherwise.
 	 */
 	bool groundTerms(std::vector<DomainTransitionGraphNode*>& grounded_nodes, const std::vector<const std::vector<const Object*>* >& variable_domains_to_ground, const std::map<const std::vector<const Object*>*, const Object*>& bound_objects) const;
-	
-	/**
-	 * Check if this node contains an empty variable domain, in that case the node has to be removed.
-	 */
-	bool containsEmptyVariableDomain() const;
-
-	bool removeUnsupportedTransitions();
 	
 	void print(std::ostream& os) const;
 
@@ -233,10 +220,13 @@ public:
 	bool canUnifyWith(const DomainTransitionGraphNode& other) const;
 	
 	void setDTG(DomainTransitionGraph& dtg_graph) { dtg_ = &dtg_graph; }
-
-	// DEBUG - for Depots...
-	bool containsDoubleVariableDomains() const;
-	bool containsDoubleVariableDomains(const BoundedAtom& bounded_atom) const;
+	
+	void getBalancedTerms(std::vector<const Term*>& balanced_terms) const;
+	void getBalancedVariableDomains(std::vector< const std::vector< const MyPOP::Object* >* >& balanced_terms) const;
+	
+	void setCopy(DomainTransitionGraphNode& copy) { dtg_node_copy_ = &copy; }
+	
+	DomainTransitionGraphNode* getCopy() const { return dtg_node_copy_; }
 
 private:
 	
@@ -261,9 +251,8 @@ private:
 	 * @param mask Determines which facts of the DTG node can be used in the mapping. True means it cannot be used.
 	 * @return True if a mapping is found, false otherwise.
 	 */
-//	bool findMapping(const std::vector<const BoundedAtom*>& mapping, unsigned int index, bool mask[]) const;
 	unsigned int* findMapping(const DomainTransitionGraphNode& other_dtg_node, unsigned int index, unsigned int mask[]) const;
-	
+
 	// The DTG this node is part of.
 	DomainTransitionGraph* dtg_;
 
@@ -271,7 +260,7 @@ private:
 	std::vector<BoundedAtom*> atoms_;
 
 	// The set of transitions from this node to any other node.
-	std::vector<const Transition*> transitions_;
+	std::vector<Transition*> transitions_;
 
 	// To create a DTG a set of predicates are combined to construct a 'balanced set', i.e.
 	// taken all the effects of all actions involving these predicates there will always be
@@ -284,6 +273,9 @@ private:
 	
 	// The set of terms which are grounded.
 	std::set<const Term*> grounded_terms_;
+	
+	// Sometimes it is necessary to create a copy of a node to prevent our algorithm from running into dead ends.
+	DomainTransitionGraphNode* dtg_node_copy_;
 };
 
 std::ostream& operator<<(std::ostream&, const DomainTransitionGraphNode& node);

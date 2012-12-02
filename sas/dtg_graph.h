@@ -47,6 +47,19 @@ public:
 	DomainTransitionGraph(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, const MyPOP::TypeManager& type_manager, const MyPOP::ActionManager& action_manager, const MyPOP::PredicateManager& predicate_manager, Bindings& bindings, const std::vector< const MyPOP::Atom* >& initial_facts);
 	
 	~DomainTransitionGraph();
+	
+	static DomainTransitionGraph* merge(const DomainTransitionGraph& lhs, const DomainTransitionGraph& rhs);
+	
+	const PropertySpace* getPropertySpace() const { return property_space_; }
+	
+	/**
+	 * Ground the nodes of this DTG, but leave the objects in the given set lifted.
+	 * @param objects_not_to_ground The set of objects which should remain lifted.
+	 * @param initial_facts The facts which are true in the initial state.
+	 * @param term_manager The term manager.
+	 * @return The set of DTGs which are grounded.
+	 */
+	void ground(const std::vector<const Object*>& objects_not_to_ground, const std::vector<const Atom*>& initial_facts, const TermManager& term_manager);
 
 	/**
 	 * Add a predicate as one of the set which makes a balanced set. The position is the term
@@ -65,13 +78,10 @@ public:
 	
 	/**
 	 * Check the initial state for all objects which are part of this DTG and add them.
+	 * @param property_space The property space from which this DTG is created, all the balanced properties 
+	 * will be initialised with the objects found by TIM.
 	 */
-	void addObjects();
-	
-	/**
-	 * Remove objects from the domain of the invariants.
-	 */
-	void removeObjects(const std::set<const Object*>& objects);
+	void updateObjects(const MyPOP::SAS_Plus::PropertySpace& property_space);
 
 	/**
 	 * Get all the objects whos transitions are described by this DTG.
@@ -103,9 +113,6 @@ public:
 	void getNodes(std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >& dtg_nodes, const Predicate& predicate, unsigned int index) const;
 	void getNodes(std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >& found_dtg_nodes, const std::vector<const Atom*>& initial_facts, const Bindings& bindings) const;
 	
-//	void getNodes(std::vector<const DomainTransitionGraphNode*>& results, const std::vector<const BoundedAtom*>& to_find) const;
-	
-
 	/**
 	 * Get this DTG's bindings.
 	 */
@@ -132,26 +139,69 @@ public:
 	 * is equal to ALL_INVARIABLE_INDEXES this constraint isn't checked.
 	 */
 	void getNodes(std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >& dtg_nodes, MyPOP::StepID step_id, const MyPOP::Atom& atom, const MyPOP::Bindings& bindings, InvariableIndex index = ALL_INVARIABLE_INDEXES) const;
-
-	/**
-	 * Should only be called the first time transitions are to be established.
-	 */
-	void establishTransitions();
 	
 	/**
 	 * Separate the objects into groups based on membership of a set of recursive functions.
 	 */
 	void separateObjects(const RecursiveFunctionManager& recursive_function_manager);
-	
-	void removeUnconnectedNodes();
-	
-	void solveSubsets();
 
+	/**
+	 * Find all transitions with the given node as a end node.
+	 */
+	void findTransitionsWithEndNode(std::vector<Transition*>& found_transitions, const DomainTransitionGraphNode& end_node) const;
+	
+	/**
+	 * Some domains like Blocksworld construct LTGs which easily lead to false dead ends. This is because we insist that every
+	 * node can only be visited once. This is not a problem when a LTG only consists of grounded terms or lifted terms which
+	 * this LTG is not dependend on. For example the following LTG will not lead to false dead ends:
+	 *
+	 * ================           ==================
+	 * | at driver s1 |  <------> | at driver p1-2 |
+	 * ================           ==================
+	 *
+	 * This if fine, because drivers are not depended on themselves so there is no way that this can lead to false dead ends
+	 * (at least not more than the original causal graph heuristic). However, the following LTG is more complicated:
+	 *
+	 * ================           ========================
+	 * | at driver s1 |  <------> | driving driver truck |
+	 * ================           ========================
+	 *
+	 * This can lead to problems because the truck term is lifted. If the initial state is (driving driver1 truck1) and the goal
+	 * is (driving driver1 truck2) we cannot solve it because we cannot revisit the node containing the goal as it is already 
+	 * achieved, but with a different truck object. The trick we use is to split any of these nodes as follows:
+	 *
+	 * ================           ========================
+	 * | at driver s1 |  <------> | driving driver truck |
+	 * ================           ========================
+	 *
+	 *        ^
+	 *        |
+	 *        v
+	 *
+	 * ========================
+	 * | driving driver truck |
+	 * ========================
+	 *
+	 * If the initial state can map to both the driving nodes only one will be initialised. When the other one will be achieved 
+	 * then the truck term will be initialised with all the other trucks the driver can be in. The above example is easy, but 
+	 * graphs can become quite complicated and big, for example the blocksworld domain requires us to add 5 additional nodes 
+	 * in order to split the graph correctly.
+	 */
+	void split(const std::vector<const Atom*>& initial_facts);
+	
 	friend std::ostream& operator<<(std::ostream& os, const DomainTransitionGraph& dtg);
+	
 private:
 	
-	bool containsDoubleVariableDomains(const DomainTransitionGraphNode& dtg_node) const;
-
+	/**
+	 * Try to connect all the nodes with all possible operators.
+	 */
+	void establishTransitions();
+	
+	/**
+	 * Remove all the nodes which are no part of any transition.
+	 */
+	void removeUnconnectedNodes();
 	
 	/**
 	 * Create a new DTG node with the given atom and add bind t to this DTG's bindings. The node is not added though!
@@ -159,16 +209,15 @@ private:
 	 */
 	DomainTransitionGraphNode* createDTGNode(const Atom& atom, unsigned int index, const Property* property);
 	
-	bool containsPropertySpace(const PropertySpace& property_space) const;
-	
 	const DomainTransitionGraphManager* dtg_manager_;
 	
 	/**
-	 * Every DTG is linked to a single - or multiple - property spaces. A property space dictates which states are
-	 * captured by this DTG.
+	 * Every DTG is linked to a single property space. A property space dictates which states are captured by this DTG.
 	 */
-	std::vector<const PropertySpace*> property_spaces_;
+	const PropertySpace* property_space_;
 
+	const TypeManager* type_manager_;
+	
 	// When we split DTG nodes up we have a need for new atoms for every node. To manage the
 	// terms we add them to this term manager (and remove them as well when needed.
 	TermManager* dtg_term_manager_;
@@ -188,7 +237,7 @@ private:
 	// The nodes of this DTG.
 	std::vector<DomainTransitionGraphNode*> nodes_;
 
-	// The objects which share this DTG.
+	// A ordered list of objects which this state variable applies to.
 	std::vector<const Object*> objects_;
 	
 	// Set of objects which correspond to membership of recursive functions.

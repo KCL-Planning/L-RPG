@@ -40,6 +40,18 @@ bool VariableDomain::sharesObjectsWith(const VariableDomain& rhs) const
 	return false;
 }
 
+void VariableDomain::getIntersection(VariableDomain& result, const VariableDomain& rhs) const
+{
+	for (std::vector<const Object*>::const_iterator ci = variable_domain_.begin(); ci != variable_domain_.end(); ++ci)
+	{
+		const Object* object = *ci;
+		if (rhs.contains(*object))
+		{
+			result.addObject(*object);
+		}
+	}
+}
+
 bool VariableDomain::contains(const Object& object) const
 {
 	for (std::vector<const Object*>::const_iterator ci = variable_domain_.begin(); ci != variable_domain_.end(); ++ci)
@@ -57,6 +69,7 @@ void VariableDomain::set(const std::vector<const Object*>&  set)
 {
 	variable_domain_.clear();
 	variable_domain_.insert(variable_domain_.end(), set.begin(), set.end());
+	std::sort(variable_domain_.begin(), variable_domain_.end());
 }
 
 void VariableDomain::addObject(const Object& object)
@@ -141,6 +154,13 @@ Fact::~Fact()
 	{
 		delete *ci;
 	}
+}
+
+void Fact::setVariableDomain(unsigned int term_index, const VariableDomain& variable_domain)
+{
+//		delete variable_domains_[term_index];
+	assert (variable_domains_.size() > term_index);
+	variable_domains_[term_index] = &variable_domain;
 }
 
 bool Fact::canUnifyWith(const Fact& fact) const

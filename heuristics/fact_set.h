@@ -31,6 +31,8 @@ public:
 	
 	bool sharesObjectsWith(const VariableDomain& rhs) const;
 	
+	void getIntersection(VariableDomain& result, const VariableDomain& rhs) const;
+	
 	bool contains(const Object& object) const;
 	
 	void set(const std::vector<const Object*>&  set);
@@ -56,6 +58,8 @@ public:
 	const Predicate& getPredicate() const { return *predicate_; }
 	
 	const std::vector<const VariableDomain*>& getVariableDomains() const { return variable_domains_; }
+	
+	void setVariableDomain(unsigned int term_index, const VariableDomain& variable_domain);
 	
 	bool canUnifyWith(const Fact& fact) const;
 	

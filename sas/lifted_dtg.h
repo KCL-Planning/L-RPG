@@ -24,6 +24,7 @@ class Fact;
 namespace SAS_Plus
 {
 
+class PropertyState;
 class PropertySpace;
 class MultiValuedVariable;
 
@@ -38,7 +39,7 @@ struct MultiValuedVariableTermIndex
 class MultiValuedTransition
 {
 public:
-	
+	MultiValuedTransition(const Action& action, const MultiValuedTransition& effect);
 private:
 	
 	const Action* action_;
@@ -52,20 +53,30 @@ private:
 	// We map each action variable to each term of the effect.
 	std::vector<std::pair<unsigned int, MultiValuedVariableTermIndex> > effect_to_action_variable_;
 };
-	
+
 class MultiValuedValue
 {
 public:
-	MultiValuedValue(const std::vector<const HEURISTICS::Fact*>& values);
+	MultiValuedValue(const std::vector<HEURISTICS::Fact*>& values, const PropertyState& property_state);
 	
 	~MultiValuedValue();
 	
 	void addTransition(const MultiValuedTransition& transition);
 	
+	const PropertyState& getPropertyState() const { return *property_state_; }
+	
+	const std::vector<HEURISTICS::Fact*>& getValues() const { return *values_; }
+	
 private:
-	const std::vector<const HEURISTICS::Fact*>* values_;
+	const std::vector<HEURISTICS::Fact*>* values_;
+	const PropertyState* property_state_;
+	
 	std::vector<const MultiValuedTransition*> transitions_;
+	
+	friend std::ostream& operator<<(std::ostream& os, const MultiValuedValue& value);
 };
+
+std::ostream& operator<<(std::ostream& os, const MultiValuedValue& value);
 
 class LiftedDTG
 {
@@ -80,8 +91,20 @@ private:
 	
 	static void getProperties(const PredicateManager& predicate_manager, std::vector<std::pair<const Predicate*, unsigned int> >& predicates, const TIM::PropertyState& property_state);
 	
-	std::vector<const MultiValuedValue*> nodes_;
+	void createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs);
+	
+	MultiValuedValue* getMultiValuedValue(const PropertyState& property_state) const;
+	
+	std::vector<MultiValuedValue*> nodes_;
+	
+	const SAS_Plus::PropertySpace* property_space_;
+	
+	//static std::vector<LiftedDTG*> all_lifted_dtgs_;
+	
+	friend std::ostream& operator<<(std::ostream& os, const LiftedDTG& lifted_dtg);
 };
+
+std::ostream& operator<<(std::ostream& os, const LiftedDTG& lifted_dtg);
 
 };
 

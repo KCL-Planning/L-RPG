@@ -6,18 +6,19 @@
 #include "term_manager.h"
 #include "action_manager.h"
 #include "type_manager.h"
+#include <parser_utils.h>
+#include <heuristics/fact_set.h>
 
 namespace MyPOP {
 
 namespace SAS_Plus {
 
 
-PropertyStateTransition::PropertyStateTransition(PropertyState& lhs, PropertyState& rhs, const Action& action)
-	: lhs_property_state_(&lhs), rhs_property_state_(&rhs), action_(&action)
+PropertyStateTransition::PropertyStateTransition(MyPOP::SAS_Plus::PropertyState& lhs, MyPOP::SAS_Plus::PropertyState& rhs, const std::vector< const MyPOP::SAS_Plus::Property* >& preconditions, const std::vector< const MyPOP::SAS_Plus::Property* >& added_properties, const MyPOP::Action& action, std::pair< std::map< const MyPOP::SAS_Plus::Property*, std::vector< unsigned int >* >*, const std::vector< const MyPOP::HEURISTICS::VariableDomain* >* > mapping)
+	: lhs_property_state_(&lhs), rhs_property_state_(&rhs), preconditions_(preconditions), added_properties_(added_properties), action_(&action), property_to_action_variable_index_(mapping.first), action_variable_domains_(mapping.second)
 {
 	
 }
-
 std::vector<const Property*> Property::all_properties_;
 	
 /*****************************
@@ -117,7 +118,7 @@ const PropertySpace& PropertyState::getPropertySpace() const
 	return *property_space_;
 }
 
-void PropertyState::addTransition(const MyPOP::Action& action, PropertyState& rhs_property_state)
+void PropertyState::addTransition(const PredicateManager& property_manager, const TypeManager& type_manager, const MyPOP::Action& action, PropertyState& rhs_property_state, const std::vector<const Property*>& preconditions, const std::vector<const Property*>& added_properties)
 {
 //	std::cout << "ADD TRANSITION: " << action.getPredicate() << std::endl << *this << std::endl << "=== TO ===" << std::endl << rhs_property_state << std::endl;
 	for (std::vector<const PropertyStateTransition*>::const_iterator ci = transitions_.begin(); ci != transitions_.end(); ++ci)
@@ -127,7 +128,185 @@ void PropertyState::addTransition(const MyPOP::Action& action, PropertyState& rh
 			return;
 		}
 	}
-	transitions_.push_back(new PropertyStateTransition(*this, rhs_property_state, action));
+	
+	if (this == &rhs_property_state)
+	{
+		std::cout << "Cyclic transition!!!" << std::endl;
+	}
+	
+	// Update the types.
+	std::map<const Property*, std::vector<unsigned int>* > bindings_to_action_variables;
+	std::vector<const HEURISTICS::VariableDomain*> action_variable_types;
+	for (std::vector<const Variable*>::const_iterator ci = action.getVariables().begin(); ci != action.getVariables().end(); ++ci)
+	{
+		const Variable* variable = *ci;
+		std::vector<const Object*> objects_of_type;
+		type_manager.getObjectsOfType(objects_of_type, *variable->getType());
+		action_variable_types.push_back(new HEURISTICS::VariableDomain(objects_of_type));
+	}
+	std::pair<std::map<const Property*, std::vector<unsigned int>* >*, const std::vector<const HEURISTICS::VariableDomain*>* > mapping = getMappings(type_manager, preconditions, added_properties, action, bindings_to_action_variables, action_variable_types, 0);
+	assert (mapping.first != NULL);
+	transitions_.push_back(new PropertyStateTransition(*this, rhs_property_state, preconditions, added_properties, action, mapping));
+}
+
+std::pair<std::map<const Property*, std::vector<unsigned int>* >*, const std::vector<const HEURISTICS::VariableDomain*>* > PropertyState::getMappings(const TypeManager& type_manager, const std::vector<const Property*>& precondition_properties, const std::vector<const Property*>& effects_properties, const Action& action, const std::map<const Property*, std::vector<unsigned int>* >& bindings_to_action_variables, const std::vector<const HEURISTICS::VariableDomain*>& action_variable_types, unsigned int property_index_to_process)
+{
+	std::cout << "[PropertyState::getMappings] " << bindings_to_action_variables.size() << std::endl;
+	const Property* property_to_process = NULL;
+	bool is_precondition = true;
+	
+	std::vector<const Atom*> action_facts;
+	
+	// Found a complete assignment!
+	if (property_index_to_process == precondition_properties.size() + effects_properties.size())
+	{
+		std::cout << "Found propper mappings: " << action.getPredicate();
+		for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = action_variable_types.begin(); ci != action_variable_types.end(); ++ci)
+		{
+			std::cout << **ci << ", ";
+		}
+		std::cout << "." << std::endl;
+		std::cout << " = Preconditions: " << std::endl;
+		for (std::vector<const Property*>::const_iterator ci = precondition_properties.begin(); ci != precondition_properties.end(); ++ci)
+		{
+			const Property* precondition = *ci;
+			std::cout << precondition->getPredicate().getName();
+			
+			std::vector<unsigned int>* mappings_to_action_variable = (*bindings_to_action_variables.find(*ci)).second;
+			for (std::vector<unsigned int>::const_iterator ci = mappings_to_action_variable->begin(); ci != mappings_to_action_variable->end(); ++ci)
+			{
+				std::cout << *action_variable_types[*ci] << " ";
+			}
+			std::cout << "." << std::endl;
+		}
+		
+		std::cout << " = Effects: " << std::endl;
+		for (std::vector<const Property*>::const_iterator ci = effects_properties.begin(); ci != effects_properties.end(); ++ci)
+		{
+			const Property* effect = *ci;
+			std::cout << effect->getPredicate().getName();
+			
+			std::vector<unsigned int>* mappings_to_action_variable = (*bindings_to_action_variables.find(*ci)).second;
+			for (std::vector<unsigned int>::const_iterator ci = mappings_to_action_variable->begin(); ci != mappings_to_action_variable->end(); ++ci)
+			{
+				std::cout << *action_variable_types[*ci] << " ";
+			}
+			std::cout << "." << std::endl;
+		}
+		
+		std::map<const Property*, std::vector<unsigned int>* >* bindings_to_action_variables_copy = new std::map<const Property*, std::vector<unsigned int>* >();
+		for (std::map<const Property*, std::vector<unsigned int>* >::const_iterator ci = bindings_to_action_variables.begin(); ci != bindings_to_action_variables.end(); ++ci)
+		{
+			std::vector<unsigned int>* bindings = new std::vector<unsigned int>(*(*ci).second);
+			(*bindings_to_action_variables_copy)[(*ci).first] = bindings;
+		}
+		
+		return std::make_pair(bindings_to_action_variables_copy, new std::vector<const HEURISTICS::VariableDomain*>(action_variable_types));
+	}
+	else if (property_index_to_process < precondition_properties.size())
+	{
+		property_to_process = precondition_properties[property_index_to_process];
+		Utility::convertFormula(action_facts, &action.getPrecondition());
+	}
+	else
+	{
+		property_to_process = effects_properties[property_index_to_process - precondition_properties.size()];
+		is_precondition = false;
+		action_facts = action.getEffects();
+	}
+	
+	for (std::vector<const Atom*>::const_iterator ci = action_facts.begin(); ci != action_facts.end(); ++ci)
+	{
+		const Atom* action_fact = *ci;
+		if (action_fact->getArity() != property_to_process->getPredicate().getArity() ||
+		    action_fact->getPredicate().getName() != property_to_process->getPredicate().getName())
+		{
+			continue;
+		}
+		
+		// Can this be 'unified' with the property at hand.
+		std::vector<unsigned int> action_variable_mappings;
+		bool terms_match = true;
+		
+		// Update the varialbe domains of the action.
+		std::vector<const HEURISTICS::VariableDomain*> new_action_variable_types;
+		for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = action_variable_types.begin(); ci != action_variable_types.end(); ++ci)
+		{
+			new_action_variable_types.push_back(new HEURISTICS::VariableDomain(**ci));
+		}
+		
+		for (unsigned int term_index = 0; term_index < action_fact->getTerms().size(); ++term_index)
+		{
+			const Term* action_term = action_fact->getTerms()[term_index];
+			
+			for (unsigned int i = 0; i < action.getVariables().size(); ++i)
+			{
+				if (action.getVariables()[i] == action_term)
+				{
+					action_variable_mappings.push_back(i);
+					break;
+				}
+			}
+			unsigned int matching_action_variable_index = action_variable_mappings[term_index];
+			
+			// Can this term unify with the term_index's index of the property.
+			const Type& action_type = *action_term->getType();
+			const Type& property_type = *property_to_process->getPredicate().getTypes()[term_index];
+			
+			if (!action_type.isEqual(property_type) && !action_type.isSubtypeOf(property_type) && !action_type.isSupertypeOf(property_type))
+			{
+				terms_match = false;
+				break;
+			}
+			
+			// Update the variable domain.
+			std::vector<const Object*> objects_of_type;
+			type_manager.getObjectsOfType(objects_of_type, property_type);
+			HEURISTICS::VariableDomain type_variable_domain(objects_of_type);
+			
+			HEURISTICS::VariableDomain* intersection = new HEURISTICS::VariableDomain();
+			type_variable_domain.getIntersection(*intersection, *new_action_variable_types[matching_action_variable_index]);
+			delete new_action_variable_types[matching_action_variable_index];
+			new_action_variable_types[matching_action_variable_index] = intersection;
+		}
+		
+		if (!terms_match)
+		{
+			continue;
+		}
+		
+		// Check if no bindings are violated.
+		bool bindings_violated = false;
+		for (std::map<const Property*, std::vector<unsigned int>* >::const_iterator ci = bindings_to_action_variables.begin(); ci != bindings_to_action_variables.end(); ++ci)
+		{
+			const Property* all_ready_processed_property = (*ci).first;
+			const std::vector<unsigned int>* bindings = (*ci).second;
+			
+			// Check if the invariables are identical.
+			unsigned int variable_index = (*bindings)[all_ready_processed_property->getIndex()];
+			if (variable_index != action_variable_mappings[property_to_process->getIndex()])
+			{
+				bindings_violated = true;
+				break;
+			}
+		}
+		
+		if (bindings_violated)
+		{
+			continue;
+		}
+		
+		std::map<const Property*, std::vector<unsigned int>* > new_bindings_to_action_variables(bindings_to_action_variables);
+		std::map<const Property*, std::vector<unsigned int>* >::const_iterator iterator = new_bindings_to_action_variables.find(property_to_process);
+		new_bindings_to_action_variables[property_to_process] = &action_variable_mappings;
+		
+		std::pair<std::map<const Property*, std::vector<unsigned int>* >*, const std::vector<const HEURISTICS::VariableDomain*>* > mapping = getMappings(type_manager, precondition_properties, effects_properties, action, new_bindings_to_action_variables, new_action_variable_types, property_index_to_process + 1);
+		if (mapping.first != NULL)
+		{
+			return mapping;
+		}
+	}
+	return std::make_pair(static_cast<std::map<const Property*, std::vector<unsigned int>* >*>(NULL), static_cast<const std::vector<const HEURISTICS::VariableDomain*>*>(NULL));
 }
 
 std::ostream& operator<<(std::ostream& os, const PropertyState& property_state)
@@ -385,6 +564,7 @@ PropertySpace* PropertySpace::merge(const PropertySpace& lhs, const PropertySpac
 		if (!shared) return NULL;
 	}
 	
+/*
 	PropertySpace* new_property_space = new PropertySpace();
 	new_property_space->objects_.insert(new_property_space->objects_.end(), lhs.objects_.begin(), lhs.objects_.end());
 	
@@ -440,6 +620,8 @@ PropertySpace* PropertySpace::merge(const PropertySpace& lhs, const PropertySpac
 	}
 	
 	return new_property_space;
+*/
+	return NULL;
 }
 
 bool PropertySpace::isPartOfPropertySpace(const Type& type)
@@ -490,7 +672,7 @@ const std::vector<const PropertySpace*>& PropertySpace::getAllPropertySpaces()
 	return all_property_spaces_;
 }
 
-void PropertySpace::addTransitions(const ActionManager& action_manager, const std::set<TIM::TransitionRule*>& rules)
+void PropertySpace::addTransitions(const PredicateManager& property_manager, const TypeManager& type_manager, const ActionManager& action_manager, const std::set<TIM::TransitionRule*>& rules)
 {
 //	std::cout << "Add transitions to " << *this << std::endl;
 	for (std::set<TIM::TransitionRule*>::const_iterator ci = rules.begin(); ci != rules.end(); ++ci)
@@ -499,36 +681,19 @@ void PropertySpace::addTransitions(const ActionManager& action_manager, const st
 		const Action& action = action_manager.getAction(*tim_transition_rule->byWhat());
 		const TIM::PropertyState* tim_lhs_property_state = tim_transition_rule->getLHS();
 		const TIM::PropertyState* tim_rhs_property_state = tim_transition_rule->getRHS();
-
-//		std::cout << "LHS: ";
-//		tim_lhs_property_state->write(std::cout);
-//		std::cout << std::endl;
 		
 		std::vector<PropertyState*> lhs_found_property_state;
 		getPropertyStates(lhs_found_property_state, *tim_lhs_property_state);
 		
-//		for (std::vector<PropertyState*>::const_iterator ci = lhs_found_property_state.begin(); ci != lhs_found_property_state.end(); ++ci)
-//		{
-//			std::cout << "MATCH: " << **ci << std::endl;
-//		}
-		
-//		std::cout << "RHS: ";
-//		tim_rhs_property_state->write(std::cout);
-//		std::cout << std::endl;
-		
 		std::vector<PropertyState*> rhs_found_property_state;
 		getPropertyStates(rhs_found_property_state, *tim_rhs_property_state);
-		
-//		for (std::vector<PropertyState*>::const_iterator ci = rhs_found_property_state.begin(); ci != rhs_found_property_state.end(); ++ci)
-//		{
-//			std::cout << "MATCH: " << **ci << std::endl;
-//		}
 		
 		for (std::vector<PropertyState*>::const_iterator ci = lhs_found_property_state.begin(); ci != lhs_found_property_state.end(); ++ci)
 		{
 			PropertyState* lhs_property_state = *ci;
 			
 			std::vector<const Property*> unchanged_properties;
+			std::vector<const Property*> preconditions;
 			for (std::vector<const Property*>::const_iterator ci = lhs_property_state->getProperties().begin(); ci != lhs_property_state->getProperties().end(); ++ci)
 			{
 				const Property* property = *ci;
@@ -546,6 +711,10 @@ void PropertySpace::addTransitions(const ActionManager& action_manager, const st
 				{
 					unchanged_properties.push_back(property);
 				}
+				else
+				{
+					preconditions.push_back(property);
+				}
 			}
 			
 			for (std::vector<PropertyState*>::const_iterator ci = rhs_found_property_state.begin(); ci != rhs_found_property_state.end(); ++ci)
@@ -553,6 +722,28 @@ void PropertySpace::addTransitions(const ActionManager& action_manager, const st
 				PropertyState* rhs_property_state = *ci;
 				
 				// Check that the properties which have not been removed are still there.
+				std::vector<const Property*> effects;
+				
+				for (std::vector<const Property*>::const_iterator ci = rhs_property_state->getProperties().begin(); ci != rhs_property_state->getProperties().end(); ++ci)
+				{
+					const Property* effect = *ci;
+					bool is_unchanged = false;
+					for (std::vector<const Property*>::const_iterator ci = unchanged_properties.begin(); ci != unchanged_properties.end(); ++ci)
+					{
+						const Property* unchanged_property = *ci;
+						if (*effect == *unchanged_property)
+						{
+							is_unchanged = true;
+							break;
+						}
+					}
+					
+					if (!is_unchanged)
+					{
+						effects.push_back(effect);
+					}
+				}
+
 				bool unchanged_properties_are_present = true;
 				for (std::vector<const Property*>::const_iterator ci = unchanged_properties.begin(); ci != unchanged_properties.end(); ++ci)
 				{
@@ -575,7 +766,7 @@ void PropertySpace::addTransitions(const ActionManager& action_manager, const st
 				
 				if (unchanged_properties_are_present)
 				{
-					lhs_property_state->addTransition(action, *rhs_property_state);
+					lhs_property_state->addTransition(property_manager, type_manager, action, *rhs_property_state, preconditions, effects);
 				}
 			}
 		}

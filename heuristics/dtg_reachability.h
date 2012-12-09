@@ -7,6 +7,7 @@
 #include <set>
 #include <assert.h>
 #include <stdio.h>
+#include <queue>
 
 #include "sas/dtg_types.h"
 #include "plan_types.h"
@@ -141,13 +142,15 @@ public:
 	
 	void print(std::ostream& os, unsigned int iteration) const;
 	
+	ReachableFact(const Predicate& predicate, std::vector<EquivalentObjectGroup*>& term_domain_mapping);
+	
 private:
 	
 	static std::vector<const ReachableFact*> all_created_reachable_facts_;
 	
 	ReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
 	
-	ReachableFact(const Predicate& predicate, std::vector<EquivalentObjectGroup*>& term_domain_mapping);
+	//ReachableFact(const Predicate& predicate, std::vector<EquivalentObjectGroup*>& term_domain_mapping);
 	
 	ReachableFact(const GroundedAtom& grounded_atom, const EquivalentObjectGroupManager& eog_manager);
 	
@@ -393,6 +396,8 @@ public:
 	 */
 	void updateVariablesToAchieve(const ReachableFactLayerItem& reachable_fact, std::vector<const Object*>** object_bindings, unsigned int effect_set_index, unsigned int effect_index) const;
 	
+	void getVariablesToAchieve(std::vector<HEURISTICS::VariableDomain*>& variable_assignments_to_achieve_effect, const ReachableFactLayerItem& reachable_fact, std::vector<const Object*>** object_bindings, unsigned int effect_set_index, unsigned int effect_index) const;
+	
 private:
 	
 	AchievingTransition(const std::vector<const ReachableFactLayerItem*>& preconditions);
@@ -560,7 +565,6 @@ public:
 	 * @param bindings The bindings.
 	 * @param persistent_facts These facts (which may or may not true in the initial state) cannot be made untrue. Any action which does so cannot be executed.
 	 */
-	//void performReachabilityAnalysis(std::vector<const ReachableFact*>& result, const std::vector<REACHABILITY::ReachableFact*>& initial_facts, const Bindings& bindings, const std::vector<const GroundedAtom*>& persistent_facts);
 	void performReachabilityAnalysis(std::vector<const ReachableFact*>& result, const std::vector<REACHABILITY::ReachableFact*>& initial_facts, const std::vector<const GroundedAtom*>& persistent_facts);
 	
 	unsigned int getHeuristic(const std::vector< const GroundedAtom* >& bounded_goal_facts, MyPOP::PredicateManager& predicate_manager);
@@ -574,11 +578,20 @@ public:
 	
 private:
 	
+	std::set<std::pair<const EquivalentObject*, const EquivalentObject*> > combined_eogs_;
+	
 	std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**> createNewGoal(const Atom& resolved_goal);
 	
 	std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**> findFactWhichAchieves(const MyPOP::REACHABILITY::ReachableFactLayerItem& current_goal, std::vector< const MyPOP::Object* >** object_bindings, std::set< std::pair< const MyPOP::REACHABILITY::EquivalentObject*, const MyPOP::REACHABILITY::EquivalentObject* > >& combined_eogs);
 	
 	unsigned int makeSubstitutions(const ReachableFactLayerItem& current_goal, std::vector< const MyPOP::Object* >** object_bindings, std::set< std::pair< const EquivalentObject*, const EquivalentObject* > >& made_substitutions);
+	
+	/**
+	 * Make a substitution between the EOG which needs to be substituted and the set of objects it needs to be substituted by.
+	 */
+	unsigned int substitute(const EquivalentObjectGroup& objects_to_be_substituted, unsigned int fact_layer, const std::vector<const Object*>& substitution);
+	
+	void substitute(const EquivalentObject& lhs, const EquivalentObject& rhs, std::priority_queue<std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**>, std::vector<std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**> >, compareReachableFactLayerItem>& open_list);
 	
 	std::vector<ReachableTransition*> reachable_transition_;
 	

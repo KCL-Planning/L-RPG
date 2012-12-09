@@ -153,7 +153,7 @@ std::pair<std::map<const Property*, std::vector<unsigned int>* >*, const std::ve
 {
 	std::cout << "[PropertyState::getMappings] " << bindings_to_action_variables.size() << std::endl;
 	const Property* property_to_process = NULL;
-	bool is_precondition = true;
+//	bool is_precondition = true;
 	
 	std::vector<const Atom*> action_facts;
 	
@@ -211,7 +211,7 @@ std::pair<std::map<const Property*, std::vector<unsigned int>* >*, const std::ve
 	else
 	{
 		property_to_process = effects_properties[property_index_to_process - precondition_properties.size()];
-		is_precondition = false;
+//		is_precondition = false;
 		action_facts = action.getEffects();
 	}
 	
@@ -297,7 +297,7 @@ std::pair<std::map<const Property*, std::vector<unsigned int>* >*, const std::ve
 		}
 		
 		std::map<const Property*, std::vector<unsigned int>* > new_bindings_to_action_variables(bindings_to_action_variables);
-		std::map<const Property*, std::vector<unsigned int>* >::const_iterator iterator = new_bindings_to_action_variables.find(property_to_process);
+//		std::map<const Property*, std::vector<unsigned int>* >::const_iterator iterator = new_bindings_to_action_variables.find(property_to_process);
 		new_bindings_to_action_variables[property_to_process] = &action_variable_mappings;
 		
 		std::pair<std::map<const Property*, std::vector<unsigned int>* >*, const std::vector<const HEURISTICS::VariableDomain*>* > mapping = getMappings(type_manager, precondition_properties, effects_properties, action, new_bindings_to_action_variables, new_action_variable_types, property_index_to_process + 1);

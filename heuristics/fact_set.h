@@ -25,6 +25,8 @@ public:
 	VariableDomain();
 	VariableDomain(const std::vector<const Object*>& variable_domain);
 	
+	~VariableDomain();
+	
 	void addObject(const Object& object);
 	unsigned int size() const { return variable_domain_.size(); }
 	const std::vector<const Object*>& getVariableDomain() const { return variable_domain_; }

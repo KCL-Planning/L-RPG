@@ -27,6 +27,11 @@ VariableDomain::VariableDomain(const std::vector<const Object*>& variable_domain
 	std::sort(variable_domain_.begin(), variable_domain_.end());
 }
 
+VariableDomain::~VariableDomain()
+{
+	
+}
+
 bool VariableDomain::sharesObjectsWith(const VariableDomain& rhs) const
 {
 	for (std::vector<const Object*>::const_iterator ci = variable_domain_.begin(); ci != variable_domain_.end(); ++ci)
@@ -456,6 +461,9 @@ void LiftedTransition::createLiftedTransitions(std::vector<LiftedTransition*>& c
 		// Ignore all objects which are not part of a propery state.
 		if (std::find(part_of_property_state.begin(), part_of_property_state.end(), object) == part_of_property_state.end())
 		{
+#ifdef MYPOP_HEURISTICS_LIFTED_TRANSITION_COMMENTS
+			std::cout << *object << " is not part of a property state " << std::endl;
+#endif
 			continue;
 		}
 		
@@ -466,7 +474,7 @@ void LiftedTransition::createLiftedTransitions(std::vector<LiftedTransition*>& c
 			if (other_object == object || static_facts->size() != other_static_facts->size() || object->getType() != other_object->getType() ||
 			    std::find(part_of_property_state.begin(), part_of_property_state.end(), other_object) == part_of_property_state.end())
 			{
-/*
+#ifdef MYPOP_HEURISTICS_LIFTED_TRANSITION_COMMENTS
 				std::cout << *object << " cannot be equivalent to " << *other_object << " because of ";
 				std::cout << static_facts->size() << " != " << other_static_facts->size() << std::endl;
 				std::cout << object->getType() << " != " << other_object->getType() << std::endl;
@@ -474,8 +482,8 @@ void LiftedTransition::createLiftedTransitions(std::vector<LiftedTransition*>& c
 				{
 					std::cout << "Not part of a property state!" << std::endl;
 				}
-				std::cout << "." << std::endl;				
-*/
+				std::cout << "." << std::endl;
+#endif
 				continue;
 			}
 			
@@ -520,10 +528,11 @@ void LiftedTransition::createLiftedTransitions(std::vector<LiftedTransition*>& c
 				
 				if (!shares_static_constraint)
 				{
-//					std::cout << *object << " cannot be equivalent to " << *other_object << " because of ";
-//					static_fact->print(std::cout);
-//					std::cout << "." << std::endl;
-					
+#ifdef MYPOP_HEURISTICS_LIFTED_TRANSITION_COMMENTS
+					std::cout << *object << " cannot be equivalent to " << *other_object << " because of ";
+					static_fact->print(std::cout);
+					std::cout << "." << std::endl;
+#endif
 					all_static_constraints_shared = false;
 					break;
 				}
@@ -532,6 +541,9 @@ void LiftedTransition::createLiftedTransitions(std::vector<LiftedTransition*>& c
 			if (all_static_constraints_shared)
 			{
 				equivalent_relationships.insert(std::make_pair(object, other_object));
+#ifdef MYPOP_HEURISTICS_LIFTED_TRANSITION_COMMENTS
+				std::cout << *object << " <-> " << *other_object << std::endl;
+#endif
 			}
 		}
 	}

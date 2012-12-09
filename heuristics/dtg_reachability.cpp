@@ -1357,6 +1357,23 @@ AchievingTransition::AchievingTransition(unsigned int effect_index, unsigned int
 		preconditions_fact_layer_items_.push_back(reachable_fact_layer_item);
 	}
 	all_created_achieving_transitions_.push_back(this);
+	
+	for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = variable_assignments_.begin(); ci != variable_assignments_.end(); ++ci)
+	{
+		HEURISTICS::VariableDomain* vd = *ci;
+		for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci2 = variable_assignments_.begin(); ci2 != variable_assignments_.end(); ++ci2)
+		{
+			if (ci == ci2)
+			{
+				continue;
+			}
+			if (vd == *ci2)
+			{
+				std::cerr << "VARIABLE PRESENT TWICE!!!" << std::endl;
+			}
+			assert (vd != *ci2);
+		}
+	}
 }
 
 AchievingTransition::AchievingTransition(const AchievingTransition& achieving_transition, bool remove_copy_automatically)
@@ -1370,6 +1387,23 @@ AchievingTransition::AchievingTransition(const AchievingTransition& achieving_tr
 	if (remove_copy_automatically)
 	{
 		all_created_achieving_transitions_.push_back(this);
+	}
+	
+	for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = variable_assignments_.begin(); ci != variable_assignments_.end(); ++ci)
+	{
+		HEURISTICS::VariableDomain* vd = *ci;
+		for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci2 = variable_assignments_.begin(); ci2 != variable_assignments_.end(); ++ci2)
+		{
+			if (ci == ci2)
+			{
+				continue;
+			}
+			if (vd == *ci2)
+			{
+				std::cerr << "VARIABLE PRESENT TWICE!!!" << std::endl;
+			}
+			assert (vd != *ci2);
+		}
 	}
 }
 
@@ -1401,6 +1435,22 @@ AchievingTransition::AchievingTransition(const std::vector<const ReachableFactLa
 
 AchievingTransition::~AchievingTransition()
 {
+	for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = variable_assignments_.begin(); ci != variable_assignments_.end(); ++ci)
+	{
+		HEURISTICS::VariableDomain* vd = *ci;
+		for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci2 = variable_assignments_.begin(); ci2 != variable_assignments_.end(); ++ci2)
+		{
+			if (ci == ci2)
+			{
+				continue;
+			}
+			if (vd == *ci2)
+			{
+				std::cerr << "VARIABLE PRESENT TWICE!!!" << std::endl;
+			}
+			assert (vd != *ci2);
+		}
+	}
 	for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = variable_assignments_.begin(); ci != variable_assignments_.end(); ++ci)
 	{
 		delete *ci;
@@ -3073,7 +3123,7 @@ std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**> DTGReacha
 	// Goal is unattainable!
 	if (earliest_known_achiever == NULL)
 	{
-		std::cerr << "No known early achiever for ";
+/*		std::cerr << "No known early achiever for ";
 		resolved_goal.print(std::cout);
 		std::cout << " :( " << std::endl;
 		const ReachableFactLayer* tmp_fact_layer = current_fact_layer_;
@@ -3086,6 +3136,7 @@ std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**> DTGReacha
 		std::cerr << *equivalent_object_manager_ << std::endl;
 		
 		assert (false);
+*/
 		return std::make_pair(static_cast<const ReachableFactLayerItem*>(NULL), static_cast<std::vector<const Object*>**>(NULL));
 	}
 	

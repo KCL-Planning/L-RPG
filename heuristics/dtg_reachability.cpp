@@ -20,7 +20,7 @@
 
 //#define MYPOP_SAS_PLUS_DTG_REACHABILITY_COMMENT
 //#define MYPOP_SAS_PLUS_DTG_REACHABILITY_PERFORM_REACHABILITY_COMMENT
-#define MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+//#define MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 //#define MYPOP_SAS_PLUS_DTG_REACHABILITY_DEBUG
 //#define DTG_REACHABILITY_KEEP_TIME
 //#define MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_SHOW_PLAN
@@ -3953,11 +3953,13 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 			{
 				EquivalentObjectGroup* fact_layer_precondition_eog = new_action_precondition_item->getReachableFactCopy().getTermDomains()[term_index];
 				
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+
 				for (unsigned int term_index2 = 0; term_index2 < new_action_precondition->getPredicate().getArity(); ++term_index2)
 				{
 					std::cout << "Term " << term_index2 << " -> " << (*links_to_action_variables)[term_index2] << "(" << *action_to_execute->getVariableAssignments()[(*links_to_action_variables)[term_index2]] << ")" << std::endl;
 				}
-				
+#endif
 				std::vector<const Object*>* precondition_term_domain = new std::vector<const Object*>();
 				precondition_object_bindings[term_index] = precondition_term_domain;
 				

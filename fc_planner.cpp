@@ -837,9 +837,9 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 		++states_visited;
 		processed_states.push_back(state);
 		
-		if (states_visited % 1000 == 0) std::cerr << "M" << "s=" << processed_states.size() << ";g=" << GroundedAction::numberOfGroundedActions() << "q=" << queue.size();
-		else if (states_visited % 100 == 0) std::cerr << ".";
-		else std::cerr << "@";
+//		if (states_visited % 1000 == 0) std::cerr << "M" << "s=" << processed_states.size() << ";g=" << GroundedAction::numberOfGroundedActions() << "q=" << queue.size();
+//		else if (states_visited % 100 == 0) std::cerr << ".";
+//		else std::cerr << "@";
 		
 #ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
 		std::cout << "Work on: " << std::endl;
@@ -1020,12 +1020,12 @@ void ForwardChainingPlanner::setHeuristicForState(MyPOP::State& state, REACHABIL
 			
 			reachable_facts.push_back(&REACHABILITY::ReachableFact::createReachableFact(grounded_atom->getAtom().getPredicate(), *variables));
 		}
-		std::cerr << "!";
+//		std::cerr << "!";
 		analyst.performReachabilityAnalysis(result, reachable_facts, persistent_facts);
 	}
 	else
 	{
-		std::cerr << "?";
+//		std::cerr << "?";
 	}
 	
 	unsigned int heuristic_value = analyst.getHeuristic(goal_facts, *predicate_manager_);

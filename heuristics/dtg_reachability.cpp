@@ -2856,8 +2856,7 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 	}
 	
 //	std::cout << "Current layer: " << *current_fact_layer_ << std::endl;
-//	std::cout << "EOG manager: " << std::endl;
-//	equivalent_object_manager_->printAll(std::cout);
+//	std::cout << "EOG manager: " << *equivalent_object_manager_ << std::endl;
 	
 #ifdef DTG_REACHABILITY_KEEP_TIME
 	unsigned int total_number_of_eog_after_update = equivalent_object_manager_->getNumberOfEquivalentGroups();
@@ -3239,6 +3238,7 @@ unsigned int DTGReachability::makeSubstitutions(const ReachableFactLayerItem& cu
 		
 		if (intersection.empty())
 		{
+			bool substitution_made = false;
 			for (std::vector<const Object*>::const_iterator ci = current_variable_domains->begin(); ci != current_variable_domains->end(); ++ci)
 			{
 				const EquivalentObject& lhs_eo = equivalent_object_manager_->getEquivalentObject(**ci);
@@ -3247,12 +3247,14 @@ unsigned int DTGReachability::makeSubstitutions(const ReachableFactLayerItem& cu
 					const EquivalentObject* rhs_eo = *ci;
 					if (made_substitutions.count(std::make_pair(&lhs_eo, rhs_eo)) == 0)
 					{
+						/*
 						const EquivalentObjectGroup& lhs_eog = lhs_eo.getEquivalentObjectGroup().getEOGAtLayer(current_goal.getReachableFactLayer().getLayerNumber());
 						for (std::vector<EquivalentObject*>::const_iterator ci = lhs_eog.begin(current_goal.getReachableFactLayer().getLayerNumber()); ci != lhs_eog.end(current_goal.getReachableFactLayer().getLayerNumber()); ++ci)
 						{
 							const EquivalentObject* all_lhs_eo = *ci;
 							made_substitutions.insert(std::make_pair(all_lhs_eo, rhs_eo));
 						}
+						*/
 						for (unsigned int layer_number = 0; layer_number < current_fact_layer_->getLayerNumber(); layer_number++)
 						{
 							if (lhs_eo.getEquivalentObjectGroup().contains(rhs_eo->getObject(), layer_number))
@@ -3260,12 +3262,23 @@ unsigned int DTGReachability::makeSubstitutions(const ReachableFactLayerItem& cu
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 								std::cout << "Add " << layer_number << " to the total heuristic." << std::endl;
 #endif
+								made_substitutions.insert(std::make_pair(rhs_eo, &lhs_eo));
+								made_substitutions.insert(std::make_pair(&lhs_eo, rhs_eo));
 								substitution_cost += layer_number;
+								substitution_made = true;
 								break;
 							}
 						}
-						break;
+						if (substitution_made)
+						{
+							break;
+						}
 					}
+				}
+				
+				if (substitution_made)
+				{
+					break;
 				}
 			}
 		}
@@ -3866,6 +3879,9 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 //			std::cout << "SUBSTITUTE " << lhs_eo->getObject() << " - " << rhs_eo->getObject() << std::endl;
 			if (combined_eogs_.count(std::make_pair(lhs_eo, rhs_eo)) == 0)
 			{
+				combined_eogs_.insert(std::make_pair(lhs_eo, rhs_eo));
+				combined_eogs_.insert(std::make_pair(rhs_eo, lhs_eo));
+/*
 				for (std::vector<EquivalentObject*>::const_iterator ci = lhs_eo->getEquivalentObjectGroup().begin(current_goal->getReachableFactLayer().getLayerNumber()); ci != lhs_eo->getEquivalentObjectGroup().end(current_goal->getReachableFactLayer().getLayerNumber()); ++ci)
 				{
 					const EquivalentObject* all_lhs_eo = *ci;
@@ -3876,7 +3892,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 						combined_eogs_.insert(std::make_pair(all_rhs_eo, all_lhs_eo));
 					}
 				}
-				
+*/
 				for (unsigned int layer_number = 0; layer_number < current_fact_layer_->getLayerNumber(); layer_number++)
 				{
 					if (lhs_eo->getEquivalentObjectGroup().contains(rhs_eo->getObject(), layer_number))

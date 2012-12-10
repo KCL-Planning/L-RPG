@@ -662,7 +662,7 @@ std::ostream& operator<<(std::ostream& os, const State& state)
 
 bool CompareStates::operator()(const State* lhs, const State* rhs)
 {
-	if (!lhs->isCreatedByHelpfulAction() && rhs->isCreatedByHelpfulAction())
+/*	if (!lhs->isCreatedByHelpfulAction() && rhs->isCreatedByHelpfulAction())
 	{
 		return true;
 	}
@@ -670,7 +670,7 @@ bool CompareStates::operator()(const State* lhs, const State* rhs)
 	{
 		return false;
 	}
-	else
+	else*/
 	{
 		return lhs->getHeuristic() > rhs->getHeuristic();
 	}
@@ -687,7 +687,7 @@ ForwardChainingPlanner::~ForwardChainingPlanner()
 	
 }
 
-std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedAction*>& plan, REACHABILITY::DTGReachability& analyst, const std::vector<const Atom*>& initial_facts, const std::vector<const Atom*>& goal_facts)
+std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedAction*>& plan, REACHABILITY::DTGReachability& analyst, const std::vector<const Atom*>& initial_facts, const std::vector<const Atom*>& goal_facts, bool prune_unhelpful_actions)
 {
 	std::vector<const GroundedAtom*> grounded_initial_facts;
 	for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
@@ -884,6 +884,11 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 		{
 			State* successor_state = *ci;
 			++successors_generated;
+			if (prune_unhelpful_actions && !successor_state->isCreatedByHelpfulAction())
+			{
+				delete successor_state;
+				continue;
+			}
 			
 			setHeuristicForState(*successor_state, analyst, grounded_goal_facts);
 			
@@ -907,7 +912,20 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 //		delete *ci;
 //	}
 	
-	for (std::vector<const GroundedAtom*>::const_iterator ci = grounded_goal_facts.begin(); ci != grounded_goal_facts.end(); ++ci)
+//	for (std::vector<const GroundedAtom*>::const_iterator ci = grounded_goal_facts.begin(); ci != grounded_goal_facts.end(); ++ci)
+//	{
+//		delete *ci;
+//	}
+	
+	
+	while (!queue.empty())
+	{
+		const State* state = queue.top();
+		queue.pop();
+		delete state;
+	}
+	
+	for (std::vector<const State*>::const_iterator ci = processed_states.begin(); ci != processed_states.end(); ci++)
 	{
 		delete *ci;
 	}

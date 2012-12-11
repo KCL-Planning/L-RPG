@@ -16,9 +16,9 @@ my $problem_count = shift(@ARGV);
 
 my $now = strftime "%Y_%m_%d-%H:%M:%S", localtime;
 
-my $output_path = "heuristic-values-at-$now";
+#my $output_path = "heuristic-values-at-$now";
     
-system ("mkdir -p $output_path");
+#system ("mkdir -p $output_path");
 system ("mkdir -p latest_heuristics_results");
 
 #foreach my $domain_name (@domain_names)
@@ -68,5 +68,7 @@ system ("mkdir -p latest_heuristics_results");
 #		my @ff_plan_length = split(/ /, $ff_lines[1]);
 #		print "$count - Lifted: @lifted_states[2] - Plan length: @lifted_plan_length[2]; FF: @ff_states[2] - Plan length: @ff_plan_length[2]\n";
 		print "$count - Lifted: @lifted_states[2] - Plan length: @lifted_plan_length[2]\n";
+		`echo "$count - @lifted_states[2]" >> latest_heuristics_results/${domain_name}-states.dat`;
+		`echo "$count - @lifted_plan_length[2]" >> latest_heuristics_results/${domain_name}-quality.dat`;
 	}
 }

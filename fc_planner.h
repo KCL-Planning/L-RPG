@@ -158,7 +158,7 @@ public:
 	
 	virtual ~ForwardChainingPlanner();
 	
-	std::pair<int, int> findPlan(std::vector< const MyPOP::GroundedAction* >& plan, MyPOP::REACHABILITY::DTGReachability& analyst, const std::vector< const Atom* >& initial_fact, const std::vector< const Atom* >& goal_facts, bool prune_unhelpful_actions);
+	std::pair<int, int> findPlan(std::vector< const MyPOP::GroundedAction* >& plan, MyPOP::REACHABILITY::DTGReachability& analyst, const std::vector< const Atom* >& initial_fact, const std::vector< const Atom* >& goal_facts, bool prune_unhelpful_actions, bool allow_restarts);
 	
 private:
 	

@@ -1,6 +1,8 @@
 #include "fc_planner.h"
 
 #include <queue>
+#include <cmath>
+#include <time.h>
 
 #include "sas/dtg_manager.h"
 #include "predicate_manager.h"
@@ -687,8 +689,10 @@ ForwardChainingPlanner::~ForwardChainingPlanner()
 	
 }
 
-std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedAction*>& plan, REACHABILITY::DTGReachability& analyst, const std::vector<const Atom*>& initial_facts, const std::vector<const Atom*>& goal_facts, bool prune_unhelpful_actions)
+std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedAction*>& plan, REACHABILITY::DTGReachability& analyst, const std::vector<const Atom*>& initial_facts, const std::vector<const Atom*>& goal_facts, bool prune_unhelpful_actions, bool allow_restarts)
 {
+	std::srand(std::time(NULL));
+	unsigned int states_seen_without_improvement = 0;
 	std::vector<const GroundedAtom*> grounded_initial_facts;
 	for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
 	{
@@ -771,10 +775,38 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 	
 	unsigned int best_heuristic_estimate = std::numeric_limits<unsigned int>::max();
 	
-	while (!queue.empty())
+	State* last_best_state_seen = initial_state;
+	unsigned int base = 2;
+	unsigned int min_power = 1;
+	unsigned int max_power = 10;
+	unsigned int current_power = min_power;
+	
+	std::vector<State*> current_states_to_explore;
+	unsigned int current_best_value_in_list = initial_state->getHeuristic();
+	
+	while (!queue.empty() || !current_states_to_explore.empty())
 	{
-		State* state = queue.top();
-		queue.pop();
+		// Create a list of states which have the same heuristic value.
+		if (current_states_to_explore.empty() || queue.top()->getHeuristic() == current_best_value_in_list)
+		{
+			current_best_value_in_list = queue.top()->getHeuristic();
+			
+			while (!queue.empty() && queue.top()->getHeuristic() == current_best_value_in_list)
+			{
+				State* state = queue.top();
+				queue.pop();
+				current_states_to_explore.push_back(state);
+			}
+		}
+		
+		// From all the elements in the list, pick one at random to explore.
+		unsigned int random_state_index = std::rand() % current_states_to_explore.size();
+		
+		State* state = current_states_to_explore[random_state_index];
+		current_states_to_explore.erase(current_states_to_explore.begin() + random_state_index);
+		
+//		State* state = queue.top();
+//		queue.pop();
 		
 		bool already_processed = false;
 		for (std::vector<const State*>::const_iterator ci = processed_states.begin(); ci != processed_states.end(); ci++)
@@ -798,6 +830,10 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 		
 		if (best_heuristic_estimate > state->getHeuristic())
 		{
+			states_seen_without_improvement = 0;
+			current_power = min_power;
+			last_best_state_seen->deleteHelpfulActions();
+			last_best_state_seen = state;
 			best_heuristic_estimate = state->getHeuristic();
 			std::cerr << "\t" << best_heuristic_estimate << " state = " << processed_states.size() << "; Grounded Actions = " << GroundedAction::numberOfGroundedActions() << "; Grounded atoms: " << GroundedAtom::numberOfGroundedAtoms() << std::endl;
 //			std::cerr << *state << std::endl;
@@ -809,6 +845,12 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 				queue.pop();
 				delete dead_state;
 			}
+			
+			for (std::vector<State*>::const_iterator ci = current_states_to_explore.begin(); ci != current_states_to_explore.end(); ++ci)
+			{
+				delete *ci;
+			}
+			current_states_to_explore.clear();
 			
 			for (std::vector<const State*>::const_iterator ci = processed_states.begin(); ci != processed_states.end(); ci++)
 			{
@@ -833,7 +875,50 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 			GroundedAtom::removeInstantiatedGroundedAtom(grounded_atoms_in_use);
 */
 		}
-		
+		// If we have not seen any improvement quick enough we restart!
+		else if (allow_restarts && states_seen_without_improvement > std::pow(base, current_power))
+		{
+			std::cerr << "\tRestart!" << states_seen_without_improvement << "/" << std::pow(base, current_power) << std::endl;
+			while (!queue.empty())
+			{
+				const State* dead_state = queue.top();
+				queue.pop();
+				delete dead_state;
+			}
+			
+			for (std::vector<const State*>::const_iterator ci = processed_states.begin(); ci != processed_states.end(); ci++)
+			{
+				if (*ci != last_best_state_seen)
+				{
+					delete *ci;
+				}
+			}
+			processed_states.clear();
+			
+			for (std::vector<State*>::const_iterator ci = current_states_to_explore.begin(); ci != current_states_to_explore.end(); ++ci)
+			{
+				delete *ci;
+			}
+			current_states_to_explore.clear();
+			
+			// Delete all grounded actions which are not stored in the states.
+			GroundedAction::removeInstantiatedGroundedActions(last_best_state_seen->getAchievers().begin(), last_best_state_seen->getAchievers().end());
+			delete state;
+			state = last_best_state_seen;
+			current_best_value_in_list = state->getHeuristic();
+			states_seen_without_improvement = 0;
+			
+			// If we could not find a solution in a reasonable amount of steps then we stop the search!
+			if (prune_unhelpful_actions && current_power == max_power)
+			{
+				std::cerr << "Too many restarts, abort!" << std::endl;
+				processed_states.push_back(state);
+				break;
+			}
+			
+			++current_power;
+		}
+		++states_seen_without_improvement;
 		++states_visited;
 		processed_states.push_back(state);
 		
@@ -868,6 +953,12 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 			{
 				delete *ci;
 			}
+			
+			for (std::vector<State*>::const_iterator ci = current_states_to_explore.begin(); ci != current_states_to_explore.end(); ++ci)
+			{
+				delete *ci;
+			}
+			current_states_to_explore.clear();
 			
 //			for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator ci = resolved_grounded_goal_facts.begin(); ci != resolved_grounded_goal_facts.end(); ++ci)
 //			{
@@ -904,7 +995,11 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 
 			queue.push(successor_state);
 		}
-		state->deleteHelpfulActions();
+		
+		if (last_best_state_seen != state)
+		{
+			state->deleteHelpfulActions();
+		}
 	}
 	
 //	for (std::vector<const REACHABILITY::ResolvedBoundedAtom*>::const_iterator ci = resolved_grounded_goal_facts.begin(); ci != resolved_grounded_goal_facts.end(); ++ci)
@@ -929,6 +1024,13 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 	{
 		delete *ci;
 	}
+	processed_states.clear();
+	
+	for (std::vector<State*>::const_iterator ci = current_states_to_explore.begin(); ci != current_states_to_explore.end(); ++ci)
+	{
+		delete *ci;
+	}
+	current_states_to_explore.clear();
 	
 	std::cerr << "No plan found :((((((((((" << std::endl;
 	

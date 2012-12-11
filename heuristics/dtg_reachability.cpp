@@ -4077,12 +4077,12 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 			// Add the precondition as a new goal.
 			open_list.push(std::make_pair(new_action_precondition_item, precondition_object_bindings));
 		}
+
 		
 		for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = variable_assignments_to_achieve_effect.begin(); ci != variable_assignments_to_achieve_effect.end(); ++ci)
 		{
 			delete *ci;
 		}
-		
 		for (unsigned int i = 0; i < current_goal->getActualReachableFact().getPredicate().getArity(); ++i)
 		{
 			delete object_bindings[i];

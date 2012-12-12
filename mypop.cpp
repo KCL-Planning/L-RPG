@@ -180,9 +180,9 @@ int main(int argc,char * argv[])
 	std::cout << "Initial plan" << *plan << std::endl;
 #endif
 
-//	std::vector<SAS_Plus::LiftedDTG*> lifted_dtgs;
-//	SAS_Plus::LiftedDTG::createLiftedDTGs(lifted_dtgs, *the_domain->types, predicate_manager, type_manager, action_manager, term_manager, initial_facts);
-//	exit(0);
+	std::vector<SAS_Plus::LiftedDTG*> lifted_dtgs;
+	SAS_Plus::LiftedDTG::createLiftedDTGs(lifted_dtgs, *the_domain->types, predicate_manager, type_manager, action_manager, term_manager, initial_facts);
+	exit(0);
 	
 //	assert (plan->getSteps().size() == 2);
 

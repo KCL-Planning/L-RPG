@@ -11,12 +11,73 @@
 #include "heuristics/fact_set.h"
 #include "property_space.h"
 #include <type_manager.h>
+#include <parser_utils.h>
 
 namespace MyPOP
 {
 namespace SAS_Plus
 {
 
+MultiValuedTransition::MultiValuedTransition(const Action& action, const MultiValuedValue& precondition, const MultiValuedValue& effect, const std::vector<std::vector<unsigned int>* >& precondition_to_action_variable_mappings, const std::vector<std::vector<unsigned int>* >& action_varible_to_effect)
+	: action_(&action), precondition_(&precondition), effect_(&effect), precondition_to_action_variable_mappings_(&precondition_to_action_variable_mappings), action_variable_to_effect_(&action_varible_to_effect)
+{
+	assert (precondition_->getValues().size() == precondition_to_action_variable_mappings_->size());
+	assert (effect_->getValues().size() == action_variable_to_effect_->size());
+}
+
+MultiValuedTransition::~MultiValuedTransition()
+{
+	delete precondition_to_action_variable_mappings_;
+	delete action_variable_to_effect_;
+}
+
+std::ostream& operator<<(std::ostream& os, const MultiValuedTransition& transition)
+{
+	os << *transition.action_ << std::endl;
+	os << "Preconditions:" << std::endl;
+	for (std::vector<HEURISTICS::Fact*>::const_iterator ci = transition.precondition_->getValues().begin(); ci != transition.precondition_->getValues().end(); ++ci)
+	{
+		unsigned int precondition_index = std::distance(transition.precondition_->getValues().begin(), ci);
+		os << "* " << **ci << std::endl;
+		std::vector<unsigned int>* mappings = (*transition.precondition_to_action_variable_mappings_)[precondition_index];
+		if (mappings == NULL)
+		{
+			os << "No bindings!";
+		}
+		else
+		{
+			for (std::vector<unsigned int>::const_iterator ci = mappings->begin(); ci != mappings->end(); ++ci)
+			{
+				os << *ci << ", ";
+			}
+		}
+		os << std::endl;
+	}
+	
+	os << "Effects:" << std::endl;
+	for (std::vector<HEURISTICS::Fact*>::const_iterator ci = transition.effect_->getValues().begin(); ci != transition.effect_->getValues().end(); ++ci)
+	{
+		unsigned int effects_index = std::distance(transition.effect_->getValues().begin(), ci);
+		os << "* " << **ci << std::endl;
+		std::vector<unsigned int>* mappings = (*transition.action_variable_to_effect_)[effects_index];
+		if (mappings == NULL)
+		{
+			os << "No bindings!";
+		}
+		else
+		{
+			for (std::vector<unsigned int>::const_iterator ci = mappings->begin(); ci != mappings->end(); ++ci)
+			{
+				os << *ci << ", ";
+			}
+		}
+		os << std::endl;
+	}
+	
+	return os;
+}
+
+	
 MultiValuedValue::MultiValuedValue(const std::vector<HEURISTICS::Fact*>& values, const PropertyState& property_state)
 	: values_(&values), property_state_(&property_state)
 {
@@ -47,6 +108,11 @@ std::ostream& operator<<(std::ostream& os, const MultiValuedValue& value)
 {
 	os << " === VALUE === " << std::endl;
 	for (std::vector<HEURISTICS::Fact*>::const_iterator ci = value.values_->begin(); ci != value.values_->end(); ++ci)
+	{
+		os << **ci << std::endl;
+	}
+	
+	for (std::vector<const MultiValuedTransition*>::const_iterator ci = value.transitions_.begin(); ci != value.transitions_.end(); ++ci)
 	{
 		os << **ci << std::endl;
 	}
@@ -208,6 +274,9 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 				is_merged = true;
 				all_property_spaces_.erase(ri.base() - 1);
 				all_property_spaces_.push_back(merged_property_space);
+				
+				std::cout << "Merged: " << *merged_property_space << std::endl;
+				
 				break;
 			}
 		}
@@ -271,6 +340,7 @@ LiftedDTG::~LiftedDTG()
 
 void LiftedDTG::createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs)
 {
+	std::cout << "Create transitions for " << *this << std::endl;
 	// Connect the transitions.
 	for (std::vector<PropertyState*>::const_iterator ci = property_space_->getPropertyStates().begin(); ci != property_space_->getPropertyStates().end(); ++ci)
 	{
@@ -282,8 +352,17 @@ void LiftedDTG::createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs
 			MultiValuedValue* from_node = getMultiValuedValue(transition->getFromPropertyState());
 			MultiValuedValue* to_node = getMultiValuedValue(transition->getToPropertyState());
 			
-			const std::map<const Property*, std::vector<unsigned int>* >& mappings_to_action_variables = transition->getMappingToActionVariables();
+			std::cout << "Create a transition from " << *from_node << " to " << *to_node << std::endl;
+			std::cout << "Transition: " << transition->getAction() << std::endl;
+			
+			//const std::map<const Property*, std::vector<unsigned int>* >& precondition_mappings_to_action_variables = transition->getMappingToActionVariables();
 			const std::vector<const HEURISTICS::VariableDomain*>& action_variables = transition->getActionVariableDomains();
+			
+			// We map each term of each value of each precondition to the variables of the action.
+			std::vector<std::vector<unsigned int>* >* precondition_to_action_variable_mappings = new std::vector<std::vector<unsigned int>* >();
+			
+			// We map each action variable to each term of the effect.
+			std::vector<std::vector<unsigned int>* >* action_variables_to_effects_mappings = new std::vector<std::vector<unsigned int>* >();
 			
 			const std::vector<HEURISTICS::Fact*>& from_values = from_node->getValues();
 			for (unsigned int fact_index = 0; fact_index < from_values.size(); ++fact_index)
@@ -291,15 +370,26 @@ void LiftedDTG::createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs
 				HEURISTICS::Fact* fact = from_values[fact_index];
 				const Property* property = from_node->getPropertyState().getProperties()[fact_index];
 				
-				assert (mappings_to_action_variables.find(property) != mappings_to_action_variables.end());
+				const std::vector<unsigned int>* mapping_to_action_variables = transition->getMappingsOfProperty(*property, true);
 				
-				const std::vector<unsigned int>* mapping_to_action_variables = (*mappings_to_action_variables.find(property)).second;
+				//if (mappings_to_action_variables.find(property) == mappings_to_action_variables.end())
+				if (mapping_to_action_variables == NULL)
+				{
+					precondition_to_action_variable_mappings->push_back(NULL);
+					continue;
+				}
+				//assert (mappings_to_action_variables.find(property) != mappings_to_action_variables.end());
+				
+				std::vector<unsigned int>* precondition_mapping = new std::vector<unsigned int>();
+				precondition_to_action_variable_mappings->push_back(precondition_mapping);
+				
 				for (unsigned int fact_term_index = 0; fact_term_index < fact->getVariableDomains().size(); ++fact_term_index)
 				{
 					std::cout << "The " << fact_term_index << " is mapped to the " << (*mapping_to_action_variables)[fact_term_index] << "th action variable!" << std::endl;
 					assert ((*mapping_to_action_variables).size() > fact_term_index);
 					assert ((*mapping_to_action_variables)[fact_term_index] < action_variables.size());
 					fact->setVariableDomain(fact_term_index, *action_variables[(*mapping_to_action_variables)[fact_term_index]]);
+					precondition_mapping->push_back((*mapping_to_action_variables)[fact_term_index]);
 				}
 			}
 			
@@ -309,12 +399,27 @@ void LiftedDTG::createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs
 				HEURISTICS::Fact* fact = to_values[fact_index];
 				const Property* property = to_node->getPropertyState().getProperties()[fact_index];
 				
-				const std::vector<unsigned int>* mapping_to_action_variables = (*mappings_to_action_variables.find(property)).second;
+				const std::vector<unsigned int>* mapping_to_action_variables = transition->getMappingsOfProperty(*property, true);
+				
+				//if (mappings_to_action_variables.find(property) == mappings_to_action_variables.end())
+				if (mapping_to_action_variables == NULL)
+				{
+					action_variables_to_effects_mappings->push_back(NULL);
+					continue;
+				}
+				
+				std::vector<unsigned int>* action_variable_to_effect_mapping = new std::vector<unsigned int>(fact->getPredicate().getArity());
+				action_variables_to_effects_mappings->push_back(action_variable_to_effect_mapping);
+				
 				for (unsigned int fact_term_index = 0; fact_term_index < fact->getVariableDomains().size(); ++fact_term_index)
 				{
 					fact->setVariableDomain(fact_term_index, *action_variables[(*mapping_to_action_variables)[fact_term_index]]);
+					(*action_variable_to_effect_mapping)[(*mapping_to_action_variables)[fact_term_index]] = fact_term_index;
 				}
 			}
+			
+			MultiValuedTransition* new_transition = new MultiValuedTransition(transition->getAction(), *from_node, *to_node, *precondition_to_action_variable_mappings, *action_variables_to_effects_mappings);
+			from_node->addTransition(*new_transition);
 		}
 	}
 	

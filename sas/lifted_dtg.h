@@ -26,33 +26,32 @@ namespace SAS_Plus
 
 class PropertyState;
 class PropertySpace;
+class MultiValuedValue;
 class MultiValuedVariable;
-
-struct MultiValuedVariableTermIndex
-{
-	unsigned int value_index_;
-	unsigned int value_fact_index_;
-	unsigned int value_fact_term_index_;
-};
-
 
 class MultiValuedTransition
 {
 public:
-	MultiValuedTransition(const Action& action, const MultiValuedTransition& effect);
+	MultiValuedTransition(const Action& action, const MultiValuedValue& precondition, const MultiValuedValue& effect, const std::vector<std::vector<unsigned int>* >& precondition_to_action_variable_mappings_, const std::vector<std::vector<unsigned int>* >& action_varible_to_effect);
+	
+	~MultiValuedTransition();
 private:
 	
 	const Action* action_;
 	
-	std::vector<const MultiValuedVariable*> preconditions_;
-	const MultiValuedTransition* effect_;
+	const MultiValuedValue* precondition_;
+	const MultiValuedValue* effect_;
 	
 	// We map each term of each value of each precondition to the variables of the action.
-	std::vector<std::pair<MultiValuedVariableTermIndex, unsigned int> > precondition_to_action_variable_mappings_;
+	const std::vector<std::vector<unsigned int>* >* precondition_to_action_variable_mappings_;
 	
 	// We map each action variable to each term of the effect.
-	std::vector<std::pair<unsigned int, MultiValuedVariableTermIndex> > effect_to_action_variable_;
+	const std::vector<std::vector<unsigned int>* >* action_variable_to_effect_;
+	
+	friend std::ostream& operator<<(std::ostream& os, const MultiValuedTransition& transition);
 };
+
+std::ostream& operator<<(std::ostream& os, const MultiValuedTransition& transition);
 
 class MultiValuedValue
 {

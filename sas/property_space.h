@@ -34,15 +34,17 @@ class PropertySpace;
 class PropertyStateTransition
 {
 public:
-	PropertyStateTransition(PropertyState& lhs, PropertyState& rhs, const std::vector<const Property*>& preconditions, const std::vector<const Property*>& added_properties, const Action& action, std::pair<std::map<const Property*, std::vector<unsigned int>* >*, const std::vector<const HEURISTICS::VariableDomain*>* >  mapping);
+	PropertyStateTransition(PropertyState& lhs, PropertyState& rhs, const std::vector<const Property*>& preconditions, const std::vector<const Property*>& added_properties, const Action& action, const std::map<const Property*, std::vector<unsigned int>* >& precondition_properties_to_action_variable_mappings, const std::map<const Property*, std::vector<unsigned int>* >& effect_properties_to_action_variable_mappings, const std::vector<const HEURISTICS::VariableDomain*>& action_variable_to_effect_mappings);
 	
 	PropertyState& getFromPropertyState() const { return *lhs_property_state_; }
 	PropertyState& getToPropertyState() const { return *rhs_property_state_; }
 	const std::vector<const Property*>& getPreconditions() const { return preconditions_; }
 	const std::vector<const Property*>& getAddedProperties() const { return added_properties_; }
 	
-	const std::map<const Property*, std::vector<unsigned int>* >& getMappingToActionVariables() const { return *property_to_action_variable_index_; }
+//	const std::map<const Property*, std::vector<unsigned int>* >& getMappingToActionVariables() const { return *property_to_action_variable_index_; }
 	const std::vector<const HEURISTICS::VariableDomain*>& getActionVariableDomains() const { return *action_variable_domains_; }
+	
+	const std::vector<unsigned int>* getMappingsOfProperty(const Property& property, bool is_precondition) const;
 	
 	const Action& getAction() const { return *action_; }
 	
@@ -55,8 +57,26 @@ private:
 
 	const Action* action_;
 	
-	const std::map<const Property*, std::vector<unsigned int>* >* property_to_action_variable_index_;
+	const std::map<const Property*, std::vector<unsigned int>* >* precondition_properties_to_action_variable_index_;
+	const std::map<const Property*, std::vector<unsigned int>* >* effect_properties_to_action_variable_index_;
 	const std::vector<const HEURISTICS::VariableDomain*>* action_variable_domains_;
+	
+	friend std::ostream& operator<<(std::ostream& os, const PropertyStateTransition& transition);
+};
+
+std::ostream& operator<<(std::ostream& os, const PropertyStateTransition& transition);
+
+struct FoundVariableMappings
+{
+	FoundVariableMappings(std::vector<const HEURISTICS::VariableDomain*>& action_variable_assignments, std::map<const Property*, std::vector<unsigned int>* >& precondition_mappings, std::map<const Property*, std::vector<unsigned int>* >& effect_mappings)
+		: action_variable_assignments_(&action_variable_assignments), precondition_mappings_(&precondition_mappings), effect_mappings_(&effect_mappings)
+	{
+		
+	}
+	
+	std::vector<const HEURISTICS::VariableDomain*>* action_variable_assignments_;
+	std::map<const Property*, std::vector<unsigned int>* >* precondition_mappings_;
+	std::map<const Property*, std::vector<unsigned int>* >* effect_mappings_;
 };
 
 /**
@@ -82,13 +102,15 @@ public:
 	
 	void addProperty(const Property& property) { property_.push_back(&property); }
 	
+	void addTransition(const PropertyStateTransition& transition);
+	
 	void addTransition(const PredicateManager& property_manager, const TypeManager& type_manager, const MyPOP::Action& action, PropertyState& rhs_property_state, const std::vector<const Property*>& preconditions, const std::vector<const Property*>& added_properties);
 	
 	const std::vector<const PropertyStateTransition*>& getTransitions() const { return transitions_; }
 	
 private:
 	
-	std::pair<std::map<const Property*, std::vector<unsigned int>* >*, const std::vector<const HEURISTICS::VariableDomain*>* > getMappings(const MyPOP::TypeManager& type_manager, const std::vector< const MyPOP::SAS_Plus::Property* >& precondition_properties, const std::vector< const MyPOP::SAS_Plus::Property* >& effects_properties, const MyPOP::Action& action, const std::map< const MyPOP::SAS_Plus::Property*, std::vector< unsigned int >* >& bindings_to_action_variables, const std::vector< const MyPOP::HEURISTICS::VariableDomain* >& action_variable_types, unsigned int property_index);
+	FoundVariableMappings* getMappings(const TypeManager& type_manager, const std::vector<const Property*>& precondition_properties, const std::vector<const Property*>& effects_properties, const Action& action, const std::vector<const HEURISTICS::VariableDomain*>& action_variable_assignemnts, unsigned int property_index_to_process, std::map<const Property*, std::vector<unsigned int>* >& precondition_mappings, std::map<const Property*, std::vector<unsigned int>* >& effect_mappings);
 	
 	const PropertySpace* property_space_;
 	std::vector<const Property*> property_;

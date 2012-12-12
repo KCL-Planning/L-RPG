@@ -301,7 +301,7 @@ void PredicateManager::processPredicates(const VAL::pred_decl_list& predicates)
 			predicate_map_[std::make_pair(name, *(*ci).second)] = predicate;
 			addManagableObject(predicate);
 		}
-		else
+		else if (getPredicate(name, *(*ci).second) == NULL)
 		{
 			Predicate* predicate = new Predicate(name, *(*ci).second, false);
 			addManagableObject(predicate);

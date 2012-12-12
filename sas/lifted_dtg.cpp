@@ -13,22 +13,24 @@
 #include <type_manager.h>
 #include <parser_utils.h>
 
+//#define MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
+
 namespace MyPOP
 {
 namespace SAS_Plus
 {
 
-MultiValuedTransition::MultiValuedTransition(const Action& action, const MultiValuedValue& precondition, const MultiValuedValue& effect, const std::vector<std::vector<unsigned int>* >& precondition_to_action_variable_mappings, const std::vector<std::vector<unsigned int>* >& action_varible_to_effect)
-	: action_(&action), precondition_(&precondition), effect_(&effect), precondition_to_action_variable_mappings_(&precondition_to_action_variable_mappings), action_variable_to_effect_(&action_varible_to_effect)
+MultiValuedTransition::MultiValuedTransition(const Action& action, const MultiValuedValue& precondition, const MultiValuedValue& effect, const std::vector<std::vector<unsigned int>* >& precondition_to_action_variable_mappings, const std::vector<std::vector<unsigned int>* >& effect_to_action_variable_mappings)
+	: action_(&action), precondition_(&precondition), effect_(&effect), precondition_to_action_variable_mappings_(&precondition_to_action_variable_mappings), effect_to_action_variable_mappings_(&effect_to_action_variable_mappings)
 {
 	assert (precondition_->getValues().size() == precondition_to_action_variable_mappings_->size());
-	assert (effect_->getValues().size() == action_variable_to_effect_->size());
+	assert (effect_->getValues().size() == effect_to_action_variable_mappings_->size());
 }
 
 MultiValuedTransition::~MultiValuedTransition()
 {
 	delete precondition_to_action_variable_mappings_;
-	delete action_variable_to_effect_;
+	delete effect_to_action_variable_mappings_;
 }
 
 std::ostream& operator<<(std::ostream& os, const MultiValuedTransition& transition)
@@ -59,7 +61,7 @@ std::ostream& operator<<(std::ostream& os, const MultiValuedTransition& transiti
 	{
 		unsigned int effects_index = std::distance(transition.effect_->getValues().begin(), ci);
 		os << "* " << **ci << std::endl;
-		std::vector<unsigned int>* mappings = (*transition.action_variable_to_effect_)[effects_index];
+		std::vector<unsigned int>* mappings = (*transition.effect_to_action_variable_mappings_)[effects_index];
 		if (mappings == NULL)
 		{
 			os << "No bindings!";
@@ -275,7 +277,9 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 				all_property_spaces_.erase(ri.base() - 1);
 				all_property_spaces_.push_back(merged_property_space);
 				
+#ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
 				std::cout << "Merged: " << *merged_property_space << std::endl;
+#endif
 				
 				break;
 			}
@@ -291,13 +295,52 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 	{
 		LiftedDTG* new_ldtg = new LiftedDTG(predicate_manager, type_manager, **ci);
 		created_lifted_dtgs.push_back(new_ldtg);
+#ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
 		std::cout << *new_ldtg << std::endl;
+#endif
 	}
 	
-	for (std::vector<LiftedDTG*>::const_iterator ci = created_lifted_dtgs.begin(); ci != created_lifted_dtgs.end(); ++ci)
+	// Create the lifted DTGs for those predicates which have not been processed yet.
+	for (std::vector<Predicate*>::const_iterator ci = predicate_manager.getManagableObjects().begin(); ci != predicate_manager.getManagableObjects().end(); ci++)
 	{
-		LiftedDTG* lifted_dtg = *ci;
-		lifted_dtg->createTransitions(created_lifted_dtgs);
+		const Predicate* predicate = *ci;
+
+		bool is_supported = false;
+#ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
+		std::cout << "Check if the predicate : " << *predicate << " is supported!" << std::endl;
+#endif
+		for (std::vector<PropertySpace*>::const_iterator ci = all_property_spaces_.begin(); ci != all_property_spaces_.end(); ++ci)
+		{
+			const PropertySpace* property_space = *ci;
+			for (std::vector<PropertyState*>::const_iterator ci = property_space->getPropertyStates().begin(); ci != property_space->getPropertyStates().end(); ++ci)
+			{
+				const PropertyState* property_state = *ci;
+				for (std::vector<const Property*>::const_iterator ci = property_state->getProperties().begin(); ci != property_state->getProperties().end(); ++ci)
+				{
+					const Property* property = *ci;
+					const Predicate& state_valued_predicate = property->getPredicate();
+					if (&state_valued_predicate == predicate ||
+							state_valued_predicate.canSubstitute(*predicate))
+					{
+						is_supported = true;
+						break;
+					}
+				}
+				if (is_supported)
+				{
+					break;
+				}
+			}
+			if (is_supported)
+			{
+				break;
+			}
+		}
+		
+		if (is_supported) continue;
+
+		// Check if any of the DTG nodes supports the given predicate by making a dummy atom of it.
+//		std::cerr << "Unsupported predicate: " << *predicate << std::endl;
 	}
 }
 
@@ -340,7 +383,9 @@ LiftedDTG::~LiftedDTG()
 
 void LiftedDTG::createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs)
 {
+#ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
 	std::cout << "Create transitions for " << *this << std::endl;
+#endif
 	// Connect the transitions.
 	for (std::vector<PropertyState*>::const_iterator ci = property_space_->getPropertyStates().begin(); ci != property_space_->getPropertyStates().end(); ++ci)
 	{
@@ -352,8 +397,10 @@ void LiftedDTG::createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs
 			MultiValuedValue* from_node = getMultiValuedValue(transition->getFromPropertyState());
 			MultiValuedValue* to_node = getMultiValuedValue(transition->getToPropertyState());
 			
+#ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
 			std::cout << "Create a transition from " << *from_node << " to " << *to_node << std::endl;
-			std::cout << "Transition: " << transition->getAction() << std::endl;
+			std::cout << "Transition: " << *transition << std::endl;
+#endif
 			
 			//const std::map<const Property*, std::vector<unsigned int>* >& precondition_mappings_to_action_variables = transition->getMappingToActionVariables();
 			const std::vector<const HEURISTICS::VariableDomain*>& action_variables = transition->getActionVariableDomains();
@@ -362,7 +409,7 @@ void LiftedDTG::createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs
 			std::vector<std::vector<unsigned int>* >* precondition_to_action_variable_mappings = new std::vector<std::vector<unsigned int>* >();
 			
 			// We map each action variable to each term of the effect.
-			std::vector<std::vector<unsigned int>* >* action_variables_to_effects_mappings = new std::vector<std::vector<unsigned int>* >();
+			std::vector<std::vector<unsigned int>* >* effects_to_action_variable_mappings = new std::vector<std::vector<unsigned int>* >();
 			
 			const std::vector<HEURISTICS::Fact*>& from_values = from_node->getValues();
 			for (unsigned int fact_index = 0; fact_index < from_values.size(); ++fact_index)
@@ -385,7 +432,9 @@ void LiftedDTG::createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs
 				
 				for (unsigned int fact_term_index = 0; fact_term_index < fact->getVariableDomains().size(); ++fact_term_index)
 				{
+#ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
 					std::cout << "The " << fact_term_index << " is mapped to the " << (*mapping_to_action_variables)[fact_term_index] << "th action variable!" << std::endl;
+#endif
 					assert ((*mapping_to_action_variables).size() > fact_term_index);
 					assert ((*mapping_to_action_variables)[fact_term_index] < action_variables.size());
 					fact->setVariableDomain(fact_term_index, *action_variables[(*mapping_to_action_variables)[fact_term_index]]);
@@ -399,31 +448,35 @@ void LiftedDTG::createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs
 				HEURISTICS::Fact* fact = to_values[fact_index];
 				const Property* property = to_node->getPropertyState().getProperties()[fact_index];
 				
-				const std::vector<unsigned int>* mapping_to_action_variables = transition->getMappingsOfProperty(*property, true);
+				const std::vector<unsigned int>* mapping_to_action_variables = transition->getMappingsOfProperty(*property, false);
 				
 				//if (mappings_to_action_variables.find(property) == mappings_to_action_variables.end())
 				if (mapping_to_action_variables == NULL)
 				{
-					action_variables_to_effects_mappings->push_back(NULL);
+					effects_to_action_variable_mappings->push_back(NULL);
 					continue;
 				}
 				
-				std::vector<unsigned int>* action_variable_to_effect_mapping = new std::vector<unsigned int>(fact->getPredicate().getArity());
-				action_variables_to_effects_mappings->push_back(action_variable_to_effect_mapping);
+				std::vector<unsigned int>* effect_to_action_variable_mappings = new std::vector<unsigned int>();
+				effects_to_action_variable_mappings->push_back(effect_to_action_variable_mappings);
 				
 				for (unsigned int fact_term_index = 0; fact_term_index < fact->getVariableDomains().size(); ++fact_term_index)
 				{
+#ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
+					std::cout << "The " << fact_term_index << " is mapped to the " << (*mapping_to_action_variables)[fact_term_index] << "th action variable!" << std::endl;
+#endif
 					fact->setVariableDomain(fact_term_index, *action_variables[(*mapping_to_action_variables)[fact_term_index]]);
-					(*action_variable_to_effect_mapping)[(*mapping_to_action_variables)[fact_term_index]] = fact_term_index;
+					effect_to_action_variable_mappings->push_back((*mapping_to_action_variables)[fact_term_index]);
 				}
 			}
 			
-			MultiValuedTransition* new_transition = new MultiValuedTransition(transition->getAction(), *from_node, *to_node, *precondition_to_action_variable_mappings, *action_variables_to_effects_mappings);
+			MultiValuedTransition* new_transition = new MultiValuedTransition(transition->getAction(), *from_node, *to_node, *precondition_to_action_variable_mappings, *effects_to_action_variable_mappings);
 			from_node->addTransition(*new_transition);
 		}
 	}
-	
+#ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
 	std::cout << *this << std::endl;
+#endif
 }
 
 MultiValuedValue* LiftedDTG::getMultiValuedValue(const PropertyState& property_state) const

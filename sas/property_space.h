@@ -39,7 +39,7 @@ public:
 	PropertyState& getFromPropertyState() const { return *lhs_property_state_; }
 	PropertyState& getToPropertyState() const { return *rhs_property_state_; }
 	const std::vector<const Property*>& getPreconditions() const { return preconditions_; }
-	const std::vector<const Property*>& getAddedProperties() const { return added_properties_; }
+	const std::vector<const Property*>& getAddedProperties() const { return effects_; }
 	
 //	const std::map<const Property*, std::vector<unsigned int>* >& getMappingToActionVariables() const { return *property_to_action_variable_index_; }
 	const std::vector<const HEURISTICS::VariableDomain*>& getActionVariableDomains() const { return *action_variable_domains_; }
@@ -48,12 +48,17 @@ public:
 	
 	const Action& getAction() const { return *action_; }
 	
+	/**
+	 * Merge two property state transtions such that the precondtions and effect are combined.
+	 */
+	static PropertyStateTransition& merge(const PropertyStateTransition& lhs, const PropertyStateTransition& rhs);
+	
 private:
 	PropertyState* lhs_property_state_;
 	PropertyState* rhs_property_state_;
 	
 	std::vector<const Property*> preconditions_;
-	std::vector<const Property*> added_properties_;
+	std::vector<const Property*> effects_;
 
 	const Action* action_;
 	

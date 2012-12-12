@@ -182,6 +182,11 @@ int main(int argc,char * argv[])
 
 	std::vector<SAS_Plus::LiftedDTG*> lifted_dtgs;
 	SAS_Plus::LiftedDTG::createLiftedDTGs(lifted_dtgs, *the_domain->types, predicate_manager, type_manager, action_manager, term_manager, initial_facts);
+	for (std::vector<SAS_Plus::LiftedDTG*>::const_iterator ci = lifted_dtgs.begin(); ci != lifted_dtgs.end(); ++ci)
+	{
+		std::cout << **ci << std::endl;
+	}
+	
 	exit(0);
 	
 //	assert (plan->getSteps().size() == 2);

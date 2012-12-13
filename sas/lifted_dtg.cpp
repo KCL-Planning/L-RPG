@@ -304,7 +304,11 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 	for (std::vector<Predicate*>::const_iterator ci = predicate_manager.getManagableObjects().begin(); ci != predicate_manager.getManagableObjects().end(); ci++)
 	{
 		const Predicate* predicate = *ci;
-
+		if (predicate->isStatic())
+		{
+			continue;
+		}
+		
 		bool is_supported = false;
 #ifdef MYPOP_SAS_PLUS_DTG_MANAGER_COMMENT
 		std::cout << "Check if the predicate : " << *predicate << " is supported!" << std::endl;
@@ -338,9 +342,115 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 		}
 		
 		if (is_supported) continue;
+		
+		std::cerr << "Unsupported predicate: " << *predicate << std::endl;
 
-		// Check if any of the DTG nodes supports the given predicate by making a dummy atom of it.
-//		std::cerr << "Unsupported predicate: " << *predicate << std::endl;
+		// Create an attribute space.
+		PropertySpace& attribute_space = PropertySpace::createAttributeSpace();
+		
+		PropertyState* property_state = new PropertyState(attribute_space);
+		attribute_space.addPropertyState(*property_state);
+		Property* property = new Property(*property_state, *predicate, std::numeric_limits<unsigned int>::max());
+		property_state->addProperty(*property);
+		
+		PropertyState* empty_property_state = new PropertyState(attribute_space);
+		attribute_space.addPropertyState(*empty_property_state);
+		
+		for (std::vector<Action*>::const_iterator ci = action_manager.getManagableObjects().begin(); ci != action_manager.getManagableObjects().end(); ++ci)
+		{
+			const Action* action = *ci;
+			for (std::vector<const Atom*>::const_iterator ci = action->getEffects().begin(); ci != action->getEffects().end(); ++ci)
+			{
+				const Atom* effect = *ci;
+				if (effect->isNegative())
+				{
+					continue;
+				}
+				
+				if (effect->getArity() != predicate->getArity() ||
+				    effect->getPredicate().getName() != predicate->getName())
+				{
+					continue;
+				}
+				
+				std::vector<unsigned int>* effect_variable_mapping = new std::vector<unsigned int>();
+				bool types_match = true;
+				
+				
+				std::vector<HEURISTICS::VariableDomain*> tmp_action_variable_to_effect_mappings;
+				for (std::vector<const Variable*>::const_iterator ci = action->getVariables().begin(); ci != action->getVariables().end(); ++ci)
+				{
+					std::vector<const Object*> variable_domain;
+					type_manager.getObjectsOfType(variable_domain, *(*ci)->getType());
+					tmp_action_variable_to_effect_mappings.push_back(new HEURISTICS::VariableDomain(variable_domain));
+				}
+				
+				for (unsigned int term_index = 0; term_index < effect->getArity(); ++term_index)
+				{
+					const Type* effect_type = effect->getTerms()[term_index]->getType();
+					const Type* predicate_type = predicate->getTypes()[term_index];
+					
+					if (!effect_type->isEqual(*predicate_type) && !effect_type->isSubtypeOf(*predicate_type) && !effect_type->isSupertypeOf(*predicate_type))
+					{
+						types_match = false;
+						break;
+					}
+					
+					// Find matching action variable and update the variable domain.
+					for (unsigned int action_variable_index = 0; action_variable_index < action->getVariables().size(); ++action_variable_index)
+					{
+						if (action->getVariables()[action_variable_index] == effect->getTerms()[term_index])
+						{
+							effect_variable_mapping->push_back(action_variable_index);
+							
+							std::vector<const Object*> effect_objects;
+							type_manager.getObjectsOfType(effect_objects, *effect->getTerms()[term_index]->getType());
+							
+							HEURISTICS::VariableDomain effect_variable_domain(effect_objects);
+							HEURISTICS::VariableDomain intersection;
+							effect_variable_domain.getIntersection(intersection, *tmp_action_variable_to_effect_mappings[action_variable_index]);
+							
+							tmp_action_variable_to_effect_mappings[action_variable_index]->set(intersection.getVariableDomain());
+							break;
+						}
+					}
+				}
+				
+				if (types_match)
+				{
+					std::cerr << action->getPredicate() << " supports " << *predicate << "." << std::endl;
+					for (std::vector<unsigned int>::const_iterator ci = effect_variable_mapping->begin(); ci != effect_variable_mapping->end(); ++ci)
+					{
+						std::cerr << *ci << " ";
+					}
+					std::cerr << std::endl;
+					std::map<const Property*, std::vector<unsigned int>* >* precondition_mappings = new std::map<const Property*, std::vector<unsigned int>* >();
+					std::map<const Property*, std::vector<unsigned int>* >* effect_mappings = new std::map<const Property*, std::vector<unsigned int>* >();
+					(*effect_mappings)[property] = effect_variable_mapping;
+					std::vector<const HEURISTICS::VariableDomain*>* action_variable_to_effect_mappings = new std::vector<const HEURISTICS::VariableDomain*>();
+					
+					for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = tmp_action_variable_to_effect_mappings.begin(); ci != tmp_action_variable_to_effect_mappings.end(); ++ci)
+					{
+						action_variable_to_effect_mappings->push_back(*ci);
+					}
+					
+					PropertyStateTransition* transition = new PropertyStateTransition(*empty_property_state, *property_state, empty_property_state->getProperties(), property_state->getProperties(), *action, *precondition_mappings, *effect_mappings, *action_variable_to_effect_mappings);
+					empty_property_state->addTransition(*transition);
+				}
+				else
+				{
+					delete effect_variable_mapping;
+				}
+			}
+		}
+		
+		LiftedDTG* new_lifted_dtg = new LiftedDTG(predicate_manager, type_manager, attribute_space);
+		created_lifted_dtgs.push_back(new_lifted_dtg);
+	}
+	
+	for (std::vector<LiftedDTG*>::const_iterator ci = created_lifted_dtgs.begin(); ci != created_lifted_dtgs.end(); ++ci)
+	{
+		(*ci)->createTransitions(created_lifted_dtgs);
 	}
 }
 
@@ -463,7 +573,7 @@ void LiftedDTG::createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs
 				for (unsigned int fact_term_index = 0; fact_term_index < fact->getVariableDomains().size(); ++fact_term_index)
 				{
 #ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
-					std::cout << "The " << fact_term_index << " is mapped to the " << (*mapping_to_action_variables)[fact_term_index] << "th action variable!" << std::endl;
+					std::cout << "The " << fact_term_index << " is mapped to the " << (*mapping_to_action_variables)[fact_term_index] << "th action variable! (" << action_variables.size() << ")" << transition->getAction().getVariables().size() << std::endl;
 #endif
 					fact->setVariableDomain(fact_term_index, *action_variables[(*mapping_to_action_variables)[fact_term_index]]);
 					effect_to_action_variable_mappings->push_back((*mapping_to_action_variables)[fact_term_index]);

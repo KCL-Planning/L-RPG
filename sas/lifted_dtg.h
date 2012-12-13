@@ -2,6 +2,7 @@
 #define MYPOP_SAS_PLUS_LIFTED_DTG
 
 #include <vector>
+#include <set>
 #include "../VALfiles/ptree.h"
 #include "../VALfiles/SASActions.h"
 #include "../VALfiles/ToFunction.h"
@@ -15,6 +16,7 @@ class PredicateManager;
 class ActionManager;
 class TermManager;
 class Predicate;
+class Object;
 
 namespace HEURISTICS
 {
@@ -104,7 +106,7 @@ private:
 	
 	void createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs, const TypeManager& type_manager);
 	
-	void ground(const std::vector<LiftedDTG*>& all_lifted_dtgs, const std::vector<const Atom*>& initial_facts, const TermManager& term_manager, const TypeManager& type_manager);
+	void ground(const std::vector<LiftedDTG*>& all_lifted_dtgs, const std::vector<const Atom*>& initial_facts, const TermManager& term_manager, const TypeManager& type_manager, const std::set<const Object*>& objects_not_to_ground);
 	
 	MultiValuedValue* getMultiValuedValue(const PropertyState& property_state) const;
 	

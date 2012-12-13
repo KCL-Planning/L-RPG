@@ -479,9 +479,11 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 		}
 	}
 	
+	std::set<const Object*> objects_part_of_property_spaces;
 	for (std::vector<PropertySpace*>::const_iterator ci = all_property_spaces_.begin(); ci != all_property_spaces_.end(); ++ci)
 	{
 		LiftedDTG* new_ldtg = new LiftedDTG(predicate_manager, type_manager, **ci);
+		objects_part_of_property_spaces.insert(new_ldtg->property_space_->getObjects().begin(), new_ldtg->property_space_->getObjects().end());
 		created_lifted_dtgs.push_back(new_ldtg);
 #ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
 		std::cout << *new_ldtg << std::endl;
@@ -647,7 +649,7 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 	
 	for (std::vector<LiftedDTG*>::const_iterator ci = created_lifted_dtgs.begin(); ci != created_lifted_dtgs.end(); ++ci)
 	{
-		(*ci)->ground(created_lifted_dtgs, initial_facts, term_manager, type_manager);
+		(*ci)->ground(created_lifted_dtgs, initial_facts, term_manager, type_manager, objects_part_of_property_spaces);
 	}
 }
 
@@ -786,11 +788,11 @@ void LiftedDTG::createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs
 #endif
 }
 
-void LiftedDTG::ground(const std::vector<LiftedDTG*>& all_lifted_dtgs, const std::vector<const Atom*>& initial_facts, const TermManager& term_manager, const TypeManager& type_manager)
+void LiftedDTG::ground(const std::vector<LiftedDTG*>& all_lifted_dtgs, const std::vector<const Atom*>& initial_facts, const TermManager& term_manager, const TypeManager& type_manager, const std::set<const Object*>& objects_not_to_ground)
 {
-#ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
+//#ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
 	std::cout << "GROUND" << std::endl << *this << std::endl;
-#endif
+//#endif
 	// Determine which objects are different due to static constraints.
 	std::map<const Object*, std::vector<const Atom*>* > object_to_static_constraints_mapping;
 	for (std::vector<const Object*>::const_iterator ci = term_manager.getAllObjects().begin(); ci != term_manager.getAllObjects().end(); ++ci)
@@ -798,6 +800,7 @@ void LiftedDTG::ground(const std::vector<LiftedDTG*>& all_lifted_dtgs, const std
 		const Object* object = *ci;
 		std::vector<const Atom*>* static_constraints = new std::vector<const Atom*>();
 		object_to_static_constraints_mapping[object] = static_constraints;
+		
 		for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ++ci)
 		{
 			const Atom* initial_fact = *ci;
@@ -825,9 +828,21 @@ void LiftedDTG::ground(const std::vector<LiftedDTG*>& all_lifted_dtgs, const std
 		const Object* object = (*ci).first;
 		const std::vector<const Atom*>* static_facts = (*ci).second;
 		
+		if (objects_not_to_ground.count(object) == 0)
+		{
+			continue;
+		}
+		
+		
 		for (std::map<const Object*, std::vector<const Atom*>* >::const_iterator ci = object_to_static_constraints_mapping.begin(); ci != object_to_static_constraints_mapping.end(); ++ci)
 		{
 			const Object* other_object = (*ci).first;
+			
+			if (objects_not_to_ground.count(other_object) == 0)
+			{
+				continue;
+			}
+			
 			const std::vector<const Atom*>* other_static_facts = (*ci).second;
 			if (other_object == object || static_facts->size() != other_static_facts->size() || object->getType() != other_object->getType())
 			{
@@ -886,7 +901,19 @@ void LiftedDTG::ground(const std::vector<LiftedDTG*>& all_lifted_dtgs, const std
 			}
 		}
 	}
-	
+/*
+	std::cout << "All objects split up:" << std::endl;
+	for (std::vector<const Object*>::const_iterator ci = term_manager.getAllObjects().begin(); ci != term_manager.getAllObjects().end(); ++ci)
+	{
+		std::pair<std::multimap<const Object*, const Object*>::const_iterator, std::multimap<const Object*, const Object*>::const_iterator> equivalent_objects = equivalent_relationships.equal_range(*ci);
+		std::cout << **ci << " is mapped to: {";
+		for (std::multimap<const Object*, const Object*>::const_iterator ci = equivalent_objects.first; ci != equivalent_objects.second; ++ci)
+		{
+			std::cout << *(*ci).second << " ";
+		}
+		std::cout << "}" << std::endl;
+	}
+*/
 	for (std::map<const Object*, std::vector<const Atom*>* >::const_iterator ci = object_to_static_constraints_mapping.begin(); ci != object_to_static_constraints_mapping.end(); ++ci)
 	{
 		delete (*ci).second;
@@ -939,17 +966,29 @@ void LiftedDTG::ground(const std::vector<LiftedDTG*>& all_lifted_dtgs, const std
 				std::vector<const Object*>* new_variable_domain = new std::vector<const Object*>();
 				new_variable_domain->push_back(object);
 
-				split_up_variable_domain->push_back(new HEURISTICS::VariableDomain(*new_variable_domain));
-				
 				processed_objects.insert(object);
 				for (std::multimap<const Object*, const Object*>::const_iterator ci = equivalent_objects.first; ci != equivalent_objects.second; ++ci)
 				{
 					processed_objects.insert((*ci).second);
 					new_variable_domain->push_back((*ci).second);
 				}
+				split_up_variable_domain->push_back(new HEURISTICS::VariableDomain(*new_variable_domain));
 			}
 		}
-		
+/*
+		std::cout << "Mappings: " << std::endl;
+		for (std::map<const HEURISTICS::VariableDomain*, std::vector<const HEURISTICS::VariableDomain*>* >::const_iterator ci = split_up_variable_domains.begin(); ci != split_up_variable_domains.end(); ++ci)
+		{
+			std::cout << *(*ci).first << std::endl;
+			std::cout << "Is mapped to: " << std::endl;
+			
+			std::vector<const HEURISTICS::VariableDomain*>* mappings = (*ci).second;
+			for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = mappings->begin(); ci != mappings->end(); ++ci)
+			{
+				std::cout << "\t" << **ci << std::endl;
+			}
+		}
+*/
 		// For every possible split of the variable domains we crate a new DTG node.
 		bool done = false;
 		while (!done)
@@ -1008,6 +1047,8 @@ void LiftedDTG::ground(const std::vector<LiftedDTG*>& all_lifted_dtgs, const std
 		MultiValuedValue* new_node = (*ci).first;
 		nodes_.push_back(new_node);
 		const MultiValuedValue* old_node = (*ci).second;
+		
+		std::cout << *new_node << "->" << *old_node << std::endl;
 		
 		// Reestablish all the transitions.
 		for (std::vector<const MultiValuedTransition*>::const_iterator ci = old_node->getTransitions().begin(); ci != old_node->getTransitions().end(); ++ci)
@@ -1149,7 +1190,8 @@ void LiftedDTG::ground(const std::vector<LiftedDTG*>& all_lifted_dtgs, const std
 	std::cout << "Grounded DTG: " << std::endl;
 	std::cout << *this << std::endl;
 #endif
-	*/
+*/
+//	std::cout << "Result: " << *this << std::endl;
 }
 
 MultiValuedValue* LiftedDTG::getMultiValuedValue(const PropertyState& property_state) const

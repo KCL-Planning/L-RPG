@@ -153,6 +153,15 @@ Fact::Fact(const PredicateManager& predicate_manager, const Predicate& predicate
 	assert (predicate_ != NULL);
 }
 
+Fact::Fact(const Fact& other)
+	: predicate_(other.predicate_)
+{
+	for (std::vector<const VariableDomain*>::const_iterator ci = other.variable_domains_.begin(); ci != other.variable_domains_.end(); ++ci)
+	{
+		variable_domains_.push_back(new VariableDomain(**ci));
+	}
+}
+
 Fact::~Fact()
 {
 	for (std::vector<const VariableDomain*>::const_iterator ci = variable_domains_.begin(); ci != variable_domains_.end(); ++ci)

@@ -17,10 +17,125 @@ namespace SAS_Plus {
 
 std::vector<const Property*> Property::all_properties_;
 
-PropertyStateTransition::PropertyStateTransition(PropertyState& lhs, PropertyState& rhs, const std::vector<const Property*>& preconditions, const std::vector<const Property*>& added_properties, const Action& action, const std::map<const Property*, std::vector<unsigned int>* >& precondition_properties_to_action_variable_mappings, const std::map<const Property*, std::vector<unsigned int>* >& effect_properties_to_action_variable_mappings, const std::vector<const HEURISTICS::VariableDomain*>& action_variable_to_effect_mappings)
+PropertyStateTransition::PropertyStateTransition(PropertyState& lhs, PropertyState& rhs, const std::vector<const Property*>& preconditions, const std::vector<const Property*>& added_properties, const Action& action, std::map<const Property*, std::vector<unsigned int>* >& precondition_properties_to_action_variable_mappings, std::map<const Property*, std::vector<unsigned int>* >& effect_properties_to_action_variable_mappings, const std::vector<const HEURISTICS::VariableDomain*>& action_variable_to_effect_mappings)
 	: lhs_property_state_(&lhs), rhs_property_state_(&rhs), preconditions_(preconditions), effects_(added_properties), action_(&action), precondition_properties_to_action_variable_index_(&precondition_properties_to_action_variable_mappings), effect_properties_to_action_variable_index_(&effect_properties_to_action_variable_mappings), action_variable_domains_(&action_variable_to_effect_mappings)
 {
+	unsigned int invariable_action_variable = 0;
 	
+	for (std::map<const Property*, std::vector<unsigned int>* >::const_iterator ci = precondition_properties_to_action_variable_mappings.begin(); ci != precondition_properties_to_action_variable_mappings.end(); ++ci)
+	{
+		const Property* property = (*ci).first;
+		const std::vector<unsigned int>* mappings = (*ci).second;
+		if (mappings != NULL && property->getIndex() != std::numeric_limits<unsigned int>::max())
+		{
+			invariable_action_variable = (*mappings)[property->getIndex()];
+			break;
+		}
+	}
+
+	// Search for persistent facts.
+	for (std::vector<const Property*>::const_iterator ci = lhs.getProperties().begin(); ci != lhs.getProperties().end(); ++ci)
+	{
+		const Property* property = *ci;
+	
+		if (precondition_properties_to_action_variable_mappings.find(property) != precondition_properties_to_action_variable_mappings.end())
+		{
+			continue;
+		}
+		
+		// Find a precondition that can unify with the property.
+		std::vector<const Atom*> preconditions;
+		Utility::convertFormula(preconditions, &action.getPrecondition());
+		
+		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ++ci)
+		{
+			const Atom* precondition = *ci;
+			
+			if (property->getPredicate().getArity() != precondition->getPredicate().getArity() ||
+			    property->getPredicate().getName() != precondition->getPredicate().getName())
+			{
+				continue;
+			}
+			
+			// Check there is no effect which removes this.
+			bool precondition_is_deleted = false;
+			for (std::vector<const Atom*>::const_iterator ci = action.getEffects().begin(); ci != action.getEffects().end(); ++ci)
+			{
+				const Atom* effect = *ci;
+				if (!effect->isNegative() ||
+				    precondition->getArity() != effect->getArity() ||
+				    precondition->getPredicate().getName() != effect->getPredicate().getName())
+				{
+					continue;
+				}
+				
+				bool terms_match = true;
+				for (unsigned int term_index = 0; term_index < effect->getArity(); ++term_index)
+				{
+					if (effect->getTerms()[term_index] != precondition->getTerms()[term_index])
+					{
+						terms_match = false;
+						break;
+					}
+				}
+				
+				if (terms_match)
+				{
+					precondition_is_deleted = true;
+					break;
+				}
+			}
+			
+			if (precondition_is_deleted)
+			{
+				continue;
+			}
+			
+			bool terms_match = true;
+			std::vector<unsigned int>* mappings = new std::vector<unsigned int>();
+			for (unsigned int term_index = 0; term_index < precondition->getArity(); ++term_index)
+			{
+				if (!precondition->getTerms()[term_index]->getType()->isEqual(*property->getPredicate().getTypes()[term_index]) &&
+				    !precondition->getTerms()[term_index]->getType()->isSubtypeOf(*property->getPredicate().getTypes()[term_index]) &&
+				    !precondition->getTerms()[term_index]->getType()->isSupertypeOf(*property->getPredicate().getTypes()[term_index]))
+				{
+					terms_match = false;
+					break;
+				}
+				
+				for (unsigned int action_variable_index = 0; action_variable_index < action.getVariables().size(); ++action_variable_index)
+				{
+					if (action.getVariables()[action_variable_index] == precondition->getTerms()[term_index])
+					{
+						mappings->push_back(action_variable_index);
+						break;
+					}
+				}
+			}
+			
+			if (!terms_match || (*mappings)[property->getIndex()] != invariable_action_variable)
+			{
+				delete mappings;
+				continue;
+			}
+			
+			(*precondition_properties_to_action_variable_index_)[property] = mappings;
+			
+			// Map the effects too.
+			for (std::vector<const Property*>::const_iterator ci = rhs.getProperties().begin(); ci != rhs.getProperties().end(); ++ci)
+			{
+				const Property* effect = *ci;
+				if (effect->getIndex() == property->getIndex() &&
+				    effect->getPredicate().getArity() == property->getPredicate().getArity() &&
+				    effect->getPredicate().getName() == property->getPredicate().getName())
+				{
+					(*effect_properties_to_action_variable_index_)[effect] = new std::vector<unsigned int>(*mappings);
+					break;
+				}
+			}
+			break;
+		}
+	}
 }
 
 PropertyStateTransition& PropertyStateTransition::merge(const PropertyStateTransition& lhs, const PropertyStateTransition& rhs)
@@ -60,8 +175,13 @@ PropertyStateTransition& PropertyStateTransition::merge(const PropertyStateTrans
 	{
 		assert (*(*action_variable_to_effect_mappings)[i] == *(*rhs.action_variable_domains_)[i]);
 	}
+
+	PropertyStateTransition* merged_transition = new PropertyStateTransition(lhs.getFromPropertyState(), lhs.getToPropertyState(), *combined_preconditions, *combined_effects, lhs.getAction(), *combined_precondition_mappings, *combined_effect_mappings, *action_variable_to_effect_mappings);
 	
-	return *(new PropertyStateTransition(lhs.getFromPropertyState(), lhs.getToPropertyState(), *combined_preconditions, *combined_effects, lhs.getAction(), *combined_precondition_mappings, *combined_effect_mappings, *action_variable_to_effect_mappings));
+#ifdef MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
+	std::cerr << "Merged: " << *merged_transition << std::endl;
+#endif
+	return *merged_transition;
 }
 
 const std::vector<unsigned int>* PropertyStateTransition::getMappingsOfProperty(const Property& property, bool is_precondition) const
@@ -938,6 +1058,9 @@ PropertySpace* PropertySpace::merge(const PropertySpace& lhs, const PropertySpac
 					new_effects->push_back(effect);
 				}
 			}
+			
+			// Check if we can find any facts which are persistent and can be mapped to the preconditions.
+			
 			
 			PropertyStateTransition* merged_transition = new PropertyStateTransition(*merged_property_state, *merged_to_property_state, *new_preconditions, *new_effects, old_transition->getAction(), *precondition_property_mappings, *effect_property_mappings, *new_action_variable_to_effect_mappings);
 #ifdef MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT

@@ -34,7 +34,7 @@ class PropertySpace;
 class PropertyStateTransition
 {
 public:
-	PropertyStateTransition(PropertyState& lhs, PropertyState& rhs, const std::vector<const Property*>& preconditions, const std::vector<const Property*>& added_properties, const Action& action, const std::map<const Property*, std::vector<unsigned int>* >& precondition_properties_to_action_variable_mappings, const std::map<const Property*, std::vector<unsigned int>* >& effect_properties_to_action_variable_mappings, const std::vector<const HEURISTICS::VariableDomain*>& action_variable_to_effect_mappings);
+	PropertyStateTransition(PropertyState& lhs, PropertyState& rhs, const std::vector<const Property*>& preconditions, const std::vector<const Property*>& added_properties, const Action& action, std::map<const Property*, std::vector<unsigned int>* >& precondition_properties_to_action_variable_mappings, std::map<const Property*, std::vector<unsigned int>* >& effect_properties_to_action_variable_mappings, const std::vector<const HEURISTICS::VariableDomain*>& action_variable_to_effect_mappings);
 	
 	PropertyState& getFromPropertyState() const { return *lhs_property_state_; }
 	PropertyState& getToPropertyState() const { return *rhs_property_state_; }
@@ -62,8 +62,8 @@ private:
 
 	const Action* action_;
 	
-	const std::map<const Property*, std::vector<unsigned int>* >* precondition_properties_to_action_variable_index_;
-	const std::map<const Property*, std::vector<unsigned int>* >* effect_properties_to_action_variable_index_;
+	std::map<const Property*, std::vector<unsigned int>* >* precondition_properties_to_action_variable_index_;
+	std::map<const Property*, std::vector<unsigned int>* >* effect_properties_to_action_variable_index_;
 	const std::vector<const HEURISTICS::VariableDomain*>* action_variable_domains_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const PropertyStateTransition& transition);

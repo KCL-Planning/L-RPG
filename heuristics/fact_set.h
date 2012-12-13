@@ -55,6 +55,8 @@ class Fact
 public:
 	Fact(const PredicateManager& predicate_manager, const Predicate& predicate, const std::vector<const VariableDomain*>& variable_domains);
 	
+	Fact(const Fact& other);
+	
 	virtual ~Fact();
 	
 	const Predicate& getPredicate() const { return *predicate_; }

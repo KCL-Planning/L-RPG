@@ -19,6 +19,7 @@ class Predicate;
 namespace HEURISTICS
 {
 class Fact;
+class VariableDomain;
 };
 	
 namespace SAS_Plus
@@ -32,12 +33,19 @@ class MultiValuedVariable;
 class MultiValuedTransition
 {
 public:
-	MultiValuedTransition(const Action& action, const MultiValuedValue& precondition, const MultiValuedValue& effect, const std::vector<std::vector<unsigned int>* >& precondition_to_action_variable_mappings_, const std::vector<std::vector<unsigned int>* >& effect_to_action_variable_mappings);
+	MultiValuedTransition(const Action& action, const MultiValuedValue& precondition, const MultiValuedValue& effect, const std::vector<std::vector<unsigned int>* >& precondition_to_action_variable_mappings_, const std::vector<std::vector<unsigned int>* >& effect_to_action_variable_mappings, const TypeManager& type_manager);
 	
 	~MultiValuedTransition();
+	
+	const MultiValuedValue& getFromNode() const { return *precondition_; }
+	const MultiValuedValue& getToNode() const { return *effect_; }
+	
+	MultiValuedTransition* migrateTransition(const MultiValuedValue& from_node, const MultiValuedValue& to_node, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager) const;
+	
 private:
 	
 	const Action* action_;
+	std::vector<HEURISTICS::VariableDomain*> action_variable_domains_;
 	
 	const MultiValuedValue* precondition_;
 	const MultiValuedValue* effect_;
@@ -56,7 +64,9 @@ std::ostream& operator<<(std::ostream& os, const MultiValuedTransition& transiti
 class MultiValuedValue
 {
 public:
-	MultiValuedValue(const std::vector<HEURISTICS::Fact*>& values, const PropertyState& property_state);
+	MultiValuedValue(std::vector<HEURISTICS::Fact*>& values, const PropertyState& property_state);
+	
+	MultiValuedValue(const MultiValuedValue& other);
 	
 	~MultiValuedValue();
 	
@@ -66,8 +76,10 @@ public:
 	
 	const std::vector<HEURISTICS::Fact*>& getValues() const { return *values_; }
 	
+	const std::vector<const MultiValuedTransition*>& getTransitions() const { return transitions_; }
+	
 private:
-	const std::vector<HEURISTICS::Fact*>* values_;
+	std::vector<HEURISTICS::Fact*>* values_;
 	const PropertyState* property_state_;
 	
 	std::vector<const MultiValuedTransition*> transitions_;
@@ -90,7 +102,9 @@ private:
 	
 	static void getProperties(const PredicateManager& predicate_manager, std::vector<std::pair<const Predicate*, unsigned int> >& predicates, const TIM::PropertyState& property_state);
 	
-	void createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs);
+	void createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs, const TypeManager& type_manager);
+	
+	void ground(const std::vector<LiftedDTG*>& all_lifted_dtgs, const std::vector<const Atom*>& initial_facts, const TermManager& term_manager, const TypeManager& type_manager);
 	
 	MultiValuedValue* getMultiValuedValue(const PropertyState& property_state) const;
 	

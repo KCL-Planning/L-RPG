@@ -194,6 +194,57 @@ MultiValuedTransition* MultiValuedTransition::migrateTransition(const MultiValue
 		return NULL;
 	}
 	
+	// Any fact in the from node that is not affected must be present in the to node. Any fact in the to node that is not affected by an effect
+	// must be present in the from node and not affected in any way.
+	for (std::vector<std::vector<unsigned int>* >::iterator ci = precondition_to_action_variable_mappings->begin(); ci != precondition_to_action_variable_mappings->end(); ++ci)
+	{
+		unsigned int precondition_index = std::distance(precondition_to_action_variable_mappings->begin(), ci);
+		if (*ci == NULL)
+		{
+			bool found_matching_to_node = false;
+			
+			HEURISTICS::Fact* precondition = from_node.getValues()[precondition_index];
+			
+			// Check if a similar fact exists in the to node.
+			for (std::vector<std::vector<unsigned int>* >::iterator ci = effect_to_action_variable_mappings->begin(); ci != effect_to_action_variable_mappings->end(); ++ci)
+			{
+				unsigned int effect_index = std::distance(effect_to_action_variable_mappings->begin(), ci);
+				if (*ci == NULL)
+				{
+					HEURISTICS::Fact* effect = to_node.getValues()[effect_index];
+					
+					if (precondition->getPredicate().getArity() != effect->getPredicate().getArity() ||
+					    precondition->getPredicate().getName() != effect->getPredicate().getName())
+					{
+						continue;
+					}
+					
+					bool terms_match = true;
+					for (unsigned int term_index = 0; term_index < effect->getPredicate().getArity(); ++term_index)
+					{
+						if (!precondition->getVariableDomains()[term_index]->sharesObjectsWith(*effect->getVariableDomains()[term_index]))
+						{
+							terms_match = false;
+							break;
+						}
+					}
+					
+					if (terms_match)
+					{
+						found_matching_to_node = true;
+						break;
+					}
+				}
+			}
+			
+			if (!found_matching_to_node)
+			{
+				delete transition;
+				return NULL;
+			}
+		}
+	}
+	
 	// Check that none of the action variables are empty.
 	for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = transition->action_variable_domains_.begin(); ci != transition->action_variable_domains_.end(); ++ci)
 	{
@@ -790,9 +841,9 @@ void LiftedDTG::createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs
 
 void LiftedDTG::ground(const std::vector<LiftedDTG*>& all_lifted_dtgs, const std::vector<const Atom*>& initial_facts, const TermManager& term_manager, const TypeManager& type_manager, const std::set<const Object*>& objects_not_to_ground)
 {
-//#ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
+#ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
 	std::cout << "GROUND" << std::endl << *this << std::endl;
-//#endif
+#endif
 	// Determine which objects are different due to static constraints.
 	std::map<const Object*, std::vector<const Atom*>* > object_to_static_constraints_mapping;
 	for (std::vector<const Object*>::const_iterator ci = term_manager.getAllObjects().begin(); ci != term_manager.getAllObjects().end(); ++ci)
@@ -1048,7 +1099,7 @@ void LiftedDTG::ground(const std::vector<LiftedDTG*>& all_lifted_dtgs, const std
 		nodes_.push_back(new_node);
 		const MultiValuedValue* old_node = (*ci).second;
 		
-		std::cout << *new_node << "->" << *old_node << std::endl;
+//		std::cout << *new_node << "->" << *old_node << std::endl;
 		
 		// Reestablish all the transitions.
 		for (std::vector<const MultiValuedTransition*>::const_iterator ci = old_node->getTransitions().begin(); ci != old_node->getTransitions().end(); ++ci)

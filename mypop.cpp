@@ -179,7 +179,7 @@ int main(int argc,char * argv[])
 #ifdef MYPOP_COMMENTS
 	std::cout << "Initial plan" << *plan << std::endl;
 #endif
-
+/*
 	std::vector<SAS_Plus::LiftedDTG*> lifted_dtgs;
 	SAS_Plus::LiftedDTG::createLiftedDTGs(lifted_dtgs, *the_domain->types, predicate_manager, type_manager, action_manager, term_manager, initial_facts);
 	for (std::vector<SAS_Plus::LiftedDTG*>::const_iterator ci = lifted_dtgs.begin(); ci != lifted_dtgs.end(); ++ci)
@@ -191,7 +191,7 @@ int main(int argc,char * argv[])
 	exit(0);
 	
 //	assert (plan->getSteps().size() == 2);
-
+*/
 	// Split up the actions into lifted actions.
 	std::vector<const Object*> objects_part_of_property_state;
 	for (std::vector<TIM::PropertySpace*>::const_iterator property_space_i = TIM::TA->pbegin(); property_space_i != TIM::TA->pend(); ++property_space_i)
@@ -208,18 +208,16 @@ int main(int argc,char * argv[])
 			}
 		}
 	}
-	
+
 	std::vector<HEURISTICS::LiftedTransition*> lifted_transitions;
 	for (std::vector<Action*>::const_iterator ci = action_manager.getManagableObjects().begin(); ci != action_manager.getManagableObjects().end(); ++ci)
 	{
 		const Action* action = *ci;
 		HEURISTICS::LiftedTransition::createLiftedTransitions(lifted_transitions, predicate_manager, term_manager, type_manager, *action, initial_facts, objects_part_of_property_state);
 	}
-	
  	std::cerr << "Lifted transitions: " << lifted_transitions.size() << std::endl;
-	
 	HEURISTICS::LiftedTransition::mergeFactSets(lifted_transitions);
-	
+
 //	std::cout << "All lifted transitions:" << std::endl;
 //	for (std::vector<HEURISTICS::LiftedTransition*>::const_iterator ci = lifted_transitions.begin(); ci != lifted_transitions.end(); ++ci)
 //	{
@@ -323,7 +321,8 @@ int main(int argc,char * argv[])
 */
 	std::vector<const GroundedAction*> found_plan;
 	ForwardChainingPlanner fcp(action_manager, predicate_manager, type_manager);
-	std::pair<int, int> result = fcp.findPlan(found_plan, analyst, initial_facts, goal_facts, true, true);
+	std::pair<int, int> result;
+	result = fcp.findPlan(found_plan, analyst, initial_facts, goal_facts, true, true);
 	
 	// If the greedy method failed, try the non greedy method!
 	if (result.first == -1)

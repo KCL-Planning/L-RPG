@@ -626,6 +626,29 @@ void LiftedTransition::createLiftedTransitions(std::vector<LiftedTransition*>& c
 	}
 #endif
 	
+	// Make sure every action variable contains at least one object, otherwise the transition is not executable.
+	for (std::vector<std::vector<const VariableDomain*>*>::const_iterator ci = partially_grounded_action_variable_domains.begin(); ci != partially_grounded_action_variable_domains.end(); ++ci)
+	{
+		if ((*ci)->size() == 0)
+		{
+			for (std::map<const Object*, std::vector<const Atom*>* >::const_iterator ci = object_to_static_constraints_mapping.begin(); ci != object_to_static_constraints_mapping.end(); ++ci)
+			{
+				delete (*ci).second;
+			}
+			
+			for (std::vector<std::vector<const VariableDomain*>*>::const_iterator ci = partially_grounded_action_variable_domains.begin(); ci != partially_grounded_action_variable_domains.end(); ++ci)
+			{
+				const std::vector<const VariableDomain*>* variable_domains = *ci;
+				for (std::vector<const VariableDomain*>::const_iterator ci = variable_domains->begin(); ci != variable_domains->end(); ++ci)
+				{
+					delete *ci;
+				}
+				delete variable_domains;
+			}
+			return;
+		}
+	}
+	
 	unsigned int counter[partially_grounded_action_variable_domains.size()];
 	memset(counter, 0, sizeof(unsigned int) * partially_grounded_action_variable_domains.size());
 	

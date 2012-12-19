@@ -451,7 +451,7 @@ public:
 private:
 	
 	//bool generateReachableFacts(const MyPOP::REACHABILITY::EquivalentObjectGroupManager& eog_manager, std::vector<const AchievingTransition* >& newly_created_reachable_facts, std::vector< const MyPOP::REACHABILITY::ReachableFact* >& preconditions, std::vector< MyPOP::REACHABILITY::EquivalentObjectGroup* >& current_variable_assignments, unsigned int precondition_index, MyPOP::REACHABILITY::ReachableFactLayer& fact_layer);
-	void generateReachableFacts(const MyPOP::REACHABILITY::EquivalentObjectGroupManager& eog_manager, std::vector< const MyPOP::REACHABILITY::AchievingTransition* >& newly_created_reachable_facts, std::vector< const MyPOP::REACHABILITY::ReachableFact* >& preconditions, std::vector< MyPOP::REACHABILITY::EquivalentObjectGroup* >& current_variable_assignments, unsigned int precondition_index, MyPOP::REACHABILITY::ReachableFactLayer& fact_layer);
+	void generateReachableFacts(const MyPOP::REACHABILITY::EquivalentObjectGroupManager& eog_manager, std::vector< const MyPOP::REACHABILITY::AchievingTransition* >& newly_created_reachable_facts, std::vector< const MyPOP::REACHABILITY::ReachableFact* >& preconditions, std::vector< MyPOP::REACHABILITY::EquivalentObjectGroup* >& current_variable_assignments, unsigned int precondition_index, const MyPOP::REACHABILITY::ReachableFactLayer& fact_layer);
 	
 	const HEURISTICS::LiftedTransition* transition_;
 	const std::vector<ReachableSet*>* preconditions_reachable_sets_;
@@ -525,6 +525,7 @@ public:
 	const ReachableFactLayer* getPreviousLayer() const;
 	void extractPreconditions(std::vector<const ReachableFactLayerItem*>& preconditions, const ReachableTreeNode& reachable_set) const;
 	const ReachableFactLayerItem* findPrecondition(const ReachableFact& reachable_fact) const;
+	void equivalencesUpdated(unsigned int layer_nr);
 private:
 	unsigned int nr_;
 	const ReachableFactLayer* previous_layer_;
@@ -567,7 +568,7 @@ public:
 	 */
 	void performReachabilityAnalysis(std::vector<const ReachableFact*>& result, const std::vector<REACHABILITY::ReachableFact*>& initial_facts, const std::vector<const GroundedAtom*>& persistent_facts);
 	
-	unsigned int getHeuristic(const std::vector< const GroundedAtom* >& bounded_goal_facts, MyPOP::PredicateManager& predicate_manager);
+	unsigned int getHeuristic(const std::vector< const GroundedAtom* >& bounded_goal_facts, MyPOP::PredicateManager& predicate_manager, bool allow_new_goals_added, bool create_helpful_actions);
 	
 	EquivalentObjectGroupManager& getEquivalentObjectGroupManager() const { return *equivalent_object_manager_; }
 	

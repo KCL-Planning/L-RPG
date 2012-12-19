@@ -842,7 +842,7 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 			last_best_state_seen = state;
 			best_heuristic_estimate = state->getHeuristic();
 			std::cerr << "\t" << best_heuristic_estimate << " state = " << processed_states.size() << "; Grounded Actions = " << GroundedAction::numberOfGroundedActions() << "; Grounded atoms: " << GroundedAtom::numberOfGroundedAtoms() << std::endl;
-			//std::cerr << *state << std::endl;
+			std::cerr << *state << std::endl;
 //			std::cout << "Best new heuristic, empty the queue!" << std::endl;
 			// Try enforced hill climbing.
 			while (!queue.empty())
@@ -987,7 +987,7 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 			if (prune_unhelpful_actions && !successor_state->isCreatedByHelpfulAction())
 			{
 				delete successor_state;
-				std::cout << "*" << std::endl;
+				std::cerr << "*";
 				continue;
 			}
 			
@@ -1174,6 +1174,7 @@ void ForwardChainingPlanner::setHeuristicForState(MyPOP::State& state, REACHABIL
 	if (find_helpful_actions)
 	{
 		state.setHelpfulActions(analyst.getHelpfulActions());
+		std::cerr << "H=" << analyst.getHelpfulActions().size() << std::endl;
 	}
 }
 

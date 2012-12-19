@@ -342,6 +342,8 @@ public:
 	AchievingTransition(const AchievingTransition& achieving_transition);
 	AchievingTransition(const AchievingTransition& achieving_transition, bool remove_copy_automatically);
 	
+	AchievingTransition(const AchievingTransition& achieving_transition, std::vector<HEURISTICS::VariableDomain*>& variable_assignments, bool remove_copy_automatically);
+	
 	// For creating noops.
 	static AchievingTransition& createNoop(const std::vector<const ReachableFactLayerItem*>& preconditions);
 	

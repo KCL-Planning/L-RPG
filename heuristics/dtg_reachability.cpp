@@ -1422,6 +1422,15 @@ AchievingTransition::AchievingTransition(const AchievingTransition& achieving_tr
 	}
 }
 
+AchievingTransition::AchievingTransition(const AchievingTransition& achieving_transition, std::vector<HEURISTICS::VariableDomain*>& variable_assignments, bool remove_copy_automatically)
+	: effect_index_(achieving_transition.effect_index_), effect_set_index_(achieving_transition.effect_set_index_), preconditions_(achieving_transition.preconditions_), preconditions_fact_layer_items_(achieving_transition.preconditions_fact_layer_items_), reachable_fact_(achieving_transition.reachable_fact_), achiever_(achieving_transition.achiever_), variable_assignments_(variable_assignments)
+{
+	if (remove_copy_automatically)
+	{
+		all_created_achieving_transitions_.push_back(this);
+	}
+}
+
 AchievingTransition& AchievingTransition::createNoop(const std::vector<const ReachableFactLayerItem*>& preconditions)
 {
 	AchievingTransition* achieving_transition = new AchievingTransition(preconditions);
@@ -4377,7 +4386,6 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 			// Add the precondition as a new goal.
 			open_list.push(std::make_pair(new_action_precondition_item, precondition_object_bindings));
 		}
-
 		
 		for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = variable_assignments_to_achieve_effect.begin(); ci != variable_assignments_to_achieve_effect.end(); ++ci)
 		{
@@ -4407,7 +4415,8 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 			fact_layer = fact_layer->getPreviousLayer();
 		}
 #endif
-		std::vector<const ReachableFactLayerItem*> relevant_preconditions;
+		//std::vector<const ReachableFactLayerItem*> relevant_preconditions;
+		std::vector<std::pair<const ReachableFactLayerItem*, const std::vector<const HEURISTICS::VariableDomain*>* > > relevant_preconditions;
 		for (std::vector<const AchievingTransition*>::const_iterator ci = executed_actions.begin(); ci != executed_actions.end(); ci++)
 		{
 			const AchievingTransition* action = *ci;
@@ -4422,10 +4431,25 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 				
 				if (precondition->getReachableFactLayer().getLayerNumber() == 1)
 				{
-					relevant_preconditions.push_back(precondition);
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+					
+					std::vector<const HEURISTICS::VariableDomain*>* variable_domains = new std::vector<const HEURISTICS::VariableDomain*>();
+					for (unsigned int term_index = 0; term_index < precondition->getReachableFactCopy().getTermDomains().size(); ++term_index)
+					{
+						EquivalentObjectGroup& eog = precondition->getReachableFactCopy().getTermDomain(term_index);
+						HEURISTICS::VariableDomain* vd = new HEURISTICS::VariableDomain();
+						
+						for (std::vector<EquivalentObject*>::const_iterator ci = eog.begin(precondition->getReachableFactLayer().getLayerNumber()); ci != eog.end(precondition->getReachableFactLayer().getLayerNumber()); ++ci)
+						{
+							vd->addObject((*ci)->getObject());
+						}
+						variable_domains->push_back(vd);
+					}
+					
+					//relevant_preconditions.push_back(precondition);
+					relevant_preconditions.push_back(std::make_pair(precondition, variable_domains));
+//#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 					std::cout << "Relevant precondition: " << *precondition << std::endl;
-#endif
+//#endif
 				}
 			}
 		}
@@ -4458,11 +4482,18 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 				}
 				if (fact_matches_goal)
 				{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
-					std::cout << "Relevant precondition for goal: " << *goal << " = " << *fact_item << std::endl;
-#endif
-					relevant_preconditions.push_back(fact_item);
-					break;
+					std::vector<const HEURISTICS::VariableDomain*>* variable_domains = new std::vector<const HEURISTICS::VariableDomain*>();
+					for (unsigned int term_index = 0; term_index < goal->getAtom().getArity(); ++term_index)
+					{
+						HEURISTICS::VariableDomain* vd = new HEURISTICS::VariableDomain();
+						vd->addObject(goal->getObject(term_index));
+						variable_domains->push_back(vd);
+					}
+//#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+					std::cout << "!Relevant precondition for goal: " << *goal << " = " << *fact_item << std::endl;
+//#endif
+					relevant_preconditions.push_back(std::make_pair(fact_item, variable_domains));
+//					break;
 				}
 			}
 			
@@ -4473,7 +4504,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 				std::vector<const Object*>** object_bindings = (*ci).second;
 				
 				if (goal_predicate->getArity() != fact.getPredicate().getArity() ||
-					goal_predicate->getName() != fact.getPredicate().getName())
+				    goal_predicate->getName() != fact.getPredicate().getName())
 				{
 					continue;
 				}
@@ -4528,7 +4559,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 				
 				if (fact_matches_goal)
 				{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+//#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 					std::cout << "Relevant precondition for goal: " << goal_predicate->getName();
 					for (unsigned int i = 0; i < fact.getPredicate().getArity(); ++i)
 					{
@@ -4541,16 +4572,31 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 						std::cout << "}, ";
 					}
 					std::cout << " = " << *fact_item << std::endl;
-#endif
-					relevant_preconditions.push_back(fact_item);
+//#endif
+					std::vector<const HEURISTICS::VariableDomain*>* variable_domains = new std::vector<const HEURISTICS::VariableDomain*>();
+					for (unsigned int term_index = 0; term_index < goal_predicate->getArity(); ++term_index)
+					{
+						HEURISTICS::VariableDomain* vd = new HEURISTICS::VariableDomain(*object_bindings[term_index]);
+						variable_domains->push_back(vd);
+					}
+
+					relevant_preconditions.push_back(std::make_pair(fact_item, variable_domains));
 					break;
 				}
 			}
 		}
 
-		for (std::vector<const ReachableFactLayerItem*>::const_iterator ci = relevant_preconditions.begin(); ci != relevant_preconditions.end(); ++ci)
+		for (std::vector<std::pair<const ReachableFactLayerItem*, const std::vector<const HEURISTICS::VariableDomain*>* > >::const_iterator ci = relevant_preconditions.begin(); ci != relevant_preconditions.end(); ++ci)
 		{
-			const ReachableFactLayerItem* precondition = *ci;
+			const ReachableFactLayerItem* precondition = (*ci).first;
+			const std::vector<const HEURISTICS::VariableDomain*>* variable_domains = (*ci).second;
+			
+			std::cout << "Process the precondition: " << precondition->getReachableFactCopy() << " with domains: ";
+			for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = variable_domains->begin(); ci != variable_domains->end(); ++ci)
+			{
+				std::cout << **ci << ", ";
+			}
+			std::cout << "." << std::endl;
 			
 			for (std::vector<const AchievingTransition*>::const_iterator ci = precondition->getAchievers().begin(); ci != precondition->getAchievers().end(); ++ci)
 			{
@@ -4561,11 +4607,94 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 				{
 					continue;
 				}
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
-				std::cout << "Helpful action: " << *achieving_transition << std::endl;
-#endif
-				helpful_actions_.push_back(new AchievingTransition(*achieving_transition, false));
+				
+				// Check if the variable domains match up.
+				bool terms_match_up = true;
+				
+				std::vector<HEURISTICS::VariableDomain*> new_variable_domains;
+				
+				for (unsigned int term_index = 0; term_index < precondition->getReachableFactCopy().getPredicate().getArity(); ++term_index)
+				{
+					const HEURISTICS::VariableDomain* action_variable_domain = achieving_transition->getVariableAssignments()[term_index];
+					const HEURISTICS::VariableDomain* goal_variable_domain = (*variable_domains)[term_index];
+					
+					HEURISTICS::VariableDomain* intersection = new HEURISTICS::VariableDomain();
+					action_variable_domain->getIntersection(*intersection, *goal_variable_domain);
+					
+					if (intersection->size() == 0)
+					{
+						terms_match_up = false;
+						break;
+					}
+					new_variable_domains.push_back(intersection);
+				}
+				
+				if (!terms_match_up)
+				{
+					for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = new_variable_domains.begin(); ci != new_variable_domains.end(); ++ci)
+					{
+						delete *ci;
+					}
+					continue;
+				}
+				
+				std::cout << "Action: " << achieving_transition->getAchiever()->getTransition().getAction().getPredicate() << " with domains: ";
+				for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = new_variable_domains.begin(); ci != new_variable_domains.end(); ++ci)
+				{
+					std::cout << **ci << ", ";
+				}
+				std::cout << "." << std::endl;
+				AchievingTransition* helpful_action = new AchievingTransition(*achieving_transition, new_variable_domains, false);
+				
+/*
+					: effect_index_(achieving_transition.effect_index_), effect_set_index_(achieving_transition.effect_set_index_), preconditions_(achieving_transition.preconditions_), preconditions_fact_layer_items_(achieving_transition.preconditions_fact_layer_items_), reachable_fact_(achieving_transition.reachable_fact_), achiever_(achieving_transition.achiever_)
+				{
+					for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = achieving_transition.variable_assignments_.begin(); ci != achieving_transition.variable_assignments_.end(); ++ci)
+					{
+						HEURISTICS::VariableDomain* new_variable_domain = new HEURISTICS::VariableDomain(**ci);
+						variable_assignments_.push_back(new_variable_domain);
+					}
+					if (remove_copy_automatically)
+					{
+						all_created_achieving_transitions_.push_back(this);
+					}
+					
+					for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = variable_assignments_.begin(); ci != variable_assignments_.end(); ++ci)
+					{
+						HEURISTICS::VariableDomain* vd = *ci;
+						for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci2 = variable_assignments_.begin(); ci2 != variable_assignments_.end(); ++ci2)
+						{
+							if (ci == ci2)
+							{
+								continue;
+							}
+							if (vd == *ci2)
+							{
+								std::cerr << "VARIABLE PRESENT TWICE!!!" << std::endl;
+							}
+							assert (vd != *ci2);
+						}
+					}
+*/
+				
+//#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+				std::cout << "Helpful action: " << *helpful_action << std::endl;
+//#endif
+
+				// Ground the transition such that the action variables match it.
+				//helpful_actions_.push_back(new AchievingTransition(*achieving_transition, false));
+				helpful_actions_.push_back(helpful_action);
 			}
+		}
+		
+		for (std::vector<std::pair<const ReachableFactLayerItem*, const std::vector<const HEURISTICS::VariableDomain*>* > >::const_iterator ci = relevant_preconditions.begin(); ci != relevant_preconditions.end(); ++ci)
+		{
+			const std::vector<const HEURISTICS::VariableDomain*>* variable_domain = (*ci).second;
+			for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = variable_domain->begin(); ci != variable_domain->end(); ++ci)
+			{
+				delete *ci;
+			}
+			delete variable_domain;
 		}
 	}
 	

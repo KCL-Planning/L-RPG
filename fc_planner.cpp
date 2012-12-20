@@ -247,7 +247,7 @@ State::~State()
 	}
 }
 
-void State::getSuccessors(std::vector<State*>& successor_states, const ActionManager& action_manager, const TypeManager& type_manager) const
+void State::getSuccessors(std::vector<State*>& successor_states, const ActionManager& action_manager, const TypeManager& type_manager, bool prune_unhelpful_actions) const
 {
 #ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
 	std::cout << "Find successors of" << std::endl << *this << std::endl;
@@ -264,7 +264,7 @@ void State::getSuccessors(std::vector<State*>& successor_states, const ActionMan
 		const Object* assigned_variables[action->getVariables().size()];
 		memset(assigned_variables, 0, sizeof(Object*) * action->getVariables().size());
 		
-		instantiateAndExecuteAction(successor_states, *action, preconditions, equalities, 0, assigned_variables, type_manager);
+		instantiateAndExecuteAction(successor_states, *action, preconditions, equalities, 0, assigned_variables, type_manager, prune_unhelpful_actions);
 	}
 #ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
 	std::cout << "Found: " << successor_states.size() << " successors states for: " << std::endl << *this << std::endl;
@@ -328,7 +328,7 @@ void State::removeFact(const GroundedAtom& fact)
 	std::sort(facts_.begin(), facts_.end());
 }
 
-void State::instantiateAndExecuteAction(std::vector<State*>& successor_states, const Action& action, const std::vector<const Atom*>& preconditions, const std::vector<const Equality*>& equalities, unsigned int uninitialised_precondition_index, const Object** assigned_variables, const TypeManager& type_manager) const
+void State::instantiateAndExecuteAction(std::vector<State*>& successor_states, const Action& action, const std::vector<const Atom*>& preconditions, const std::vector<const Equality*>& equalities, unsigned int uninitialised_precondition_index, const Object** assigned_variables, const TypeManager& type_manager, bool prune_unhelpful_actions) const
 {
 /*	if (uninitialised_precondition_index == 0)
 	{
@@ -476,14 +476,13 @@ void State::instantiateAndExecuteAction(std::vector<State*>& successor_states, c
 				}
 
 //				const GroundedAction& dummy_grounded_action = GroundedAction::getGroundedAction(action, grounded_action_variables);
-/*
-				if (!is_helpful)
+				if (prune_unhelpful_actions && !is_helpful)
 				{
 //					std::cout << "Unhelpful: " << dummy_grounded_action << std::endl;
 					continue;
 				}
 //				std::cout << "Helpful: " << dummy_grounded_action << std::endl;
-*/
+
 				const GroundedAction& grounded_action = GroundedAction::getGroundedAction(action, grounded_action_variables);
 				
 				// Apply the action to the new state!
@@ -549,7 +548,7 @@ void State::instantiateAndExecuteAction(std::vector<State*>& successor_states, c
 		// Add it as a precondition and try to find atoms to satisfy the remainder of the preconditions.
 		else
 		{
-			instantiateAndExecuteAction(successor_states, action, preconditions, equalities, uninitialised_precondition_index + 1, new_assigned_variables, type_manager);
+			instantiateAndExecuteAction(successor_states, action, preconditions, equalities, uninitialised_precondition_index + 1, new_assigned_variables, type_manager, prune_unhelpful_actions);
 		}
 	}
 }
@@ -691,7 +690,7 @@ ForwardChainingPlanner::~ForwardChainingPlanner()
 	
 }
 
-std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedAction*>& plan, REACHABILITY::DTGReachability& analyst, const std::vector<const Atom*>& initial_facts, const std::vector<const Atom*>& goal_facts, bool prune_unhelpful_actions, bool allow_restarts)
+std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedAction*>& plan, REACHABILITY::DTGReachability& analyst, const std::vector<const Atom*>& initial_facts, const std::vector<const Atom*>& goal_facts, bool prune_unhelpful_actions, bool allow_restarts, bool allow_new_goals_to_be_added)
 {
 	std::srand(std::time(NULL));
 	unsigned int states_seen_without_improvement = 0;
@@ -747,7 +746,7 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 		initial_reachable_facts.push_back(&REACHABILITY::ReachableFact::createReachableFact(grounded_atom->getAtom().getPredicate(), *variables));
 	}
 
-	setHeuristicForState(*initial_state, analyst, grounded_goal_facts, true);
+	setHeuristicForState(*initial_state, analyst, grounded_goal_facts, true, allow_new_goals_to_be_added);
 /*
 	{
 #ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
@@ -842,7 +841,7 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 			last_best_state_seen = state;
 			best_heuristic_estimate = state->getHeuristic();
 			std::cerr << "\t" << best_heuristic_estimate << " state = " << processed_states.size() << "; Grounded Actions = " << GroundedAction::numberOfGroundedActions() << "; Grounded atoms: " << GroundedAtom::numberOfGroundedAtoms() << std::endl;
-			std::cerr << *state << std::endl;
+//			std::cerr << *state << std::endl;
 //			std::cout << "Best new heuristic, empty the queue!" << std::endl;
 			// Try enforced hill climbing.
 			while (!queue.empty())
@@ -976,9 +975,12 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 		
 		std::vector<State*> successor_states;
 		
-		// Before finding the successors, search for helpful actions.
-		setHeuristicForState(*state, analyst, grounded_goal_facts, true);
-		state->getSuccessors(successor_states, *action_manager_, *type_manager_);
+		// Before finding the successors, search for helpful actions (if this option is enabled).
+		if (prune_unhelpful_actions)
+		{
+			setHeuristicForState(*state, analyst, grounded_goal_facts, true, allow_new_goals_to_be_added);
+		}
+		state->getSuccessors(successor_states, *action_manager_, *type_manager_, prune_unhelpful_actions);
 		
 		for (std::vector<State*>::const_iterator ci = successor_states.begin(); ci != successor_states.end(); ci++)
 		{
@@ -987,7 +989,7 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 			if (prune_unhelpful_actions && !successor_state->isCreatedByHelpfulAction())
 			{
 				delete successor_state;
-				std::cerr << "*";
+//				std::cerr << "*";
 				continue;
 			}
 			
@@ -1001,7 +1003,7 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 				}
 			}*/
 			
-			setHeuristicForState(*successor_state, analyst, grounded_goal_facts, false);
+			setHeuristicForState(*successor_state, analyst, grounded_goal_facts, false, allow_new_goals_to_be_added);
 			
 #ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
 			std::cout << "Sucessor state:" << std::endl;
@@ -1058,7 +1060,7 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 }
 
 //void ForwardChainingPlanner::setHeuristicForState(MyPOP::State& state, REACHABILITY::DTGReachability& analyst, const std::vector<const GroundedAtom*>& goal_facts, const std::vector<const REACHABILITY::ResolvedBoundedAtom*>& resolved_grounded_goal_facts, const Bindings& bindings) const
-void ForwardChainingPlanner::setHeuristicForState(MyPOP::State& state, REACHABILITY::DTGReachability& analyst, const std::vector<const GroundedAtom*>& goal_facts, bool find_helpful_actions) const
+void ForwardChainingPlanner::setHeuristicForState(MyPOP::State& state, REACHABILITY::DTGReachability& analyst, const std::vector<const GroundedAtom*>& goal_facts, bool find_helpful_actions, bool allow_new_goals_to_be_added) const
 {
 	analyst.getEquivalentObjectGroupManager().reset();
 	std::vector<REACHABILITY::ReachableFact*> reachable_facts;
@@ -1160,21 +1162,21 @@ void ForwardChainingPlanner::setHeuristicForState(MyPOP::State& state, REACHABIL
 			
 			reachable_facts.push_back(&REACHABILITY::ReachableFact::createReachableFact(grounded_atom->getAtom().getPredicate(), *variables));
 		}
-		std::cerr << "!";
+//		std::cerr << "!";
 		analyst.performReachabilityAnalysis(result, reachable_facts, persistent_facts);
 	}
 	else
 	{
-		std::cerr << "?";
+//		std::cerr << "?";
 	}
 	
-	unsigned int heuristic_value = analyst.getHeuristic(goal_facts, *predicate_manager_, false, find_helpful_actions);
+	unsigned int heuristic_value = analyst.getHeuristic(goal_facts, *predicate_manager_, allow_new_goals_to_be_added, find_helpful_actions);
 	state.setDistanceToGoal(heuristic_value);
 //	std::cerr << analyst.getHelpfulActions().size() << std::endl;
 	if (find_helpful_actions)
 	{
 		state.setHelpfulActions(analyst.getHelpfulActions());
-		std::cerr << "H=" << analyst.getHelpfulActions().size() << std::endl;
+//		std::cerr << "H=" << analyst.getHelpfulActions().size() << std::endl;
 	}
 }
 

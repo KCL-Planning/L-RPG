@@ -1122,6 +1122,9 @@ void LiftedDTG::ground(const std::vector<LiftedDTG*>& all_lifted_dtgs, const std
 	{
 		delete (*ci).second;
 	}
+	
+	// Finally we need to make copies of any node that contains more than a single lifted fact. Otherwise the heuristics will not be calculated correctly.
+	
 /*
 	std::map<const DomainTransitionGraphNode*, std::vector<DomainTransitionGraphNode*>* > lifted_to_grounded_dtg_node_mappings;
 	std::map<DomainTransitionGraphNode*, const DomainTransitionGraphNode* > grounded_to_lifted_dtg_node_mappings;

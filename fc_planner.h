@@ -94,7 +94,7 @@ public:
 	
 	unsigned int getHeuristic() const { return /*distance_from_start_ + */distance_to_goal_; }
 	
-	void getSuccessors(std::vector<State*>& successor_states, const ActionManager& action_manager, const TypeManager& type_manager) const;
+	void getSuccessors(std::vector<State*>& successor_states, const ActionManager& action_manager, const TypeManager& type_manager, bool prune_unhelpful_actions) const;
 	
 	bool isSuperSetOf(const std::vector<const GroundedAtom*>& facts) const;
 	
@@ -134,7 +134,7 @@ private:
 	bool addFact(const GroundedAtom& fact, bool remove_fact);
 	void removeFact(const GroundedAtom& fact);
 	
-	void instantiateAndExecuteAction(std::vector< MyPOP::State* >& successor_states, const MyPOP::Action& action, const std::vector< const MyPOP::Atom* >& preconditions, const std::vector< const MyPOP::Equality* >& equalities, unsigned int uninitialised_precondition_index, const MyPOP::Object** assigned_variables, const MyPOP::TypeManager& type_manager) const;
+	void instantiateAndExecuteAction(std::vector< MyPOP::State* >& successor_states, const MyPOP::Action& action, const std::vector< const MyPOP::Atom* >& preconditions, const std::vector< const MyPOP::Equality* >& equalities, unsigned int uninitialised_precondition_index, const MyPOP::Object** assigned_variables, const MyPOP::TypeManager& type_manager, bool prune_unhelpful_actions) const;
 	
 	void createAllGroundedVariables(std::vector<const Object**>& all_grounded_action_variables, const Object** grounded_action_variables, const Action& action, const TypeManager& type_manager) const;
 	
@@ -158,12 +158,12 @@ public:
 	
 	virtual ~ForwardChainingPlanner();
 	
-	std::pair<int, int> findPlan(std::vector< const MyPOP::GroundedAction* >& plan, MyPOP::REACHABILITY::DTGReachability& analyst, const std::vector< const Atom* >& initial_fact, const std::vector< const Atom* >& goal_facts, bool prune_unhelpful_actions, bool allow_restarts);
+	std::pair<int, int> findPlan(std::vector< const MyPOP::GroundedAction* >& plan, MyPOP::REACHABILITY::DTGReachability& analyst, const std::vector< const MyPOP::Atom* >& initial_facts, const std::vector< const MyPOP::Atom* >& goal_facts, bool prune_unhelpful_actions, bool allow_restarts, bool allow_new_goals_to_be_added);
 	
 private:
 	
 	//void setHeuristicForState(MyPOP::State& state, MyPOP::REACHABILITY::DTGReachability& analyst, const std::vector< const MyPOP::GroundedAtom* >& goal_facts, const std::vector< const MyPOP::REACHABILITY::ResolvedBoundedAtom* >& resolved_grounded_goal_facts, const MyPOP::Bindings& bindings) const;
-	void setHeuristicForState(MyPOP::State& state, MyPOP::REACHABILITY::DTGReachability& analyst, const std::vector<const GroundedAtom*>& goal_facts, bool find_helpful_actions) const;
+	void setHeuristicForState(MyPOP::State& state, MyPOP::REACHABILITY::DTGReachability& analyst, const std::vector<const GroundedAtom*>& goal_facts, bool find_helpful_actions, bool allow_new_goals_to_be_added) const;
 	
 	/**
 	 * Check if the given state satisfy the facts in the goal state.

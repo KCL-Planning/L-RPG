@@ -19,7 +19,7 @@
 AUTOMAKE_OPTIONS = subdir-objects
 #SUBDIRS = FF-X
 
-bin_PROGRAMS = mypop mypopd mypoptest
+bin_PROGRAMS = mypop mypopd
 mypop_SOURCES = VALfiles/DebugWriteController.cpp VALfiles/FastEnvironment.cpp \
 	VALfiles/FuncAnalysis.cpp VALfiles/SASActions.cpp VALfiles/SimpleEval.cpp VALfiles/TIM.cpp \
 	VALfiles/TimSupport.cpp VALfiles/ToFunction.cpp VALfiles/TypedAnalyser.cpp \
@@ -40,14 +40,11 @@ mypop_SOURCES = VALfiles/DebugWriteController.cpp VALfiles/FastEnvironment.cpp \
 	predicate_manager.cpp relaxed_planning_graph.cpp simple_flaw_selector.cpp term_manager.cpp \
 	type_manager.cpp fc_planner.cpp
 mypopd_SOURCES = ${mypop_SOURCES}
-mypoptest_SOURCES = ${mypop_SOURCES}
 
 mypop_LDADD = @LIBOBJS@
 mypopd_LDADD = @LIBOBJS@
-mypoptest_LDADD = @LIBOBJS@
 mypop_CXXFLAGS = -Wall -Werror -O3 -DNDEBUG
 mypopd_CXXFLAGS = -Wall -Werror -g
-mypoptest_CXXFLAGS = -Wall -Werror -O3 -DNDEBUG
 
 YFLAGS = -d
 noinst_HEADERS = exceptions.h flaw_selector.h manager.h planner.h \

@@ -342,7 +342,7 @@ public:
 	AchievingTransition(const AchievingTransition& achieving_transition);
 	AchievingTransition(const AchievingTransition& achieving_transition, bool remove_copy_automatically);
 	
-	AchievingTransition(const AchievingTransition& achieving_transition, std::vector<HEURISTICS::VariableDomain*>& variable_assignments, bool remove_copy_automatically);
+	AchievingTransition(const AchievingTransition& achieving_transition, const std::vector<HEURISTICS::VariableDomain*>& variable_assignments, bool remove_copy_automatically);
 	
 	// For creating noops.
 	static AchievingTransition& createNoop(const std::vector<const ReachableFactLayerItem*>& preconditions);
@@ -386,6 +386,7 @@ public:
 	 * otherwise (effect set index, effect index).
 	 */
 	std::pair<unsigned int, unsigned int> getEffectIndexAchieving(const ReachableFactLayerItem& reachable_fact, std::vector<const Object*>** object_bindings) const;
+	std::pair<unsigned int, unsigned int> getEffectIndexAchieving(const ReachableFactLayerItem& reachable_fact, const std::vector<const HEURISTICS::VariableDomain*>& object_bindings) const;
 	
 	/**
 	 * Given this transition, update the variable domains so that it is constrained by the effect we 

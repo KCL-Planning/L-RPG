@@ -3553,7 +3553,7 @@ void DTGReachability::substitute(const EquivalentObject& lhs, const EquivalentOb
 	}
 }
 
-unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*>& bounded_goal_facts, PredicateManager& predicate_manager, bool allow_new_goals_added, bool create_helpful_actions)
+unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*>& bounded_goal_facts, PredicateManager& predicate_manager, bool allow_new_goals_added, bool create_helpful_actions, bool instantiate_actions)
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 	std::cout << " ************************************************************** " << std::endl;
@@ -4103,7 +4103,10 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 					std::cout << "The action: " << *executed_action << " could satisfy it as well..." << std::endl;
 #endif
-					executed_action->updateVariablesToAchieve(*current_goal, object_bindings, effect_indexes_achieving_effect.first, effect_indexes_achieving_effect.second);
+					if (instantiate_actions)
+					{
+						executed_action->updateVariablesToAchieve(*current_goal, object_bindings, effect_indexes_achieving_effect.first, effect_indexes_achieving_effect.second);
+					}
 					executed_action->getVariablesToAchieve(variable_assignments_to_achieve_effect, *current_goal, object_bindings, effect_indexes_achieving_effect.first, effect_indexes_achieving_effect.second);
 					action_to_execute = executed_action;
 					break;
@@ -4128,15 +4131,23 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 			
 			std::cout << "Actual achiever: " << *cheapest_achiever->getAchiever() << std::endl;
 #endif
-			// Update the variable domains to take into account the grounded variables.
-			action_to_execute = new AchievingTransition(*cheapest_achiever, true);
-			//std::cout << "Pre: " << *action_to_execute << std::endl;
-			//action_to_execute->updateVariablesToAchieve(*current_goal, object_bindings);
-			//std::cout << "Post: " << *action_to_execute << std::endl;
+			if (instantiate_actions)
+			{
+				// Update the variable domains to take into account the grounded variables.
+				action_to_execute = new AchievingTransition(*cheapest_achiever, true);
+				//std::cout << "Pre: " << *action_to_execute << std::endl;
+				//action_to_execute->updateVariablesToAchieve(*current_goal, object_bindings);
+				//std::cout << "Post: " << *action_to_execute << std::endl;
+				
+				// Only add the action if it actually achieves something!
+				action_to_execute->updateVariablesToAchieve(*current_goal, object_bindings, action_to_execute->getEffectSetIndex(), action_to_execute->getEffectIndex());
+				action_to_execute->getVariablesToAchieve(variable_assignments_to_achieve_effect, *current_goal, object_bindings, action_to_execute->getEffectSetIndex(), action_to_execute->getEffectIndex());
+			}
+			else
+			{
+				action_to_execute = cheapest_achiever;
+			}
 			
-			// Only add the action if it actually achieves something!
-			action_to_execute->updateVariablesToAchieve(*current_goal, object_bindings, action_to_execute->getEffectSetIndex(), action_to_execute->getEffectIndex());
-			action_to_execute->getVariablesToAchieve(variable_assignments_to_achieve_effect, *current_goal, object_bindings, action_to_execute->getEffectSetIndex(), action_to_execute->getEffectIndex());
 			//if (action_to_execute->canAchieve(*current_goal, object_bindings))
 			{
 				executed_actions.push_back(action_to_execute);
@@ -4213,11 +4224,6 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 			std::cout << "Process the " << precondition_index << "th precondition" << std::endl;
 #endif
-			const ReachableFact* new_action_precondition = action_to_execute->getPreconditions()[precondition_index];
-			const ReachableFactLayerItem* new_action_precondition_item = action_to_execute->getPreconditionFactLayerItems()[precondition_index];
-			
-			std::vector<const Object*>** precondition_object_bindings = new std::vector<const Object*>*[new_action_precondition->getPredicate().getArity()];
-
 //			const HEURISTICS::TransitionFact* transition_fact = NULL;
 			std::vector<unsigned int>* links_to_action_variables = NULL;
 
@@ -4251,139 +4257,168 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 				links_to_action_variables = (*(*precondition_mappings).second)[fact_index];
 				break;
 			}
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
-			std::cout << "Precondition: " << std::endl;
-			std::cout << *new_action_precondition << std::endl;
-			std::cout << *new_action_precondition_item << std::endl;
-//			std::cout << *transition_fact << std::endl;
-			for (unsigned int term_index = 0; term_index < new_action_precondition->getPredicate().getArity(); ++term_index)
-			{
-				std::cout << "Term " << term_index << " -> " << (*links_to_action_variables)[term_index] << "(" << *action_to_execute->getVariableAssignments()[(*links_to_action_variables)[term_index]] << ")" << std::endl;
-			}
-#endif
 			
-			// For each term of the precondition we either prune the variable domain of the action or --- if that is not possible due to
-			// the mixing of objects --- we need to add the cost of substituting one object for another.
-			for (unsigned int term_index = 0; term_index < new_action_precondition->getPredicate().getArity(); ++term_index)
+			if (instantiate_actions)
 			{
-				EquivalentObjectGroup* fact_layer_precondition_eog = new_action_precondition_item->getReachableFactCopy().getTermDomains()[term_index];
+				const ReachableFact* new_action_precondition = action_to_execute->getPreconditions()[precondition_index];
+				const ReachableFactLayerItem* new_action_precondition_item = action_to_execute->getPreconditionFactLayerItems()[precondition_index];
 				
+				std::vector<const Object*>** precondition_object_bindings = new std::vector<const Object*>*[new_action_precondition->getPredicate().getArity()];
+				
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+				std::cout << "Precondition: " << std::endl;
+				std::cout << *new_action_precondition << std::endl;
+				std::cout << *new_action_precondition_item << std::endl;
+	//			std::cout << *transition_fact << std::endl;
+				for (unsigned int term_index = 0; term_index < new_action_precondition->getPredicate().getArity(); ++term_index)
+				{
+					std::cout << "Term " << term_index << " -> " << (*links_to_action_variables)[term_index] << "(" << *action_to_execute->getVariableAssignments()[(*links_to_action_variables)[term_index]] << ")" << std::endl;
+				}
+#endif
+				
+				// For each term of the precondition we either prune the variable domain of the action or --- if that is not possible due to
+				// the mixing of objects --- we need to add the cost of substituting one object for another.
+				for (unsigned int term_index = 0; term_index < new_action_precondition->getPredicate().getArity(); ++term_index)
+				{
+					EquivalentObjectGroup* fact_layer_precondition_eog = new_action_precondition_item->getReachableFactCopy().getTermDomains()[term_index];
+					
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 
-				for (unsigned int term_index2 = 0; term_index2 < new_action_precondition->getPredicate().getArity(); ++term_index2)
-				{
-					std::cout << "Term " << term_index2 << " -> " << (*links_to_action_variables)[term_index2] << "(" << *action_to_execute->getVariableAssignments()[(*links_to_action_variables)[term_index2]] << ")" << std::endl;
-				}
+					for (unsigned int term_index2 = 0; term_index2 < new_action_precondition->getPredicate().getArity(); ++term_index2)
+					{
+						std::cout << "Term " << term_index2 << " -> " << (*links_to_action_variables)[term_index2] << "(" << *action_to_execute->getVariableAssignments()[(*links_to_action_variables)[term_index2]] << ")" << std::endl;
+					}
 #endif
-				std::vector<const Object*>* precondition_term_domain = new std::vector<const Object*>();
-				precondition_object_bindings[term_index] = precondition_term_domain;
-				
-				//const HEURISTICS::VariableDomain* action_to_execute_variable_domain = action_to_execute->getVariableAssignments()[(*links_to_action_variables)[term_index]];
-				const HEURISTICS::VariableDomain* action_to_execute_variable_domain = variable_assignments_to_achieve_effect[(*links_to_action_variables)[term_index]];
-				assert (variable_assignments_to_achieve_effect.size() == action_to_execute->getVariableAssignments().size());
+					std::vector<const Object*>* precondition_term_domain = new std::vector<const Object*>();
+					precondition_object_bindings[term_index] = precondition_term_domain;
+					
+					//const HEURISTICS::VariableDomain* action_to_execute_variable_domain = action_to_execute->getVariableAssignments()[(*links_to_action_variables)[term_index]];
+					const HEURISTICS::VariableDomain* action_to_execute_variable_domain = variable_assignments_to_achieve_effect[(*links_to_action_variables)[term_index]];
+					assert (variable_assignments_to_achieve_effect.size() == action_to_execute->getVariableAssignments().size());
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
-				std::cout << "Compare: " << *action_to_execute_variable_domain << " v.s. " << *fact_layer_precondition_eog << std::endl;
+					std::cout << "Compare: " << *action_to_execute_variable_domain << " v.s. " << *fact_layer_precondition_eog << std::endl;
 #endif
-				
-				// Check if the variable domain overlaps with the preconditions. If not we need to make substitutions.
-				std::vector<const Object*> intersection;
-				for (std::vector<const Object*>::const_iterator ci = action_to_execute_variable_domain->getVariableDomain().begin(); ci != action_to_execute_variable_domain->getVariableDomain().end(); ++ci)
-				{
-					const Object* object = *ci;
-					if (fact_layer_precondition_eog->contains(*object, new_action_precondition_item->getReachableFactLayer().getLayerNumber()))
+					
+					// Check if the variable domain overlaps with the preconditions. If not we need to make substitutions.
+					std::vector<const Object*> intersection;
+					for (std::vector<const Object*>::const_iterator ci = action_to_execute_variable_domain->getVariableDomain().begin(); ci != action_to_execute_variable_domain->getVariableDomain().end(); ++ci)
 					{
-						intersection.push_back(object);
+						const Object* object = *ci;
+						if (fact_layer_precondition_eog->contains(*object, new_action_precondition_item->getReachableFactLayer().getLayerNumber()))
+						{
+							intersection.push_back(object);
+						}
 					}
-				}
-				
-				// Reduce the variable domains.
-				if (intersection.size() > 0)
-				{
-					action_to_execute->getVariableAssignments()[(*links_to_action_variables)[term_index]]->set(intersection);
-					precondition_term_domain->insert(precondition_term_domain->end(), intersection.begin(), intersection.end());
-				}
-				// Otherwise make a substitution.
-				else
-				{
-					const HEURISTICS::VariableDomain* action_to_execute_variable_domain_achieving_the_effect = variable_assignments_to_achieve_effect[(*links_to_action_variables)[term_index]];
 					
-					// Construct a new goal with this precondition.
-					
-					
-					// Precondition (must be substituted),
-					if (allow_new_goals_added)
+					// Reduce the variable domains.
+					if (intersection.size() > 0)
 					{
-						substitute(*fact_layer_precondition_eog, new_action_precondition_item->getReachableFactLayer().getLayerNumber(), action_to_execute_variable_domain->getVariableDomain());
+						action_to_execute->getVariableAssignments()[(*links_to_action_variables)[term_index]]->set(intersection);
+						precondition_term_domain->insert(precondition_term_domain->end(), intersection.begin(), intersection.end());
 					}
+					// Otherwise make a substitution.
 					else
 					{
-						heuristic += substitute(*fact_layer_precondition_eog, new_action_precondition_item->getReachableFactLayer().getLayerNumber(), action_to_execute_variable_domain->getVariableDomain());
-						for (std::vector<const Object*>::const_iterator ci = action_to_execute_variable_domain->getVariableDomain().begin(); ci != action_to_execute_variable_domain->getVariableDomain().end(); ++ci)
+						const HEURISTICS::VariableDomain* action_to_execute_variable_domain_achieving_the_effect = variable_assignments_to_achieve_effect[(*links_to_action_variables)[term_index]];
+						
+						// Construct a new goal with this precondition.
+						
+						
+						// Precondition (must be substituted),
+						if (allow_new_goals_added)
 						{
-							const Object* object = *ci;
-							EquivalentObject& equivalent_object = equivalent_object_manager_->getEquivalentObject(*object);
-							bool subsitution_made = false;
-							//for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition_eog->begin(new_action_precondition_item->getReachableFactLayer().getLayerNumber()) getEquivalentObjects().begin(); ci != fact_layer_precondition_eog->getEquivalentObjects().end(); ++ci)
-							for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition_eog->begin(new_action_precondition_item->getReachableFactLayer().getLayerNumber()); ci != fact_layer_precondition_eog->end(new_action_precondition_item->getReachableFactLayer().getLayerNumber()); ++ci)
+							substitute(*fact_layer_precondition_eog, new_action_precondition_item->getReachableFactLayer().getLayerNumber(), action_to_execute_variable_domain->getVariableDomain());
+						}
+						else
+						{
+							heuristic += substitute(*fact_layer_precondition_eog, new_action_precondition_item->getReachableFactLayer().getLayerNumber(), action_to_execute_variable_domain->getVariableDomain());
+							for (std::vector<const Object*>::const_iterator ci = action_to_execute_variable_domain->getVariableDomain().begin(); ci != action_to_execute_variable_domain->getVariableDomain().end(); ++ci)
 							{
-								if (combined_eogs_.count(std::make_pair(&equivalent_object, *ci)) == 1)
-								{
-									subsitution_made = true;
-									break;
-								}
-							}
-							
-							if (!subsitution_made)
-							{
-								bool made_substitution = false;
-								//for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition_eog->getEquivalentObjects().begin(); ci != fact_layer_precondition_eog->getEquivalentObjects().end(); ++ci)
+								const Object* object = *ci;
+								EquivalentObject& equivalent_object = equivalent_object_manager_->getEquivalentObject(*object);
+								bool subsitution_made = false;
+								//for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition_eog->begin(new_action_precondition_item->getReachableFactLayer().getLayerNumber()) getEquivalentObjects().begin(); ci != fact_layer_precondition_eog->getEquivalentObjects().end(); ++ci)
 								for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition_eog->begin(new_action_precondition_item->getReachableFactLayer().getLayerNumber()); ci != fact_layer_precondition_eog->end(new_action_precondition_item->getReachableFactLayer().getLayerNumber()); ++ci)
 								{
-									if (combined_eogs_.count(std::make_pair(&equivalent_object, *ci)) == 0)
+									if (combined_eogs_.count(std::make_pair(&equivalent_object, *ci)) == 1)
 									{
-										combined_eogs_.insert(std::make_pair(&equivalent_object, *ci));
-										combined_eogs_.insert(std::make_pair(*ci, &equivalent_object));
-										
-										for (unsigned int layer_number = 0; layer_number < current_fact_layer_->getLayerNumber(); layer_number++)
-										{
-											if (equivalent_object.getEquivalentObjectGroup().contains((*ci)->getObject(), layer_number))
-											{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
-												std::cout << "Add " << layer_number << " to the total heuristic." << std::endl;
-												std::cerr << "Cannot happen!" << std::endl;
-#endif
-												heuristic += layer_number;
-												made_substitution = true;
-												break;
-											}
-										}
-									}
-									if (made_substitution)
-									{
+										subsitution_made = true;
 										break;
 									}
 								}
+								
+								if (!subsitution_made)
+								{
+									bool made_substitution = false;
+									//for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition_eog->getEquivalentObjects().begin(); ci != fact_layer_precondition_eog->getEquivalentObjects().end(); ++ci)
+									for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition_eog->begin(new_action_precondition_item->getReachableFactLayer().getLayerNumber()); ci != fact_layer_precondition_eog->end(new_action_precondition_item->getReachableFactLayer().getLayerNumber()); ++ci)
+									{
+										if (combined_eogs_.count(std::make_pair(&equivalent_object, *ci)) == 0)
+										{
+											combined_eogs_.insert(std::make_pair(&equivalent_object, *ci));
+											combined_eogs_.insert(std::make_pair(*ci, &equivalent_object));
+											
+											for (unsigned int layer_number = 0; layer_number < current_fact_layer_->getLayerNumber(); layer_number++)
+											{
+												if (equivalent_object.getEquivalentObjectGroup().contains((*ci)->getObject(), layer_number))
+												{
+#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
+													std::cout << "Add " << layer_number << " to the total heuristic." << std::endl;
+													std::cerr << "Cannot happen!" << std::endl;
+#endif
+													heuristic += layer_number;
+													made_substitution = true;
+													break;
+												}
+											}
+										}
+										if (made_substitution)
+										{
+											break;
+										}
+									}
+								}
+							}
+						}
+
+						if (allow_new_goals_added)
+						{
+							precondition_term_domain->insert(precondition_term_domain->end(), action_to_execute_variable_domain_achieving_the_effect->getVariableDomain().begin(), action_to_execute_variable_domain_achieving_the_effect->getVariableDomain().end());
+						}
+						else
+						{
+						for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition_eog->getEquivalentObjects().begin(); ci != fact_layer_precondition_eog->getEquivalentObjects().end(); ++ci)
+	//					for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition_eog->begin(new_action_precondition_item->getReachableFactLayer().getLayerNumber()); ci != fact_layer_precondition_eog->end(new_action_precondition_item->getReachableFactLayer().getLayerNumber()); ++ci)
+							{
+								precondition_term_domain->push_back(&(*ci)->getObject());
 							}
 						}
 					}
+				}
+				
+				// Add the precondition as a new goal.
+				open_list.push(std::make_pair(new_action_precondition_item, precondition_object_bindings));
+			}
+			else
+			{
+				const ReachableFact* precondition = action_to_execute->getPreconditions()[precondition_index];
+				const ReachableFactLayerItem* precondition_item = action_to_execute->getPreconditionFactLayerItems()[precondition_index];
+				std::vector<const Object*>** precondition_object_bindings = new std::vector<const Object*>*[action_to_execute->getPreconditions()[precondition_index]->getPredicate().getArity()];
+				
+				for (unsigned int term_index = 0; term_index < precondition->getPredicate().getArity(); ++term_index)
+				{
+					EquivalentObjectGroup* fact_layer_precondition_eog = precondition_item->getReachableFactCopy().getTermDomains()[term_index];
 
-					if (allow_new_goals_added)
+					std::vector<const Object*>* precondition_term_domain = new std::vector<const Object*>();
+					precondition_object_bindings[term_index] = precondition_term_domain;
+					
+					for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition_eog->begin(precondition_item->getReachableFactLayer().getLayerNumber()); ci != fact_layer_precondition_eog->end(precondition_item->getReachableFactLayer().getLayerNumber()); ++ci)
 					{
-						precondition_term_domain->insert(precondition_term_domain->end(), action_to_execute_variable_domain_achieving_the_effect->getVariableDomain().begin(), action_to_execute_variable_domain_achieving_the_effect->getVariableDomain().end());
-					}
-					else
-					{
-					for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition_eog->getEquivalentObjects().begin(); ci != fact_layer_precondition_eog->getEquivalentObjects().end(); ++ci)
-//					for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition_eog->begin(new_action_precondition_item->getReachableFactLayer().getLayerNumber()); ci != fact_layer_precondition_eog->end(new_action_precondition_item->getReachableFactLayer().getLayerNumber()); ++ci)
-						{
-							precondition_term_domain->push_back(&(*ci)->getObject());
-						}
+						precondition_term_domain->push_back(&(*ci)->getObject());
 					}
 				}
+				open_list.push(std::make_pair(action_to_execute->getPreconditionFactLayerItems()[precondition_index], precondition_object_bindings));
 			}
-			
-			// Add the precondition as a new goal.
-			open_list.push(std::make_pair(new_action_precondition_item, precondition_object_bindings));
 		}
 		
 		for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = variable_assignments_to_achieve_effect.begin(); ci != variable_assignments_to_achieve_effect.end(); ++ci)

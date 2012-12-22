@@ -53,7 +53,7 @@ system ("mkdir -p latest_heuristics_results");
 #			$ff_states_evaluated = -1;
 #		}
 
-		my $lifted_output = substr(`ulimit -v 2048000 && ./mypop $example_path/domain.pddl $example_path/pfile$count.pddl 2>&1 | egrep "visited|length"`, 0, -1);
+		my $lifted_output = substr(`ulimit -v 2048000 && ulimit -t 1800 && ./mypop $example_path/domain.pddl $example_path/pfile$count.pddl 2>&1 | egrep "visited|length"`, 0, -1);
 		my @lifted_lines = split(/\n/, $lifted_output);
 #		my $plan_valid = `VALfiles/validate $example_path/domain.pddl $example_path/pfile$count.pddl solution-$domain_name-pfile$count | grep "Plan valid"`;
 #		if (length($plan_valid) lt 1)

@@ -1170,7 +1170,7 @@ void ForwardChainingPlanner::setHeuristicForState(MyPOP::State& state, REACHABIL
 //		std::cerr << "?";
 	}
 	
-	unsigned int heuristic_value = analyst.getHeuristic(goal_facts, *predicate_manager_, allow_new_goals_to_be_added, find_helpful_actions);
+	unsigned int heuristic_value = analyst.getHeuristic(goal_facts, *predicate_manager_, allow_new_goals_to_be_added, find_helpful_actions, false);
 	state.setDistanceToGoal(heuristic_value);
 //	std::cerr << analyst.getHelpfulActions().size() << std::endl;
 	if (find_helpful_actions)

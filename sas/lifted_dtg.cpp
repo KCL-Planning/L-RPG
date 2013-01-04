@@ -127,75 +127,124 @@ MultiValuedTransition* MultiValuedTransition::migrateTransition(MultiValuedValue
 	MultiValuedTransition* transition = new MultiValuedTransition(*action_, from_node, to_node, *precondition_to_action_variable_mappings, *effect_to_action_variable_mappings, type_manager);
 	
 	// Check that no static preconditions are violated.
-	bool all_static_precondition_statisfied = true;
+//	bool all_static_precondition_statisfied = true;
 	std::vector<const Atom*> preconditions;
 	Utility::convertFormula(preconditions, &transition->action_->getPrecondition());
-	for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ++ci)
+	
+	// Update the variable domains such that they conform to the static facts in the initial state.
+	bool variable_domains_finished_updating = false;
+	while (!variable_domains_finished_updating)
 	{
-		const Atom* precondition = *ci;
-		if (!precondition->getPredicate().isStatic())
+		variable_domains_finished_updating = true;
+	
+		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ++ci)
 		{
-			continue;
-		}
-		
-		std::vector<const HEURISTICS::VariableDomain*> precondition_variable_domains;
-		for (std::vector<const Term*>::const_iterator ci = precondition->getTerms().begin(); ci != precondition->getTerms().end(); ++ci)
-		{
-			const Term* precondition_term = *ci;
-			//for (std::vector<const Variable*>::const_iterator ci = transition->action_->getVariables().begin(); ci != transition->action_->getVariables().end(); ++ci)
-			for (unsigned int action_variable_index = 0; action_variable_index < transition->action_->getVariables().size(); ++action_variable_index)
-			{
-				if (precondition_term == transition->action_->getVariables()[action_variable_index])
-				{
-					precondition_variable_domains.push_back(transition->action_variable_domains_[action_variable_index]);
-					break;
-				}
-			}
-		}
-		
-		// Check if the precondition is backed by one of the facts in the initial state.
-		bool found_matching_initial_fact = false;
-		for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ++ci)
-		{
-			const Atom* initial_fact = *ci;
-			if (initial_fact->getArity() != precondition->getArity() ||
-			    initial_fact->getPredicate().getName() != precondition->getPredicate().getName())
+			const Atom* precondition = *ci;
+			if (!precondition->getPredicate().isStatic())
 			{
 				continue;
 			}
 			
-			bool terms_match = true;
-			for (unsigned int term_index = 0; term_index < initial_fact->getArity(); ++term_index)
+			std::vector<const HEURISTICS::VariableDomain*> precondition_variable_domains;
+			std::vector<HEURISTICS::VariableDomain*> possible_precondition_variable_domains;
+			for (std::vector<const Term*>::const_iterator ci = precondition->getTerms().begin(); ci != precondition->getTerms().end(); ++ci)
 			{
-				if (!precondition_variable_domains[term_index]->contains(*static_cast<const Object*>(initial_fact->getTerms()[term_index])))
+				const Term* precondition_term = *ci;
+				possible_precondition_variable_domains.push_back(new HEURISTICS::VariableDomain());
+				//for (std::vector<const Variable*>::const_iterator ci = transition->action_->getVariables().begin(); ci != transition->action_->getVariables().end(); ++ci)
+				for (unsigned int action_variable_index = 0; action_variable_index < transition->action_->getVariables().size(); ++action_variable_index)
 				{
-					terms_match = false;
-					break;
+					if (precondition_term == transition->action_->getVariables()[action_variable_index])
+					{
+						precondition_variable_domains.push_back(transition->action_variable_domains_[action_variable_index]);
+						break;
+					}
 				}
 			}
 			
-			if (!terms_match)
+			// Check if the precondition is backed by one of the facts in the initial state.
+//			bool found_matching_initial_fact = false;
+			for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ++ci)
 			{
-				continue;
+				const Atom* initial_fact = *ci;
+				if (initial_fact->getArity() != precondition->getArity() ||
+					initial_fact->getPredicate().getName() != precondition->getPredicate().getName())
+				{
+					continue;
+				}
+				
+				bool terms_match = true;
+				for (unsigned int term_index = 0; term_index < initial_fact->getArity(); ++term_index)
+				{
+					if (!precondition_variable_domains[term_index]->contains(*static_cast<const Object*>(initial_fact->getTerms()[term_index])))
+					{
+						terms_match = false;
+						break;
+					}
+				}
+				
+				if (!terms_match)
+				{
+					continue;
+				}
+				
+				for (unsigned int term_index = 0; term_index < initial_fact->getArity(); ++term_index)
+				{
+					if (!possible_precondition_variable_domains[term_index]->contains(*static_cast<const Object*>(initial_fact->getTerms()[term_index])))
+					{
+						possible_precondition_variable_domains[term_index]->addObject(*static_cast<const Object*>(initial_fact->getTerms()[term_index]));
+					}
+				}
+				
+//				found_matching_initial_fact = true;
+//				break;
 			}
 			
-			found_matching_initial_fact = true;
-			break;
-		}
-		
-		if (!found_matching_initial_fact)
-		{
-			all_static_precondition_statisfied = false;
-			break;
+			// Update the action variables.
+			for (std::vector<const Term*>::const_iterator ci = precondition->getTerms().begin(); ci != precondition->getTerms().end(); ++ci)
+			{
+				const Term* precondition_term = *ci;
+				unsigned int precondition_term_index = std::distance(precondition->getTerms().begin(), ci);
+				
+				//for (std::vector<const Variable*>::const_iterator ci = transition->action_->getVariables().begin(); ci != transition->action_->getVariables().end(); ++ci)
+				for (unsigned int action_variable_index = 0; action_variable_index < transition->action_->getVariables().size(); ++action_variable_index)
+				{
+					if (precondition_term == transition->action_->getVariables()[action_variable_index])
+					{
+						unsigned int pre_size = transition->action_variable_domains_[action_variable_index]->size();
+						HEURISTICS::VariableDomain intersection;
+						transition->action_variable_domains_[action_variable_index]->getIntersection(intersection, *possible_precondition_variable_domains[precondition_term_index]);
+						transition->action_variable_domains_[action_variable_index]->set(intersection.getVariableDomain());
+						
+						if (transition->action_variable_domains_[action_variable_index]->size() != pre_size)
+						{
+							variable_domains_finished_updating = false;
+						}
+						break;
+					}
+				}
+			}
+			
+			for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = possible_precondition_variable_domains.begin(); ci != possible_precondition_variable_domains.end(); ++ci)
+			{
+				delete *ci;
+			}
+/*
+			if (!found_matching_initial_fact)
+			{
+				all_static_precondition_statisfied = false;
+				break;
+			}
+*/
 		}
 	}
-	
+/*
 	if (!all_static_precondition_statisfied)
 	{
 		delete transition;
 		return NULL;
 	}
-	
+*/
 	// Any fact in the from node that is not affected must be present in the to node. Any fact in the to node that is not affected by an effect
 	// must be present in the from node and not affected in any way.
 	for (std::vector<std::vector<unsigned int>* >::iterator ci = precondition_to_action_variable_mappings->begin(); ci != precondition_to_action_variable_mappings->end(); ++ci)
@@ -256,6 +305,11 @@ MultiValuedTransition* MultiValuedTransition::migrateTransition(MultiValuedValue
 			return NULL;
 		}
 	}
+	
+	std::cout << "From node: " << from_node << std::endl;
+	std::cout << "To node: " << to_node << std::endl;
+	std::cout << "New transition: " << *transition << std::endl;
+	
 	return transition;
 }
 
@@ -699,7 +753,7 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 	{
 		(*ci)->createTransitions(created_lifted_dtgs, type_manager);
 	}
-	
+
 	for (std::vector<LiftedDTG*>::const_iterator ci = created_lifted_dtgs.begin(); ci != created_lifted_dtgs.end(); ++ci)
 	{
 		(*ci)->ground(created_lifted_dtgs, initial_facts, term_manager, type_manager, objects_part_of_property_spaces);
@@ -752,11 +806,17 @@ LiftedDTG::~LiftedDTG()
 void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager)
 {
 	std::vector<MultiValuedValue*> nodes_to_add;
+	std::cout << "[LiftedDTG::createCopies]" << *this << std::endl;
 	
 	// Detect which terms contain more than a single value and which are not the state invariables.
 	for (std::vector<MultiValuedValue*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ++ci)
 	{
 		MultiValuedValue* value = *ci;
+		if (value->isCopy())
+		{
+			continue;
+		}
+		std::cout << "Process: " << *value << std::endl;
 		
 		const PropertyState& property_state = value->getPropertyState();
 		const std::vector<const Property*>& properties = property_state.getProperties();
@@ -795,6 +855,8 @@ void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, cons
 			continue;
 		}
 		
+		std::cout << "Create a copy!" << std::endl;
+		
 		// We perform a breath-first search to find all the nodes which are connected to 'current node' which shares the violated facts.
 		std::map<const MultiValuedValue*, MultiValuedValue*> copy_list;
 		std::vector<const MultiValuedValue*> open_list;
@@ -805,7 +867,7 @@ void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, cons
 			const MultiValuedValue* current_node = open_list[0];
 			open_list.erase(open_list.begin());
 			
-			if (copy_list.find(current_node) != copy_list.end())
+			if (copy_list.find(current_node) != copy_list.end() || current_node->isCopy())
 			{
 				continue;
 			}
@@ -826,7 +888,7 @@ void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, cons
 				}
 				
 				// Check if this effect has already been copied.
-				if (copy_list.find(&effect) != copy_list.end())
+				if (copy_list.find(&effect) != copy_list.end() || effect.isCopy())
 				{
 					continue;
 				}
@@ -902,6 +964,9 @@ void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, cons
 		
 		for (std::map<const MultiValuedValue*, MultiValuedValue*>::const_iterator ci = copy_list.begin(); ci != copy_list.end(); ++ci)
 		{
+			assert (!(*ci).first->isCopy());
+			assert ((*ci).second->isCopy());
+			std::cout << "New copy: " << *(*ci).second << std::endl;
 			nodes_to_add.push_back((*ci).second);
 		}
 		
@@ -910,6 +975,11 @@ void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, cons
 		{
 			MultiValuedValue* from_variable = *ci;
 			
+			if (from_variable->isCopy() && copy_list.find(from_variable) == copy_list.end())
+			{
+				continue;
+			}
+			
 			std::map<const MultiValuedValue*, MultiValuedValue*>::const_iterator from_copy_list_ci = copy_list.find(from_variable);
 			std::vector<std::pair<MultiValuedValue*, MultiValuedTransition*> > transitions_to_add;
 			
@@ -917,6 +987,11 @@ void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, cons
 			{
 				const MultiValuedTransition* transition = *ci;
 				MultiValuedValue& to_variable = transition->getToNode();
+				
+				if (to_variable.isCopy() && copy_list.find(&to_variable) == copy_list.end())
+				{
+					continue;
+				}
 				
 				std::map<const MultiValuedValue*, MultiValuedValue*>::const_iterator to_copy_list_ci = copy_list.find(&to_variable);
 				

@@ -185,7 +185,7 @@ int main(int argc,char * argv[])
 	Graphviz::printToDot(lifted_dtgs);
 	for (std::vector<SAS_Plus::LiftedDTG*>::const_iterator ci = lifted_dtgs.begin(); ci != lifted_dtgs.end(); ++ci)
 	{
-		std::cout << **ci << std::endl;
+//		std::cout << **ci << std::endl;
 		delete *ci;
 	}
 	

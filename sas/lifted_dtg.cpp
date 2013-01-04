@@ -306,9 +306,9 @@ MultiValuedTransition* MultiValuedTransition::migrateTransition(MultiValuedValue
 		}
 	}
 	
-	std::cout << "From node: " << from_node << std::endl;
-	std::cout << "To node: " << to_node << std::endl;
-	std::cout << "New transition: " << *transition << std::endl;
+//	std::cout << "From node: " << from_node << std::endl;
+//	std::cout << "To node: " << to_node << std::endl;
+//	std::cout << "New transition: " << *transition << std::endl;
 	
 	return transition;
 }
@@ -806,7 +806,7 @@ LiftedDTG::~LiftedDTG()
 void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager)
 {
 	std::vector<MultiValuedValue*> nodes_to_add;
-	std::cout << "[LiftedDTG::createCopies]" << *this << std::endl;
+//	std::cout << "[LiftedDTG::createCopies]" << *this << std::endl;
 	
 	// Detect which terms contain more than a single value and which are not the state invariables.
 	for (std::vector<MultiValuedValue*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ++ci)
@@ -816,7 +816,7 @@ void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, cons
 		{
 			continue;
 		}
-		std::cout << "Process: " << *value << std::endl;
+//		std::cout << "Process: " << *value << std::endl;
 		
 		const PropertyState& property_state = value->getPropertyState();
 		const std::vector<const Property*>& properties = property_state.getProperties();
@@ -829,8 +829,8 @@ void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, cons
 			const HEURISTICS::Fact* fact = value->getValues()[value_index];
 			const Property* property = properties[value_index];
 			
-			std::cerr << "Fact: " << *fact << std::endl;
-			std::cerr << "Property: " << property->getIndex() << std::endl;
+//			std::cerr << "Fact: " << *fact << std::endl;
+//			std::cerr << "Property: " << property->getIndex() << std::endl;
 			
 			for (unsigned int variable_domain_index = 0; variable_domain_index < fact->getVariableDomains().size(); ++variable_domain_index)
 			{
@@ -844,7 +844,7 @@ void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, cons
 				if (variable_domain->getVariableDomain().size() > 1)
 				{
 					violating_facts.push_back(fact);
-					std::cerr << "Need to create a copy of: " << *value << std::endl;
+//					std::cerr << "Need to create a copy of: " << *value << std::endl;
 					break;
 				}
 			}
@@ -855,7 +855,7 @@ void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, cons
 			continue;
 		}
 		
-		std::cout << "Create a copy!" << std::endl;
+//		std::cout << "Create a copy!" << std::endl;
 		
 		// We perform a breath-first search to find all the nodes which are connected to 'current node' which shares the violated facts.
 		std::map<const MultiValuedValue*, MultiValuedValue*> copy_list;
@@ -930,8 +930,8 @@ void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, cons
 					const HEURISTICS::Fact* fact = effect.getValues()[value_index];
 					const Property* property = effect.getPropertyState().getProperties()[value_index];
 					
-					std::cerr << "Fact: " << *fact << std::endl;
-					std::cerr << "Property: " << property->getIndex() << std::endl;
+//					std::cerr << "Fact: " << *fact << std::endl;
+//					std::cerr << "Property: " << property->getIndex() << std::endl;
 					
 					for (unsigned int variable_domain_index = 0; variable_domain_index < fact->getVariableDomains().size(); ++variable_domain_index)
 					{
@@ -966,7 +966,7 @@ void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, cons
 		{
 			assert (!(*ci).first->isCopy());
 			assert ((*ci).second->isCopy());
-			std::cout << "New copy: " << *(*ci).second << std::endl;
+//			std::cout << "New copy: " << *(*ci).second << std::endl;
 			nodes_to_add.push_back((*ci).second);
 		}
 		

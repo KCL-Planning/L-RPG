@@ -35,22 +35,24 @@ class MultiValuedVariable;
 class MultiValuedTransition
 {
 public:
-	MultiValuedTransition(const Action& action, const MultiValuedValue& precondition, const MultiValuedValue& effect, const std::vector<std::vector<unsigned int>* >& precondition_to_action_variable_mappings_, const std::vector<std::vector<unsigned int>* >& effect_to_action_variable_mappings, const TypeManager& type_manager);
+	MultiValuedTransition(const Action& action, MultiValuedValue& precondition, MultiValuedValue& effect, const std::vector<std::vector<unsigned int>* >& precondition_to_action_variable_mappings_, const std::vector<std::vector<unsigned int>* >& effect_to_action_variable_mappings, const TypeManager& type_manager);
 	
 	~MultiValuedTransition();
 	
-	const MultiValuedValue& getFromNode() const { return *precondition_; }
-	const MultiValuedValue& getToNode() const { return *effect_; }
+	const Action& getAction() const { return *action_; }
 	
-	MultiValuedTransition* migrateTransition(const MultiValuedValue& from_node, const MultiValuedValue& to_node, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager) const;
+	MultiValuedValue& getFromNode() const { return *precondition_; }
+	MultiValuedValue& getToNode() const { return *effect_; }
+	
+	MultiValuedTransition* migrateTransition(MultiValuedValue& from_node, MultiValuedValue& to_node, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager) const;
 	
 private:
 	
 	const Action* action_;
 	std::vector<HEURISTICS::VariableDomain*> action_variable_domains_;
 	
-	const MultiValuedValue* precondition_;
-	const MultiValuedValue* effect_;
+	MultiValuedValue* precondition_;
+	MultiValuedValue* effect_;
 	
 	// We map each term of each value of each precondition to the variables of the action.
 	const std::vector<std::vector<unsigned int>* >* precondition_to_action_variable_mappings_;
@@ -66,9 +68,9 @@ std::ostream& operator<<(std::ostream& os, const MultiValuedTransition& transiti
 class MultiValuedValue
 {
 public:
-	MultiValuedValue(std::vector<HEURISTICS::Fact*>& values, const PropertyState& property_state);
+	MultiValuedValue(std::vector<HEURISTICS::Fact*>& values, const PropertyState& property_state, bool is_copy = false);
 	
-	MultiValuedValue(const MultiValuedValue& other);
+	MultiValuedValue(const MultiValuedValue& other, bool is_copy = false);
 	
 	~MultiValuedValue();
 	
@@ -80,11 +82,15 @@ public:
 	
 	const std::vector<const MultiValuedTransition*>& getTransitions() const { return transitions_; }
 	
+	bool isCopy() const { return is_copy_; }
+	
 private:
 	std::vector<HEURISTICS::Fact*>* values_;
 	const PropertyState* property_state_;
 	
 	std::vector<const MultiValuedTransition*> transitions_;
+	
+	bool is_copy_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const MultiValuedValue& value);
 };
@@ -100,7 +106,11 @@ public:
 	
 	~LiftedDTG();
 	
+	const std::vector<MultiValuedValue*>& getNodes() const { return nodes_; }
+	
 private:
+	
+	void createCopies(const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager);
 	
 	static void getProperties(const PredicateManager& predicate_manager, std::vector<std::pair<const Predicate*, unsigned int> >& predicates, const TIM::PropertyState& property_state);
 	
@@ -121,6 +131,16 @@ private:
 
 std::ostream& operator<<(std::ostream& os, const LiftedDTG& lifted_dtg);
 
+};
+
+namespace Graphviz {
+void printToDot(const std::vector<SAS_Plus::LiftedDTG*>& all_lifted_dtgs);
+
+void printToDot(std::ofstream& ofs, const SAS_Plus::MultiValuedTransition& transition);
+
+void printToDot(std::ofstream& ofs, const SAS_Plus::MultiValuedValue& dtg_node);
+
+void printToDot(std::ofstream& ofs, const SAS_Plus::LiftedDTG& dtg);
 };
 
 };

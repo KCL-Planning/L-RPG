@@ -1,5 +1,7 @@
 #include "lifted_dtg.h"
 
+#include <fstream>
+
 #include "../VALfiles/ptree.h"
 #include "../VALfiles/SASActions.h"
 #include "../VALfiles/ToFunction.h"
@@ -20,7 +22,7 @@ namespace MyPOP
 namespace SAS_Plus
 {
 
-MultiValuedTransition::MultiValuedTransition(const Action& action, const MultiValuedValue& precondition, const MultiValuedValue& effect, const std::vector<std::vector<unsigned int>* >& precondition_to_action_variable_mappings, const std::vector<std::vector<unsigned int>* >& effect_to_action_variable_mappings, const TypeManager& type_manager)
+MultiValuedTransition::MultiValuedTransition(const Action& action, MultiValuedValue& precondition, MultiValuedValue& effect, const std::vector<std::vector<unsigned int>* >& precondition_to_action_variable_mappings, const std::vector<std::vector<unsigned int>* >& effect_to_action_variable_mappings, const TypeManager& type_manager)
 	: action_(&action), precondition_(&precondition), effect_(&effect), precondition_to_action_variable_mappings_(&precondition_to_action_variable_mappings), effect_to_action_variable_mappings_(&effect_to_action_variable_mappings)
 {
 	assert (precondition_->getValues().size() == precondition_to_action_variable_mappings_->size());
@@ -93,7 +95,7 @@ MultiValuedTransition::~MultiValuedTransition()
 	delete effect_to_action_variable_mappings_;
 }
 
-MultiValuedTransition* MultiValuedTransition::migrateTransition(const MultiValuedValue& from_node, const MultiValuedValue& to_node, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager) const
+MultiValuedTransition* MultiValuedTransition::migrateTransition(MultiValuedValue& from_node, MultiValuedValue& to_node, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager) const
 {
 	std::vector<std::vector<unsigned int>* >* precondition_to_action_variable_mappings = new std::vector<std::vector<unsigned int>* >();
 	std::vector<std::vector<unsigned int>* >* effect_to_action_variable_mappings = new std::vector<std::vector<unsigned int>* >();
@@ -309,14 +311,14 @@ std::ostream& operator<<(std::ostream& os, const MultiValuedTransition& transiti
 }
 
 	
-MultiValuedValue::MultiValuedValue(std::vector<HEURISTICS::Fact*>& values, const PropertyState& property_state)
-	: values_(&values), property_state_(&property_state)
+MultiValuedValue::MultiValuedValue(std::vector<HEURISTICS::Fact*>& values, const PropertyState& property_state, bool is_copy)
+	: values_(&values), property_state_(&property_state), is_copy_(is_copy)
 {
 
 }
 
-MultiValuedValue::MultiValuedValue(const MultiValuedValue& other)
-	: property_state_(other.property_state_)
+MultiValuedValue::MultiValuedValue(const MultiValuedValue& other, bool is_copy)
+	: property_state_(other.property_state_), is_copy_(is_copy)
 {
 	values_ = new std::vector<HEURISTICS::Fact*>();
 	for (std::vector<HEURISTICS::Fact*>::const_iterator ci = other.getValues().begin(); ci != other.getValues().end(); ++ci)
@@ -702,6 +704,11 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 	{
 		(*ci)->ground(created_lifted_dtgs, initial_facts, term_manager, type_manager, objects_part_of_property_spaces);
 	}
+	
+	for (std::vector<LiftedDTG*>::const_iterator ci = created_lifted_dtgs.begin(); ci != created_lifted_dtgs.end(); ++ci)
+	{
+		(*ci)->createCopies(initial_facts, type_manager);
+	}
 }
 
 LiftedDTG::LiftedDTG(const PredicateManager& predicate_manager, const TypeManager& type_manager, const SAS_Plus::PropertySpace& property_space)
@@ -730,6 +737,7 @@ LiftedDTG::LiftedDTG(const PredicateManager& predicate_manager, const TypeManage
 		}
 		MultiValuedValue* mvv = new MultiValuedValue(*all_facts, *property_state);
 		nodes_.push_back(mvv);
+		assert (mvv != NULL);
 	}
 }
 
@@ -738,6 +746,205 @@ LiftedDTG::~LiftedDTG()
 	for (std::vector<MultiValuedValue*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ++ci)
 	{
 		delete *ci;
+	}
+}
+
+void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager)
+{
+	std::vector<MultiValuedValue*> nodes_to_add;
+	
+	// Detect which terms contain more than a single value and which are not the state invariables.
+	for (std::vector<MultiValuedValue*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ++ci)
+	{
+		MultiValuedValue* value = *ci;
+		
+		const PropertyState& property_state = value->getPropertyState();
+		const std::vector<const Property*>& properties = property_state.getProperties();
+		
+		assert (properties.size() == value->getValues().size());
+		
+		std::vector<const HEURISTICS::Fact*> violating_facts;
+		for (unsigned int value_index = 0; value_index < value->getValues().size(); ++value_index)
+		{
+			const HEURISTICS::Fact* fact = value->getValues()[value_index];
+			const Property* property = properties[value_index];
+			
+			std::cerr << "Fact: " << *fact << std::endl;
+			std::cerr << "Property: " << property->getIndex() << std::endl;
+			
+			for (unsigned int variable_domain_index = 0; variable_domain_index < fact->getVariableDomains().size(); ++variable_domain_index)
+			{
+				if (property->getIndex() == variable_domain_index)
+				{
+					continue;
+				}
+				
+				const HEURISTICS::VariableDomain* variable_domain = fact->getVariableDomains()[variable_domain_index];
+				assert (variable_domain->getVariableDomain().size() != 0);
+				if (variable_domain->getVariableDomain().size() > 1)
+				{
+					violating_facts.push_back(fact);
+					std::cerr << "Need to create a copy of: " << *value << std::endl;
+					break;
+				}
+			}
+		}
+		
+		if (violating_facts.empty())
+		{
+			continue;
+		}
+		
+		// We perform a breath-first search to find all the nodes which are connected to 'current node' which shares the violated facts.
+		std::map<const MultiValuedValue*, MultiValuedValue*> copy_list;
+		std::vector<const MultiValuedValue*> open_list;
+		open_list.push_back(value);
+		
+		while (open_list.size() > 0)
+		{
+			const MultiValuedValue* current_node = open_list[0];
+			open_list.erase(open_list.begin());
+			
+			if (copy_list.find(current_node) != copy_list.end())
+			{
+				continue;
+			}
+			
+			MultiValuedValue* copy_current_node = new MultiValuedValue(*current_node, true);
+			copy_list[current_node] = copy_current_node;
+			
+			// Check which of the state variables this variable is connected to via a transition shares an atom which contains multiple values.
+			for (std::vector<const MultiValuedTransition*>::const_iterator ci = current_node->getTransitions().begin(); ci != current_node->getTransitions().end(); ++ci)
+			{
+				const MultiValuedTransition* transition = *ci;
+				const MultiValuedValue& effect = transition->getToNode();
+				
+				bool is_shared[effect.getValues().size()];
+				for (unsigned int fact_index = 0; fact_index < effect.getValues().size(); ++fact_index)
+				{
+					is_shared[fact_index] = false;
+				}
+				
+				// Check if this effect has already been copied.
+				if (copy_list.find(&effect) != copy_list.end())
+				{
+					continue;
+				}
+				
+				// Check if effect contains all the violated facts.
+				bool contains_all_violated_facts = true;
+				for (std::vector<const HEURISTICS::Fact*>::const_iterator ci = violating_facts.begin(); ci != violating_facts.end(); ++ci)
+				{
+					const HEURISTICS::Fact* violated_fact = *ci;
+					bool found_match = false;
+					
+					for (std::vector<HEURISTICS::Fact*>::const_iterator ci = effect.getValues().begin(); ci != effect.getValues().end(); ++ci)
+					{
+						const HEURISTICS::Fact* effect_fact = *ci;
+						if (violated_fact->canUnifyWith(*effect_fact))
+						{
+							is_shared[std::distance(effect.getValues().begin(), ci)] = true;
+							found_match = true;
+							break;
+						}
+					}
+					
+					if (!found_match)
+					{
+						contains_all_violated_facts = false;
+						break;
+					}
+				}
+				
+				if (!contains_all_violated_facts)
+				{
+					continue;
+				}
+				
+				// Make sure that the value contains a fact that has a variable domain which contains more than one object which is not the invariable.
+				bool contains_unbalanced_fact = false;
+				for (unsigned int value_index = 0; value_index < effect.getValues().size(); ++value_index)
+				{
+					const HEURISTICS::Fact* fact = effect.getValues()[value_index];
+					const Property* property = effect.getPropertyState().getProperties()[value_index];
+					
+					std::cerr << "Fact: " << *fact << std::endl;
+					std::cerr << "Property: " << property->getIndex() << std::endl;
+					
+					for (unsigned int variable_domain_index = 0; variable_domain_index < fact->getVariableDomains().size(); ++variable_domain_index)
+					{
+						if (property->getIndex() == variable_domain_index || is_shared[value_index])
+						{
+							continue;
+						}
+						
+						const HEURISTICS::VariableDomain* variable_domain = fact->getVariableDomains()[variable_domain_index];
+						assert (variable_domain->getVariableDomain().size() != 0);
+						if (variable_domain->getVariableDomain().size() > 1)
+						{
+							contains_unbalanced_fact = true;
+							break;
+						}
+					}
+					
+					if (contains_unbalanced_fact)
+					{
+						break;
+					}
+				}
+				
+				if (contains_unbalanced_fact)
+				{
+					open_list.push_back(&effect);
+				}
+			}
+		}
+		
+		for (std::map<const MultiValuedValue*, MultiValuedValue*>::const_iterator ci = copy_list.begin(); ci != copy_list.end(); ++ci)
+		{
+			nodes_to_add.push_back((*ci).second);
+		}
+		
+		// After detecting which values should be copied, we reconnect all the transitions.
+		for (std::vector<MultiValuedValue*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ++ci)
+		{
+			MultiValuedValue* from_variable = *ci;
+			
+			std::map<const MultiValuedValue*, MultiValuedValue*>::const_iterator from_copy_list_ci = copy_list.find(from_variable);
+			std::vector<std::pair<MultiValuedValue*, MultiValuedTransition*> > transitions_to_add;
+			
+			for (std::vector<const MultiValuedTransition*>::const_iterator ci = from_variable->getTransitions().begin(); ci != from_variable->getTransitions().end(); ++ci)
+			{
+				const MultiValuedTransition* transition = *ci;
+				MultiValuedValue& to_variable = transition->getToNode();
+				
+				std::map<const MultiValuedValue*, MultiValuedValue*>::const_iterator to_copy_list_ci = copy_list.find(&to_variable);
+				
+				// If neither are copied then nothing changed.
+				if (from_copy_list_ci == copy_list.end() && to_copy_list_ci == copy_list.end())
+				{
+					continue;
+				}
+				
+				MultiValuedValue* from_copy = from_copy_list_ci != copy_list.end() ? (*from_copy_list_ci).second : from_variable;
+				MultiValuedValue* to_copy = to_copy_list_ci != copy_list.end() ? (*to_copy_list_ci).second : &to_variable;
+				
+				// Create a copy between these two nodes.
+				MultiValuedTransition* new_transition = transition->migrateTransition(*from_copy, *to_copy, initial_facts, type_manager);
+				transitions_to_add.push_back(std::make_pair(from_copy, new_transition));
+			}
+			
+			for (std::vector<std::pair<MultiValuedValue*, MultiValuedTransition*> >::const_iterator ci = transitions_to_add.begin(); ci != transitions_to_add.end(); ++ci)
+			{
+				(*ci).first->addTransition(*(*ci).second);
+			}
+		}
+	}
+	
+	for (std::vector<MultiValuedValue*>::const_iterator ci = nodes_to_add.begin(); ci != nodes_to_add.end(); ++ci)
+	{
+		nodes_.push_back(*ci);
+		assert (*ci != NULL);
 	}
 }
 
@@ -1096,6 +1303,7 @@ void LiftedDTG::ground(const std::vector<LiftedDTG*>& all_lifted_dtgs, const std
 	for (std::map<MultiValuedValue*, const MultiValuedValue*>::const_iterator ci = new_to_old_node_mapping.begin(); ci != new_to_old_node_mapping.end(); ++ci)
 	{
 		MultiValuedValue* new_node = (*ci).first;
+		assert (new_node != NULL);
 		nodes_.push_back(new_node);
 		const MultiValuedValue* old_node = (*ci).second;
 		
@@ -1265,12 +1473,86 @@ std::ostream& operator<<(std::ostream& os, const LiftedDTG& lifted_dtg)
 	os << " === Lifted DTG === " << std::endl;
 	for (std::vector<MultiValuedValue*>::const_iterator ci = lifted_dtg.nodes_.begin(); ci != lifted_dtg.nodes_.end(); ++ci)
 	{
+		assert (*ci != NULL);
 		os << **ci << std::endl;
 	}
 	return os;
 }
 
-
 };
+
+void Graphviz::printToDot(const std::vector<SAS_Plus::LiftedDTG*>& all_lifted_dtgs)
+{
+	std::ofstream ofs;
+	ofs.open("dtgs.dot", std::ios::out);
+	
+	ofs << "digraph {" << std::endl;
+
+	for (std::vector<SAS_Plus::LiftedDTG*>::const_iterator ci = all_lifted_dtgs.begin(); ci != all_lifted_dtgs.end(); ci++)
+	{
+		assert (*ci != NULL);
+		Graphviz::printToDot(ofs, **ci);
+	}
+	
+	ofs << "}" << std::endl;
+	ofs.close();
+}
+
+void Graphviz::printToDot(std::ofstream& ofs, const SAS_Plus::MultiValuedTransition& transition)
+{
+	printToDot(ofs, transition.getFromNode());
+	ofs << " -> ";
+	printToDot(ofs, transition.getToNode());
+	ofs << "[ label=\"" << ofs << "\"]" << std::endl;
+//	transition.getAction().print(ofs);
+//	ofs << "\"]" << std::endl;
+}
+
+void Graphviz::printToDot(std::ofstream& ofs, const SAS_Plus::MultiValuedValue& dtg_node)
+{
+	ofs << "\"[" << &dtg_node << "]";
+	for (std::vector<HEURISTICS::Fact*>::const_iterator ci = dtg_node.getValues().begin(); ci != dtg_node.getValues().end(); ci++)
+	{
+		assert (*ci != NULL);
+		ofs << **ci;
+		
+		if (ci + 1 != dtg_node.getValues().end())
+		{
+			ofs << "\\n";
+		}
+	}
+	ofs << "\"";
+}
+
+void Graphviz::printToDot(std::ofstream& ofs, const SAS_Plus::LiftedDTG& dtg)
+{
+	// Declare the nodes.
+	for (std::vector<SAS_Plus::MultiValuedValue*>::const_iterator ci = dtg.getNodes().begin(); ci != dtg.getNodes().end(); ci++)
+	{
+		assert (*ci != NULL);
+		const SAS_Plus::MultiValuedValue* dtg_node = *ci;
+		printToDot(ofs, *dtg_node);
+		
+		// Create a dotted lines if this node is a copy of another.
+		if (dtg_node->isCopy())
+		{
+			ofs << " [style=dotted];" << std::endl;
+		}
+		ofs << std::endl;
+	}
+	
+	// Create the edges.
+	for (std::vector<SAS_Plus::MultiValuedValue*>::const_iterator ci = dtg.getNodes().begin(); ci != dtg.getNodes().end(); ci++)
+	{
+		assert (*ci != NULL);
+		const SAS_Plus::MultiValuedValue* dtg_node = *ci;
+		
+		for (std::vector<const SAS_Plus::MultiValuedTransition*>::const_iterator transitions_ci = dtg_node->getTransitions().begin(); transitions_ci != dtg_node->getTransitions().end(); transitions_ci++)
+		{
+			const SAS_Plus::MultiValuedTransition* transition = *transitions_ci;
+			printToDot(ofs, *transition);
+		}
+	}
+}
 
 };

@@ -179,9 +179,10 @@ int main(int argc,char * argv[])
 #ifdef MYPOP_COMMENTS
 	std::cout << "Initial plan" << *plan << std::endl;
 #endif
-/*
+
 	std::vector<SAS_Plus::LiftedDTG*> lifted_dtgs;
 	SAS_Plus::LiftedDTG::createLiftedDTGs(lifted_dtgs, *the_domain->types, predicate_manager, type_manager, action_manager, term_manager, initial_facts);
+	Graphviz::printToDot(lifted_dtgs);
 	for (std::vector<SAS_Plus::LiftedDTG*>::const_iterator ci = lifted_dtgs.begin(); ci != lifted_dtgs.end(); ++ci)
 	{
 		std::cout << **ci << std::endl;
@@ -191,7 +192,7 @@ int main(int argc,char * argv[])
 	exit(0);
 	
 //	assert (plan->getSteps().size() == 2);
-*/
+
 	// Split up the actions into lifted actions.
 	std::vector<const Object*> objects_part_of_property_state;
 	for (std::vector<TIM::PropertySpace*>::const_iterator property_space_i = TIM::TA->pbegin(); property_space_i != TIM::TA->pend(); ++property_space_i)

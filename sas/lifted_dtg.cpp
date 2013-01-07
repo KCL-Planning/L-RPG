@@ -411,6 +411,11 @@ void MultiValuedValue::addTransition(const MultiValuedTransition& transition)
 	transitions_.push_back(&transition);
 }
 
+void MultiValuedValue::addCopy(MultiValuedValue& copy)
+{
+	created_copies_.push_back(&copy);
+}
+
 std::ostream& operator<<(std::ostream& os, const MultiValuedValue& value)
 {
 	os << " === VALUE === " << std::endl;
@@ -904,6 +909,7 @@ void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, cons
 			}
 			
 			MultiValuedValue* copy_current_node = new MultiValuedValue(*current_node, true);
+			value->addCopy(*copy_current_node);
 			copy_list[current_node] = copy_current_node;
 			
 			// Check which of the state variables this variable is connected to via a transition shares an atom which contains multiple values.

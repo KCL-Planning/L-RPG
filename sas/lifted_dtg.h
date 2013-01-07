@@ -92,6 +92,14 @@ public:
 	
 	bool isCopy() const { return is_copy_; }
 	
+	/**
+	 * In some cases we need to make copies of a lifted DTG node, such that we do not into too many
+	 * dead ends. However, these copies are only used if the facts in the initial state map to a node
+	 * for which copies have been made.
+	 * Therefor we store all the copies for a node in a list, this way we know which one to 'active'.
+	 */
+	void addCopy(MultiValuedValue& copy);
+	
 private:
 	std::vector<HEURISTICS::Fact*>* values_;
 	const PropertyState* property_state_;
@@ -99,6 +107,8 @@ private:
 	std::vector<const MultiValuedTransition*> transitions_;
 	
 	bool is_copy_;
+	
+	std::vector<MultiValuedValue*> created_copies_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const MultiValuedValue& value);
 };

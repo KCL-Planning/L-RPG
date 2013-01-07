@@ -1,8 +1,7 @@
 #include "causal_graph.h"
 
-#include "dtg_manager.h"
-#include "dtg_node.h"
-#include "transition.h"
+#include <fstream>
+
 #include "heuristics/dtg_reachability.h"
 #include "fc_planner.h"
 
@@ -11,14 +10,19 @@
 #include "../parser_utils.h"
 
 //#define MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
-#include <predicate_manager.h>
+#include "predicate_manager.h"
+#include "lifted_dtg.h"
+#include "heuristics/fact_set.h"
+#include "type_manager.h"
+#include "term_manager.h"
+#include "property_space.h"
 
 namespace MyPOP {
 	
 namespace SAS_Plus {
 
-CausalGraph::CausalGraph(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dtg_manager, const MyPOP::ActionManager& action_manager)
-	: dtg_manager_(&dtg_manager), action_manager_(&action_manager), cached_dependencies_(NULL)
+CausalGraph::CausalGraph(const std::vector<LiftedDTG*>& all_lifted_dtgs, const MyPOP::ActionManager& action_manager, const PredicateManager& predicate_manager)
+	: all_lifted_dtgs_(&all_lifted_dtgs), action_manager_(&action_manager), cached_dependencies_(NULL), predicate_manager_(&predicate_manager)
 {
 	/**
 	 * A edge exists in the CG in the following cases:
@@ -27,153 +31,130 @@ CausalGraph::CausalGraph(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dt
 	 * 
 	 * In this system all actions are contained in DTGs (even if it only concerns a fact which can either be true or false).
 	 */
-	for (std::vector<DomainTransitionGraph*>::const_iterator dtg_ci = dtg_manager.getManagableObjects().begin(); dtg_ci != dtg_manager.getManagableObjects().end(); dtg_ci++)
+	for (std::vector<LiftedDTG*>::const_iterator dtg_ci = all_lifted_dtgs.begin(); dtg_ci != all_lifted_dtgs.end(); dtg_ci++)
 	{
-		const DomainTransitionGraph* dtg = *dtg_ci;
+		const LiftedDTG* dtg = *dtg_ci;
 		
 		// Go through all transitions and check the external dependencies.
-		for (std::vector<DomainTransitionGraphNode*>::const_iterator dtg_node_ci = dtg->getNodes().begin(); dtg_node_ci != dtg->getNodes().end(); dtg_node_ci++)
+		for (std::vector<MultiValuedValue*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ++ci)
 		{
-			const DomainTransitionGraphNode* dtg_node = *dtg_node_ci;
-			for (std::vector<Transition*>::const_iterator transition_ci = dtg_node->getTransitions().begin(); transition_ci != dtg_node->getTransitions().end(); transition_ci++)
+			const MultiValuedValue* node = *ci;
+			for (std::vector<const MultiValuedTransition*>::const_iterator ci = node->getTransitions().begin(); ci != node->getTransitions().end(); ++ci)
 			{
-				const Transition* transition = *transition_ci;
+				const MultiValuedTransition* transition = *ci;
 #ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
 				std::cout << "Process: " << *transition << "." << std::endl;
 #endif
+				std::vector<const Atom*> preconditions;
+				Utility::convertFormula(preconditions, &transition->getAction().getPrecondition());
 				
-				// Only those preconditions which are contained by the transition are external preconditions.
-				for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = transition->getAllPreconditions().begin(); ci != transition->getAllPreconditions().end(); ci++)
+				for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ++ci)
 				{
-					const Atom* precondition = (*ci).first;
+					const Atom* precondition = *ci;
 					bool is_external_precondition = true;
-					for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = transition->getFromNodePreconditions().begin(); ci != transition->getFromNodePreconditions().end(); ci++)
+					
+					std::vector<const HEURISTICS::VariableDomain*> precondition_variable_domains;
+					for (unsigned int term_index = 0; term_index < precondition->getPredicate().getArity(); ++term_index)
 					{
-						if ((*ci).first == precondition)
+						precondition_variable_domains.push_back(new HEURISTICS::VariableDomain(transition->getActionVariableDomain(transition->getAction().getActionVariable(*precondition->getTerms()[term_index])).getVariableDomain()));
+					}
+					HEURISTICS::Fact precondition_fact(predicate_manager, precondition->getPredicate(), precondition_variable_domains);
+					
+					for (std::vector<HEURISTICS::Fact*>::const_iterator ci = node->getValues().begin(); ci != node->getValues().end(); ++ci)
+					{
+						HEURISTICS::Fact* fact = *ci;
+						
+						if (precondition_fact.canUnifyWith(*fact))
 						{
 							is_external_precondition = false;
 							break;
 						}
-#ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
-						std::cout << std::endl;
-#endif
 					}
 					if (!is_external_precondition) continue;
 					
 #ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
 					std::cout << "External precondition: ";
-					precondition->print(std::cout, dtg_node->getDTG().getBindings(), transition->getStepId());
+					precondition->print(std::cout);
 					std::cout << std::endl;
 #endif
-					
-					std::vector<const DomainTransitionGraph*> matching_dtgs;
-					getDTGs(matching_dtgs, transition->getStepId(), *precondition, dtg->getBindings());
-					
-					for (std::vector<const DomainTransitionGraph*>::const_iterator ci = matching_dtgs.begin(); ci != matching_dtgs.end(); ci++)
+					for (std::vector<LiftedDTG*>::const_iterator dtg_ci = all_lifted_dtgs.begin(); dtg_ci != all_lifted_dtgs.end(); dtg_ci++)
 					{
-#ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
-						std::cout << "DTG nr: " << dtg->getId() << " affects DTG nr: " << (*ci)->getId() << std::endl;
-#endif
+						const LiftedDTG* other_dtg = *dtg_ci;
+						if (other_dtg == dtg)
+						{
+							continue;
+						}
+						std::vector<const MultiValuedValue*> matching_lifted_dtgs;
+						other_dtg->getNodes(matching_lifted_dtgs, precondition_fact);
 						
-						addTransition(*dtg, **ci, *transition);
+						if (matching_lifted_dtgs.size() > 0)
+						{
+							addTransition(*dtg, *other_dtg, *transition);
+						}
 					}
 				}
 				
 				// Check if there exists a pair of effects which affects more than two different DTGs.
-				const std::vector<std::pair<const Atom*, InvariableIndex> >& effects = transition->getAllEffects();
-				
-				//for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator effect_ci_1 = effects.begin(); effect_ci_1 != effects.end(); effect_ci_1++)
-				for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator effect_ci_1 = effects.begin(); effect_ci_1 != effects.end() - 1; effect_ci_1++)
+				for (std::vector<const Atom*>::const_iterator ci = transition->getAction().getEffects().begin(); ci != transition->getAction().getEffects().end() - 1; ++ci)
 				{
-					const Atom& effect1 = *(*effect_ci_1).first;
-					std::vector<const DomainTransitionGraph*> effect_dtgs_1;
-					getDTGs(effect_dtgs_1, transition->getStepId(), effect1, dtg->getBindings());
-					//for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator effect_ci_2 = effects.begin(); effect_ci_2 != effects.end(); effect_ci_2++)
-					for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator effect_ci_2 = effect_ci_1 + 1; effect_ci_2 != effects.end(); effect_ci_2++)
+					const Atom* lhs_effect = *ci;
+					
+					std::vector<const HEURISTICS::VariableDomain*> lhs_effect_variable_domains;
+					for (unsigned int term_index = 0; term_index < lhs_effect->getPredicate().getArity(); ++term_index)
 					{
-						const Atom& effect2 = *(*effect_ci_2).first;
-						std::vector<const DomainTransitionGraph*> effect_dtgs_2;
-						getDTGs(effect_dtgs_2, transition->getStepId(), effect2, dtg->getBindings());
+						lhs_effect_variable_domains.push_back(new HEURISTICS::VariableDomain(transition->getActionVariableDomain(transition->getAction().getActionVariable(*lhs_effect->getTerms()[term_index])).getVariableDomain()));
+					}
+					HEURISTICS::Fact lhs_effect_fact(predicate_manager, lhs_effect->getPredicate(), lhs_effect_variable_domains);
+					
+					
+					std::vector<const LiftedDTG*> dtgs_affected_by_lhs_effect;
+					for (std::vector<LiftedDTG*>::const_iterator lifted_dtgs_ci = all_lifted_dtgs.begin(); lifted_dtgs_ci != all_lifted_dtgs.end(); ++lifted_dtgs_ci)
+					{
+						std::vector<const MultiValuedValue*> matching_lifted_dtgs;
+						(*lifted_dtgs_ci)->getNodes(matching_lifted_dtgs, lhs_effect_fact);
 						
-						for (std::vector<const DomainTransitionGraph*>::const_iterator ci = effect_dtgs_1.begin(); ci != effect_dtgs_1.end(); ci++)
+						if (matching_lifted_dtgs.size() > 0)
 						{
-							const DomainTransitionGraph* dtg_1 = *ci;
-							for (std::vector<const DomainTransitionGraph*>::const_iterator ci = effect_dtgs_2.begin(); ci != effect_dtgs_2.end(); ci++)
+							dtgs_affected_by_lhs_effect.push_back(*lifted_dtgs_ci);
+						}
+					}
+					
+					for (std::vector<const Atom*>::const_iterator ci2 = ci + 1; ci2 != transition->getAction().getEffects().end(); ++ci2)
+					{
+						const Atom* rhs_effect = *ci2;
+						
+						std::vector<const HEURISTICS::VariableDomain*> rhs_effect_variable_domains;
+						for (unsigned int term_index = 0; term_index < rhs_effect->getPredicate().getArity(); ++term_index)
+						{
+							rhs_effect_variable_domains.push_back(new HEURISTICS::VariableDomain(transition->getActionVariableDomain(transition->getAction().getActionVariable(*rhs_effect->getTerms()[term_index])).getVariableDomain()));
+						}
+						HEURISTICS::Fact rhs_effect_fact(predicate_manager, rhs_effect->getPredicate(), rhs_effect_variable_domains);
+						
+						std::vector<const LiftedDTG*> dtgs_affected_by_rhs_effect;
+						for (std::vector<LiftedDTG*>::const_iterator lifted_dtgs_ = all_lifted_dtgs.begin(); lifted_dtgs_ != all_lifted_dtgs.end(); ++lifted_dtgs_)
+						{
+							std::vector<const MultiValuedValue*> matching_lifted_dtgs;
+							(*lifted_dtgs_)->getNodes(matching_lifted_dtgs, rhs_effect_fact);
+							
+							if (matching_lifted_dtgs.size() > 0)
 							{
-								const DomainTransitionGraph* dtg_2 = *ci;
-								if (dtg_1 != dtg_2)
+								dtgs_affected_by_rhs_effect.push_back(*lifted_dtgs_);
+							}
+						}
+						
+						for (std::vector<const LiftedDTG*>::const_iterator ci = dtgs_affected_by_rhs_effect.begin(); ci != dtgs_affected_by_rhs_effect.end(); ++ci)
+						{
+							const LiftedDTG* rhs_dtgs = *ci;
+							for (std::vector<const LiftedDTG*>::const_iterator ci = dtgs_affected_by_lhs_effect.begin(); ci != dtgs_affected_by_lhs_effect.end(); ++ci)
+							{
+								const LiftedDTG* lhs_dtgs = *ci;
+								if (rhs_dtgs == lhs_dtgs)
 								{
-									
-									dtg_1->getNodes();
-									// Make sure that the bindings of the effects are the same in the matching dtgs.
-									std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > effect_1_nodes;
-									dtg_1->getNodes(effect_1_nodes, transition->getStepId(), effect1, dtg->getBindings());
-									
-									std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > effect_2_nodes;
-									dtg_2->getNodes(effect_2_nodes, transition->getStepId(), effect2, dtg->getBindings());
-									
-									bool dtg_nodes_match = false;
-									for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = effect_1_nodes.begin(); ci != effect_1_nodes.end(); ++ci)
-									{
-										const BoundedAtom* bounded_atom1 = (*ci).second;
-											
-										for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = effect_2_nodes.begin(); ci != effect_2_nodes.end(); ++ci)
-										{
-											const BoundedAtom* bounded_atom2 = (*ci).second;
-											
-											// Check if the bindings on bounded atom and bounded atom 2 reflect those of the effects.
-											for (unsigned int term1_index = 0; term1_index < effect1.getArity(); ++term1_index)
-											{
-												const std::vector<const Object*>& variable_domain1 = bounded_atom1->getVariableDomain(term1_index, dtg->getBindings());
-
-												for (unsigned int term2_index = 0; term2_index < effect2.getArity(); ++term2_index)
-												{
-													const std::vector<const Object*>& variable_domain2 = bounded_atom2->getVariableDomain(term2_index, dtg->getBindings());
-													if (effect1.getTerms()[term1_index] == effect2.getTerms()[term2_index])
-													{
-														// Make sure the terms overlap.
-														bool terms_overlap = false;
-														for (std::vector<const Object*>::const_iterator ci = variable_domain1.begin(); ci != variable_domain1.end(); ++ci)
-														{
-															const Object* object1 = *ci;
-															
-															if (std::find(variable_domain2.begin(), variable_domain2.end(), object1) != variable_domain2.end())
-															{
-																terms_overlap = true;
-																break;
-															}
-														}
-														
-														// If the terms do not overlap than these effects do not affect two different dtgs.
-														if (terms_overlap)
-														{
-															dtg_nodes_match = true;
-															break;
-														}
-													}
-												}
-												if (dtg_nodes_match) break;
-											}
-											if (dtg_nodes_match) break;
-										}
-										if (dtg_nodes_match) break;
-									}
-									
-									if (!dtg_nodes_match) continue;
-									
-									addTransition(*dtg_1, *dtg_2, *transition);
-									addTransition(*dtg_2, *dtg_1, *transition);
-									
-#ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
-									std::cout << "The effects: ";
-									(*effect_ci_1).first->print(std::cout, dtg->getBindings(), transition->getStepId());
-									std::cout << ", ";
-									(*effect_ci_2).first->print(std::cout, dtg->getBindings(), transition->getStepId());
-									std::cout << " affect dtgs: " << dtg_1->getId() << " and " << dtg_2->getId() << std::endl;
-									std::cout << std::endl;
-#endif
-									
+									continue;
 								}
+								
+								addTransition(*rhs_dtgs, *lhs_dtgs, *transition);
+								addTransition(*lhs_dtgs, *rhs_dtgs, *transition);
 							}
 						}
 					}
@@ -181,7 +162,7 @@ CausalGraph::CausalGraph(const MyPOP::SAS_Plus::DomainTransitionGraphManager& dt
 			}
 		}
 	}
-	cacheDependencies();
+//	cacheDependencies();
 }
 
 CausalGraph::~CausalGraph()
@@ -200,7 +181,7 @@ CausalGraph::~CausalGraph()
 	{
 		delete (*ci).second;
 	}
-	
+/*
 	if (cached_dependencies_ != NULL)
 	{
 		
@@ -210,9 +191,10 @@ CausalGraph::~CausalGraph()
 		}
 		delete[] cached_dependencies_;
 	}
+*/
 }
 
-void CausalGraph::breakCycles(const std::vector<const GroundedAtom*>& goals, const MyPOP::Bindings& bindings)
+void CausalGraph::breakCycles(const std::vector<const Atom*>& goals)
 {
 #ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
 	std::cout << "[CausalGraph::breakCycles] " << goals.size() << std::endl;
@@ -222,11 +204,11 @@ void CausalGraph::breakCycles(const std::vector<const GroundedAtom*>& goals, con
 	while (cg_contains_cycles)
 	{
 		cg_contains_cycles = false;
-		std::vector<std::vector<const DomainTransitionGraph*>* > strongly_connected_components;
+		std::vector<std::vector<const LiftedDTG*>* > strongly_connected_components;
 		findStronglyConnectedComponents(strongly_connected_components);
-		for (std::vector<std::vector<const DomainTransitionGraph*>* >::const_iterator ci = strongly_connected_components.begin(); ci != strongly_connected_components.end(); ci++)
+		for (std::vector<std::vector<const LiftedDTG*>* >::const_iterator ci = strongly_connected_components.begin(); ci != strongly_connected_components.end(); ci++)
 		{
-			std::vector<const DomainTransitionGraph*>* strongly_connected_component = *ci;
+			std::vector<const LiftedDTG*>* strongly_connected_component = *ci;
 			
 #ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
 			std::cout << "[CausalGraph::breakCycles] Stronglyl connected component:" << std::endl;
@@ -245,14 +227,14 @@ void CausalGraph::breakCycles(const std::vector<const GroundedAtom*>& goals, con
 			
 			// Remove all the transitions (v, v') for which v < v', where the value of a vertex is defined as the sum of the weight of all the transitions which are dependend on it.
 			bool removedTransition = false;
-			for (std::vector<const DomainTransitionGraph*>::const_iterator ci = strongly_connected_component->begin(); ci != strongly_connected_component->end(); ci++)
+			for (std::vector<const LiftedDTG*>::const_iterator ci = strongly_connected_component->begin(); ci != strongly_connected_component->end(); ci++)
 			{
-				const DomainTransitionGraph* from_dtg = *ci;
-				std::set<const DomainTransitionGraph*>* connected_dtgs = transitions_[from_dtg];
+				const LiftedDTG* from_dtg = *ci;
+				std::set<const LiftedDTG*>* connected_dtgs = transitions_[from_dtg];
 				
-				for (std::set<const DomainTransitionGraph*>::const_iterator ci = connected_dtgs->begin(); ci != connected_dtgs->end(); ci++)
+				for (std::set<const LiftedDTG*>::const_iterator ci = connected_dtgs->begin(); ci != connected_dtgs->end(); ci++)
 				{
-					const DomainTransitionGraph* to_dtg = *ci;
+					const LiftedDTG* to_dtg = *ci;
 					// Make sure they are part of the same stronly connected component!
 					if (std::find(strongly_connected_component->begin(), strongly_connected_component->end(), to_dtg) == strongly_connected_component->end()) continue;
 					
@@ -283,93 +265,141 @@ void CausalGraph::breakCycles(const std::vector<const GroundedAtom*>& goals, con
 	// Also remove any dependencies on graphs themselves.
 	for (DTGtoDTG::const_iterator transition_ci = transitions_.begin(); transition_ci != transitions_.end(); transition_ci++)
 	{
-		const DomainTransitionGraph* graph = (*transition_ci).first;
-		std::set<const DomainTransitionGraph*>* dependencies = (*transition_ci).second;
+		const LiftedDTG* graph = (*transition_ci).first;
+		std::set<const LiftedDTG*>* dependencies = (*transition_ci).second;
 		
 		while (dependencies->count(graph) > 0)
 		{
 			removeEdge(*graph, *graph);
 		}
 	}
-	
+
 #ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
 	std::cout << "[CausalGraph::breakCycles] Remove inrelevant transitions!" << std::endl;
 #endif
 	// After breaking the cycles, update the DTG and remove all preconditions from the transitions which are no longer relevant.
-	for (std::vector<SAS_Plus::DomainTransitionGraph*>::const_iterator ci = dtg_manager_->getManagableObjects().begin(); ci != dtg_manager_->getManagableObjects().end(); ci++)
+	for (std::vector<LiftedDTG*>::const_iterator dtg_ci = all_lifted_dtgs_->begin(); dtg_ci != all_lifted_dtgs_->end(); dtg_ci++)
 	{
-		SAS_Plus::DomainTransitionGraph* dtg = *ci;
-		for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ci++)
+		LiftedDTG* dtg = *dtg_ci;
+		
+		for (std::vector<MultiValuedValue*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ++ci)
 		{
-			SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
-#ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
-			std::cout << "Process: " << *dtg_node << std::endl;
-#endif
-			for (std::vector<SAS_Plus::Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ci++)
+			MultiValuedValue* node = *ci;
+			
+			for (std::vector<const MultiValuedTransition*>::const_iterator ci = node->getTransitions().begin(); ci != node->getTransitions().end(); ++ci)
 			{
-				SAS_Plus::Transition* transition = *ci;
-				std::vector<const Atom*> preconditions_to_remove;
-#ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
-				std::cout << "Process the transition: " << *transition << "." << std::endl;
-#endif
-				for (std::vector<std::pair<const Atom*, InvariableIndex> >::const_iterator ci = transition->getAllPreconditions().begin(); ci != transition->getAllPreconditions().end(); ci++)
+				MultiValuedTransition* transition = const_cast<MultiValuedTransition*>(*ci);
+				
+				std::vector<const Atom*> preconditions;
+				Utility::convertFormula(preconditions, &transition->getAction().getPrecondition());
+				
+				for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ++ci)
 				{
-					if (std::find(transition->getFromNodePreconditions().begin(), transition->getFromNodePreconditions().end(), *ci) != transition->getFromNodePreconditions().end()) continue;
+					const Atom* precondition = *ci;
 					
-					const Atom* precondition = (*ci).first;
-					if (precondition->getPredicate().isStatic()) continue;
-					
-					std::vector<const MyPOP::SAS_Plus::DomainTransitionGraph*> invariant_dtgs;
-					getDTGs(invariant_dtgs, transition->getStepId(), *precondition, dtg->getBindings());
-					unsigned int nr_transitions = 0;
-					
-					// Check if this precondition is in any way connected after breaking the cycles.
-					bool is_connected = false;
-					for (std::vector<const MyPOP::SAS_Plus::DomainTransitionGraph*>::const_iterator ci = invariant_dtgs.begin(); ci != invariant_dtgs.end(); ci++)
+					std::vector<const HEURISTICS::VariableDomain*> precondition_variable_domains;
+					for (unsigned int term_index = 0; term_index < precondition->getPredicate().getArity(); ++term_index)
 					{
-						const MyPOP::SAS_Plus::DomainTransitionGraph* rhs_dtg = *ci;
-						std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> > achieving_dtg_nodes;
-						rhs_dtg->getNodes(achieving_dtg_nodes, transition->getStepId(), *precondition, dtg->getBindings());
-						
-						for (std::vector<std::pair<const DomainTransitionGraphNode*, const BoundedAtom*> >::const_iterator ci = achieving_dtg_nodes.begin(); ci != achieving_dtg_nodes.end(); ++ci)
+						precondition_variable_domains.push_back(new HEURISTICS::VariableDomain(transition->getActionVariableDomain(transition->getAction().getActionVariable(*precondition->getTerms()[term_index])).getVariableDomain()));
+					}
+					HEURISTICS::Fact* precondition_fact = new HEURISTICS::Fact(*predicate_manager_, precondition->getPredicate(), precondition_variable_domains);
+					
+					std::vector<const MultiValuedValue*> found_nodes;
+					dtg->getNodes(found_nodes, *precondition_fact);
+					
+					// Don't remove preconditions which are part of its own DTG.
+					if (found_nodes.size() > 0)
+					{
+						continue;
+					}
+					
+					bool is_connected = false;
+					for (std::vector<LiftedDTG*>::const_iterator ci = all_lifted_dtgs_->begin(); ci != all_lifted_dtgs_->end(); ++ci)
+					{
+						LiftedDTG* rhs_dtg = *ci;
+						if (rhs_dtg == dtg)
 						{
-							const MyPOP::SAS_Plus::DomainTransitionGraphNode* rhs_dtg_node = (*ci).first;
-							std::vector<const Transition*> achieving_transitions;
-							rhs_dtg_node->getAchievingTransitions(achieving_transitions);
-							
-							nr_transitions += achieving_transitions.size();
+							continue;
 						}
 						
-						if (constainsDependency(*dtg, *rhs_dtg, false))
+						found_nodes.clear();
+						rhs_dtg->getNodes(found_nodes, *precondition_fact);
+						
+						if (found_nodes.size() > 0 && containsDependency(*dtg, *rhs_dtg, false))
 						{
 							is_connected = true;
 							break;
 						}
 					}
 					
-					if (!is_connected && nr_transitions > 0)
+					if (!is_connected)
 					{
 #ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
 						std::cout << "Remove the precondition: ";
 						precondition->print(std::cout, dtg->getBindings(), transition->getStepId());
 						std::cout << ". Achieving transitions: " << nr_transitions << std::endl;
 #endif
-						preconditions_to_remove.push_back(precondition);
+						transition->ignorePrecondition(*precondition);
 					}
 				}
 				
-				for (std::vector<const Atom*>::const_iterator ci = preconditions_to_remove.begin(); ci != preconditions_to_remove.end(); ci++)
+				// Do the same for the effects.
+				for (std::vector<const Atom*>::const_iterator ci = transition->getAction().getEffects().begin(); ci != transition->getAction().getEffects().end(); ++ci)
 				{
-					transition->removePrecondition(**ci);
+					const Atom* effect = *ci;
+					
+					std::vector<const HEURISTICS::VariableDomain*> effect_variable_domains;
+					for (unsigned int term_index = 0; term_index < effect->getPredicate().getArity(); ++term_index)
+					{
+						effect_variable_domains.push_back(new HEURISTICS::VariableDomain(transition->getActionVariableDomain(transition->getAction().getActionVariable(*effect->getTerms()[term_index])).getVariableDomain()));
+					}
+					HEURISTICS::Fact* effect_fact = new HEURISTICS::Fact(*predicate_manager_, effect->getPredicate(), effect_variable_domains);
+					
+					std::vector<const MultiValuedValue*> found_nodes;
+					dtg->getNodes(found_nodes, *effect_fact);
+					
+					// Don't remove preconditions which are part of its own DTG.
+					if (found_nodes.size() > 0)
+					{
+						continue;
+					}
+					
+					bool is_connected = false;
+					for (std::vector<LiftedDTG*>::const_iterator ci = all_lifted_dtgs_->begin(); ci != all_lifted_dtgs_->end(); ++ci)
+					{
+						LiftedDTG* rhs_dtg = *ci;
+						if (rhs_dtg == dtg)
+						{
+							continue;
+						}
+						
+						found_nodes.clear();
+						rhs_dtg->getNodes(found_nodes, *effect_fact);
+						
+						if (found_nodes.size() > 0 && containsDependency(*dtg, *rhs_dtg, false))
+						{
+							is_connected = true;
+							break;
+						}
+					}
+					
+					if (!is_connected)
+					{
+#ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
+						std::cout << "Remove the precondition: ";
+						precondition->print(std::cout, dtg->getBindings(), transition->getStepId());
+						std::cout << ". Achieving transitions: " << nr_transitions << std::endl;
+#endif
+						transition->ignoreEffect(*effect);
+					}
 				}
 			}
 		}
 	}
-	
-	cacheDependencies();
+	//cacheDependencies();
 }
 
-unsigned int CausalGraph::getWeight(const DomainTransitionGraph& dtg) const
+unsigned int CausalGraph::getWeight(const LiftedDTG& dtg) const
 {
 	unsigned int weight = 0;
 	for (TransitionToWeightMapping::const_iterator ci = arc_weights_.begin(); ci != arc_weights_.end(); ci++)
@@ -379,13 +409,14 @@ unsigned int CausalGraph::getWeight(const DomainTransitionGraph& dtg) const
 	return weight;
 }
 
-void CausalGraph::removeEdge(const DomainTransitionGraph& from_dtg, const DomainTransitionGraph& to_dtg)
+void CausalGraph::removeEdge(const LiftedDTG& from_dtg, const LiftedDTG& to_dtg)
 {
 	transitions_[&from_dtg]->erase(&to_dtg);
 	reverse_transitions_[&to_dtg]->erase(&from_dtg);
 	arc_weights_[std::make_pair(&from_dtg, &to_dtg)]->clear();
 }
 
+/*
 void CausalGraph::cacheDependencies()
 {
 	if (cached_dependencies_ == NULL)
@@ -413,10 +444,10 @@ void CausalGraph::cacheDependencies()
 		}
 	}
 }
-
-void CausalGraph::findStronglyConnectedComponents(std::vector<std::vector<const DomainTransitionGraph*>* >& strongly_connected_components) const
+*/
+void CausalGraph::findStronglyConnectedComponents(std::vector<std::vector<const LiftedDTG*>* >& strongly_connected_components) const
 {
-	std::map<const DomainTransitionGraph*, std::pair<unsigned int, unsigned int> > dtg_to_indexes;
+	std::map<const LiftedDTG*, std::pair<unsigned int, unsigned int> > dtg_to_indexes;
 	for (DTGtoDTG::const_iterator ci = transitions_.begin(); ci != transitions_.end(); ci++)
 	{
 		dtg_to_indexes[(*ci).first] = std::make_pair(std::numeric_limits<unsigned int>::max(), std::numeric_limits<unsigned int>::max());
@@ -427,11 +458,11 @@ void CausalGraph::findStronglyConnectedComponents(std::vector<std::vector<const 
 		dtg_to_indexes[(*ci).first] = std::make_pair(std::numeric_limits<unsigned int>::max(), std::numeric_limits<unsigned int>::max());
 	}
 	
-	std::vector<const DomainTransitionGraph*> stack;
+	std::vector<const LiftedDTG*> stack;
 	unsigned int lowest_index = 0;
-	for (std::map<const DomainTransitionGraph*, std::pair<unsigned int, unsigned int> >::const_iterator ci = dtg_to_indexes.begin(); ci != dtg_to_indexes.end(); ci++)
+	for (std::map<const LiftedDTG*, std::pair<unsigned int, unsigned int> >::const_iterator ci = dtg_to_indexes.begin(); ci != dtg_to_indexes.end(); ci++)
 	{
-		const DomainTransitionGraph* dtg = (*ci).first;
+		const LiftedDTG* dtg = (*ci).first;
 		unsigned int index = (*ci).second.first;
 
 		if (index == std::numeric_limits<unsigned int>::max())
@@ -441,7 +472,7 @@ void CausalGraph::findStronglyConnectedComponents(std::vector<std::vector<const 
 	}
 }
 	
-void CausalGraph::strongConnect(std::vector<std::vector<const DomainTransitionGraph*>* >& strongly_connected_components, std::vector<const DomainTransitionGraph*>& stack, const DomainTransitionGraph& dtg, std::map<const DomainTransitionGraph*, std::pair<unsigned int, unsigned int> >& indexes, unsigned int& lowest_index) const
+void CausalGraph::strongConnect(std::vector<std::vector<const LiftedDTG*>* >& strongly_connected_components, std::vector<const LiftedDTG*>& stack, const LiftedDTG& dtg, std::map<const LiftedDTG*, std::pair<unsigned int, unsigned int> >& indexes, unsigned int& lowest_index) const
 {
 	indexes[&dtg] = std::make_pair(lowest_index, lowest_index);
 	lowest_index += 1;
@@ -450,8 +481,8 @@ void CausalGraph::strongConnect(std::vector<std::vector<const DomainTransitionGr
 	DTGtoDTG::const_iterator ci = transitions_.find(&dtg);
 	if (ci != transitions_.end())
 	{
-		std::set<const DomainTransitionGraph*>* transitions = (*transitions_.find(&dtg)).second;
-		for (std::set<const DomainTransitionGraph*>::const_iterator ci = transitions->begin(); ci != transitions->end(); ci++)
+		std::set<const LiftedDTG*>* transitions = (*transitions_.find(&dtg)).second;
+		for (std::set<const LiftedDTG*>::const_iterator ci = transitions->begin(); ci != transitions->end(); ci++)
 		{
 			if (indexes[*ci].first == std::numeric_limits<unsigned int>::max())
 			{
@@ -467,8 +498,8 @@ void CausalGraph::strongConnect(std::vector<std::vector<const DomainTransitionGr
 	
 	if (indexes[&dtg].first == indexes[&dtg].second)
 	{
-		std::vector<const DomainTransitionGraph*>* new_connected_component = new std::vector<const DomainTransitionGraph*>();
-		const DomainTransitionGraph* last_added_dtg = NULL;
+		std::vector<const LiftedDTG*>* new_connected_component = new std::vector<const LiftedDTG*>();
+		const LiftedDTG* last_added_dtg = NULL;
 		do
 		{
 			last_added_dtg = *(stack.end() - 1);
@@ -478,7 +509,7 @@ void CausalGraph::strongConnect(std::vector<std::vector<const DomainTransitionGr
 		strongly_connected_components.push_back(new_connected_component);
 	}
 }
-
+/*
 void CausalGraph::getDTGs(std::vector<const DomainTransitionGraph*>& dtgs, const StepID step_id, const Atom& fact, const Bindings& bindings) const
 {
 #ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
@@ -518,19 +549,20 @@ void CausalGraph::getDTGs(std::vector<const DomainTransitionGraph*>& dtgs, const
 		}
 	}
 }
+*/
 
-bool CausalGraph::constainsDependency(const SAS_Plus::DomainTransitionGraph& from, const SAS_Plus::DomainTransitionGraph& to, bool use_cache) const
+bool CausalGraph::containsDependency(const SAS_Plus::LiftedDTG& from, const SAS_Plus::LiftedDTG& to, bool use_cache) const
 {
-	if (use_cache)
-	{
-		return cached_dependencies_[from.getId()][to.getId()];
-	}
+	//if (use_cache)
+	//{
+	//	return cached_dependencies_[from.getId()][to.getId()];
+	//}
 	DTGtoDTG::const_iterator ci = transitions_.find(&from);
 	if (ci == transitions_.end()) return false;
 	return (*ci).second->count(&to) == 1;
 }
 
-void CausalGraph::getTransitionsFrom(std::vector<const DomainTransitionGraph*>& transitions, const MyPOP::SAS_Plus::DomainTransitionGraph& dtg) const
+void CausalGraph::getTransitionsFrom(std::vector<const LiftedDTG*>& transitions, const LiftedDTG& dtg) const
 {
 	DTGtoDTG::const_iterator ci = transitions_.find(&dtg);
 	if (ci == transitions_.end())
@@ -538,13 +570,13 @@ void CausalGraph::getTransitionsFrom(std::vector<const DomainTransitionGraph*>& 
 		return;
 	}
 	
-	for (std::set<const DomainTransitionGraph*>::const_iterator dtg_ci = (*ci).second->begin(); dtg_ci != (*ci).second->end(); dtg_ci++)
+	for (std::set<const LiftedDTG*>::const_iterator dtg_ci = (*ci).second->begin(); dtg_ci != (*ci).second->end(); dtg_ci++)
 	{
 		transitions.push_back(*dtg_ci);
 	}
 }
 
-void CausalGraph::getTransitionsTo(std::vector<const DomainTransitionGraph*>& transitions, const MyPOP::SAS_Plus::DomainTransitionGraph& dtg) const
+void CausalGraph::getTransitionsTo(std::vector<const LiftedDTG*>& transitions, const LiftedDTG& dtg) const
 {
 //	std::cout << dtg.getId() << std::endl;
 	DTGtoDTG::const_iterator ci = reverse_transitions_.find(&dtg);
@@ -553,19 +585,19 @@ void CausalGraph::getTransitionsTo(std::vector<const DomainTransitionGraph*>& tr
 		return;
 	}
 	
-	for (std::set<const DomainTransitionGraph*>::const_iterator dtg_ci = (*ci).second->begin(); dtg_ci != (*ci).second->end(); dtg_ci++)
+	for (std::set<const LiftedDTG*>::const_iterator dtg_ci = (*ci).second->begin(); dtg_ci != (*ci).second->end(); dtg_ci++)
 	{
 		transitions.push_back(*dtg_ci);
 	}
 }
 
-void CausalGraph::addTransition(const DomainTransitionGraph& from_dtg, const DomainTransitionGraph& to_dtg, const Transition& transition)
+void CausalGraph::addTransition(const LiftedDTG& from_dtg, const LiftedDTG& to_dtg, const MultiValuedTransition& transition)
 {
-	std::set<const DomainTransitionGraph*>* dtg_set = NULL;
+	std::set<const LiftedDTG*>* dtg_set = NULL;
 	DTGtoDTG::iterator i = transitions_.find(&from_dtg);
 	if (i == transitions_.end())
 	{
-		dtg_set = new std::set<const DomainTransitionGraph*>();
+		dtg_set = new std::set<const LiftedDTG*>();
 		transitions_.insert(std::make_pair(&from_dtg, dtg_set));
 	}
 	else
@@ -574,11 +606,11 @@ void CausalGraph::addTransition(const DomainTransitionGraph& from_dtg, const Dom
 	}
 	dtg_set->insert(&to_dtg);
 	
-	std::set<const DomainTransitionGraph*>* reverse_dtg_set = NULL;
+	std::set<const LiftedDTG*>* reverse_dtg_set = NULL;
 	DTGtoDTG::iterator ri = reverse_transitions_.find(&to_dtg);
 	if (ri == reverse_transitions_.end())
 	{
-		reverse_dtg_set = new std::set<const DomainTransitionGraph*>();
+		reverse_dtg_set = new std::set<const LiftedDTG*>();
 		reverse_transitions_.insert(std::make_pair(&to_dtg, reverse_dtg_set));
 	}
 	else
@@ -588,10 +620,10 @@ void CausalGraph::addTransition(const DomainTransitionGraph& from_dtg, const Dom
 	reverse_dtg_set->insert(&from_dtg);
 	
 	TransitionToWeightMapping::iterator weight_i = arc_weights_.find(std::make_pair(&from_dtg, &to_dtg));
-	std::set<const Transition*>* supported_transitions = NULL;
+	std::set<const MultiValuedTransition*>* supported_transitions = NULL;
 	if (weight_i == arc_weights_.end())
 	{
-		supported_transitions = new std::set<const Transition*>();
+		supported_transitions = new std::set<const MultiValuedTransition*>();
 		arc_weights_[std::make_pair(&from_dtg, &to_dtg)] = supported_transitions;
 	}
 	else
@@ -603,18 +635,16 @@ void CausalGraph::addTransition(const DomainTransitionGraph& from_dtg, const Dom
 
 std::ostream& operator<<(std::ostream& os, const CausalGraph& cg)
 {
-	os << "Printing causal graph: " << cg.getDTGManager().getManagableObjects().size() << std::endl;
-	for (std::vector<DomainTransitionGraph*>::const_iterator ci = cg.getDTGManager().getManagableObjects().begin(); ci != cg.getDTGManager().getManagableObjects().end(); ci++)
+	os << "Printing causal graph: " << cg.getAllLiftedDTGs().size() << std::endl;
+	for (std::vector<LiftedDTG*>::const_iterator ci = cg.getAllLiftedDTGs().begin(); ci != cg.getAllLiftedDTGs().end(); ++ci)
 	{
-		const DomainTransitionGraph* dtg = *ci;
-		assert (dtg != NULL);
-//		std::cout << "Process: " << *dtg << std::endl;
-		std::vector<const DomainTransitionGraph*> connected_dtgs;
-		cg.getTransitionsFrom(connected_dtgs, *dtg);
+		const LiftedDTG* lifted_dtg = *ci;
+		std::vector<const LiftedDTG*> connected_dtgs;
+		cg.getTransitionsFrom(connected_dtgs, *lifted_dtg);
 		
-		for (std::vector<const DomainTransitionGraph*>::const_iterator dtg_ci = connected_dtgs.begin(); dtg_ci != connected_dtgs.end(); dtg_ci++)
+		for (std::vector<const LiftedDTG*>::const_iterator dtg_ci = connected_dtgs.begin(); dtg_ci != connected_dtgs.end(); dtg_ci++)
 		{
-			os << *dtg << " is connected to " << **dtg_ci << std::endl;
+			os << *lifted_dtg << " is connected to " << **dtg_ci << std::endl;
 		}
 	}
 	
@@ -631,27 +661,50 @@ void Graphviz::printToDot(const std::string& file_name, const SAS_Plus::CausalGr
 	ofs << "digraph {" << std::endl;
 
 	// Print all DTG nodes.
-	for (std::vector<SAS_Plus::DomainTransitionGraph*>::const_iterator ci = causal_graph.getDTGManager().getManagableObjects().begin(); ci != causal_graph.getDTGManager().getManagableObjects().end(); ci++)
+	for (std::vector<SAS_Plus::LiftedDTG*>::const_iterator ci = causal_graph.getAllLiftedDTGs().begin(); ci != causal_graph.getAllLiftedDTGs().end(); ++ci)
 	{
-		printPredicatesToDot(ofs, **ci);
+		const SAS_Plus::LiftedDTG* lifted_dtg = *ci;
+		printToDot(ofs, lifted_dtg->getPropertySpace());
 	}
 
 	// Create the edges.
-	for (std::vector<SAS_Plus::DomainTransitionGraph*>::const_iterator ci = causal_graph.getDTGManager().getManagableObjects().begin(); ci != causal_graph.getDTGManager().getManagableObjects().end(); ci++)
+	for (std::vector<SAS_Plus::LiftedDTG*>::const_iterator ci = causal_graph.getAllLiftedDTGs().begin(); ci != causal_graph.getAllLiftedDTGs().end(); ++ci)
 	{
-		std::vector<const SAS_Plus::DomainTransitionGraph*> transitions;
+		std::vector<const SAS_Plus::LiftedDTG*> transitions;
 		causal_graph.getTransitionsFrom(transitions, **ci);
 		
-		for (std::vector<const SAS_Plus::DomainTransitionGraph*>::const_iterator transition_ci = transitions.begin(); transition_ci != transitions.end(); transition_ci++)
+		for (std::vector<const SAS_Plus::LiftedDTG*>::const_iterator transition_ci = transitions.begin(); transition_ci != transitions.end(); transition_ci++)
 		{
-			printPredicatesToDot(ofs, **ci);
+			printToDot(ofs, (*ci)->getPropertySpace());
 			ofs << " -> ";
-			printPredicatesToDot(ofs, **transition_ci);
+			printToDot(ofs, (*transition_ci)->getPropertySpace());
 			ofs << std::endl;
 		}
 	}
 	ofs << "}" << std::endl;
 	ofs.close();
+}
+
+void Graphviz::printToDot(std::ofstream& ofs, const SAS_Plus::PropertySpace& property_space)
+{
+	ofs << "\"";
+	for (std::vector<SAS_Plus::PropertyState*>::const_iterator ci = property_space.getPropertyStates().begin(); ci != property_space.getPropertyStates().end(); ++ci)
+	{
+		SAS_Plus::PropertyState* property_state = *ci;
+		ofs << "(";
+		for (std::vector<const SAS_Plus::Property*>::const_iterator ci = property_state->getProperties().begin(); ci != property_state->getProperties().end(); ++ci)
+		{
+			const SAS_Plus::Property* property = *ci;
+			
+			ofs << property->getPredicate().getName() << "_" << property->getIndex();
+			if (ci + 1 != property_state->getProperties().end())
+			{
+				ofs << ", ";
+			}
+		}
+		ofs << ")\\n";
+	}
+	ofs << "\"";
 }
 
 };

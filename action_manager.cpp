@@ -103,6 +103,19 @@ unsigned int Action::getActionVariable(unsigned int effect_index, unsigned int e
 	return (*effect_terms_to_action_variable_mappings_[effect_index])[effect_term_index];
 }
 
+unsigned int Action::getActionVariable(const Term& term) const
+{
+	for (unsigned int action_variable_index = 0; action_variable_index < variables_->size(); ++action_variable_index)
+	{
+		if ((*variables_)[action_variable_index] == &term)
+		{
+			return action_variable_index;
+		}
+	}
+	
+	return std::numeric_limits<unsigned int>::max();
+}
+
 void Action::print(std::ostream& os, const Bindings& bindings, StepID step_id) const
 {
 	os << "(" << predicate_ << " ";

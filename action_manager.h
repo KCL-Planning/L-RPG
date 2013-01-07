@@ -16,6 +16,7 @@ class Variable;
 class Formula;
 class Atom;
 class Bindings;
+class Term;
 
 /**
  * PDDL Type.
@@ -51,6 +52,9 @@ public:
 	
 	// Get the index of an effect's term.
 	unsigned int getActionVariable(unsigned int effect_index, unsigned int effect_term_index) const;
+	
+	// Get the index of the action variable which matches with the given term.
+	unsigned int getActionVariable(const Term& term) const;
 
 	// Destructor.
 	virtual ~Action();

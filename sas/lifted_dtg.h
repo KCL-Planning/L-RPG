@@ -44,7 +44,12 @@ public:
 	MultiValuedValue& getFromNode() const { return *precondition_; }
 	MultiValuedValue& getToNode() const { return *effect_; }
 	
+	void ignorePrecondition(const Atom& precondition);
+	void ignoreEffect(const Atom& effect);
+	
 	MultiValuedTransition* migrateTransition(MultiValuedValue& from_node, MultiValuedValue& to_node, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager) const;
+	
+	const HEURISTICS::VariableDomain& getActionVariableDomain(unsigned int index) const { return *action_variable_domains_[index]; }
 	
 private:
 	
@@ -59,6 +64,9 @@ private:
 	
 	// We map each action variable to each term of the effect.
 	const std::vector<std::vector<unsigned int>* >* effect_to_action_variable_mappings_;
+	
+	std::vector<const Atom*> preconditions_to_ignore_;
+	std::vector<const Atom*> effects_to_ignore_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const MultiValuedTransition& transition);
 };
@@ -107,6 +115,14 @@ public:
 	~LiftedDTG();
 	
 	const std::vector<MultiValuedValue*>& getNodes() const { return nodes_; }
+	
+	/**
+	 * Find all nodes which can unify with the given fact and store the matching nodes in found_nodes. This method will never return nodes
+	 * that are copies, because these have another purpose.
+	 */
+	void getNodes(std::vector<const MultiValuedValue*>& found_nodes, const HEURISTICS::Fact& fact_to_find) const;
+	
+	const SAS_Plus::PropertySpace& getPropertySpace() const { return *property_space_; }
 	
 private:
 	

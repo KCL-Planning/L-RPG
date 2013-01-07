@@ -14,14 +14,13 @@ class Atom;
 class ActionManager;
 class Bindings;
 class GroundedAtom;
+class PredicateManager;
 
 namespace SAS_Plus {
 
-class DomainTransitionGraphManager;
-class DomainTransitionGraph;
-class Transition;
-class BoundedAtom;
-	
+class LiftedDTG;
+class MultiValuedTransition;
+class PropertySpace;
 
 /**
  * The causal graph contains the dependencies between the state variables. An edge between two state variables v and v' exists if:
@@ -35,7 +34,7 @@ public:
 	/**
 	 * Create the causal graph and map the dependencies between the DTGs.
 	 */
-	CausalGraph(const DomainTransitionGraphManager& dtg_manager, const ActionManager& action_manager);
+	CausalGraph(const std::vector< MyPOP::SAS_Plus::LiftedDTG* >& all_lifted_dtgs, const MyPOP::ActionManager& action_manager/*, const MyPOP::TypeManager& type_manager*/, const MyPOP::PredicateManager& predicate_manager);
 	
 	/**
 	 * Destructor.
@@ -45,12 +44,8 @@ public:
 	/**
 	 * Remove all cycles!
 	 */
-	void breakCycles(const std::vector<const GroundedAtom*>& goals, const Bindings& bindings);
-	
-	/**
-	 * Get the DTG manager.
-	 */
-	const DomainTransitionGraphManager& getDTGManager() const { return *dtg_manager_; }
+	//void breakCycles(const std::vector<const GroundedAtom*>& goals, const Bindings& bindings);
+	void breakCycles(const std::vector<const Atom*>& goals);
 	
 	/**
 	 * Get the action manager.
@@ -60,12 +55,12 @@ public:
 	/**
 	 * Get all the transition from the given DTG.
 	 */
-	void getTransitionsFrom(std::vector<const DomainTransitionGraph*>& transitions, const DomainTransitionGraph& dtg) const;
+	void getTransitionsFrom(std::vector<const LiftedDTG*>& transitions, const LiftedDTG& dtg) const;
 	
 	/**
 	 * Get all the transition to the given DTG.
 	 */
-	void getTransitionsTo(std::vector<const DomainTransitionGraph*>& transitions, const DomainTransitionGraph& dtg) const;
+	void getTransitionsTo(std::vector<const LiftedDTG*>& transitions, const LiftedDTG& dtg) const;
 	
 	/**
 	 * Find all the DTGs which contain the given fact, such that the given fact contains the invariable of the DTG.
@@ -75,7 +70,7 @@ public:
 	 * @param fact The fact to look for.
 	 * @param bindings The bindings used to bind the given fact using the given step id.
 	 */
-	void getDTGs(std::vector< const MyPOP::SAS_Plus::DomainTransitionGraph* >& dtgs, const MyPOP::StepID step_id, const MyPOP::Atom& fact, const MyPOP::Bindings& bindings) const;
+	//void getDTGs(std::vector< const MyPOP::SAS_Plus::DomainTransitionGraph* >& dtgs, const MyPOP::StepID step_id, const MyPOP::Atom& fact, const MyPOP::Bindings& bindings) const;
 	
 	/**
 	 * Check if a dependency exists between two DTGs. This function always returns true if &from == &to.
@@ -83,47 +78,59 @@ public:
 	 * @param to The low-level DTG we check the dependency against.
 	 * @return True if from is dependent on to (i.e. an arc (from, to) exists in the causal graph).
 	 */
-	bool constainsDependency(const SAS_Plus::DomainTransitionGraph& from, const SAS_Plus::DomainTransitionGraph& to, bool use_cache = true) const;
+	//bool constainsDependency(const SAS_Plus::DomainTransitionGraph& from, const SAS_Plus::DomainTransitionGraph& to, bool use_cache = true) const;
+	bool containsDependency(const SAS_Plus::LiftedDTG& from, const SAS_Plus::LiftedDTG& to, bool use_cache = true) const;
 
+	const std::vector<LiftedDTG*>& getAllLiftedDTGs() const { return *all_lifted_dtgs_; }
+	
 private:
 	
 	// The transitions between DTGs.
-	typedef std::map<const DomainTransitionGraph*, std::set<const DomainTransitionGraph*>* > DTGtoDTG;
+	//typedef std::map<const DomainTransitionGraph*, std::set<const DomainTransitionGraph*>* > DTGtoDTG;
+	//DTGtoDTG transitions_;
+	//DTGtoDTG reverse_transitions_;
+	typedef std::map<const LiftedDTG*, std::set<const LiftedDTG*>* > DTGtoDTG;
 	DTGtoDTG transitions_;
 	DTGtoDTG reverse_transitions_;
 	
-	typedef std::map<std::pair<const DomainTransitionGraph*, const DomainTransitionGraph*>, std::set<const Transition*>* > TransitionToWeightMapping;
+	//typedef std::map<std::pair<const DomainTransitionGraph*, const DomainTransitionGraph*>, std::set<const Transition*>* > TransitionToWeightMapping;
+	//TransitionToWeightMapping arc_weights_;
+	
+	typedef std::map<std::pair<const LiftedDTG*, const LiftedDTG*>, std::set<const MultiValuedTransition*>* > TransitionToWeightMapping;
 	TransitionToWeightMapping arc_weights_;
 	
 	/**
 	 * Add a transition between two DTGs.
 	 */
-	void addTransition(const MyPOP::SAS_Plus::DomainTransitionGraph& from_dtg, const MyPOP::SAS_Plus::DomainTransitionGraph& to_dtg, const MyPOP::SAS_Plus::Transition& transition);
+	void addTransition(const LiftedDTG& from_dtg, const LiftedDTG& to_dtg, const MultiValuedTransition& transition);
+	//void addTransition(const MyPOP::SAS_Plus::DomainTransitionGraph& from_dtg, const MyPOP::SAS_Plus::DomainTransitionGraph& to_dtg, const MyPOP::SAS_Plus::Transition& transition);
 	
 	/**
 	 * Apply Tarjan's algorithm for finding the strongly connected components of this causal graph.
 	 */
-	void findStronglyConnectedComponents(std::vector<std::vector<const DomainTransitionGraph*>* >& strongly_connected_components) const;
+	void findStronglyConnectedComponents(std::vector<std::vector<const LiftedDTG*>* >& strongly_connected_components) const;
 	
 	/**
 	 * Part of Tarjan's algorithm.
 	 */
-	void strongConnect(std::vector< std::vector< const MyPOP::SAS_Plus::DomainTransitionGraph* >* >& strongly_connected_components, std::vector< const MyPOP::SAS_Plus::DomainTransitionGraph* >& stack, const MyPOP::SAS_Plus::DomainTransitionGraph& dtg, std::map< const MyPOP::SAS_Plus::DomainTransitionGraph*, std::pair< unsigned int, unsigned int > >& indexes, unsigned int& lowest_index) const;
+	void strongConnect(std::vector< std::vector< const MyPOP::SAS_Plus::LiftedDTG* >* >& strongly_connected_components, std::vector< const MyPOP::SAS_Plus::LiftedDTG* >& stack, const MyPOP::SAS_Plus::LiftedDTG& dtg, std::map< const MyPOP::SAS_Plus::LiftedDTG*, std::pair< unsigned int, unsigned int > >& indexes, unsigned int& lowest_index) const;
 	
-	unsigned int getWeight(const MyPOP::SAS_Plus::DomainTransitionGraph& dtg) const;
+	unsigned int getWeight(const MyPOP::SAS_Plus::LiftedDTG& dtg) const;
 	
-	void removeEdge(const DomainTransitionGraph& from_dtg, const DomainTransitionGraph& to_dtg);
+	void removeEdge(const LiftedDTG& from_dtg, const LiftedDTG& to_dtg);
 	
-	void cacheDependencies();
+	//void cacheDependencies();
 	
 	// The DTG manager.
-	const DomainTransitionGraphManager* dtg_manager_;
+	const std::vector<LiftedDTG*>* all_lifted_dtgs_;
 	
 	// The action manager.
 	const ActionManager* action_manager_;
 	
 	// Cache the dependencies between DTGs.
 	bool** cached_dependencies_;
+	
+	const PredicateManager*predicate_manager_;
 };
 
 std::ostream& operator<<(std::ostream& os, const CausalGraph& casual_graph);
@@ -134,6 +141,8 @@ namespace Graphviz {
 
 // Printing the CG.
 void printToDot(const std::string& file_name, const SAS_Plus::CausalGraph& causal_graph);
+
+void printToDot(std::ofstream& ofs, const SAS_Plus::PropertySpace& property_space);
 
 };
 

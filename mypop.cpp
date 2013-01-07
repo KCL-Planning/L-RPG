@@ -177,13 +177,24 @@ int main(int argc,char * argv[])
 	std::cout << "Initial plan" << *plan << std::endl;
 #endif
 
-	std::vector<SAS_Plus::LiftedDTG*> lifted_dtgs;
-	SAS_Plus::LiftedDTG::createLiftedDTGs(lifted_dtgs, *the_domain->types, predicate_manager, type_manager, action_manager, term_manager, initial_facts);
-	Graphviz::printToDot(lifted_dtgs);
-	for (std::vector<SAS_Plus::LiftedDTG*>::const_iterator ci = lifted_dtgs.begin(); ci != lifted_dtgs.end(); ++ci)
 	{
-//		std::cout << **ci << std::endl;
-		delete *ci;
+		std::vector<SAS_Plus::LiftedDTG*> lifted_dtgs;
+		SAS_Plus::LiftedDTG::createLiftedDTGs(lifted_dtgs, *the_domain->types, predicate_manager, type_manager, action_manager, term_manager, initial_facts);
+		Graphviz::printToDot(lifted_dtgs);
+		
+		std::vector<const Atom*> goal_facts;
+		Utility::convertFormula(goal_facts, goal);
+		
+		SAS_Plus::CausalGraph cg(lifted_dtgs, action_manager, predicate_manager);
+		Graphviz::printToDot("cg", cg);
+		cg.breakCycles(goal_facts);
+		Graphviz::printToDot("broken-cg", cg);
+		
+		for (std::vector<SAS_Plus::LiftedDTG*>::const_iterator ci = lifted_dtgs.begin(); ci != lifted_dtgs.end(); ++ci)
+		{
+//			std::cout << **ci << std::endl;
+			delete *ci;
+		}
 	}
 	
 	exit(0);

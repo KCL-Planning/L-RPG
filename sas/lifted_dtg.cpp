@@ -95,6 +95,16 @@ MultiValuedTransition::~MultiValuedTransition()
 	delete effect_to_action_variable_mappings_;
 }
 
+void MultiValuedTransition::ignorePrecondition(const Atom& precondition)
+{
+	preconditions_to_ignore_.push_back(&precondition);
+}
+
+void MultiValuedTransition::ignoreEffect(const Atom& effect)
+{
+	effects_to_ignore_.push_back(&effect);
+}
+
 MultiValuedTransition* MultiValuedTransition::migrateTransition(MultiValuedValue& from_node, MultiValuedValue& to_node, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager) const
 {
 	std::vector<std::vector<unsigned int>* >* precondition_to_action_variable_mappings = new std::vector<std::vector<unsigned int>* >();
@@ -800,6 +810,27 @@ LiftedDTG::~LiftedDTG()
 	for (std::vector<MultiValuedValue*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ++ci)
 	{
 		delete *ci;
+	}
+}
+
+void LiftedDTG::getNodes(std::vector<const MultiValuedValue*>& found_nodes, const HEURISTICS::Fact& fact_to_find) const
+{
+	for (std::vector<MultiValuedValue*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ++ci)
+	{
+		MultiValuedValue* value = *ci;
+		if (value->isCopy())
+		{
+ 			continue;
+		}
+		
+		for (std::vector<HEURISTICS::Fact*>::const_iterator ci = value->getValues().begin(); ci != value->getValues().end(); ++ci)
+		{
+			const HEURISTICS::Fact* fact = *ci;
+			if (fact->canUnifyWith(fact_to_find))
+			{
+				found_nodes.push_back(value);
+			}
+		}
 	}
 }
 

@@ -6,7 +6,6 @@
 #include "parser_utils.h"
 #include "formula.h"
 #include "predicate_manager.h"
-#include "sas/dtg_manager.h"
 #include "heuristics/equivalent_object_group.h"
 #include "heuristics/dtg_reachability.h"
 

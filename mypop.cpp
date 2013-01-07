@@ -24,9 +24,7 @@
 #include "bindings_propagator.h"
 #include "landmarks.h"
 #include "relaxed_planning_graph.h"
-#include "sas/dtg_manager.h"
 #include "sas/causal_graph.h"
-#include "sas/dtg_graph.h"
 #include "heuristics/dtg_reachability.h"
 #include "heuristics/equivalent_object_group.h"
 #include "fc_planner.h"
@@ -35,7 +33,6 @@
 
 ///#define MYPOP_COMMENTS
 #define MYPOP_KEEP_TIME
-#include "sas/transition.h"
 
 extern int yyparse();
 extern int yydebug;
@@ -190,7 +187,7 @@ int main(int argc,char * argv[])
 	}
 	
 	exit(0);
-	
+
 //	assert (plan->getSteps().size() == 2);
 
 	// Split up the actions into lifted actions.

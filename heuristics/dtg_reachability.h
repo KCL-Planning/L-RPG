@@ -8,11 +8,9 @@
 #include <assert.h>
 #include <stdio.h>
 #include <queue>
+#include <ostream>
 
-#include "sas/dtg_types.h"
 #include "plan_types.h"
-#include "sas/dtg_node.h"
-#include "sas/dtg_manager.h"
 #include "utility/memory_pool.h"
 #include "reachable_tree.h"
 
@@ -28,7 +26,7 @@ class Predicate;
 class TermManager;
 class PredicateManager;
 
-void printVariableDomain(ostream& os, const std::vector<const Object*>& result);
+void printVariableDomain(std::ostream& os, const std::vector<const Object*>& result);
 void takeIntersection(std::vector<const Object*>& result, const std::vector<const Object*>& set1, const std::vector<const Object*>& set2);
 bool doVariableDomainsOverlap(const std::vector<const Object*>& set1, const std::vector<const Object*>& set2);
 
@@ -37,10 +35,10 @@ namespace SAS_Plus {
 class Property;
 class PropertySpace;
 
-class BoundedAtom;
-class DomainTransitionGraph;
-class DomainTransitionGraphNode;
-class Transition;
+//class BoundedAtom;
+//class DomainTransitionGraph;
+//class DomainTransitionGraphNode;
+//class Transition;
 
 };
 
@@ -69,7 +67,7 @@ class ReachableFactLayerItem;
 class ReachableFact
 {
 public:
-	static ReachableFact& createReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
+//	static ReachableFact& createReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
 	
 	static ReachableFact& createReachableFact(const Predicate& predicate, std::vector<EquivalentObjectGroup*>& term_domain_mapping);
 	
@@ -148,7 +146,7 @@ private:
 	
 	static std::vector<const ReachableFact*> all_created_reachable_facts_;
 	
-	ReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
+//	ReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
 	
 	//ReachableFact(const Predicate& predicate, std::vector<EquivalentObjectGroup*>& term_domain_mapping);
 	

@@ -11,10 +11,10 @@ class ActionManager;
 class PredicateManager;
 class TypeManager;
 
-namespace SAS_Plus
+/*namespace SAS_Plus
 {
 class BoundedAtom;
-};
+};*/
 
 namespace REACHABILITY
 {
@@ -55,7 +55,7 @@ public:
 	static void removeInstantiatedGroundedAtom();
 	static void removeInstantiatedGroundedAtom(const std::vector<const GroundedAtom*>& exceptions);
 	static const GroundedAtom& getGroundedAtom(const Atom& atom, const Object** variables);
-	static const GroundedAtom& getGroundedAtom(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings);
+//	static const GroundedAtom& getGroundedAtom(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings);
 	
 	static unsigned int numberOfGroundedAtoms();
 	
@@ -69,7 +69,7 @@ public:
 	
 private:
 	GroundedAtom(const Atom& atom, const Object** variables);
-	GroundedAtom(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings);
+//	GroundedAtom(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings);
 	
 	static std::vector<const GroundedAtom*> instantiated_grounded_atoms_;
 

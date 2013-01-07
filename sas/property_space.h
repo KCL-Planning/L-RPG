@@ -3,10 +3,19 @@
 
 #include <vector>
 #include <iostream>
+#include <limits>
 
 #include "VALfiles/TimSupport.h"
-#include "dtg_types.h"
+//#include "dtg_types.h"
 #include <plan_types.h>
+
+/**
+ * Every property has a invariable index. This index marks the variable which 
+ * is not affected by the transitions. The combination of a predicate and
+ * the invariable index is a unique identifier for atoms.
+ */
+typedef unsigned int InvariableIndex;
+const InvariableIndex NO_INVARIABLE_INDEX = std::numeric_limits<unsigned int>::max();
 
 namespace MyPOP {
 

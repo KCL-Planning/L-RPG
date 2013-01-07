@@ -1,4 +1,7 @@
 #include "reachable_tree.h"
+
+#include <limits>
+
 #include "dtg_reachability.h"
 #include <predicate_manager.h>
 #include "equivalent_object_group.h"

@@ -4,10 +4,10 @@
 #include <cmath>
 #include <time.h>
 
-#include "sas/dtg_manager.h"
 #include "predicate_manager.h"
 #include "action_manager.h"
 #include "type_manager.h"
+#include "term_manager.h"
 #include "parser_utils.h"
 #include "heuristics/dtg_reachability.h"
 #include "heuristics/equivalent_object_group.h"
@@ -155,7 +155,7 @@ const GroundedAtom& GroundedAtom::getGroundedAtom(const Atom& atom, const Object
 	instantiated_grounded_atoms_.push_back(new_grounded_atom);
 	return *new_grounded_atom;
 }
-
+/*
 const GroundedAtom& GroundedAtom::getGroundedAtom(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings)
 {
 	const Object** variables = new const Object*[bounded_atom.getAtom().getArity()];
@@ -165,7 +165,7 @@ const GroundedAtom& GroundedAtom::getGroundedAtom(const SAS_Plus::BoundedAtom& b
 	}
 	return getGroundedAtom(bounded_atom.getAtom(), variables);
 }
-
+*/
 unsigned int GroundedAtom::numberOfGroundedAtoms()
 {
 	return instantiated_grounded_atoms_.size();
@@ -176,7 +176,7 @@ GroundedAtom::GroundedAtom(const Atom& atom, const Object** variables)
 {
 //	std::cout << "New Grounded atom: " << *this << std::endl;
 }
-
+/*
 GroundedAtom::GroundedAtom(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings)
 	: atom_(&bounded_atom.getAtom())
 {
@@ -190,7 +190,7 @@ GroundedAtom::GroundedAtom(const SAS_Plus::BoundedAtom& bounded_atom, const Bind
 	
 //	std::cout << "New Grounded atom: " << *this << std::endl;
 }
-
+*/
 GroundedAtom::~GroundedAtom()
 {
 	delete[] variables_;

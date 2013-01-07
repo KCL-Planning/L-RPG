@@ -23,13 +23,10 @@ system ("mkdir -p latest_heuristics_results");
 
 #foreach my $domain_name (@domain_names)
 {
-	#my $example_path = "/home/bram/projects/domains/$domain_name";
 	my $example_path = "domains/$domain_name";
 	print "$domain_name . $from_problem_count . $problem_count";
 	print $domain_name."\n";
 
-#	`rm $output_path/${domain_name}.data`;
-	    
 	for (my $i = $from_problem_count, my $j = 0; $i <= $problem_count; $i++, $j++)
 	{
 		my $count;
@@ -41,34 +38,32 @@ system ("mkdir -p latest_heuristics_results");
 		{
 			$count = $i;
 		}
-	#	print $count . "\n";
 
 		#do planning
-#		my $ff_output = substr(`ulimit -t 600 && ./mypop -g $example_path/domain.pddl $example_path/pfile$count.pddl 2>&1 | egrep "visited|length"`, 0, -1);
-#		my @ff_lines = split(/\n/, $ff_output);
-#		my $ff_plan_valid = `VALfiles/validate $example_path/domain.pddl $example_path/pfile$count.pddl solution-$domain_name-pfile$count | grep "Plan valid"`;
-#		if (length($ff_plan_valid) lt 1)
-#		{
-#			print "FF validated failed.\n";
-#			$ff_states_evaluated = -1;
-#		}
+		#my $lifted_output = substr(`ulimit -v 2048000 && ulimit -t 1800 && ./mypop $example_path/domain.pddl $example_path/pfile$count.pddl 2>&1 | egrep "visited|length"`, 0, -1);
+		#my $memory_output = `valgrind --tool=massif --massif-out-file=massif.out ./mypop domains/driverlog/domain.pddl domains/driverlog/pfile01.pddl > result; cat massif.out | grep mem_heap_B | sed -e 's/mem_heap_B=\(.*\)/\1/' | sort -g | tail -n 1`;
+		my $memory_output = `ulimit -v 3000000 && ulimit -t 1800 && valgrind --tool=massif --massif-out-file=massif.out ./mypop-exp $example_path/domain.pddl $example_path/pfile$count.pddl > result; cat massif.out | grep mem_heap_B`;
+		my @memories_recorded = split(/\n/, $memory_output);
+		my $max_memory = 0;
+		foreach my $mem (@memories_recorded)
+		{
+			$mem =~ s/mem_heap_B=//;
+			if ($mem > $max_memory)
+			{
+				$max_memory = $mem;
+			}
+		}
+		print "$max_memory\n";
+#		print "Output = $memory_output\n";
 
-		my $lifted_output = substr(`ulimit -v 2048000 && ulimit -t 1800 && ./mypop $example_path/domain.pddl $example_path/pfile$count.pddl 2>&1 | egrep "visited|length"`, 0, -1);
-		my @lifted_lines = split(/\n/, $lifted_output);
-#		my $plan_valid = `VALfiles/validate $example_path/domain.pddl $example_path/pfile$count.pddl solution-$domain_name-pfile$count | grep "Plan valid"`;
-#		if (length($plan_valid) lt 1)
-#		{
-#			print "Lifted validated failed.\n";
-#			$states_evaluated = -1;
-#		}
+#		my $lifted_output = substr(`ulimit -v 2048000 && ulimit -t 1800 && ./mypop $example_path/domain.pddl $example_path/pfile$count.pddl 2>&1 | egrep "visited|length"`, 0, -1);
+#		my @lifted_lines = split(/\n/, $lifted_output);
 
-		my @lifted_states = split(/ /, $lifted_lines[0]);
-		my @lifted_plan_length = split(/ /, $lifted_lines[1]);
-#		my @ff_states = split(/ /, $ff_lines[0]);
-#		my @ff_plan_length = split(/ /, $ff_lines[1]);
-#		print "$count - Lifted: @lifted_states[2] - Plan length: @lifted_plan_length[2]; FF: @ff_states[2] - Plan length: @ff_plan_length[2]\n";
-		print "$count - Lifted: @lifted_states[2] - Plan length: @lifted_plan_length[2]\n";
-		`echo "$count - @lifted_states[2]" >> latest_heuristics_results/${domain_name}-states.dat`;
-		`echo "$count - @lifted_plan_length[2]" >> latest_heuristics_results/${domain_name}-quality.dat`;
+		#my @lifted_states = split(/ /, $lifted_lines[0]);
+		#my @lifted_plan_length = split(/ /, $lifted_lines[1]);
+		#print "$count - Lifted: @lifted_states[2] - Plan length: @lifted_plan_length[2]\n";
+		#`echo "$count @lifted_states[2]" >> latest_heuristics_results/${domain_name}-states.dat`;
+		#`echo "$count @lifted_plan_length[2]" >> latest_heuristics_results/${domain_name}-quality.dat`;
+		`echo "$count $max_memory" >> latest_heuristics_results/${domain_name}-memory.dat`;
 	}
 }

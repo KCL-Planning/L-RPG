@@ -4,11 +4,7 @@
 
 #include "equivalent_object_group.h"
 #include "dtg_reachability.h"
-#include "sas/dtg_manager.h"
-#include "sas/dtg_graph.h"
-#include "sas/dtg_node.h"
 #include "sas/property_space.h"
-#include "sas/transition.h"
 #include "type_manager.h"
 #include "predicate_manager.h"
 #include "term_manager.h"

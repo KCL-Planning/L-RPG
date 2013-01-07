@@ -4,7 +4,7 @@
 #include <set>
 #include <map>
 #include <ostream>
-#include "dtg_types.h"
+//#include "dtg_types.h"
 #include "../plan_types.h"
 #include <boost/dynamic_bitset.hpp>
 

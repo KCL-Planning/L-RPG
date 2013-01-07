@@ -6,11 +6,8 @@
 
 #include "dtg_reachability.h"
 #include "equivalent_object_group.h"
-#include "sas/dtg_manager.h"
-#include "sas/dtg_graph.h"
-#include "sas/dtg_node.h"
 #include "sas/property_space.h"
-#include "sas/transition.h"
+#include "action_manager.h"
 #include "type_manager.h"
 #include "reachable_tree.h"
 #include "predicate_manager.h"
@@ -71,12 +68,12 @@ namespace REACHABILITY {
 	
 std::vector<const ReachableFact*> ReachableFact::all_created_reachable_facts_;
 
-ReachableFact& ReachableFact::createReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager)
+/*ReachableFact& ReachableFact::createReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager)
 {
 	ReachableFact* reachable_fact = new ReachableFact(bounded_atom, bindings, eog_manager);
 	all_created_reachable_facts_.push_back(reachable_fact);
 	return *reachable_fact;
-}
+}*/
 	
 ReachableFact& ReachableFact::createReachableFact(const Predicate& predicate, std::vector<EquivalentObjectGroup*>& term_domain_mapping)
 {
@@ -112,7 +109,7 @@ void ReachableFact::deleteAllReachableFacts(const std::vector<REACHABILITY::Reac
 }
 
 
-ReachableFact::ReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager)
+/*ReachableFact::ReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager)
 	: predicate_(&bounded_atom.getAtom().getPredicate()), replaced_by_(NULL)
 {
 	//term_domain_mapping_ = new EquivalentObjectGroup*[bounded_atom.getAtom().getArity()];
@@ -139,7 +136,7 @@ ReachableFact::ReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bi
 	}
 #endif
 	assert (term_domain_mapping_->size() == bounded_atom.getAtom().getArity());
-}
+}*/
 
 ReachableFact::ReachableFact(const Predicate& predicate, std::vector<EquivalentObjectGroup*>& term_domain_mapping)
 	: predicate_(&predicate), term_domain_mapping_(&term_domain_mapping), replaced_by_(NULL)

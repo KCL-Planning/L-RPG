@@ -45,7 +45,7 @@ public:
 	 * Remove all cycles!
 	 */
 	//void breakCycles(const std::vector<const GroundedAtom*>& goals, const Bindings& bindings);
-	void breakCycles(const std::vector<const Atom*>& goals);
+	void breakCycles(const std::vector<const GroundedAtom*>& goals);
 	
 	/**
 	 * Get the action manager.
@@ -78,23 +78,18 @@ public:
 	 * @param to The low-level DTG we check the dependency against.
 	 * @return True if from is dependent on to (i.e. an arc (from, to) exists in the causal graph).
 	 */
-	//bool constainsDependency(const SAS_Plus::DomainTransitionGraph& from, const SAS_Plus::DomainTransitionGraph& to, bool use_cache = true) const;
 	bool containsDependency(const SAS_Plus::LiftedDTG& from, const SAS_Plus::LiftedDTG& to, bool use_cache = true) const;
+	
+	void getAllDependencies(std::vector<const LiftedDTG*>& dependencies, const LiftedDTG& lifted_dtg) const;
 
 	const std::vector<LiftedDTG*>& getAllLiftedDTGs() const { return *all_lifted_dtgs_; }
 	
 private:
 	
 	// The transitions between DTGs.
-	//typedef std::map<const DomainTransitionGraph*, std::set<const DomainTransitionGraph*>* > DTGtoDTG;
-	//DTGtoDTG transitions_;
-	//DTGtoDTG reverse_transitions_;
 	typedef std::map<const LiftedDTG*, std::set<const LiftedDTG*>* > DTGtoDTG;
 	DTGtoDTG transitions_;
 	DTGtoDTG reverse_transitions_;
-	
-	//typedef std::map<std::pair<const DomainTransitionGraph*, const DomainTransitionGraph*>, std::set<const Transition*>* > TransitionToWeightMapping;
-	//TransitionToWeightMapping arc_weights_;
 	
 	typedef std::map<std::pair<const LiftedDTG*, const LiftedDTG*>, std::set<const MultiValuedTransition*>* > TransitionToWeightMapping;
 	TransitionToWeightMapping arc_weights_;
@@ -103,7 +98,6 @@ private:
 	 * Add a transition between two DTGs.
 	 */
 	void addTransition(const LiftedDTG& from_dtg, const LiftedDTG& to_dtg, const MultiValuedTransition& transition);
-	//void addTransition(const MyPOP::SAS_Plus::DomainTransitionGraph& from_dtg, const MyPOP::SAS_Plus::DomainTransitionGraph& to_dtg, const MyPOP::SAS_Plus::Transition& transition);
 	
 	/**
 	 * Apply Tarjan's algorithm for finding the strongly connected components of this causal graph.

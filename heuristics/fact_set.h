@@ -16,6 +16,7 @@ class Term;
 class Variable;
 class TermManager;
 class TypeManager;
+class GroundedAtom;
 
 namespace HEURISTICS {
 
@@ -37,7 +38,8 @@ public:
 	
 	bool contains(const Object& object) const;
 	
-	void set(const std::vector<const Object*>&  set);
+	void set(const Object& object);
+	void set(const std::vector<const Object*>& set);
 	
 	bool operator==(const VariableDomain& rhs) const;
 	bool operator!=(const VariableDomain& rhs) const;
@@ -66,6 +68,8 @@ public:
 	void setVariableDomain(unsigned int term_index, const VariableDomain& variable_domain);
 	
 	bool canUnifyWith(const Fact& fact) const;
+	
+	bool canUnifyWith(const GroundedAtom& grounded_atom) const;
 	
 	bool operator==(const Fact& rhs) const;
 	

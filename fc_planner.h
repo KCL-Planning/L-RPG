@@ -2,14 +2,20 @@
 #define MYPOP_FORWARD_CHAINING_PLANNER
 
 #include <vector>
-#include "formula.h"
+#include <ostream>
+
+#include "heuristics/heuristic_interface.h"
 
 namespace MyPOP
 {
 class Action;
 class ActionManager;
+class Atom;
+class Equality;
 class PredicateManager;
 class TypeManager;
+class Object;
+class Predicate;
 
 /*namespace SAS_Plus
 {
@@ -54,26 +60,27 @@ class GroundedAtom
 public:
 	static void removeInstantiatedGroundedAtom();
 	static void removeInstantiatedGroundedAtom(const std::vector<const GroundedAtom*>& exceptions);
-	static const GroundedAtom& getGroundedAtom(const Atom& atom, const Object** variables);
+	static const GroundedAtom& getGroundedAtom(const Predicate& predicate, const Object** variables);
 //	static const GroundedAtom& getGroundedAtom(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings);
 	
 	static unsigned int numberOfGroundedAtoms();
 	
 	virtual ~GroundedAtom();
 
-	const Atom& getAtom() const { return *atom_; }
+	//const Atom& getAtom() const { return *atom_; }
+	const Predicate& getPredicate() const { return *predicate_; }
 	const Object& getObject(unsigned int term_index) const { return *variables_[term_index]; }
  	
 	bool operator==(const GroundedAtom& rhs) const;
 	bool operator!=(const GroundedAtom& rhs) const;
 	
 private:
-	GroundedAtom(const Atom& atom, const Object** variables);
+	GroundedAtom(const Predicate& predicate, const Object** variables);
 //	GroundedAtom(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings);
 	
 	static std::vector<const GroundedAtom*> instantiated_grounded_atoms_;
 
-	const Atom* atom_;
+	const Predicate* predicate_;
 	const Object** variables_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const GroundedAtom& grounded_atom);
@@ -154,16 +161,16 @@ public:
 class ForwardChainingPlanner
 {
 public:
-	ForwardChainingPlanner(const ActionManager& action_manager, PredicateManager& predicate_manager, const TypeManager& type_manager);
+	ForwardChainingPlanner(const ActionManager& action_manager, PredicateManager& predicate_manager, const TypeManager& type_manager, HEURISTICS::HeuristicInterface& heuristic);
 	
 	virtual ~ForwardChainingPlanner();
 	
-	std::pair<int, int> findPlan(std::vector< const MyPOP::GroundedAction* >& plan, MyPOP::REACHABILITY::DTGReachability& analyst, const std::vector< const MyPOP::Atom* >& initial_facts, const std::vector< const MyPOP::Atom* >& goal_facts, bool prune_unhelpful_actions, bool allow_restarts, bool allow_new_goals_to_be_added);
+	std::pair<int, int> findPlan(std::vector< const MyPOP::GroundedAction* >& plan, const std::vector< const MyPOP::Atom* >& initial_facts, const std::vector< const MyPOP::Atom* >& goal_facts, bool prune_unhelpful_actions, bool allow_restarts, bool allow_new_goals_to_be_added);
 	
 private:
 	
 	//void setHeuristicForState(MyPOP::State& state, MyPOP::REACHABILITY::DTGReachability& analyst, const std::vector< const MyPOP::GroundedAtom* >& goal_facts, const std::vector< const MyPOP::REACHABILITY::ResolvedBoundedAtom* >& resolved_grounded_goal_facts, const MyPOP::Bindings& bindings) const;
-	void setHeuristicForState(MyPOP::State& state, MyPOP::REACHABILITY::DTGReachability& analyst, const std::vector<const GroundedAtom*>& goal_facts, bool find_helpful_actions, bool allow_new_goals_to_be_added) const;
+	//void setHeuristicForState(MyPOP::State& state, MyPOP::REACHABILITY::DTGReachability& analyst, const std::vector<const GroundedAtom*>& goal_facts, bool find_helpful_actions, bool allow_new_goals_to_be_added) const;
 	
 	/**
 	 * Check if the given state satisfy the facts in the goal state.
@@ -175,6 +182,8 @@ private:
 	const ActionManager* action_manager_;
 	PredicateManager* predicate_manager_;
 	const TypeManager* type_manager_;
+	
+	HEURISTICS::HeuristicInterface* heuristic_;
 };
 
 };

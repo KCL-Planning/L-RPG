@@ -95,6 +95,11 @@ MultiValuedTransition::~MultiValuedTransition()
 	delete effect_to_action_variable_mappings_;
 }
 
+bool MultiValuedTransition::isPreconditionIgnored(const Atom& precondition) const
+{
+	return std::find(preconditions_to_ignore_.begin(), preconditions_to_ignore_.end(), &precondition) != preconditions_to_ignore_.end();
+}
+
 void MultiValuedTransition::ignorePrecondition(const Atom& precondition)
 {
 	preconditions_to_ignore_.push_back(&precondition);
@@ -375,14 +380,14 @@ std::ostream& operator<<(std::ostream& os, const MultiValuedTransition& transiti
 }
 
 	
-MultiValuedValue::MultiValuedValue(std::vector<HEURISTICS::Fact*>& values, const PropertyState& property_state, bool is_copy)
-	: values_(&values), property_state_(&property_state), is_copy_(is_copy)
+MultiValuedValue::MultiValuedValue(const LiftedDTG& lifted_dtg, std::vector<HEURISTICS::Fact*>& values, const PropertyState& property_state, bool is_copy)
+	: lifted_dtg_(&lifted_dtg), values_(&values), property_state_(&property_state), is_copy_(is_copy)
 {
 
 }
 
-MultiValuedValue::MultiValuedValue(const MultiValuedValue& other, bool is_copy)
-	: property_state_(other.property_state_), is_copy_(is_copy)
+MultiValuedValue::MultiValuedValue(const LiftedDTG& lifted_dtg, const MultiValuedValue& other, bool is_copy)
+	: lifted_dtg_(&lifted_dtg), property_state_(other.property_state_), is_copy_(is_copy)
 {
 	values_ = new std::vector<HEURISTICS::Fact*>();
 	for (std::vector<HEURISTICS::Fact*>::const_iterator ci = other.getValues().begin(); ci != other.getValues().end(); ++ci)
@@ -804,7 +809,7 @@ LiftedDTG::LiftedDTG(const PredicateManager& predicate_manager, const TypeManage
 			HEURISTICS::Fact* fact = new HEURISTICS::Fact(predicate_manager, property->getPredicate(), *variable_domains);
 			all_facts->push_back(fact);
 		}
-		MultiValuedValue* mvv = new MultiValuedValue(*all_facts, *property_state);
+		MultiValuedValue* mvv = new MultiValuedValue(*this, *all_facts, *property_state);
 		nodes_.push_back(mvv);
 		assert (mvv != NULL);
 	}
@@ -823,6 +828,7 @@ void LiftedDTG::getNodes(std::vector<const MultiValuedValue*>& found_nodes, cons
 	for (std::vector<MultiValuedValue*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ++ci)
 	{
 		MultiValuedValue* value = *ci;
+		assert (value != NULL);
 		if (value->isCopy())
 		{
  			continue;
@@ -908,7 +914,7 @@ void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, cons
 				continue;
 			}
 			
-			MultiValuedValue* copy_current_node = new MultiValuedValue(*current_node, true);
+			MultiValuedValue* copy_current_node = new MultiValuedValue(*this, *current_node, true);
 			value->addCopy(*copy_current_node);
 			copy_list[current_node] = copy_current_node;
 			
@@ -1364,7 +1370,7 @@ void LiftedDTG::ground(const std::vector<LiftedDTG*>& all_lifted_dtgs, const std
 		while (!done)
 		{
 			done = true;
-			MultiValuedValue* dtg_node_copy = new MultiValuedValue(*dtg_node);
+			MultiValuedValue* dtg_node_copy = new MultiValuedValue(*this, *dtg_node);
 			
 			//for (std::vector<BoundedAtom*>::const_iterator ci = dtg_node_copy->getAtoms().begin(); ci != dtg_node_copy->getAtoms().end(); ++ci)
 			for (unsigned int i = 0; i < dtg_node_copy->getValues().size(); ++i)
@@ -1577,6 +1583,7 @@ MultiValuedValue* LiftedDTG::getMultiValuedValue(const PropertyState& property_s
 			return *ci;
 		}
 	}
+	assert (false);
 	return NULL;
 }
 

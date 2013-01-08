@@ -26,7 +26,7 @@ class VariableDomain;
 	
 namespace SAS_Plus
 {
-
+class LiftedDTG;
 class PropertyState;
 class PropertySpace;
 class MultiValuedValue;
@@ -44,12 +44,17 @@ public:
 	MultiValuedValue& getFromNode() const { return *precondition_; }
 	MultiValuedValue& getToNode() const { return *effect_; }
 	
+	bool isPreconditionIgnored(const Atom& precondition) const;
+	
 	void ignorePrecondition(const Atom& precondition);
 	void ignoreEffect(const Atom& effect);
 	
 	MultiValuedTransition* migrateTransition(MultiValuedValue& from_node, MultiValuedValue& to_node, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager) const;
 	
 	const HEURISTICS::VariableDomain& getActionVariableDomain(unsigned int index) const { return *action_variable_domains_[index]; }
+	
+	const std::vector<std::vector<unsigned int>* >& getPreconditionToActionVariableMappings() const { return *precondition_to_action_variable_mappings_; }
+	const std::vector<std::vector<unsigned int>* >& getEffectToActionVariableMappings() const { return *effect_to_action_variable_mappings_; }
 	
 private:
 	
@@ -76,9 +81,9 @@ std::ostream& operator<<(std::ostream& os, const MultiValuedTransition& transiti
 class MultiValuedValue
 {
 public:
-	MultiValuedValue(std::vector<HEURISTICS::Fact*>& values, const PropertyState& property_state, bool is_copy = false);
+	MultiValuedValue(const LiftedDTG& lifted_dtg, std::vector<HEURISTICS::Fact*>& values, const PropertyState& property_state, bool is_copy = false);
 	
-	MultiValuedValue(const MultiValuedValue& other, bool is_copy = false);
+	MultiValuedValue(const LiftedDTG& lifted_dtg, const MultiValuedValue& other, bool is_copy = false);
 	
 	~MultiValuedValue();
 	
@@ -100,7 +105,11 @@ public:
 	 */
 	void addCopy(MultiValuedValue& copy);
 	
+	const LiftedDTG& getLiftedDTG() const { return *lifted_dtg_; }
+	
 private:
+	const LiftedDTG* lifted_dtg_;
+	
 	std::vector<HEURISTICS::Fact*>* values_;
 	const PropertyState* property_state_;
 	

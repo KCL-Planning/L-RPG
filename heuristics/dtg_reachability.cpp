@@ -4,6 +4,7 @@
 #include <boost/bind.hpp>
 #include <queue>
 
+#include "formula.h"
 #include "dtg_reachability.h"
 #include "equivalent_object_group.h"
 #include "sas/property_space.h"
@@ -158,11 +159,11 @@ ReachableFact::ReachableFact(const Atom& atom, EquivalentObjectGroup** term_doma
 }
 */
 ReachableFact::ReachableFact(const GroundedAtom& grounded_atom, const EquivalentObjectGroupManager& eog_manager)
-	: predicate_(&grounded_atom.getAtom().getPredicate()), replaced_by_(NULL)
+	: predicate_(&grounded_atom.getPredicate()), replaced_by_(NULL)
 {
 //	term_domain_mapping_ = EquivalentObjectGroup::allocateMemory(grounded_atom.getAtom().getArity());
-	term_domain_mapping_ = new std::vector<EquivalentObjectGroup*>(grounded_atom.getAtom().getArity());
-	for (unsigned int i = 0; i < grounded_atom.getAtom().getArity(); i++)
+	term_domain_mapping_ = new std::vector<EquivalentObjectGroup*>(grounded_atom.getPredicate().getArity());
+	for (unsigned int i = 0; i < grounded_atom.getPredicate().getArity(); i++)
 	{
 //		term_domain_mapping_[i] = &eog_manager.getEquivalentObject(grounded_atom.getObject(i)).getEquivalentObjectGroup();
 		(*term_domain_mapping_)[i] = &eog_manager.getEquivalentObject(grounded_atom.getObject(i)).getEquivalentObjectGroup();
@@ -2723,7 +2724,7 @@ const std::vector<ReachableFactLayerItem*>& ReachableFactLayer::getReachableFact
 	return reachable_facts_;
 }
 
-const ReachableFactLayerItem* ReachableFactLayer::contains(const Atom& atom) const
+const ReachableFactLayerItem* ReachableFactLayer::contains(const GroundedAtom& atom) const
 {
 	for (std::vector<ReachableFactLayerItem*>::const_iterator ci = reachable_facts_.begin(); ci != reachable_facts_.end(); ci++)
 	{
@@ -2734,7 +2735,8 @@ const ReachableFactLayerItem* ReachableFactLayer::contains(const Atom& atom) con
 		bool domain_match = true;
 		for (unsigned int i = 0; i < reachable_item->getReachableFactCopy().getPredicate().getArity(); i++)
 		{
-			if (!reachable_item->getReachableFactCopy().getTermDomain(i).contains(*static_cast<const Object*>(atom.getTerms()[i]), nr_))
+			//if (!reachable_item->getReachableFactCopy().getTermDomain(i).contains(*static_cast<const Object*>(atom.getTerms()[i]), nr_))
+			if (!reachable_item->getReachableFactCopy().getTermDomain(i).contains(atom.getObject(i), nr_))
 			{
 				domain_match = false;
 				break;
@@ -2787,7 +2789,7 @@ std::ostream& operator<<(std::ostream& os, const ReachableFactLayer& reachable_f
 }
 
 DTGReachability::DTGReachability(const std::vector< MyPOP::HEURISTICS::LiftedTransition* >& lifted_transitions, const MyPOP::TermManager& term_manager, MyPOP::PredicateManager& predicate_manager)
-	: term_manager_(&term_manager), current_fact_layer_(NULL)
+	: term_manager_(&term_manager), current_fact_layer_(NULL), predicate_manager_(&predicate_manager)
 {
 	std::vector<const HEURISTICS::FactSet*> fact_sets;
 	std::set<const HEURISTICS::FactSet*> processed_fact_sets;
@@ -3179,7 +3181,127 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 	equivalent_object_manager_->getAllReachableFacts(result);
 }
 
-std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**> DTGReachability::createNewGoal(const Atom& resolved_goal)
+void DTGReachability::setHeuristicForState(MyPOP::State& state, const std::vector<const GroundedAtom*>& goal_facts, bool find_helpful_actions, bool allow_new_goals_to_be_added)
+{
+	getEquivalentObjectGroupManager().reset();
+	std::vector<REACHABILITY::ReachableFact*> reachable_facts;
+	for (std::vector<const GroundedAtom*>::const_iterator ci = state.getFacts().begin(); ci != state.getFacts().end(); ci++)
+	{
+		const GroundedAtom* grounded_atom = *ci;
+		std::vector<REACHABILITY::EquivalentObjectGroup*>* variables = new std::vector<REACHABILITY::EquivalentObjectGroup*>(grounded_atom->getPredicate().getArity());
+		for (unsigned int i = 0; i < grounded_atom->getPredicate().getArity(); i++)
+		{
+			(*variables)[i] = &getEquivalentObjectGroupManager().getEquivalentObject(grounded_atom->getObject(i)).getEquivalentObjectGroup();
+		}
+		
+		reachable_facts.push_back(&REACHABILITY::ReachableFact::createReachableFact(grounded_atom->getPredicate(), *variables));
+	}
+
+#ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
+	std::cout << " *** CALCULATE THE HEURISTIC FOR *** " << std::endl;
+	for (std::vector<REACHABILITY::ReachableFact*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
+	{
+		std::cout << **ci << std::endl;
+	}
+#endif
+	std::vector<const REACHABILITY::ReachableFact*> result;
+	std::vector<const GroundedAtom*> persistent_facts;
+
+	// Check which of the facts in the state correspond to the goal facts and prevent these from being deleted.
+	for (std::vector<const GroundedAtom*>::const_iterator ci = state.getFacts().begin(); ci != state.getFacts().end(); ++ci)
+	{
+		const GroundedAtom* state_fact = *ci;
+		for (std::vector<const GroundedAtom*>::const_iterator ci = goal_facts.begin(); ci != goal_facts.end(); ++ci)
+		{
+			const GroundedAtom* goal_fact = *ci;
+			
+			if (*state_fact == *goal_fact)
+			{
+				persistent_facts.push_back(goal_fact);
+				break;
+			}
+		}
+	}
+
+	performReachabilityAnalysis(result, reachable_facts, persistent_facts);
+	
+	// Check if all the goals are reachable in the ultimate state of the lifted RPG.
+	bool all_goal_facts_are_achieved = true;
+	for (std::vector<const GroundedAtom*>::const_iterator ci = goal_facts.begin(); ci != goal_facts.end(); ++ci)
+	{
+		const GroundedAtom* goal_fact = *ci;
+		bool goal_fact_achieved = false;
+		for (std::vector<const REACHABILITY::ReachableFact*>::const_iterator ci = result.begin(); ci != result.end(); ++ci)
+		{
+			const REACHABILITY::ReachableFact* reachable_fact = *ci;
+			if (goal_fact->getPredicate().getArity() != reachable_fact->getPredicate().getArity() ||
+					goal_fact->getPredicate().getName() != goal_fact->getPredicate().getName())
+			{
+				continue;
+			}
+			
+			bool terms_match = true;
+			for (unsigned int i = 0; i < goal_fact->getPredicate().getArity(); ++i)
+			{
+				const REACHABILITY::EquivalentObjectGroup& eog = reachable_fact->getTermDomain(i);
+				if (!eog.contains(goal_fact->getObject(i)))
+				{
+					terms_match = false;
+					break;
+				}
+			}
+			
+			if (terms_match)
+			{
+				goal_fact_achieved = true;
+				break;
+			}
+		}
+		
+		if (!goal_fact_achieved)
+		{
+			all_goal_facts_are_achieved = false;
+			break;
+		}
+	}
+	
+	if (!all_goal_facts_are_achieved)
+	{
+		persistent_facts.clear();
+		result.clear();
+		getEquivalentObjectGroupManager().reset();
+		reachable_facts.clear();
+		
+		for (std::vector<const GroundedAtom*>::const_iterator ci = state.getFacts().begin(); ci != state.getFacts().end(); ci++)
+		{
+			const GroundedAtom* grounded_atom = *ci;
+			std::vector<REACHABILITY::EquivalentObjectGroup*>* variables = new std::vector<REACHABILITY::EquivalentObjectGroup*>(grounded_atom->getPredicate().getArity());
+			for (unsigned int i = 0; i < grounded_atom->getPredicate().getArity(); i++)
+			{
+				(*variables)[i] = &getEquivalentObjectGroupManager().getEquivalentObject(grounded_atom->getObject(i)).getEquivalentObjectGroup();
+			}
+			
+			reachable_facts.push_back(&REACHABILITY::ReachableFact::createReachableFact(grounded_atom->getPredicate(), *variables));
+		}
+//		std::cerr << "!";
+		performReachabilityAnalysis(result, reachable_facts, persistent_facts);
+	}
+	else
+	{
+//		std::cerr << "?";
+	}
+	
+	unsigned int heuristic_value = getHeuristic(goal_facts, allow_new_goals_to_be_added, find_helpful_actions, false);
+	state.setDistanceToGoal(heuristic_value);
+//	std::cerr << analyst.getHelpfulActions().size() << std::endl;
+	if (find_helpful_actions)
+	{
+		state.setHelpfulActions(getHelpfulActions());
+//		std::cerr << "H=" << analyst.getHelpfulActions().size() << std::endl;
+	}
+}
+
+std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**> DTGReachability::createNewGoal(const GroundedAtom& resolved_goal)
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 	std::cout << "Process the goal: ";
@@ -3224,12 +3346,13 @@ std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**> DTGReacha
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 	std::cout << "Earliest achiever: " << *earliest_known_achiever << std::endl;
 #endif
-	std::vector<const Object*>** grounded_objects = new std::vector<const Object*>*[resolved_goal.getArity()];
-	for (unsigned int i = 0; i < resolved_goal.getArity(); i++)
+	std::vector<const Object*>** grounded_objects = new std::vector<const Object*>*[resolved_goal.getPredicate().getArity()];
+	for (unsigned int i = 0; i < resolved_goal.getPredicate().getArity(); i++)
 	{
 		std::vector<const Object*>* new_variable_domain = new std::vector<const Object*>();
 		//new_variable_domain->push_back(goal->getVariableDomain(i, bindings)[0]);
-		new_variable_domain->push_back(static_cast<const Object*>(resolved_goal.getTerms()[i]));
+		//new_variable_domain->push_back(static_cast<const Object*>(resolved_goal.getTerms()[i]));
+		new_variable_domain->push_back(&resolved_goal.getObject(i));
 		grounded_objects[i] = new_variable_domain;
 	}
 	return std::make_pair(earliest_known_achiever, grounded_objects);
@@ -3550,7 +3673,7 @@ void DTGReachability::substitute(const EquivalentObject& lhs, const EquivalentOb
 	}
 }
 
-unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*>& bounded_goal_facts, PredicateManager& predicate_manager, bool allow_new_goals_added, bool create_helpful_actions, bool instantiate_actions)
+unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*>& bounded_goal_facts, bool allow_new_goals_added, bool create_helpful_actions, bool instantiate_actions)
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 	std::cout << " ************************************************************** " << std::endl;
@@ -3575,8 +3698,9 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 //	std::vector<const std::vector<const Object*>* > variable_domains_of_goals;
 	for (std::vector<const GroundedAtom*>::const_iterator ci = bounded_goal_facts.begin(); ci != bounded_goal_facts.end(); ci++)
 	{
-		const Atom& resolved_goal = (*ci)->getAtom();
- 		std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**> goal = createNewGoal(resolved_goal);
+		//const Atom& resolved_goal = (*ci)->getAtom();
+ 		//std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**> goal = createNewGoal(resolved_goal);
+		std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**> goal = createNewGoal(**ci);
 		if (goal.first != NULL)
 		{
 			open_list.push(goal);
@@ -4493,8 +4617,8 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 			for (std::vector<const GroundedAtom*>::const_iterator ci = bounded_goal_facts.begin(); ci != bounded_goal_facts.end(); ++ci)
 			{
 				const GroundedAtom* goal = *ci;
-				if (goal->getAtom().getArity() != fact.getPredicate().getArity() ||
-					goal->getAtom().getPredicate().getName() != fact.getPredicate().getName())
+				if (goal->getPredicate().getArity() != fact.getPredicate().getArity() ||
+					goal->getPredicate().getName() != fact.getPredicate().getName())
 				{
 					continue;
 				}
@@ -4503,9 +4627,10 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 				for (unsigned int i = 0; i < fact.getPredicate().getArity(); ++i)
 				{
 					EquivalentObjectGroup& fact_variable_domain = fact.getTermDomain(i);
-					const Object* goal_object = static_cast<const Object*>(goal->getAtom().getTerms()[i]);
+					//const Object* goal_object = static_cast<const Object*>(goal->getAtom().getTerms()[i]);
+					const Object& goal_object = goal->getObject(i);
 					
-					if (!fact_variable_domain.contains(*goal_object, fact_item->getReachableFactLayer().getLayerNumber()))
+					if (!fact_variable_domain.contains(goal_object, fact_item->getReachableFactLayer().getLayerNumber()))
 					{
 						fact_matches_goal = false;
 						break;
@@ -4514,7 +4639,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 				if (fact_matches_goal)
 				{
 					std::vector<const HEURISTICS::VariableDomain*>* variable_domains = new std::vector<const HEURISTICS::VariableDomain*>();
-					for (unsigned int term_index = 0; term_index < goal->getAtom().getArity(); ++term_index)
+					for (unsigned int term_index = 0; term_index < goal->getPredicate().getArity(); ++term_index)
 					{
 						HEURISTICS::VariableDomain* vd = new HEURISTICS::VariableDomain();
 						vd->addObject(goal->getObject(term_index));

@@ -11,6 +11,7 @@
 #include <predicate_manager.h>
 
 //#define MYPOP_HEURISTICS_LIFTED_TRANSITION_COMMENTS
+#include <fc_planner.h>
 
 namespace MyPOP {
 
@@ -68,6 +69,12 @@ bool VariableDomain::contains(const Object& object) const
 	}
 	
 	return false;
+}
+
+void VariableDomain::set(const Object& object)
+{
+	variable_domain_.clear();
+	variable_domain_.push_back(&object);
 }
 
 void VariableDomain::set(const std::vector<const Object*>&  set)
@@ -191,6 +198,25 @@ bool Fact::canUnifyWith(const Fact& fact) const
 		const VariableDomain* other_variable_domain = fact.variable_domains_[i];
 		
 		if (!variable_domain->sharesObjectsWith(*other_variable_domain))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+bool Fact::canUnifyWith(const GroundedAtom& grounded_atom) const
+{
+	if (predicate_->getName() != grounded_atom.getPredicate().getName() ||
+	    predicate_->getArity() != grounded_atom.getPredicate().getArity())
+	{
+		return false;
+	}
+	
+	for (unsigned int i = 0; i < predicate_->getArity(); ++i)
+	{
+		const VariableDomain* variable_domain = variable_domains_[i];
+		if (!variable_domain->contains(*static_cast<const Object*>(&grounded_atom.getObject(i))))
 		{
 			return false;
 		}

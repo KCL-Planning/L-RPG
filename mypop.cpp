@@ -30,6 +30,7 @@
 #include "fc_planner.h"
 #include "heuristics/fact_set.h"
 #include "sas/lifted_dtg.h"
+#include "heuristics/cg_heuristic.h"
 
 ///#define MYPOP_COMMENTS
 #define MYPOP_KEEP_TIME
@@ -67,6 +68,24 @@ int main(int argc,char * argv[])
 	struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
 	setitimer ( ITIMER_PROF, &timer, NULL );
 
+	bool use_ff = true;
+	for (int i = 1; i < argc - 2; i++)
+	{
+		std::string command_line = std::string(argv[i]);
+		if (command_line == "-cg")
+		{
+			use_ff = false;
+		}
+		else if (command_line == "-ff")
+		{
+			use_ff = true;
+		}
+		else
+		{
+			std::cerr << "Unknown option " << command_line << std::endl;
+			exit(1);
+		}
+	}
 /*	bool ground = false;
 	// Read in commandline options.
 	for (int i = 1; i < argc - 2; i++)
@@ -177,55 +196,71 @@ int main(int argc,char * argv[])
 	std::cout << "Initial plan" << *plan << std::endl;
 #endif
 
+	std::vector<const Atom*> goal_facts;
+	Utility::convertFormula(goal_facts, goal);
+
+	HEURISTICS::HeuristicInterface* heuristic_interface = NULL;
+	
+	if (!use_ff)
 	{
 		std::vector<SAS_Plus::LiftedDTG*> lifted_dtgs;
 		SAS_Plus::LiftedDTG::createLiftedDTGs(lifted_dtgs, *the_domain->types, predicate_manager, type_manager, action_manager, term_manager, initial_facts);
 		Graphviz::printToDot(lifted_dtgs);
 		
-		std::vector<const Atom*> goal_facts;
-		Utility::convertFormula(goal_facts, goal);
-		
-		SAS_Plus::CausalGraph cg(lifted_dtgs, action_manager, predicate_manager);
-		Graphviz::printToDot("cg", cg);
-		cg.breakCycles(goal_facts);
-		Graphviz::printToDot("broken-cg", cg);
-		
-		for (std::vector<SAS_Plus::LiftedDTG*>::const_iterator ci = lifted_dtgs.begin(); ci != lifted_dtgs.end(); ++ci)
-		{
-//			std::cout << **ci << std::endl;
-			delete *ci;
-		}
-	}
-	
-	exit(0);
-
-//	assert (plan->getSteps().size() == 2);
-
-	// Split up the actions into lifted actions.
-	std::vector<const Object*> objects_part_of_property_state;
-	for (std::vector<TIM::PropertySpace*>::const_iterator property_space_i = TIM::TA->pbegin(); property_space_i != TIM::TA->pend(); ++property_space_i)
-	{
-		TIM::PropertySpace* property_space = *property_space_i;
-		for (TIM::PropertySpace::OIterator object_i = property_space->obegin(); object_i != property_space->oend(); ++object_i)
-		{
-			TIM::TIMobjectSymbol* tim_object = *object_i;
 			
-			const Object& object = term_manager.getObject(tim_object->getName());
-			if (std::find(objects_part_of_property_state.begin(), objects_part_of_property_state.end(), &object) == objects_part_of_property_state.end())
+		std::vector<const GroundedAtom*> grounded_goal_facts;
+		for (std::vector<const Atom*>::const_iterator ci = goal_facts.begin(); ci != goal_facts.end(); ++ci)
+		{
+			const Atom* goal = *ci;
+			const Object** variables = new const Object*[goal->getArity()];
+			for (unsigned int term_index = 0; term_index < goal->getArity(); ++term_index)
 			{
-				objects_part_of_property_state.push_back(&object);
+				variables[term_index] = static_cast<const Object*>(goal->getTerms()[term_index]);
+			}
+			grounded_goal_facts.push_back(&GroundedAtom::getGroundedAtom(goal->getPredicate(), variables));
+		}
+		
+		std::vector<const GroundedAtom*> grounded_initial_facts;
+		for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ++ci)
+		{
+			const Atom* init = *ci;
+			const Object** variables = new const Object*[init->getArity()];
+			for (unsigned int term_index = 0; term_index < init->getArity(); ++term_index)
+			{
+				variables[term_index] = static_cast<const Object*>(init->getTerms()[term_index]);
+			}
+			grounded_initial_facts.push_back(&GroundedAtom::getGroundedAtom(init->getPredicate(), variables));
+		}
+		
+		heuristic_interface = new HEURISTICS::LiftedCausalGraphHeuristic(lifted_dtgs, action_manager, predicate_manager, grounded_goal_facts);
+	}
+	else
+	{
+		// Split up the actions into lifted actions.
+		std::vector<const Object*> objects_part_of_property_state;
+		for (std::vector<TIM::PropertySpace*>::const_iterator property_space_i = TIM::TA->pbegin(); property_space_i != TIM::TA->pend(); ++property_space_i)
+		{
+			TIM::PropertySpace* property_space = *property_space_i;
+			for (TIM::PropertySpace::OIterator object_i = property_space->obegin(); object_i != property_space->oend(); ++object_i)
+			{
+				TIM::TIMobjectSymbol* tim_object = *object_i;
+				
+				const Object& object = term_manager.getObject(tim_object->getName());
+				if (std::find(objects_part_of_property_state.begin(), objects_part_of_property_state.end(), &object) == objects_part_of_property_state.end())
+				{
+					objects_part_of_property_state.push_back(&object);
+				}
 			}
 		}
-	}
 
-	std::vector<HEURISTICS::LiftedTransition*> lifted_transitions;
-	for (std::vector<Action*>::const_iterator ci = action_manager.getManagableObjects().begin(); ci != action_manager.getManagableObjects().end(); ++ci)
-	{
-		const Action* action = *ci;
-		HEURISTICS::LiftedTransition::createLiftedTransitions(lifted_transitions, predicate_manager, term_manager, type_manager, *action, initial_facts, objects_part_of_property_state);
-	}
- 	std::cerr << "Lifted transitions: " << lifted_transitions.size() << std::endl;
-	HEURISTICS::LiftedTransition::mergeFactSets(lifted_transitions);
+		std::vector<HEURISTICS::LiftedTransition*> lifted_transitions;
+		for (std::vector<Action*>::const_iterator ci = action_manager.getManagableObjects().begin(); ci != action_manager.getManagableObjects().end(); ++ci)
+		{
+			const Action* action = *ci;
+			HEURISTICS::LiftedTransition::createLiftedTransitions(lifted_transitions, predicate_manager, term_manager, type_manager, *action, initial_facts, objects_part_of_property_state);
+		}
+		std::cerr << "Lifted transitions: " << lifted_transitions.size() << std::endl;
+		HEURISTICS::LiftedTransition::mergeFactSets(lifted_transitions);
 
 //	std::cout << "All lifted transitions:" << std::endl;
 //	for (std::vector<HEURISTICS::LiftedTransition*>::const_iterator ci = lifted_transitions.begin(); ci != lifted_transitions.end(); ++ci)
@@ -299,21 +334,21 @@ int main(int argc,char * argv[])
 
 	// Do the reachability analysis.
 #ifdef MYPOP_KEEP_TIME
-	struct timeval start_time_prepare_reachability;
-	gettimeofday(&start_time_prepare_reachability, NULL);
+		struct timeval start_time_prepare_reachability;
+		gettimeofday(&start_time_prepare_reachability, NULL);
 #endif
 
-	REACHABILITY::DTGReachability analyst(lifted_transitions, term_manager, predicate_manager);
+		heuristic_interface = new REACHABILITY::DTGReachability(lifted_transitions, term_manager, predicate_manager);
 #ifdef MYPOP_KEEP_TIME
-	struct timeval end_time_prepare_reachability;
-	gettimeofday(&end_time_prepare_reachability, NULL);	
-	
-	double time_spend_preparing = end_time_prepare_reachability.tv_sec - start_time_prepare_reachability.tv_sec + (end_time_prepare_reachability.tv_usec - start_time_prepare_reachability.tv_usec) / 1000000.0;
-	std::cerr << "Prepare reachability analysis: " << time_spend_preparing << " seconds" << std::endl;
+		struct timeval end_time_prepare_reachability;
+		gettimeofday(&end_time_prepare_reachability, NULL);	
+		
+		double time_spend_preparing = end_time_prepare_reachability.tv_sec - start_time_prepare_reachability.tv_sec + (end_time_prepare_reachability.tv_usec - start_time_prepare_reachability.tv_usec) / 1000000.0;
+		std::cerr << "Prepare reachability analysis: " << time_spend_preparing << " seconds" << std::endl;
 #endif
-
-	std::vector<const Atom*> goal_facts;
-	Utility::convertFormula(goal_facts, goal);
+	}
+//	std::vector<const Atom*> goal_facts;
+//	Utility::convertFormula(goal_facts, goal);
 	
 /*
 	std::vector<const SAS_Plus::BoundedAtom*> bounded_goal_facts;
@@ -328,10 +363,14 @@ int main(int argc,char * argv[])
 		bounded_initial_facts.push_back(new SAS_Plus::BoundedAtom(Step::INITIAL_STEP, **ci));
 	}
 */
+
+	
 	std::vector<const GroundedAction*> found_plan;
-	ForwardChainingPlanner fcp(action_manager, predicate_manager, type_manager);
+	//ForwardChainingPlanner fcp(action_manager, predicate_manager, type_manager, analyst);
+	ForwardChainingPlanner fcp(action_manager, predicate_manager, type_manager, *heuristic_interface);
 	std::pair<int, int> result;
-	result = fcp.findPlan(found_plan, analyst, initial_facts, goal_facts, true, true, true);
+	//result = fcp.findPlan(found_plan, analyst, initial_facts, goal_facts, true, true, true);
+	result = fcp.findPlan(found_plan, initial_facts, goal_facts, true, true, true);
 	
 	// If the greedy method failed, try the non greedy method!
 	if (result.first == -1)
@@ -339,7 +378,8 @@ int main(int argc,char * argv[])
 		found_plan.clear();
 		GroundedAtom::removeInstantiatedGroundedAtom();
 		GroundedAction::removeInstantiatedGroundedActions();
-		result = fcp.findPlan(found_plan, analyst, initial_facts, goal_facts, false, true, true);
+		//result = fcp.findPlan(found_plan, analyst, initial_facts, goal_facts, false, true, true);
+		result = fcp.findPlan(found_plan, initial_facts, goal_facts, false, true, true);
 	}
 	
 	// Validate the plan!
@@ -367,10 +407,10 @@ int main(int argc,char * argv[])
 		std::cerr << "Plan length: -1" << std::endl;
 	}
 
-	for (std::vector<HEURISTICS::LiftedTransition*>::const_iterator ci = lifted_transitions.begin(); ci != lifted_transitions.end(); ++ci)
-	{
-		delete *ci;
-	}
+//	for (std::vector<HEURISTICS::LiftedTransition*>::const_iterator ci = lifted_transitions.begin(); ci != lifted_transitions.end(); ++ci)
+//	{
+//		delete *ci;
+//	}
 
 //	GroundedAction::removeInstantiatedGroundedActions();
 //	GroundedAtom::removeInstantiatedGroundedAtom();

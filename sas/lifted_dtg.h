@@ -45,6 +45,7 @@ public:
 	MultiValuedValue& getToNode() const { return *effect_; }
 	
 	bool isPreconditionIgnored(const Atom& precondition) const;
+	bool isEffectIgnored(const Atom& effect) const;
 	
 	void ignorePrecondition(const Atom& precondition);
 	void ignoreEffect(const Atom& effect);

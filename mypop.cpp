@@ -203,9 +203,9 @@ int main(int argc,char * argv[])
 	
 	if (!use_ff)
 	{
-		std::vector<SAS_Plus::LiftedDTG*> lifted_dtgs;
-		SAS_Plus::LiftedDTG::createLiftedDTGs(lifted_dtgs, *the_domain->types, predicate_manager, type_manager, action_manager, term_manager, initial_facts);
-		Graphviz::printToDot(lifted_dtgs);
+		std::vector<SAS_Plus::LiftedDTG*>* lifted_dtgs = new std::vector<SAS_Plus::LiftedDTG*>();
+		SAS_Plus::LiftedDTG::createLiftedDTGs(*lifted_dtgs, *the_domain->types, predicate_manager, type_manager, action_manager, term_manager, initial_facts);
+		Graphviz::printToDot(*lifted_dtgs);
 		
 			
 		std::vector<const GroundedAtom*> grounded_goal_facts;
@@ -232,7 +232,7 @@ int main(int argc,char * argv[])
 			grounded_initial_facts.push_back(&GroundedAtom::getGroundedAtom(init->getPredicate(), variables));
 		}
 		
-		heuristic_interface = new HEURISTICS::LiftedCausalGraphHeuristic(lifted_dtgs, action_manager, predicate_manager, grounded_goal_facts);
+		heuristic_interface = new HEURISTICS::LiftedCausalGraphHeuristic(*lifted_dtgs, action_manager, predicate_manager, grounded_goal_facts);
 	}
 	else
 	{

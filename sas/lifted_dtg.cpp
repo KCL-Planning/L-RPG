@@ -100,6 +100,11 @@ bool MultiValuedTransition::isPreconditionIgnored(const Atom& precondition) cons
 	return std::find(preconditions_to_ignore_.begin(), preconditions_to_ignore_.end(), &precondition) != preconditions_to_ignore_.end();
 }
 
+bool MultiValuedTransition::isEffectIgnored(const Atom& effect) const
+{
+	return std::find(effects_to_ignore_.begin(), effects_to_ignore_.end(), &effect) != effects_to_ignore_.end();
+}
+
 void MultiValuedTransition::ignorePrecondition(const Atom& precondition)
 {
 	preconditions_to_ignore_.push_back(&precondition);

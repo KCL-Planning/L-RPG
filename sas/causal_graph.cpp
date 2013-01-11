@@ -30,7 +30,8 @@ CausalGraph::CausalGraph(const std::vector<LiftedDTG*>& all_lifted_dtgs, const M
 		const LiftedDTG* dtg = *dtg_ci;
 		std::set<const LiftedDTG*>* dtg_set = new std::set<const LiftedDTG*>();
 		transitions_.insert(std::make_pair(dtg, dtg_set));
-		reverse_transitions_.insert(std::make_pair(dtg, dtg_set));
+		std::set<const LiftedDTG*>* reverse_dtg_set = new std::set<const LiftedDTG*>();
+		reverse_transitions_.insert(std::make_pair(dtg, reverse_dtg_set));
 		
 		for (std::vector<LiftedDTG*>::const_iterator dtg_ci = all_lifted_dtgs.begin(); dtg_ci != all_lifted_dtgs.end(); dtg_ci++)
 		{

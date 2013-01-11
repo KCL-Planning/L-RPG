@@ -117,6 +117,9 @@ void MultiValuedTransition::ignoreEffect(const Atom& effect)
 
 MultiValuedTransition* MultiValuedTransition::migrateTransition(MultiValuedValue& from_node, MultiValuedValue& to_node, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager) const
 {
+//	std::cout << "Migrate the transition: " << *this << std::endl;
+//	std::cout << "From: " << from_node << std::endl;
+//	std::cout << "To: " << to_node << std::endl;
 	std::vector<std::vector<unsigned int>* >* precondition_to_action_variable_mappings = new std::vector<std::vector<unsigned int>* >();
 	std::vector<std::vector<unsigned int>* >* effect_to_action_variable_mappings = new std::vector<std::vector<unsigned int>* >();
 	
@@ -310,6 +313,7 @@ MultiValuedTransition* MultiValuedTransition::migrateTransition(MultiValuedValue
 			
 			if (!found_matching_to_node)
 			{
+//				std::cout << "Missing " << *precondition << std::endl;
 				delete transition;
 				return NULL;
 			}
@@ -321,6 +325,7 @@ MultiValuedTransition* MultiValuedTransition::migrateTransition(MultiValuedValue
 	{
 		if ((*ci)->getVariableDomain().empty())
 		{
+//			std::cout << "Empty variable domain!" << std::endl;
 			delete transition;
 			return NULL;
 		}
@@ -777,16 +782,19 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 	for (std::vector<LiftedDTG*>::const_iterator ci = created_lifted_dtgs.begin(); ci != created_lifted_dtgs.end(); ++ci)
 	{
 		(*ci)->createTransitions(created_lifted_dtgs, type_manager);
+//		std::cout << "After adding transitions: " << **ci << std::endl;
 	}
 
 	for (std::vector<LiftedDTG*>::const_iterator ci = created_lifted_dtgs.begin(); ci != created_lifted_dtgs.end(); ++ci)
 	{
 		(*ci)->ground(created_lifted_dtgs, initial_facts, term_manager, type_manager, objects_part_of_property_spaces);
+//		std::cout << "After grounding: " << **ci << std::endl;
 	}
 	
 	for (std::vector<LiftedDTG*>::const_iterator ci = created_lifted_dtgs.begin(); ci != created_lifted_dtgs.end(); ++ci)
 	{
 		(*ci)->createCopies(initial_facts, type_manager);
+//		std::cout << "After creating copies: " << **ci << std::endl;
 	}
 }
 

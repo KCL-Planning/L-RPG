@@ -443,7 +443,7 @@ void PropertyState::addTransition(const PredicateManager& property_manager, cons
 		PropertyStateTransition* new_transition = new PropertyStateTransition(*this, rhs_property_state, preconditions, added_properties, action, *found_mapping->precondition_mappings_, *found_mapping->effect_mappings_, *found_mapping->action_variable_assignments_);
 		transitions_.push_back(new_transition);
 #ifdef MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
-		std::cout << *new_transition << std::endl;
+		std::cout << "New transition: " << *new_transition << std::endl;
 #endif
 	}
 	for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = action_variable_types.begin(); ci != action_variable_types.end(); ++ci)
@@ -1062,7 +1062,7 @@ PropertySpace* PropertySpace::merge(const PropertySpace& lhs, const PropertySpac
 				
 				if (mappings != NULL)
 				{
-					const Property* precondition = merged_to_property_state->getProperties()[from_node_property_index];
+					const Property* precondition = merged_property_state->getProperties()[from_node_property_index];
 					(*precondition_property_mappings)[precondition] = new std::vector<unsigned int>(*mappings);
 					new_preconditions->push_back(precondition);
 				}

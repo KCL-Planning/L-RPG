@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <map>
+#include <ostream>
 
 //#include "fc_planner.h"
 #include "heuristic_interface.h"
@@ -38,6 +39,7 @@ class LCGSearchNode
 {
 public:
 	LCGSearchNode(const std::vector<const HEURISTICS::Fact*>& assignments, const SAS_Plus::MultiValuedValue& node, const std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >& assignments_to_lower_variables_, unsigned int cost = 0);
+	LCGSearchNode(const LCGSearchNode& starting_node, const std::vector<const HEURISTICS::Fact*>& assignments, const SAS_Plus::MultiValuedValue& node, const std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >& assignments_to_lower_variables_, unsigned int cost = 0);
 	
 	LCGSearchNode(const LCGSearchNode& other);
 	
@@ -49,9 +51,15 @@ public:
 	
 	const std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >& getAssignmentsToLowerVariables() const { return *assignments_to_lower_variables_; }
 	
+	const std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >& getAssignmentsToLowerVariables(const SAS_Plus::LiftedDTG& lifted_dtg) const;
+	
 	unsigned int getCost() const { return cost_; }
 	
+	const LCGSearchNode& getStartingNode() const { return *starting_node_; }
+	
 private:
+	
+	const LCGSearchNode* starting_node_;
 	
 	// The assignments to the facts of the node.
 	const std::vector<const HEURISTICS::Fact*>* assignments_;
@@ -63,7 +71,11 @@ private:
 	const std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >* assignments_to_lower_variables_;
 	
 	unsigned int cost_;
+	
+	friend std::ostream& operator<<(std::ostream& os, const LCGSearchNode& search_node);
 };
+
+std::ostream& operator<<(std::ostream& os, const LCGSearchNode& search_node);
 
 class LiftedCausalGraphHeuristic : public HeuristicInterface
 {

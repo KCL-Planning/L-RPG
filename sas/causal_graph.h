@@ -81,6 +81,8 @@ public:
 	bool containsDependency(const SAS_Plus::LiftedDTG& from, const SAS_Plus::LiftedDTG& to, bool use_cache = true) const;
 	
 	void getAllDependencies(std::vector<const LiftedDTG*>& dependencies, const LiftedDTG& lifted_dtg) const;
+	
+	const std::set<const LiftedDTG*>& getAllDirectDependencies(const LiftedDTG& lifted_dtg) const;
 
 	const std::vector<LiftedDTG*>& getAllLiftedDTGs() const { return *all_lifted_dtgs_; }
 	

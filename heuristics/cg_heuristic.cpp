@@ -12,7 +12,7 @@
 #include "term_manager.h"
 #include <predicate_manager.h>
 
-//#define LIFTED_CAUSAL_GRAPH_COMMENTS
+#define LIFTED_CAUSAL_GRAPH_COMMENTS
 
 namespace MyPOP {
 
@@ -24,12 +24,19 @@ bool CompareLCGSearchNodes::operator()(const LCGSearchNode* lhs_node, const LCGS
 }
 
 LCGSearchNode::LCGSearchNode(const std::vector<const HEURISTICS::Fact*>& assignments, const SAS_Plus::MultiValuedValue& node, const std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >& assignments_to_lower_variables, unsigned int cost)
-	: assignments_(&assignments), node_(&node), assignments_to_lower_variables_(&assignments_to_lower_variables), cost_(cost)
+	: starting_node_(this), assignments_(&assignments), node_(&node), assignments_to_lower_variables_(&assignments_to_lower_variables), cost_(cost)
 {
 	
 }
+
+LCGSearchNode::LCGSearchNode(const LCGSearchNode& starting_node, const std::vector<const HEURISTICS::Fact*>& assignments, const SAS_Plus::MultiValuedValue& node, const std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >& assignments_to_lower_variables, unsigned int cost)
+	: starting_node_(&starting_node), assignments_(&assignments), node_(&node), assignments_to_lower_variables_(&assignments_to_lower_variables), cost_(cost)
+{
+	
+}
+
 LCGSearchNode::LCGSearchNode(const LCGSearchNode& other)
-	: assignments_(new std::vector<const HEURISTICS::Fact*>(*other.assignments_)), node_(other.node_), cost_(other.cost_)
+	: starting_node_(other.starting_node_), assignments_(new std::vector<const HEURISTICS::Fact*>(*other.assignments_)), node_(other.node_), assignments_to_lower_variables_(new std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >(*other.assignments_to_lower_variables_)), cost_(other.cost_)
 {
 	
 }
@@ -39,6 +46,48 @@ LCGSearchNode::~LCGSearchNode()
 	delete assignments_;
 }
 
+const std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >& LCGSearchNode::getAssignmentsToLowerVariables(const SAS_Plus::LiftedDTG& lifted_dtg) const
+{
+	std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >::const_iterator ci = assignments_to_lower_variables_->find(&lifted_dtg);
+	if (ci == assignments_to_lower_variables_->end())
+	{
+		std::cerr << "Cannot find the assignments of the lifted dtg: " << std::endl;
+		std::cerr << lifted_dtg << std::endl;
+		std::cerr << "Node: " << std::endl;
+		std::cerr << *this << std::endl;
+		assert (false);
+	}
+	return *(*ci).second;
+}
+
+std::ostream& operator<<(std::ostream& os, const LCGSearchNode& search_node)
+{
+	os << "[LCGSearchNode] Node: Cost=" << search_node.cost_ << std::endl;
+	search_node.getNode().printFacts(os);
+	os << "Assignments:" << std::endl;
+	for (std::vector<const HEURISTICS::Fact*>::const_iterator ci = search_node.assignments_->begin(); ci != search_node.assignments_->end(); ++ci)
+	{
+		os << **ci << std::endl;
+	}
+	
+	os << "Assignments to lower variables:" << std::endl;
+	for (std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >::const_iterator ci = search_node.assignments_to_lower_variables_->begin(); ci != search_node.assignments_to_lower_variables_->end(); ++ci)
+	{
+		std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* assignments = (*ci).second;
+		os << "- Lower assignments:" << std::endl;
+		for (std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >::const_iterator ci = assignments->begin(); ci != assignments->end(); ++ci)
+		{
+			(*ci).first->printFacts(os);
+			os << "Assignments: " << std::endl;
+			const std::vector<const HEURISTICS::Fact*>* node_assignments = (*ci).second;
+			for (std::vector<const HEURISTICS::Fact*>::const_iterator ci = node_assignments->begin(); ci != node_assignments->end(); ++ci)
+			{
+				os << "* " << **ci << std::endl;
+			}
+		}
+	}
+	return os;
+}
 	
 LiftedCausalGraphHeuristic::LiftedCausalGraphHeuristic(const std::vector<SAS_Plus::LiftedDTG*>& lifted_dtgs, const ActionManager& action_manager, const PredicateManager& predicate_manager, const std::vector< const GroundedAtom* >& goal_facts)
 	: lifted_dtgs_(&lifted_dtgs), predicate_manager_(&predicate_manager)
@@ -48,7 +97,7 @@ LiftedCausalGraphHeuristic::LiftedCausalGraphHeuristic(const std::vector<SAS_Plu
 	causal_graph_->breakCycles(goal_facts);
 	Graphviz::printToDot("broken-cg", *causal_graph_);
 #ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
-	std::cout << *causal_graph_ << std::endl;
+	//std::cout << *causal_graph_ << std::endl;
 #endif
 }
 
@@ -66,10 +115,10 @@ unsigned int LiftedCausalGraphHeuristic::getHeuristic(const State& state, const 
 		all_lifted_dtgs.push_back(*ci);
 	}
 #ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
-	for (std::vector<SAS_Plus::LiftedDTG*>::const_iterator ci = lifted_dtgs_->begin(); ci != lifted_dtgs_->end(); ++ci)
-	{
-		std::cout << **ci << std::endl;
-	}
+//	for (std::vector<SAS_Plus::LiftedDTG*>::const_iterator ci = lifted_dtgs_->begin(); ci != lifted_dtgs_->end(); ++ci)
+//	{
+//		std::cout << **ci << std::endl;
+//	}
 	
 	std::cout << "LiftedCausalGraphHeuristic::getHeuristic" << std::endl;
 	std::cout << state << std::endl;
@@ -137,7 +186,8 @@ unsigned int LiftedCausalGraphHeuristic::getHeuristic(const State& state, const 
 		std::cout << "Find nodes for the initial state: " << state << std::endl;
 		for (std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >::const_iterator ci = assignments.begin(); ci != assignments.end(); ++ci)
 		{
-			std::cout << "Node: " << *(*ci).first << std::endl;
+			std::cout << "Node: " ;
+			(*ci).first->printFacts(std::cout);
 			const std::vector<const HEURISTICS::Fact*>* values = (*ci).second;
 			for (std::vector<const HEURISTICS::Fact*>::const_iterator ci = values->begin(); ci != values->end(); ++ci)
 			{
@@ -149,10 +199,18 @@ unsigned int LiftedCausalGraphHeuristic::getHeuristic(const State& state, const 
 		const LCGSearchNode* result = getCost(state, best_node->getLiftedDTG(), assignments, goal_nodes);
 		if (result == NULL)
 		{
+#ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
+			std::cout << "Could not achieve the goal: " << goal_fact << "Invariable domain: " << invariable_domain << std::endl;
+//			std::cout << "Lifted DTG: " << best_node->getLiftedDTG() << std::endl;
+#endif
 			h = std::numeric_limits<unsigned int>::max();
 			break;
 		}
 		h += result->getCost();
+#ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
+		std::cout << "Achieve the goal: " << goal_fact << "Invariable domain: " << invariable_domain << ". Costs = " << result->getCost() << "." << std::endl;
+//		std::cout << "Lifted DTG: " << best_node->getLiftedDTG() << std::endl;
+#endif
 	}
 	return h;
 }
@@ -183,16 +241,32 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 	}
 #endif
 	
-	std::vector<const SAS_Plus::LiftedDTG*> dependencies;
-	causal_graph_->getAllDependencies(dependencies, lifted_dtg);
+	const std::set<const SAS_Plus::LiftedDTG*>& dependencies_set = causal_graph_->getAllDirectDependencies(lifted_dtg);
+	std::vector<const SAS_Plus::LiftedDTG*> dependencies(dependencies_set.begin(), dependencies_set.end());
 	
 	// A multi source, multi destination pathfinding algorithm.
 	std::priority_queue<const LCGSearchNode*, std::vector<const LCGSearchNode*>, CompareLCGSearchNodes> open_list;
+	std::set<const SAS_Plus::MultiValuedValue*> closed_list;
+	
+	// Disable any copies of nodes, we will not be using them.
+	for (std::vector<SAS_Plus::MultiValuedValue*>::const_iterator ci = lifted_dtg.getNodes().begin(); ci != lifted_dtg.getNodes().end(); ++ci)
+	{
+		if ((*ci)->isCopy())
+		{
+			closed_list.insert(*ci);
+		}
+	}
 	
 	for (std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >::const_iterator ci = from_nodes.begin(); ci != from_nodes.end(); ++ci)
 	{
 		const SAS_Plus::MultiValuedValue* node = (*ci).first;
 		const std::vector<const HEURISTICS::Fact*>* assignments_to_node = (*ci).second;
+		
+		// Enable any copies of this node.
+		for (std::vector<SAS_Plus::MultiValuedValue*>::const_iterator ci = node->getCopies().begin(); ci != node->getCopies().end(); ++ci)
+		{
+			closed_list.erase(*ci);
+		}
 		
 		std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >* assignments_per_lifted_dtg = new std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >();
 		
@@ -207,13 +281,13 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 			(*assignments_per_lifted_dtg)[lifted_dtg] = assignments;
 		}
 		
-		//LCGSearchNode* node = new LCGSearchNode(*(*ci).second, *(*ci).first);
 		std::vector<const HEURISTICS::Fact*>* from_node_assignments = new std::vector<const HEURISTICS::Fact*>(*assignments_to_node);
 		LCGSearchNode* starting_node = new LCGSearchNode(*from_node_assignments, *node, *assignments_per_lifted_dtg);
 		open_list.push(starting_node);
+		
+		assert (assignments_per_lifted_dtg->size() == dependencies.size());
 	}
 	
-	std::set<const SAS_Plus::MultiValuedValue*> closed_list;
 	while (!open_list.empty())
 	{
 		const LCGSearchNode* current_node = open_list.top();
@@ -257,8 +331,17 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 		// Return heuristic value!
 		if (goal_satisfied)
 		{
+#ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
+			std::cout << "Found a goal: Cost = " << current_node->getCost() << std::endl;
+			current_node->getNode().printFacts(std::cout);
+#endif
 			return new LCGSearchNode(*current_node);
 		}
+		
+#ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
+		std::cout << "Process the node: " << std::endl;
+		std::cout << *current_node << std::endl;
+#endif
 		
 		for (std::vector<const SAS_Plus::MultiValuedTransition*>::const_iterator ci = current_node->getNode().getTransitions().begin(); ci != current_node->getNode().getTransitions().end(); ++ci)
 		{
@@ -322,7 +405,8 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 					{
 						if (precondition->getTerms()[term_index] == transition->getAction().getVariables()[action_index])
 						{
-							variable_domains.push_back(&transition->getActionVariableDomain(action_index));
+//							variable_domains.push_back(&transition->getActionVariableDomain(action_index));
+							variable_domains.push_back(action_variable_domains[action_index]);
 							break;
 						}
 					}
@@ -379,20 +463,34 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 				std::cout << "Find nodes for the initial state: " << state << std::endl;
 #endif
 				
-				// Find the value of the initial state.
-				std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > > assignments;
-				getNodes(assignments, best_node->getLiftedDTG(), invariable_domain, state);
-
-				for (std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >::const_iterator ci = assignments.begin(); ci != assignments.end(); ++ci)
+				std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > > from_assignments = current_node->getAssignmentsToLowerVariables(best_node->getLiftedDTG());
+				
+				// Prune those from nodes which do not match the invariable.
+				for (std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >::reverse_iterator ri = from_assignments.rbegin(); ri != from_assignments.rend(); ++ri)
 				{
-					const std::vector<const HEURISTICS::Fact*>* values = (*ci).second;
-					for (std::vector<const HEURISTICS::Fact*>::const_iterator ci = values->begin(); ci != values->end(); ++ci)
+					const SAS_Plus::MultiValuedValue* node = (*ri).first;
+					const std::vector<const HEURISTICS::Fact*>* assignments = (*ri).second;
+					
+					const HEURISTICS::VariableDomain* node_invariable_domain = NULL;
+					
+					const SAS_Plus::PropertyState& property_state = node->getPropertyState();
+					for (unsigned int fact_index = 0; fact_index < node->getValues().size(); ++fact_index)
 					{
-						std::cout << "* " << **ci << std::endl;
+						const SAS_Plus::Property* property = property_state.getProperties()[fact_index];
+						if (property->getIndex() != std::numeric_limits<unsigned int>::max())
+						{
+							node_invariable_domain = (*assignments)[fact_index]->getVariableDomains()[property->getIndex()];
+							break;
+						}
+					}
+					
+					if (node_invariable_domain != NULL && !node_invariable_domain->sharesObjectsWith(invariable_domain))
+					{
+						from_assignments.erase(ri.base() - 1);
 					}
 				}
-
-				const LCGSearchNode* result = getCost(state, best_node->getLiftedDTG(), assignments, goal_nodes);
+				
+				const LCGSearchNode* result = getCost(state, best_node->getLiftedDTG(), from_assignments, goal_nodes);
 				assignments_made.push_back(result);
 				
 				if (result == NULL)
@@ -406,7 +504,7 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 					std::cout << "Achieved the precondition: " << precondition_fact << std::endl;
 					std::cout << "With cost: " << result->getCost() << std::endl;
 					std::cout << "Initial facts: " << std::endl;
-					for (std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >::const_iterator ci = assignments.begin(); ci != assignments.end(); ++ci)
+					for (std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >::const_iterator ci = from_assignments.begin(); ci != from_assignments.end(); ++ci)
 					{
 						const std::vector<const HEURISTICS::Fact*>* initial_facts = (*ci).second;
 						for (std::vector<const HEURISTICS::Fact*>::const_iterator ci = initial_facts->begin(); ci != initial_facts->end(); ++ci)
@@ -491,97 +589,83 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 				}
 				assignments_to_to_node->push_back(new HEURISTICS::Fact(*predicate_manager_, to_fact->getPredicate(), *to_node_variable_domains));
 			}
-/*
-			// Update the state by applying the transition.
-			std::vector<const GroundedAtom*>* new_facts = new std::vector<const GroundedAtom*>(state.getFacts());
-			for (std::vector<const Atom*>::const_iterator ci = transition->getAction().getEffects().begin(); ci != transition->getAction().getEffects().end(); ++ci)
-			{
-				const Atom* effect = *ci;
-				if (transition->isEffectIgnored(*effect))
-				{
-					continue;
-				}
-				
-				std::vector<const VariableDomain*> variable_domains;
-				for (unsigned int term_index = 0; term_index < effect->getArity(); ++term_index)
-				{
-					for (unsigned int action_index = 0; action_index < transition->getAction().getVariables().size(); ++action_index)
-					{
-						if (effect->getTerms()[term_index] == transition->getAction().getVariables()[action_index])
-						{
-							variable_domains.push_back(&transition->getActionVariableDomain(action_index));
-							break;
-						}
-					}
-				}
-				HEURISTICS::Fact effect_fact(*predicate_manager_, effect->getPredicate(), variable_domains);
-				std::cout << "Effect: " << effect_fact << std::endl;
-				
-				if (effect->isNegative())
-				{
-					for (std::vector<const GroundedAtom*>::iterator i = new_facts->begin(); i != new_facts->end(); ++i)
-					{
-						const GroundedAtom* atom = *i;
-						if (effect_fact.canUnifyWith(*atom))
-						{
-							new_facts->erase(i);
-							break;
-						}
-					}
-				}
-				else
-				{
-					const Object** objects = new const Object*[effect->getArity()];
-					for (unsigned int i = 0; i < effect->getArity(); ++i)
-					{
-						assert (variable_domains[i]->getVariableDomain().size() == 1);
-						objects[i] = variable_domains[i]->getVariableDomain()[0];
-					}
-					const GroundedAtom& new_effect = GroundedAtom::getGroundedAtom(effect->getPredicate(), objects);
-					new_facts->push_back(&new_effect);
-				}
-			}
-			
-			std::cout << "New state: " << std::endl;
-			for (std::vector<const GroundedAtom*>::const_iterator ci = new_facts->begin(); ci != new_facts->end(); ++ci)
-			{
-				std::cout << **ci << std::endl;
-			}
-*/
 			
 			const std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >& current_assignments_to_lower_variables = current_node->getAssignmentsToLowerVariables();
 			std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >* new_assignments_to_lower_variables = new std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >();
+			
+#ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
+			std::cout << " UPDATED ASSIGNMENTS!!! [#=" << assignments_made.size() << "]" << std::endl;
+			for (std::vector<const LCGSearchNode*>::const_iterator ci = assignments_made.begin(); ci != assignments_made.end(); ++ci)
+			{
+				std::cout << "START:" << std::endl;
+				std::cout << (*ci)->getStartingNode() << std::endl;
+				std::cout << " *** TO *** " << std::endl;
+				std::cout << **ci << std::endl;
+			}
+#endif
+			
 			for (std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >::const_iterator ci = current_assignments_to_lower_variables.begin(); ci != current_assignments_to_lower_variables.end(); ++ci)
 			{
 				const SAS_Plus::LiftedDTG* lifted_dtg = (*ci).first;
 				std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* mappings = (*ci).second;
-				
 				std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* new_mappings = new std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >();
 				
 				// Check if any assignments have been made by the transitions.
-				bool found_mappings = false;
-				for (std::vector<const LCGSearchNode*>::const_iterator ci = assignments_made.begin(); ci != assignments_made.end(); ++ci)
+				for (std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >::const_iterator ci = mappings->begin(); ci != mappings->end(); ++ci)
 				{
-					const LCGSearchNode* search_node = *ci;
-					if (&search_node->getNode().getLiftedDTG() == lifted_dtg)
+					const SAS_Plus::MultiValuedValue* node = (*ci).first;
+					const std::vector<const HEURISTICS::Fact*>* previous_assignments = (*ci).second;
+					
+					// Check which previous assignments have been altered.
+					bool node_has_been_altered = false;
+					for (std::vector<const LCGSearchNode*>::const_iterator ci = assignments_made.begin(); ci != assignments_made.end(); ++ci)
 					{
-						new_mappings->push_back(std::make_pair(&search_node->getNode(), &search_node->getAssignments()));
-						found_mappings = true;
+						const LCGSearchNode* search_node = *ci;
+						if (&search_node->getStartingNode().getNode() == node)
+						{
+							bool facts_match = true;
+							for (unsigned int fact_index = 0; fact_index < node->getValues().size(); ++fact_index)
+							{
+								if (!search_node->getStartingNode().getAssignments()[fact_index]->canUnifyWith(*(*previous_assignments)[fact_index]))
+								{
+									facts_match = false;
+									break;
+								}
+							}
+							
+							if (facts_match)
+							{
+								node_has_been_altered = true;
+								new_mappings->push_back(std::make_pair(&search_node->getNode(), &search_node->getAssignments()));
+								break;
+							}
+						}
+					}
+					
+					if (!node_has_been_altered)
+					{
+						new_mappings->push_back(std::make_pair(node, new std::vector<const HEURISTICS::Fact*>(*previous_assignments)));
 					}
 				}
-				
-				if (!found_mappings)
-				{
-					for (std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >::const_iterator ci = mappings->begin(); ci != mappings->end(); ++ci)
-					{
-						new_mappings->push_back(std::make_pair((*ci).first, new std::vector<const HEURISTICS::Fact*>(*(*ci).second)));
-					}
-				}
+				(*new_assignments_to_lower_variables)[lifted_dtg] = new_mappings;
 			}
 			
-			
-			LCGSearchNode* new_node = new LCGSearchNode(*assignments_to_to_node, transition->getToNode(), *new_assignments_to_lower_variables, current_node->getCost() + transition_cost);
+#ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
+			std::cout << "Found a new achiever for the node: " << std::endl;
+			transition->getToNode().printFacts(std::cout);
+			std::cout << "Assignments: " << std::endl;
+			for (std::vector<const HEURISTICS::Fact*>::const_iterator ci = assignments_to_to_node->begin(); ci != assignments_to_to_node->end(); ++ci)
+			{
+				std::cout << "* " << **ci << "." << std::endl;
+			}
+			std::cout << "Cost: " << current_node->getCost() + transition_cost << std::endl;
+#endif
+			LCGSearchNode* new_node = new LCGSearchNode(current_node->getStartingNode(), *assignments_to_to_node, transition->getToNode(), *new_assignments_to_lower_variables, current_node->getCost() + transition_cost);
+#ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
+			std::cout << *new_node << std::endl;
+#endif
 			open_list.push(new_node);
+			assert (new_assignments_to_lower_variables->size() == dependencies.size());
 		}
 	}
 	
@@ -609,6 +693,10 @@ void LiftedCausalGraphHeuristic::getNodes(std::vector<std::pair<const SAS_Plus::
 	for (std::vector<SAS_Plus::MultiValuedValue*>::const_iterator ci = lifted_dtg.getNodes().begin(); ci != lifted_dtg.getNodes().end(); ++ci)
 	{
 		const SAS_Plus::MultiValuedValue* node = *ci;
+		if (node->isCopy())
+		{
+			continue;
+		}
 //		std::cout << "Process: " << *node << std::endl;
 		std::vector<const HEURISTICS::Fact*> empty_mapping;
 		std::vector<std::vector<const HEURISTICS::Fact*>* > found_mappings;
@@ -624,13 +712,13 @@ void LiftedCausalGraphHeuristic::getNodes(std::vector<std::pair<const SAS_Plus::
 void LiftedCausalGraphHeuristic::findMappings(std::vector<std::vector<const HEURISTICS::Fact*>* >& found_mappings, const std::vector<const HEURISTICS::Fact*>& current_mappings, const SAS_Plus::MultiValuedValue& node, const HEURISTICS::VariableDomain& invariable_domain, const State& state) const
 {
 	unsigned int fact_index = current_mappings.size();
-#ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
+/*#ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
 	std::cout << "[LiftedCausalGraphHeuristic::findMappings] Index: " << fact_index << std::endl;
 	for (std::vector<const HEURISTICS::Fact*>::const_iterator ci = current_mappings.begin(); ci != current_mappings.end(); ++ci)
 	{
 		std::cout << "* " << **ci << std::endl;
 	}
-#endif
+#endif*/
 	
 	// Found a full assignment!
 	if (fact_index == node.getValues().size())
@@ -716,6 +804,12 @@ const SAS_Plus::MultiValuedValue* LiftedCausalGraphHeuristic::findNode(const HEU
 	for (std::vector<const SAS_Plus::MultiValuedValue*>::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ++ci)
 	{
 		const SAS_Plus::MultiValuedValue* node = *ci;
+		
+		// Copies are never initialised!
+		if (node->isCopy())
+		{
+			continue;
+		}
 		std::vector<const SAS_Plus::LiftedDTG*> node_dependencies;
 		causal_graph_->getAllDependencies(node_dependencies, node->getLiftedDTG());
 		

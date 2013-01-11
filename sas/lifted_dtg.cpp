@@ -431,6 +431,14 @@ void MultiValuedValue::addCopy(MultiValuedValue& copy)
 	created_copies_.push_back(&copy);
 }
 
+void MultiValuedValue::printFacts(std::ostream& os) const
+{
+	for (std::vector<HEURISTICS::Fact*>::const_iterator ci = values_->begin(); ci != values_->end(); ++ci)
+	{
+		os << **ci << std::endl;
+	}
+}
+
 std::ostream& operator<<(std::ostream& os, const MultiValuedValue& value)
 {
 	os << " === VALUE === " << std::endl;

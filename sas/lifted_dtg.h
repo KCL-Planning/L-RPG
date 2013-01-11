@@ -106,7 +106,11 @@ public:
 	 */
 	void addCopy(MultiValuedValue& copy);
 	
+	const std::vector<MultiValuedValue*>& getCopies() const { return created_copies_; }
+	
 	const LiftedDTG& getLiftedDTG() const { return *lifted_dtg_; }
+	
+	void printFacts(std::ostream& os) const;
 	
 private:
 	const LiftedDTG* lifted_dtg_;

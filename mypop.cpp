@@ -207,7 +207,6 @@ int main(int argc,char * argv[])
 		SAS_Plus::LiftedDTG::createLiftedDTGs(*lifted_dtgs, *the_domain->types, predicate_manager, type_manager, action_manager, term_manager, initial_facts);
 		Graphviz::printToDot(*lifted_dtgs);
 		
-			
 		std::vector<const GroundedAtom*> grounded_goal_facts;
 		for (std::vector<const Atom*>::const_iterator ci = goal_facts.begin(); ci != goal_facts.end(); ++ci)
 		{

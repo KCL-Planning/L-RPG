@@ -663,6 +663,11 @@ void CausalGraph::getAllDependencies(std::vector<const LiftedDTG*>& dependencies
 	dependencies.insert(dependencies.end(), relevant_dtgs.begin(), relevant_dtgs.end());
 }
 
+const std::set<const LiftedDTG*>& CausalGraph::getAllDirectDependencies(const LiftedDTG& lifted_dtg) const
+{
+	return *(*transitions_.find(&lifted_dtg)).second;
+}
+
 void CausalGraph::getTransitionsFrom(std::vector<const LiftedDTG*>& transitions, const LiftedDTG& dtg) const
 {
 	DTGtoDTG::const_iterator ci = transitions_.find(&dtg);

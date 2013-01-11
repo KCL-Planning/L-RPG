@@ -24,6 +24,21 @@ namespace SAS_Plus {
 CausalGraph::CausalGraph(const std::vector<LiftedDTG*>& all_lifted_dtgs, const MyPOP::ActionManager& action_manager, const PredicateManager& predicate_manager)
 	: all_lifted_dtgs_(&all_lifted_dtgs), action_manager_(&action_manager), cached_dependencies_(NULL), predicate_manager_(&predicate_manager)
 {
+	// Initialise the data structures.
+	for (std::vector<LiftedDTG*>::const_iterator dtg_ci = all_lifted_dtgs.begin(); dtg_ci != all_lifted_dtgs.end(); dtg_ci++)
+	{
+		const LiftedDTG* dtg = *dtg_ci;
+		std::set<const LiftedDTG*>* dtg_set = new std::set<const LiftedDTG*>();
+		transitions_.insert(std::make_pair(dtg, dtg_set));
+		reverse_transitions_.insert(std::make_pair(dtg, dtg_set));
+		
+		for (std::vector<LiftedDTG*>::const_iterator dtg_ci = all_lifted_dtgs.begin(); dtg_ci != all_lifted_dtgs.end(); dtg_ci++)
+		{
+			std::set<const MultiValuedTransition*>* supported_transitions = new std::set<const MultiValuedTransition*>();
+			arc_weights_[std::make_pair(dtg, *dtg_ci)] = supported_transitions;
+		}
+	}
+	
 	/**
 	 * A edge exists in the CG in the following cases:
 	 * 1) A transition in one of the DTGs has a precondition which is linked to an external DTG.
@@ -699,6 +714,11 @@ void CausalGraph::getTransitionsTo(std::vector<const LiftedDTG*>& transitions, c
 
 void CausalGraph::addTransition(const LiftedDTG& from_dtg, const LiftedDTG& to_dtg, const MultiValuedTransition& transition)
 {
+	std::set<const LiftedDTG*>* dtg_set = transitions_[&from_dtg];
+	dtg_set->insert(&to_dtg);
+	std::set<const LiftedDTG*>* reverse_dtg_set = reverse_transitions_[&to_dtg];
+	reverse_dtg_set->insert(&from_dtg);
+/*
 	std::set<const LiftedDTG*>* dtg_set = NULL;
 	DTGtoDTG::iterator i = transitions_.find(&from_dtg);
 	if (i == transitions_.end())
@@ -711,7 +731,7 @@ void CausalGraph::addTransition(const LiftedDTG& from_dtg, const LiftedDTG& to_d
 		dtg_set = (*i).second;
 	}
 	dtg_set->insert(&to_dtg);
-	
+
 	std::set<const LiftedDTG*>* reverse_dtg_set = NULL;
 	DTGtoDTG::iterator ri = reverse_transitions_.find(&to_dtg);
 	if (ri == reverse_transitions_.end())
@@ -724,9 +744,11 @@ void CausalGraph::addTransition(const LiftedDTG& from_dtg, const LiftedDTG& to_d
 		reverse_dtg_set = (*ri).second;
 	}
 	reverse_dtg_set->insert(&from_dtg);
+*/
 	
 	TransitionToWeightMapping::iterator weight_i = arc_weights_.find(std::make_pair(&from_dtg, &to_dtg));
-	std::set<const MultiValuedTransition*>* supported_transitions = NULL;
+	std::set<const MultiValuedTransition*>* supported_transitions = (*weight_i).second;
+/*	std::set<const MultiValuedTransition*>* supported_transitions = NULL;
 	if (weight_i == arc_weights_.end())
 	{
 		supported_transitions = new std::set<const MultiValuedTransition*>();
@@ -735,7 +757,7 @@ void CausalGraph::addTransition(const LiftedDTG& from_dtg, const LiftedDTG& to_d
 	else
 	{
 		supported_transitions = (*weight_i).second;
-	}
+	}*/
 	supported_transitions->insert(&transition);
 }
 

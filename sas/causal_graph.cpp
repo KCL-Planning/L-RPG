@@ -164,10 +164,10 @@ CausalGraph::CausalGraph(const std::vector<LiftedDTG*>& all_lifted_dtgs, const M
 							for (std::vector<const LiftedDTG*>::const_iterator ci = dtgs_affected_by_lhs_effect.begin(); ci != dtgs_affected_by_lhs_effect.end(); ++ci)
 							{
 								const LiftedDTG* lhs_dtgs = *ci;
-								if (rhs_dtgs == lhs_dtgs)
+								/*if (rhs_dtgs == lhs_dtgs)
 								{
 									continue;
-								}
+								}*/
 								
 								addTransition(*rhs_dtgs, *lhs_dtgs, *transition);
 								addTransition(*lhs_dtgs, *rhs_dtgs, *transition);
@@ -395,16 +395,28 @@ void CausalGraph::breakCycles(const std::vector<const GroundedAtom*>& goals)
 					}
 					HEURISTICS::Fact* precondition_fact = new HEURISTICS::Fact(*predicate_manager_, precondition->getPredicate(), precondition_variable_domains);
 					
-					std::vector<const MultiValuedValue*> found_nodes;
-					dtg->getNodes(found_nodes, *precondition_fact);
+					//std::vector<const MultiValuedValue*> found_nodes;
+					//dtg->getNodes(found_nodes, *precondition_fact);
+					bool is_part_of_node = false;
+					for (std::vector<HEURISTICS::Fact*>::const_iterator ci = node->getValues().begin(); ci != node->getValues().end(); ++ci)
+					{
+						if ((*ci)->canUnifyWith(*precondition_fact))
+						{
+							is_part_of_node = true;
+							break;
+						}
+					}
 					
 					// Don't remove preconditions which are part of its own DTG.
-					if (found_nodes.size() > 0)
+					//if (found_nodes.size() > 0)
+					if (is_part_of_node)
 					{
+						delete precondition_fact;
 						continue;
 					}
 					
 					bool is_connected = false;
+					std::vector<const MultiValuedValue*> found_nodes;
 					for (std::vector<LiftedDTG*>::const_iterator ci = all_lifted_dtgs_->begin(); ci != all_lifted_dtgs_->end(); ++ci)
 					{
 						LiftedDTG* rhs_dtg = *ci;

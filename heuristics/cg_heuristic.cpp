@@ -370,12 +370,16 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 			{
 				//const HEURISTICS::Fact* fact = current_node->getNode().getValues()[fact_index];
 				std::vector<unsigned int>* mappings_to_action_variables = transition->getPreconditionToActionVariableMappings()[fact_index];
+				if (mappings_to_action_variables == NULL)
+				{
+					continue;
+				}
 				
-				 const HEURISTICS::Fact* mapped_fact = current_node->getAssignments()[fact_index];
-				 for (unsigned int term_index = 0; term_index < mapped_fact->getPredicate().getArity(); ++term_index)
-				 {
+				const HEURISTICS::Fact* mapped_fact = current_node->getAssignments()[fact_index];
+				for (unsigned int term_index = 0; term_index < mapped_fact->getPredicate().getArity(); ++term_index)
+				{
 					action_variable_domains[(*mappings_to_action_variables)[term_index]]->set(mapped_fact->getVariableDomains()[term_index]->getVariableDomain());
-				 }
+				}
 			}
 		
 			// Update the variable domains based on the values of the node.
@@ -414,6 +418,10 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 				
 				HEURISTICS::Fact precondition_fact(*predicate_manager_, precondition->getPredicate(), variable_domains);
 				
+#ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
+				std::cout << "Handle the precondition: " << precondition_fact << std::endl;
+#endif
+				
 				// Check if this precondition is part of the from node.
 				bool precondition_is_part_of_from_node = false;
 				//for (std::vector<HEURISTICS::Fact*>::const_iterator ci = current_node->getNode().getValues().begin(); ci != current_node->getNode().getValues().end(); ++ci)
@@ -435,6 +443,8 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 				
 				// If the fact is not part of the from node, then we look for the DTG it does belong to.
 				const SAS_Plus::MultiValuedValue* best_node = findNode(precondition_fact, dependencies);
+				
+				assert (best_node != NULL);
 				
 				// Check which term is invariable.
 				HEURISTICS::VariableDomain invariable_domain;
@@ -585,7 +595,16 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 				std::vector<const HEURISTICS::VariableDomain*>* to_node_variable_domains = new std::vector<const HEURISTICS::VariableDomain*>();
 				for (unsigned int term_index = 0; term_index < to_fact->getPredicate().getArity(); ++term_index)
 				{
-					to_node_variable_domains->push_back(new HEURISTICS::VariableDomain(*action_variable_domains[(*effect_to_action_variable_mappings[to_fact_index])[term_index]]));
+					// If no mapping is specified it is identical to the precondition.
+					// TODO: Handle persistent facts.
+					if (effect_to_action_variable_mappings[to_fact_index] == NULL)
+					{
+//						assignments_to_to_node->push_back(new HEURISTICS::VariableDomain(*action_variable_domains[(*effect_to_action_variable_mappings[to_fact_index])[term_index]]));
+					}
+					else
+					{
+						to_node_variable_domains->push_back(new HEURISTICS::VariableDomain(*action_variable_domains[(*effect_to_action_variable_mappings[to_fact_index])[term_index]]));
+					}
 				}
 				assignments_to_to_node->push_back(new HEURISTICS::Fact(*predicate_manager_, to_fact->getPredicate(), *to_node_variable_domains));
 			}
@@ -790,12 +809,24 @@ unsigned int LiftedCausalGraphHeuristic::getCost()
 */
 const SAS_Plus::MultiValuedValue* LiftedCausalGraphHeuristic::findNode(const HEURISTICS::Fact& fact, const std::vector<const SAS_Plus::LiftedDTG*>& possible_lifted_dtgs) const
 {
+#ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
+	std::cout << "[LiftedCausalGraphHeuristic::findNode] " << fact << std::endl;
+#endif
 	// Find the set of nodes this goal is part of.
 	std::vector<const SAS_Plus::MultiValuedValue*> found_nodes;
 	for (std::vector<const SAS_Plus::LiftedDTG*>::const_iterator ci = possible_lifted_dtgs.begin(); ci != possible_lifted_dtgs.end(); ++ci)
 	{
 		const SAS_Plus::LiftedDTG* lifted_dtg = *ci;
 		lifted_dtg->getNodes(found_nodes, fact);
+		
+#ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
+		std::cout << "Check " << *lifted_dtg << "." << std::endl;
+		std::cout << "Found: " << std::endl;
+		for (std::vector<const SAS_Plus::MultiValuedValue*>::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ++ci)
+		{
+			std::cout << "* " << **ci << std::endl;
+		}
+#endif
 	}
 	
 	// Next we select the node whose lifted DTG has the least number of dependencies (preferably none!).

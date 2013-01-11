@@ -407,31 +407,49 @@ void PropertyState::addTransition(const PredicateManager& property_manager, cons
 		action_variable_types.push_back(new HEURISTICS::VariableDomain(objects_of_type));
 	}
 	
-	std::map<const Property*, std::vector<unsigned int>* > precondition_mappings;
-	std::map<const Property*, std::vector<unsigned int>* > effect_mappings;
-	
-	FoundVariableMappings* found_mapping = getMappings(type_manager, preconditions, added_properties, action, action_variable_types, 0, precondition_mappings, effect_mappings);
-	if (!found_mapping)
+	// Make sure that non of the action variables are empty.
+	bool contains_empty_variable_domain = false;
+	for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = action_variable_types.begin(); ci != action_variable_types.end(); ++ci)
 	{
-		std::cerr << "The transition " << action.getPredicate() << " cannot go from " << std::endl;
-		for (std::vector<const Property*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ++ci)
+		const HEURISTICS::VariableDomain* vd = *ci;
+		if (vd->getVariableDomain().empty())
 		{
-			std::cerr << **ci << std::endl;
+			contains_empty_variable_domain = true;
+			break;
 		}
-		std::cerr << "to" << std::endl;
-		for (std::vector<const Property*>::const_iterator ci = added_properties.begin(); ci != added_properties.end(); ++ci)
-		{
-			std::cerr << **ci << std::endl;
-		}
-		assert (false);
 	}
-	
-	//std::pair<std::map<const Property*, std::vector<unsigned int>* >*, const std::vector<const HEURISTICS::VariableDomain*>* > mapping = getMappings(type_manager, preconditions, added_properties, action, bindings_to_action_variables, action_variable_types, 0);
-	PropertyStateTransition* new_transition = new PropertyStateTransition(*this, rhs_property_state, preconditions, added_properties, action, *found_mapping->precondition_mappings_, *found_mapping->effect_mappings_, *found_mapping->action_variable_assignments_);
-	transitions_.push_back(new_transition);
+	if (!contains_empty_variable_domain)
+	{
+		std::map<const Property*, std::vector<unsigned int>* > precondition_mappings;
+		std::map<const Property*, std::vector<unsigned int>* > effect_mappings;
+		
+		FoundVariableMappings* found_mapping = getMappings(type_manager, preconditions, added_properties, action, action_variable_types, 0, precondition_mappings, effect_mappings);
+		if (!found_mapping)
+		{
+			std::cerr << "The transition " << action.getPredicate() << " cannot go from " << std::endl;
+			for (std::vector<const Property*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ++ci)
+			{
+				std::cerr << **ci << std::endl;
+			}
+			std::cerr << "to" << std::endl;
+			for (std::vector<const Property*>::const_iterator ci = added_properties.begin(); ci != added_properties.end(); ++ci)
+			{
+				std::cerr << **ci << std::endl;
+			}
+			assert (false);
+		}
+		
+		//std::pair<std::map<const Property*, std::vector<unsigned int>* >*, const std::vector<const HEURISTICS::VariableDomain*>* > mapping = getMappings(type_manager, preconditions, added_properties, action, bindings_to_action_variables, action_variable_types, 0);
+		PropertyStateTransition* new_transition = new PropertyStateTransition(*this, rhs_property_state, preconditions, added_properties, action, *found_mapping->precondition_mappings_, *found_mapping->effect_mappings_, *found_mapping->action_variable_assignments_);
+		transitions_.push_back(new_transition);
 #ifdef MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
-	std::cout << *new_transition << std::endl;
+		std::cout << *new_transition << std::endl;
 #endif
+	}
+	for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = action_variable_types.begin(); ci != action_variable_types.end(); ++ci)
+	{
+		delete *ci;
+	}
 }
 
 FoundVariableMappings* PropertyState::getMappings(const TypeManager& type_manager, const std::vector<const Property*>& precondition_properties, const std::vector<const Property*>& effects_properties, const Action& action, const std::vector<const HEURISTICS::VariableDomain*>& action_variable_types, unsigned int property_index_to_process, std::map<const Property*, std::vector<unsigned int>* >& precondition_mappings, std::map<const Property*, std::vector<unsigned int>* >& effect_mappings)
@@ -899,7 +917,12 @@ bool PropertySpace::contains(const Object& object) const
 
 std::ostream& operator<<(std::ostream& os, const PropertySpace& property_space)
 {
-	std::cout << "The property space: ";
+	std::cout << "The property space: [";
+	for (std::vector<const Object*>::const_iterator ci = property_space.getObjects().begin(); ci != property_space.getObjects().end(); ++ci)
+	{
+		std::cout << **ci << ", ";
+	}
+	std::cout << "]" << std::endl;
 	for (std::vector<PropertyState*>::const_iterator ci = property_space.getPropertyStates().begin(); ci != property_space.getPropertyStates().end(); ci++)
 	{
 		os << "* " << **ci << std::endl;
@@ -942,10 +965,10 @@ PropertySpace* PropertySpace::merge(const PropertySpace& lhs, const PropertySpac
 	// 2) Both property spaces are property spaces (i.e. not attribute spaces).
 	
 	// Check if both property spaces apply to the same set of objects.
+	bool shared = false;
 	for (std::vector<const Object*>::const_iterator ci = lhs.objects_.begin(); ci != lhs.objects_.end(); ++ci)
 	{
 		const Object* lhs_objects = *ci;
-		bool shared = false;
 		for (std::vector<const Object*>::const_iterator ci = rhs.objects_.begin(); ci != rhs.objects_.end(); ++ci)
 		{
 			const Object* rhs_objects = *ci;
@@ -957,6 +980,7 @@ PropertySpace* PropertySpace::merge(const PropertySpace& lhs, const PropertySpac
 		}
 		if (!shared) return NULL;
 	}
+	if (!shared) return NULL;
 
 #ifdef MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
 	std::cout << "Merge the LHS: " << lhs << std::endl;

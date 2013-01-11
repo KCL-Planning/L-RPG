@@ -12,7 +12,7 @@
 #include "term_manager.h"
 #include <predicate_manager.h>
 
-#define LIFTED_CAUSAL_GRAPH_COMMENTS
+//#define LIFTED_CAUSAL_GRAPH_COMMENTS
 
 namespace MyPOP {
 
@@ -269,7 +269,9 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 				continue;
 			}
 			
+#ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
 			std::cout << "Process the transition: " << *transition << std::endl;
+#endif
 			
 			unsigned int transition_cost = 1;
 			

@@ -618,7 +618,7 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 		objects_part_of_property_spaces.insert(new_ldtg->property_space_->getObjects().begin(), new_ldtg->property_space_->getObjects().end());
 		created_lifted_dtgs.push_back(new_ldtg);
 #ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
-		std::cout << *new_ldtg << std::endl;
+		std::cout << "New LTG: " << std::endl << *new_ldtg << std::endl;
 #endif
 	}
 	
@@ -802,17 +802,51 @@ LiftedDTG::LiftedDTG(const PredicateManager& predicate_manager, const TypeManage
 			const Property* property = *ci;
 			
 			std::vector<const HEURISTICS::VariableDomain*>* variable_domains = new std::vector<const HEURISTICS::VariableDomain*>();
-			for (std::vector<const Type*>::const_iterator ci = property->getPredicate().getTypes().begin(); ci != property->getPredicate().getTypes().end(); ++ci)
+			bool contains_empty_variable_domain = false;
+//			for (std::vector<const Type*>::const_iterator ci = property->getPredicate().getTypes().begin(); ci != property->getPredicate().getTypes().end(); ++ci)
+			for (unsigned int term_index = 0; term_index < property->getPredicate().getArity(); ++term_index)
 			{
 				std::vector<const Object*> objects_of_type;
-				type_manager.getObjectsOfType(objects_of_type, **ci);
+				if (property->getIndex() != term_index)
+				{
+					const Type* type = property->getPredicate().getTypes()[term_index];
+					type_manager.getObjectsOfType(objects_of_type, *type);
+				}
+				else
+				{
+					objects_of_type.insert(objects_of_type.end(), property_space.getObjects().begin(), property_space.getObjects().end());
+				}
+				if (objects_of_type.empty())
+				{
+					contains_empty_variable_domain = true;
+					break;
+				}
 				
 				HEURISTICS::VariableDomain* vd = new HEURISTICS::VariableDomain(objects_of_type);
 				variable_domains->push_back(vd);
 			}
+			if (contains_empty_variable_domain)
+			{
+				for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = variable_domains->begin(); ci != variable_domains->end(); ++ci)
+				{
+					delete *ci;
+				}
+				delete variable_domains;
+				break;
+			}
 			
 			HEURISTICS::Fact* fact = new HEURISTICS::Fact(predicate_manager, property->getPredicate(), *variable_domains);
 			all_facts->push_back(fact);
+		}
+		
+		if (all_facts->size() != property_state->getProperties().size())
+		{
+			for (std::vector<HEURISTICS::Fact*>::const_iterator ci = all_facts->begin(); ci != all_facts->end(); ++ci)
+			{
+				delete *ci;
+			}
+			delete all_facts;
+			continue;
 		}
 		MultiValuedValue* mvv = new MultiValuedValue(*this, *all_facts, *property_state);
 		nodes_.push_back(mvv);
@@ -853,7 +887,9 @@ void LiftedDTG::getNodes(std::vector<const MultiValuedValue*>& found_nodes, cons
 void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager)
 {
 	std::vector<MultiValuedValue*> nodes_to_add;
-//	std::cout << "[LiftedDTG::createCopies]" << *this << std::endl;
+#ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
+	std::cout << "[LiftedDTG::createCopies]" << *this << std::endl;
+#endif
 	
 	// Detect which terms contain more than a single value and which are not the state invariables.
 	for (std::vector<MultiValuedValue*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ++ci)
@@ -868,6 +904,14 @@ void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, cons
 		const PropertyState& property_state = value->getPropertyState();
 		const std::vector<const Property*>& properties = property_state.getProperties();
 		
+#ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
+		if (properties.size() != value->getValues().size())
+		{
+			std::cerr << *value << std::endl;
+			std::cerr << "V.S." << std::endl;
+			std::cerr << property_state << std::endl;
+		}
+#endif
 		assert (properties.size() == value->getValues().size());
 		
 		std::vector<const HEURISTICS::Fact*> violating_facts;

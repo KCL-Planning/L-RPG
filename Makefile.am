@@ -19,7 +19,8 @@
 AUTOMAKE_OPTIONS = subdir-objects
 #SUBDIRS = FF-X
 
-bin_PROGRAMS = mypop mypopd
+#bin_PROGRAMS = mypop mypopd mypopext mypopdext
+bin_PROGRAMS = mypopext mypopdext
 mypop_SOURCES = VALfiles/DebugWriteController.cpp VALfiles/FastEnvironment.cpp \
 	VALfiles/FuncAnalysis.cpp VALfiles/SASActions.cpp VALfiles/SimpleEval.cpp VALfiles/TIM.cpp \
 	VALfiles/TimSupport.cpp VALfiles/ToFunction.cpp VALfiles/TypedAnalyser.cpp \
@@ -38,11 +39,17 @@ mypop_SOURCES = VALfiles/DebugWriteController.cpp VALfiles/FastEnvironment.cpp \
 	predicate_manager.cpp relaxed_planning_graph.cpp simple_flaw_selector.cpp term_manager.cpp \
 	type_manager.cpp fc_planner.cpp
 mypopd_SOURCES = ${mypop_SOURCES}
+mypopext_SOURCES = ${mypop_SOURCES}
+mypopdext_SOURCES = ${mypop_SOURCES}
 
 mypop_LDADD = @LIBOBJS@
 mypopd_LDADD = @LIBOBJS@
+mypopext_LDADD = @LIBOBJS@
+mypopdext_LDADD = @LIBOBJS@
 mypop_CXXFLAGS = -Wall -Werror -O3 -DNDEBUG
 mypopd_CXXFLAGS = -Wall -Werror -g
+mypopext_CXXFLAGS = -Wall -Werror -O3 -DNDEBUG
+mypopdext_CXXFLAGS = -Wall -Werror -g
 
 YFLAGS = -d
 noinst_HEADERS = exceptions.h flaw_selector.h manager.h planner.h \

@@ -57,6 +57,10 @@ public:
 	const std::vector<std::vector<unsigned int>* >& getPreconditionToActionVariableMappings() const { return *precondition_to_action_variable_mappings_; }
 	const std::vector<std::vector<unsigned int>* >& getEffectToActionVariableMappings() const { return *effect_to_action_variable_mappings_; }
 	
+	const HEURISTICS::Fact* getEffectPersistentWith(const HEURISTICS::Fact& precondition) const;
+	
+	const HEURISTICS::Fact* getPreconditionPersistentWith(const HEURISTICS::Fact& effect) const;
+	
 private:
 	
 	const Action* action_;
@@ -70,6 +74,8 @@ private:
 	
 	// We map each action variable to each term of the effect.
 	const std::vector<std::vector<unsigned int>* >* effect_to_action_variable_mappings_;
+	
+	std::vector<std::pair<unsigned int, unsigned int> > persitent_precondition_to_effect_mappings_;
 	
 	std::vector<const Atom*> preconditions_to_ignore_;
 	std::vector<const Atom*> effects_to_ignore_;

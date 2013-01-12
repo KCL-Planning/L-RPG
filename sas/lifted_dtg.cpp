@@ -42,6 +42,16 @@ MultiValuedTransition::MultiValuedTransition(const Action& action, MultiValuedVa
 		std::vector<unsigned int>* links_to_action_variables = precondition_to_action_variable_mappings[precondition_index];
 		if (links_to_action_variables == NULL)
 		{
+			// Search for a fact in the to node that is identical to the ith precondition.
+			const HEURISTICS::Fact* persitent_precondition = precondition.getValues()[precondition_index];
+			for (std::vector<HEURISTICS::Fact*>::const_iterator ci = effect.getValues().begin(); ci != effect.getValues().end(); ++ci)
+			{
+				const HEURISTICS::Fact* fact = *ci;
+				if (*persitent_precondition == *fact)
+				{
+					persitent_precondition_to_effect_mappings_.push_back(std::make_pair(precondition_index, std::distance(effect.getValues().begin(), ci)));
+				}
+			}
 			continue;
 		}
 		for (unsigned int term_index = 0; term_index < links_to_action_variables->size(); ++term_index)
@@ -336,6 +346,44 @@ MultiValuedTransition* MultiValuedTransition::migrateTransition(MultiValuedValue
 //	std::cout << "New transition: " << *transition << std::endl;
 	
 	return transition;
+}
+
+const HEURISTICS::Fact* MultiValuedTransition::getEffectPersistentWith(const HEURISTICS::Fact& precondition) const
+{
+	for (unsigned int precondition_index = 0; precondition_index < precondition_->getValues().size(); ++precondition_index)
+	{
+		if (precondition_->getValues()[precondition_index] == &precondition)
+		{
+			for (std::vector<std::pair<unsigned int, unsigned int> >::const_iterator ci = persitent_precondition_to_effect_mappings_.begin(); ci != persitent_precondition_to_effect_mappings_.end(); ++ci)
+			{
+				std::pair<unsigned int, unsigned int> persistent_set = *ci;
+				if (persistent_set.first == precondition_index)
+				{
+					return effect_->getValues()[persistent_set.second];
+				}
+			}
+		}
+	}
+	return NULL;
+}
+
+const HEURISTICS::Fact* MultiValuedTransition::getPreconditionPersistentWith(const HEURISTICS::Fact& effect) const
+{
+	for (unsigned int effect_index = 0; effect_index < effect_->getValues().size(); ++effect_index)
+	{
+		if (effect_->getValues()[effect_index] == &effect)
+		{
+			for (std::vector<std::pair<unsigned int, unsigned int> >::const_iterator ci = persitent_precondition_to_effect_mappings_.begin(); ci != persitent_precondition_to_effect_mappings_.end(); ++ci)
+			{
+				std::pair<unsigned int, unsigned int> persistent_set = *ci;
+				if (persistent_set.second == effect_index)
+				{
+					return precondition_->getValues()[persistent_set.first];
+				}
+			}
+		}
+	}
+	return NULL;
 }
 
 std::ostream& operator<<(std::ostream& os, const MultiValuedTransition& transition)

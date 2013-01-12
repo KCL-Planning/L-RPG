@@ -42,7 +42,7 @@ system ("mkdir -p latest_heuristics_results");
 		#do planning
 		#my $lifted_output = substr(`ulimit -v 2048000 && ulimit -t 1800 && ./mypop $example_path/domain.pddl $example_path/pfile$count.pddl 2>&1 | egrep "visited|length"`, 0, -1);
 		#my $memory_output = `valgrind --tool=massif --massif-out-file=massif.out ./mypop domains/driverlog/domain.pddl domains/driverlog/pfile01.pddl > result; cat massif.out | grep mem_heap_B | sed -e 's/mem_heap_B=\(.*\)/\1/' | sort -g | tail -n 1`;
-		my $memory_output = `ulimit -v 3000000 && ulimit -t 7200 && valgrind --tool=massif --massif-out-file=massif.out ./mypop-exp $example_path/domain.pddl $example_path/pfile$count.pddl > result; cat massif.out | grep mem_heap_B`;
+		my $memory_output = `ulimit -v 3000000 && ulimit -t 5400 && valgrind --tool=massif --massif-out-file=massif.out ./mypop -ff $example_path/domain.pddl $example_path/pfile$count.pddl > result; cat massif.out | grep mem_heap_B`;
 		my @memories_recorded = split(/\n/, $memory_output);
 		my $max_memory = 0;
 		foreach my $mem (@memories_recorded)

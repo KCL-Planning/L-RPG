@@ -12,7 +12,7 @@
 #include "term_manager.h"
 #include <predicate_manager.h>
 
-#define LIFTED_CAUSAL_GRAPH_COMMENTS
+//#define LIFTED_CAUSAL_GRAPH_COMMENTS
 
 namespace MyPOP {
 
@@ -335,7 +335,14 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 			std::cout << "Found a goal: Cost = " << current_node->getCost() << std::endl;
 			current_node->getNode().printFacts(std::cout);
 #endif
-			return new LCGSearchNode(*current_node);
+			LCGSearchNode* goal_node = new LCGSearchNode(*current_node);
+			while (!open_list.empty())
+			{
+				const LCGSearchNode* current_node = open_list.top();
+				open_list.pop();
+				delete current_node;
+			}
+			return goal_node;
 		}
 		
 #ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
@@ -592,18 +599,30 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 			{
 				const HEURISTICS::Fact* to_fact = transition->getToNode().getValues()[to_fact_index];
 				
+				// Check if this fact is persistent.
+				const HEURISTICS::Fact* precondition_persistent_with_to_fact = transition->getPreconditionPersistentWith(*to_fact);
 				std::vector<const HEURISTICS::VariableDomain*>* to_node_variable_domains = new std::vector<const HEURISTICS::VariableDomain*>();
-				for (unsigned int term_index = 0; term_index < to_fact->getPredicate().getArity(); ++term_index)
+				if (precondition_persistent_with_to_fact != NULL)
 				{
-					// If no mapping is specified it is identical to the precondition.
-					// TODO: Handle persistent facts.
-					if (effect_to_action_variable_mappings[to_fact_index] == NULL)
+					for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = precondition_persistent_with_to_fact->getVariableDomains().begin(); ci != precondition_persistent_with_to_fact->getVariableDomains().end(); ++ci)
 					{
-//						assignments_to_to_node->push_back(new HEURISTICS::VariableDomain(*action_variable_domains[(*effect_to_action_variable_mappings[to_fact_index])[term_index]]));
+						to_node_variable_domains->push_back(new HEURISTICS::VariableDomain((*ci)->getVariableDomain()));
 					}
-					else
+				}
+				else
+				{
+					for (unsigned int term_index = 0; term_index < to_fact->getPredicate().getArity(); ++term_index)
 					{
-						to_node_variable_domains->push_back(new HEURISTICS::VariableDomain(*action_variable_domains[(*effect_to_action_variable_mappings[to_fact_index])[term_index]]));
+						// If no mapping is specified it is identical to the precondition.
+						// TODO: Handle persistent facts.
+						if (effect_to_action_variable_mappings[to_fact_index] == NULL)
+						{
+							assert (false);
+						}
+						else
+						{
+							to_node_variable_domains->push_back(new HEURISTICS::VariableDomain(*action_variable_domains[(*effect_to_action_variable_mappings[to_fact_index])[term_index]]));
+						}
 					}
 				}
 				assignments_to_to_node->push_back(new HEURISTICS::Fact(*predicate_manager_, to_fact->getPredicate(), *to_node_variable_domains));

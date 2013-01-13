@@ -38,8 +38,8 @@ public:
 class LCGSearchNode
 {
 public:
-	LCGSearchNode(const std::vector<const HEURISTICS::Fact*>& assignments, const SAS_Plus::MultiValuedValue& node, const std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >& assignments_to_lower_variables_, unsigned int cost = 0);
-	LCGSearchNode(const LCGSearchNode& starting_node, const std::vector<const HEURISTICS::Fact*>& assignments, const SAS_Plus::MultiValuedValue& node, const std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >& assignments_to_lower_variables_, unsigned int cost = 0);
+	LCGSearchNode(std::vector<const HEURISTICS::Fact*>& assignments, const SAS_Plus::MultiValuedValue& node, std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >& assignments_to_lower_variables_, unsigned int cost = 0);
+	LCGSearchNode(const LCGSearchNode& starting_node, std::vector<const HEURISTICS::Fact*>& assignments, const SAS_Plus::MultiValuedValue& node, std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >& assignments_to_lower_variables_, unsigned int cost = 0);
 	
 	LCGSearchNode(const LCGSearchNode& other);
 	
@@ -62,13 +62,14 @@ private:
 	const LCGSearchNode* starting_node_;
 	
 	// The assignments to the facts of the node.
-	const std::vector<const HEURISTICS::Fact*>* assignments_;
+	//const std::vector<const HEURISTICS::Fact*>* assignments_;
+	std::vector<const HEURISTICS::Fact*>* assignments_;
 	
 	// The node that has been reached.
 	const SAS_Plus::MultiValuedValue* node_;
 	
 	// All the assignments made to the lower-level variables.
-	const std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >* assignments_to_lower_variables_;
+	std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >* assignments_to_lower_variables_;
 	
 	unsigned int cost_;
 	

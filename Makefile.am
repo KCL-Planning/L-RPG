@@ -32,7 +32,7 @@ mypop_SOURCES = VALfiles/DebugWriteController.cpp VALfiles/FastEnvironment.cpp \
 	VALfiles/PrettyPrinter.cpp VALfiles/random.cpp VALfiles/LaTeXSupport.cpp VALfiles/Utils.cpp \
 	sas/lifted_dtg.cpp sas/property_space.cpp sas/causal_graph.cpp \
 	heuristics/dtg_reachability.cpp heuristics/equivalent_object_group.cpp heuristics/reachable_tree.cpp \
-	heuristics/fact_set.cpp heuristics/cg_heuristic.cpp \
+	heuristics/fact_set.cpp heuristics/cg_heuristic.cpp heuristics/heuristic_interface.cpp \
 	utility/memory_pool.cpp \
 	action_manager.cpp bindings_propagator.cpp formula.cpp mypop.cpp parser_utils.cpp \
 	plan.cpp plan_bindings.cpp plan_flaws.cpp plan_orderings.cpp planner.cpp \

@@ -474,6 +474,8 @@ int main(int argc,char * argv[])
 	
 	GroundedAtom::removeInstantiatedGroundedAtom();
 	GroundedAction::removeInstantiatedGroundedActions();
+	
+	delete heuristic_interface;
 //	delete solution_plan;
 //	delete VAL::current_analysis;
 //	delete MyPOP::REACHABILITY::g_reachable_fact_memory_pool;

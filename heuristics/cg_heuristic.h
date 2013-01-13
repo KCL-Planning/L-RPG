@@ -83,6 +83,8 @@ class LiftedCausalGraphHeuristic : public HeuristicInterface
 public:
 	LiftedCausalGraphHeuristic(const std::vector<SAS_Plus::LiftedDTG*>& lifted_dtgs, const ActionManager& action_manager, const PredicateManager& predicate_manager, const std::vector< const GroundedAtom* >& goal_facts);
 	
+	virtual ~LiftedCausalGraphHeuristic();
+	
 	void setHeuristicForState(MyPOP::State& state, const std::vector<const GroundedAtom*>& goal_facts, bool find_helpful_actions, bool allow_new_goals_to_be_added);
 	
 private:

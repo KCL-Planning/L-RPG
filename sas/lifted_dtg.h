@@ -6,6 +6,7 @@
 #include "../VALfiles/ptree.h"
 #include "../VALfiles/SASActions.h"
 #include "../VALfiles/ToFunction.h"
+#include "causal_graph.h"
 
 namespace MyPOP
 {
@@ -31,6 +32,7 @@ class PropertyState;
 class PropertySpace;
 class MultiValuedValue;
 class MultiValuedVariable;
+class CausalGraph;
 
 class MultiValuedTransition
 {
@@ -94,6 +96,8 @@ public:
 	
 	~MultiValuedValue();
 	
+	void findMappings(std::vector< std::vector< const MyPOP::HEURISTICS::Fact* >* >& found_mappings, const std::vector< const MyPOP::HEURISTICS::Fact* >& facts, const MyPOP::PredicateManager& predicate_manager) const;
+	
 	void addTransition(const MultiValuedTransition& transition);
 	
 	const PropertyState& getPropertyState() const { return *property_state_; }
@@ -103,6 +107,8 @@ public:
 	const std::vector<const MultiValuedTransition*>& getTransitions() const { return transitions_; }
 	
 	bool isCopy() const { return is_copy_; }
+	
+	void splitNodes(const std::multimap<const Object*, const Object*>& equivalent_relationships);
 	
 	/**
 	 * In some cases we need to make copies of a lifted DTG node, such that we do not into too many
@@ -119,6 +125,8 @@ public:
 	void printFacts(std::ostream& os) const;
 	
 private:
+	void findMappings(std::vector<std::vector<const HEURISTICS::Fact*>* >& found_mappings, const std::vector<const HEURISTICS::Fact*>& current_mappings, const HEURISTICS::VariableDomain& invariable_domain, const std::vector<const HEURISTICS::Fact*>& facts, const PredicateManager& predicate_manager) const;
+	
 	const LiftedDTG* lifted_dtg_;
 	
 	std::vector<HEURISTICS::Fact*>* values_;
@@ -142,6 +150,10 @@ public:
 	
 	LiftedDTG(const PredicateManager& predicate_manager, const TypeManager& type_manager, const SAS_Plus::PropertySpace& property_space);
 	
+	LiftedDTG(const LiftedDTG& other, const PredicateManager& predicate_manager, const std::multimap<const Object*, const Object*>& equivalent_relationships, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager);
+	
+	LiftedDTG(const LiftedDTG& other, const std::vector<MultiValuedValue*>& node_set, const std::vector<const Atom*>& initial_fact, const TypeManager& type_manager, const PredicateManager& predicate_manager);
+	
 	~LiftedDTG();
 	
 	const std::vector<MultiValuedValue*>& getNodes() const { return nodes_; }
@@ -152,9 +164,14 @@ public:
 	 */
 	void getNodes(std::vector<const MultiValuedValue*>& found_nodes, const HEURISTICS::Fact& fact_to_find) const;
 	
-	const SAS_Plus::PropertySpace& getPropertySpace() const { return *property_space_; }
+	//const SAS_Plus::PropertySpace& getPropertySpace() const { return *property_space_; }
+	const std::vector<const Object*>& getInvariableObjects() const { return invariable_objects_; }
+	
+	void splitNodes(const std::multimap<const Object*, const Object*>& equivalent_relationships);
 	
 private:
+	
+	static void splitLiftedTransitionGraphs(std::vector<LiftedDTG*>& result, const std::vector< MyPOP::SAS_Plus::LiftedDTG* >& created_ltgs, const MyPOP::TermManager& term_manager, const std::vector< const MyPOP::Atom* >& initial_facts, const MyPOP::TypeManager& type_manager, const PredicateManager& predicate_manager);
 	
 	void createCopies(const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager);
 	
@@ -166,13 +183,19 @@ private:
 	
 	MultiValuedValue* getMultiValuedValue(const PropertyState& property_state) const;
 	
+	void findInvariableObjects(const std::vector<const Atom*>& initial_facts, const PredicateManager& predicate_manager);
+	
 	std::vector<MultiValuedValue*> nodes_;
 	
 	const SAS_Plus::PropertySpace* property_space_;
 	
+	std::vector<const Object*> invariable_objects_;
+	
 	//static std::vector<LiftedDTG*> all_lifted_dtgs_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const LiftedDTG& lifted_dtg);
+	
+	friend void Graphviz::printToDot(const std::string& file_name, const SAS_Plus::CausalGraph& causal_graph);
 };
 
 std::ostream& operator<<(std::ostream& os, const LiftedDTG& lifted_dtg);

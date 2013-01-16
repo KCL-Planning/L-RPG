@@ -805,7 +805,7 @@ void Graphviz::printToDot(const std::string& file_name, const SAS_Plus::CausalGr
 	for (std::vector<SAS_Plus::LiftedDTG*>::const_iterator ci = causal_graph.getAllLiftedDTGs().begin(); ci != causal_graph.getAllLiftedDTGs().end(); ++ci)
 	{
 		const SAS_Plus::LiftedDTG* lifted_dtg = *ci;
-		printToDot(ofs, lifted_dtg->getPropertySpace());
+		printToDot(ofs, *lifted_dtg->property_space_);
 	}
 
 	// Create the edges.
@@ -816,9 +816,9 @@ void Graphviz::printToDot(const std::string& file_name, const SAS_Plus::CausalGr
 		
 		for (std::vector<const SAS_Plus::LiftedDTG*>::const_iterator transition_ci = transitions.begin(); transition_ci != transitions.end(); transition_ci++)
 		{
-			printToDot(ofs, (*ci)->getPropertySpace());
+			printToDot(ofs, *(*ci)->property_space_);
 			ofs << " -> ";
-			printToDot(ofs, (*transition_ci)->getPropertySpace());
+			printToDot(ofs, *(*transition_ci)->property_space_);
 			ofs << std::endl;
 		}
 	}

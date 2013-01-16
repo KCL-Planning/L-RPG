@@ -339,7 +339,7 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 		for (std::vector<const SAS_Plus::LiftedDTG*>::const_iterator ci = dependencies.begin(); ci != dependencies.end(); ++ci)
 		{
 			const SAS_Plus::LiftedDTG* lifted_dtg = *ci;
-			HEURISTICS::VariableDomain invariable_domain(lifted_dtg->getPropertySpace().getObjects());
+			HEURISTICS::VariableDomain invariable_domain(lifted_dtg->getInvariableObjects());
 			
 			std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* assignments = new std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >();
 			getNodes(*assignments, *lifted_dtg, invariable_domain, state);

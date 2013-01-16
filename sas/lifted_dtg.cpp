@@ -469,9 +469,165 @@ MultiValuedValue::~MultiValuedValue()
 	}
 }
 
+void MultiValuedValue::findMappings(std::vector<std::vector<const HEURISTICS::Fact*>* >& found_mappings, const std::vector<const HEURISTICS::Fact*>& facts, const PredicateManager& predicate_manager) const
+{
+	std::vector<const HEURISTICS::Fact*> current_mappings;
+	const HEURISTICS::VariableDomain invariable_domain(property_state_->getPropertySpace().getObjects());
+	
+	findMappings(found_mappings, current_mappings, invariable_domain, facts, predicate_manager);
+}
+
+void MultiValuedValue::findMappings(std::vector<std::vector<const HEURISTICS::Fact*>* >& found_mappings, const std::vector<const HEURISTICS::Fact*>& current_mappings, const HEURISTICS::VariableDomain& invariable_domain, const std::vector<const HEURISTICS::Fact*>& facts, const PredicateManager& predicate_manager) const
+{
+	unsigned int fact_index = current_mappings.size();
+	
+	// Found a full assignment!
+	if (fact_index == getValues().size())
+	{
+		std::vector<const HEURISTICS::Fact*>* new_found_mapping = new std::vector<const HEURISTICS::Fact*>();
+		for (std::vector<const HEURISTICS::Fact*>::const_iterator ci = current_mappings.begin(); ci != current_mappings.end(); ++ci)
+		{
+			const HEURISTICS::Fact* grounded_atom = *ci;
+			std::vector<const HEURISTICS::VariableDomain*> variable_domains;
+			for (unsigned int i = 0; i < grounded_atom->getPredicate().getArity(); ++i)
+			{
+				HEURISTICS::VariableDomain* vd = new HEURISTICS::VariableDomain();
+				vd->set(grounded_atom->getVariableDomains()[i]->getVariableDomain());
+				variable_domains.push_back(vd);
+			}
+			new_found_mapping->push_back(new HEURISTICS::Fact(predicate_manager, grounded_atom->getPredicate(), variable_domains));
+			
+			for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = variable_domains.begin(); ci != variable_domains.end(); ++ci)
+			{
+				delete *ci;
+			}
+		}
+		found_mappings.push_back(new_found_mapping);
+		return;
+	}
+	
+	const HEURISTICS::Fact* fact = getValues()[fact_index];
+	const SAS_Plus::Property* property = getPropertyState().getProperties()[fact_index];
+	
+	// Check which facts from the state can be mapped to this fact.
+	for (std::vector<const HEURISTICS::Fact*>::const_iterator ci = facts.begin(); ci != facts.end(); ++ci)
+	{
+		const HEURISTICS::Fact* initial_fact = *ci;
+		if (!fact->canUnifyWith(*initial_fact))
+		{
+			continue;
+		}
+		
+		// Check if the invariable matches as well.
+		HEURISTICS::VariableDomain new_invariable_domain;
+		if (property->getIndex() != std::numeric_limits<unsigned int>::max())
+		{
+			invariable_domain.getIntersection(new_invariable_domain, *initial_fact->getVariableDomains()[property->getIndex()]);
+			
+			if (new_invariable_domain.getVariableDomain().empty())
+			{
+				continue;
+			}
+		}
+		else
+		{
+			new_invariable_domain.set(invariable_domain.getVariableDomain());
+		}
+		
+		// Found an assignment!
+		std::vector<const HEURISTICS::Fact*> new_current_mappings(current_mappings);
+		new_current_mappings.push_back(initial_fact);
+		if (property->getIndex() != std::numeric_limits<unsigned int>::max())
+		{
+			new_invariable_domain.set(initial_fact->getVariableDomains()[property->getIndex()]->getVariableDomain());
+			findMappings(found_mappings, new_current_mappings, new_invariable_domain, facts, predicate_manager);
+		}
+		else
+		{
+			findMappings(found_mappings, new_current_mappings, new_invariable_domain, facts, predicate_manager);
+		}
+	}
+}
+
 void MultiValuedValue::addTransition(const MultiValuedTransition& transition)
 {
 	transitions_.push_back(&transition);
+}
+
+void MultiValuedValue::split(std::vector<MultiValuedValue*>& result, const std::multimap<const Object*, const Object*>& equivalent_relationships)
+{
+	std::vector<HEURISTICS::Fact*>* values_;
+}
+
+void MultiValuedValue::findAssignments(unsigned int fact_index, unsigned int term_index, std::vector<MultiValuedValue*>& created_nodes, std::vector<const HEURISTICS::VariableDomain*>& assignments_made, const std::multimap<const Object*, const Object*>& equivalent_relationships, const PredicateManager& predicate_manager)
+{
+	// Found a full assignment!
+	if (fact_index == values_->size() && term_index == (*values_)[fact_index - 1]->getPredicate().getArity())
+	{
+		unsigned int index = 0;
+		std::vector<HEURISTICS::Fact*>* new_nodes = new std::vector<HEURISTICS::Fact*>();
+		
+		HEURISTICS::VariableDomain invariable_domain(lifted_dtg_->getInvariableObjects());
+		
+		for (unsigned int fact_index = 0; fact_index < values_->size(); ++fact_index)
+		{
+			const HEURISTICS::Fact* value = (*values_)[fact_index];
+			std::vector<const HEURISTICS::VariableDomain*>* new_fact_assignments = new std::vector<const HEURISTICS::VariableDomain*>();
+			for (unsigned int assignments_made_index = 0; assignments_made_index < value->getPredicate().getArity(); ++assignments_made_index)
+			{
+				new_fact_assignments->push_back(new HEURISTICS::VariableDomain(assignments_made[index + assignments_made_index]));
+			}
+			index += value->getPredicate().getArity();
+			
+			// Check if the invariable domain is respected.
+			const SAS_Plus::Property* property = property_state_->getProperties()[fact_index];
+			if (property->getIndex() != std::numeric_limits<unsigned int>::max())
+			{
+				const HEURISTICS::VariableDomain* vd = (*new_fact_assignments)[property->getIndex()];
+				HEURISTICS::VariableDomain intersection;
+				invariable_domain.getIntersection(intersection, *vd);
+				
+				if (intersection.getVariableDomain().empty())
+				{
+					return;
+				}
+				
+				invariable_domain.set(intersection.getVariableDomain());
+			}
+			
+			HEURISTICS::Fact* new_fact = new HEURISTICS::Fact(predicate_manager, value->getPredicate(), *new_fact_assignments);
+			new_nodes->push_back(new_fact);
+		}
+		
+		MultiValuedValue* mvv = MultiValuedValue(*lifted_dtg_, *new_nodes, *property_state_, is_copy_);
+		created_nodes.push_back(mvv);
+		return;
+	}
+	
+	const HEURISTICS::VariableDomain* vd = (*values_)[fact_index]->getVariableDomains()[term_index];
+	std::set<const Object*> closed_list;
+	for (std::vector<const Object*>::const_iterator ci = vd->getVariableDomain().begin(); ci != vd->getVariableDomain().end(); ++ci)
+	{
+		const Object* object = *ci;
+		if (closed_list.find(object) != closed_list.end())
+		{
+			continue;
+		}
+		
+		std::vector<const Object*> new_variable_domain;
+		
+		// Search for every other object that is equivalent to this one.
+		for (std::vector<const Object*>::const_iterator ci = vd->getVariableDomain().begin(); ci != vd->getVariableDomain().end(); ++ci)
+		{
+			const Object* other_object = *ci;
+			
+			std::pair<std::multimap<const Object*, const Object*>::const_iterator, std::multimap<const Object*, const Object*>::const_iterator> equivalent_ci = equivalent_relationships.equal_range(object);
+			if (std::find(equivalent_ci.first, equivalent_ci.second, other_object) != equivalent_ci.second)
+			{
+				new_variable_domain.push_back(other_object);
+			}
+		}
+	}
 }
 
 void MultiValuedValue::addCopy(MultiValuedValue& copy)
@@ -840,7 +996,7 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 		(*ci)->createTransitions(created_lifted_dtgs, type_manager);
 //		std::cout << "After adding transitions: " << **ci << std::endl;
 	}
-
+	
 	for (std::vector<LiftedDTG*>::const_iterator ci = created_lifted_dtgs.begin(); ci != created_lifted_dtgs.end(); ++ci)
 	{
 		(*ci)->ground(created_lifted_dtgs, initial_facts, term_manager, type_manager, objects_part_of_property_spaces);
@@ -851,6 +1007,230 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 	{
 		(*ci)->createCopies(initial_facts, type_manager);
 //		std::cout << "After creating copies: " << **ci << std::endl;
+	}
+	
+	for (std::vector<LiftedDTG*>::const_iterator ci = created_lifted_dtgs.begin(); ci != created_lifted_dtgs.end(); ++ci)
+	{
+		(*ci)->createCopies(initial_facts, type_manager);
+//		std::cout << "After creating copies: " << **ci << std::endl;
+	}
+	
+	std::vector<LiftedDTG*> split_dtgs;
+	splitLiftedTransitionGraphs(split_dtgs, created_lifted_dtgs, term_manager, initial_facts, type_manager, predicate_manager);
+	
+/*
+	for (std::vector<LiftedDTG*>::const_iterator ci = created_lifted_dtgs.begin(); ci != created_lifted_dtgs.end(); ++ci)
+	{
+		(*ci)->split(split_dtgs, initial_facts, type_manager, term_manager, predicate_manager);
+//		std::cout << "After creating copies: " << **ci << std::endl;
+	}
+*/
+	std::cout << " === SPLITTED DTGS === " << std::endl;
+	for (std::vector<LiftedDTG*>::const_iterator ci = split_dtgs.begin(); ci != split_dtgs.end(); ++ci)
+	{
+		std::cout << **ci << std::endl;
+	}
+}
+
+void LiftedDTG::splitLiftedTransitionGraphs(std::vector<LiftedDTG*>& split_ltgs, const std::vector<LiftedDTG*>& created_ltgs, const TermManager& term_manager, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager, const PredicateManager& predicate_manager)
+{
+	// First of all split the LTG such that not connected parts are part of a seperate LTG.
+	for (std::vector<LiftedDTG*>::const_iterator ci = created_ltgs.begin(); ci != created_ltgs.end(); ++ci)
+	{
+		LiftedDTG* lifted_dtg = *ci;
+		std::set<const MultiValuedValue*> processed_nodes;
+		
+		while (processed_nodes.size() != lifted_dtg->getNodes().size())
+		{
+			MultiValuedValue* current_node = NULL;
+			for (std::vector<MultiValuedValue*>::const_iterator ci = lifted_dtg->getNodes().begin(); ci != lifted_dtg->getNodes().end(); ++ci)
+			{
+				MultiValuedValue* node = *ci;
+				if (processed_nodes.find(node) == processed_nodes.end())
+				{
+					current_node = node;
+					break;
+				}
+			}
+			
+			if (current_node == NULL)
+			{
+				std::cout << "Processed: " << processed_nodes.size() << "/" << lifted_dtg->getNodes().size() << std::endl;
+			}
+			assert (current_node != NULL);
+			
+			// Find all the nodes that are connected to current node and all nodes it is connected to, etc.
+			std::set<MultiValuedValue*> nodes_to_process;
+			std::vector<MultiValuedValue*> connected_set;
+			nodes_to_process.insert(current_node);
+			
+			while (nodes_to_process.size() > 0)
+			{
+				MultiValuedValue* node_to_process = *nodes_to_process.begin();
+				nodes_to_process.erase(nodes_to_process.begin());
+				
+				if (processed_nodes.find(node_to_process) != processed_nodes.end())
+				{
+					continue;
+				}
+				processed_nodes.insert(node_to_process);
+				connected_set.push_back(node_to_process);
+				
+				std::cout << "Process " << *node_to_process << std::endl;
+				
+				// Find all nodes that are connected to node_to_process.
+				for (std::vector<const MultiValuedTransition*>::const_iterator ci = node_to_process->getTransitions().begin(); ci != node_to_process->getTransitions().end(); ++ci)
+				{
+					nodes_to_process.insert(&(*ci)->getToNode());
+				}
+				
+				for (std::vector<MultiValuedValue*>::const_iterator ci = lifted_dtg->getNodes().begin(); ci != lifted_dtg->getNodes().end(); ++ci)
+				{
+					MultiValuedValue* node = *ci;
+					if (node == node_to_process)
+					{
+						continue;
+					}
+					
+					for (std::vector<const MultiValuedTransition*>::const_iterator ci = node->getTransitions().begin(); ci != node->getTransitions().end(); ++ci)
+					{
+						if (&(*ci)->getToNode() == node_to_process)
+						{
+							nodes_to_process.insert(&(*ci)->getToNode());
+							break;
+						}
+					}
+				}
+			}
+			
+			// Create a new lifted DTG for the nodes.
+			LiftedDTG* new_lifted_dtg = new LiftedDTG(*lifted_dtg, connected_set, initial_facts, type_manager, predicate_manager);
+			split_ltgs.push_back(new_lifted_dtg);
+		}
+	}
+	
+	// Determine which objects are different due to static constraints.
+	std::map<const Object*, std::vector<const Atom*>* > object_to_static_constraints_mapping;
+	for (std::vector<const Object*>::const_iterator ci = term_manager.getAllObjects().begin(); ci != term_manager.getAllObjects().end(); ++ci)
+	{
+		const Object* object = *ci;
+		std::vector<const Atom*>* static_constraints = new std::vector<const Atom*>();
+		object_to_static_constraints_mapping[object] = static_constraints;
+		for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ++ci)
+		{
+			const Atom* initial_fact = *ci;
+			if (!initial_fact->getPredicate().isStatic())
+			{
+				continue;
+			}
+			
+			for (std::vector<const Term*>::const_iterator ci = initial_fact->getTerms().begin(); ci != initial_fact->getTerms().end(); ++ci)
+			{
+				const Object* initial_fact_term = static_cast<const Object*>(*ci);
+				if (object == initial_fact_term)
+				{
+					static_constraints->push_back(initial_fact);
+					break;
+				}
+			}
+		}
+	}
+	
+	// Next, compare all the static constraints of all the objects and merge those which share the same static contraints.
+	std::multimap<const Object*, const Object*> equivalent_relationships;
+	for (std::map<const Object*, std::vector<const Atom*>* >::const_iterator ci = object_to_static_constraints_mapping.begin(); ci != object_to_static_constraints_mapping.end(); ++ci)
+	{
+		const Object* object = (*ci).first;
+		equivalent_relationships.insert(std::make_pair(object, object));
+		std::cerr << *object << "<=>" << *object << std::endl;
+		
+		const std::vector<const Atom*>* static_facts = (*ci).second;
+		
+		for (std::map<const Object*, std::vector<const Atom*>* >::const_iterator ci = object_to_static_constraints_mapping.begin(); ci != object_to_static_constraints_mapping.end(); ++ci)
+		{
+			const Object* other_object = (*ci).first;
+			const std::vector<const Atom*>* other_static_facts = (*ci).second;
+			if (other_object == object || static_facts->size() != other_static_facts->size() || object->getType() != other_object->getType())
+			{
+				continue;
+			}
+			
+			// Make sure that both objects are part of the same lifted transition graphs.
+			bool belong_to_the_same_ltgs = true;
+			for (std::vector<LiftedDTG*>::const_iterator ci = split_ltgs.begin(); ci != split_ltgs.end(); ++ci)
+			{
+				const LiftedDTG* lifted_dtg = *ci;
+				bool object_is_part = std::find(lifted_dtg->getInvariableObjects().begin(), lifted_dtg->getInvariableObjects().end(), object) != lifted_dtg->getInvariableObjects().end();
+				bool other_object_is_part = std::find(lifted_dtg->getInvariableObjects().begin(), lifted_dtg->getInvariableObjects().end(), other_object) != lifted_dtg->getInvariableObjects().end();
+				if (object_is_part != other_object_is_part)
+				{
+					belong_to_the_same_ltgs = false;
+					break;
+				}
+			}
+			
+			if (!belong_to_the_same_ltgs)
+			{
+				continue;
+			}
+			
+			// Make sure that all the static facts are shared and identical.
+			bool all_static_constraints_shared = true;
+			for (std::vector<const Atom*>::const_iterator ci = static_facts->begin(); ci != static_facts->end(); ++ci)
+			{
+				const Atom* static_fact = *ci;
+				bool shares_static_constraint = false;
+				for (std::vector<const Atom*>::const_iterator ci = other_static_facts->begin(); ci != other_static_facts->end(); ++ci)
+				{
+					const Atom* other_static_fact = *ci;
+					if (static_fact->getArity() != other_static_fact->getArity() ||
+					    static_fact->getPredicate().getName() != other_static_fact->getPredicate().getName())
+					{
+						continue;
+					}
+					
+					bool terms_match = true;
+					for (unsigned int i = 0; i < static_fact->getArity(); ++i)
+					{
+						const Object* o1 = static_cast<const Object*>(static_fact->getTerms()[i]);
+						const Object* o2 = static_cast<const Object*>(other_static_fact->getTerms()[i]);
+						if (o1 == object && o2 == other_object)
+						{
+							continue;
+						}
+						
+						if (o1 != o2)
+						{
+							terms_match = false;
+							break;
+						}
+					}
+					
+					if (terms_match)
+					{
+						shares_static_constraint = true;
+						break;
+					}
+				}
+				
+				if (!shares_static_constraint)
+				{
+					all_static_constraints_shared = false;
+					break;
+				}
+			}
+			
+			if (all_static_constraints_shared)
+			{
+				std::cerr << *object << "<=>" << *other_object << std::endl;
+				equivalent_relationships.insert(std::make_pair(object, other_object));
+			}
+		}
+	}
+	
+	for (std::vector<LiftedDTG*>::const_iterator ci = split_ltgs.begin(); ci != split_ltgs.end(); ++ci)
+	{
+		(*ci)->splitNodes(equivalent_relationships);
 	}
 }
 
@@ -916,6 +1296,295 @@ LiftedDTG::LiftedDTG(const PredicateManager& predicate_manager, const TypeManage
 		nodes_.push_back(mvv);
 		assert (mvv != NULL);
 	}
+	invariable_objects_.insert(invariable_objects_.end(), property_space_->getObjects().begin(), property_space_->getObjects().end());
+}
+
+LiftedDTG::LiftedDTG(const LiftedDTG& other, const PredicateManager& predicate_manager, const std::multimap<const Object*, const Object*>& equivalent_relationships, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager)
+	: property_space_(other.property_space_)
+{
+	for (std::multimap<const Object*, const Object*>::const_iterator ci = equivalent_relationships.begin(); ci != equivalent_relationships.end(); ++ci)
+	{
+		std::cout << *(*ci).first << " -> {";
+		std::pair<std::multimap<const Object*, const Object*>::const_iterator, std::multimap<const Object*, const Object*>::const_iterator> equivalent_objects_ci = equivalent_relationships.equal_range((*ci).first);
+		for (std::multimap<const Object*, const Object*>::const_iterator ci = equivalent_objects_ci.first; ci != equivalent_objects_ci.second; ++ci)
+		{
+			std::cout << *(*ci).second << ", ";
+		}
+		std::cout << "}" << std::endl;
+	}
+	
+	// Create a copy of other but restrict the variable domains of the state invariable to the objects in the invariable_variable_domain. We split every node that contains a subset of the 
+	// objects which are equivalent.
+	std::multimap<const MultiValuedValue*, MultiValuedValue*> old_to_new_mappings;
+	std::map<MultiValuedValue*, const MultiValuedValue*> new_to_old_mappings;
+	for (std::vector<MultiValuedValue*>::const_iterator ci = other.nodes_.begin(); ci != other.nodes_.end(); ++ci)
+	{
+		const MultiValuedValue* node = *ci;
+		std::vector<const std::vector<const HEURISTICS::Fact*>* > possible_facts;
+		
+		// Check each node and split it for every combination of equivalent nodes.
+		for (std::vector<HEURISTICS::Fact*>::const_iterator ci = node->getValues().begin(); ci != node->getValues().end(); ++ci)
+		{
+			const HEURISTICS::Fact* fact = *ci;
+			std::cout << "break up the fact: " << *fact << std::endl;
+			
+			std::vector<const HEURISTICS::Fact*>* all_facts = new std::vector<const HEURISTICS::Fact*>();
+			possible_facts.push_back(all_facts);
+			
+			std::vector<const std::vector<const HEURISTICS::VariableDomain*>* > possible_variable_domains_per_term;
+			for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = fact->getVariableDomains().begin(); ci != fact->getVariableDomains().end(); ++ci)
+			{
+				const HEURISTICS::VariableDomain* vd = *ci;
+				std::set<const Object*> processed_objects;
+				
+				std::vector<const HEURISTICS::VariableDomain*>* possible_variable_domains = new std::vector<const HEURISTICS::VariableDomain*>();
+				
+				for (std::vector<const Object*>::const_iterator ci = vd->getVariableDomain().begin(); ci != vd->getVariableDomain().end(); ++ci)
+				{
+					const Object* object = *ci;
+					if (processed_objects.find(object) != processed_objects.end())
+					{
+						continue;
+					}
+					std::pair<std::multimap<const Object*, const Object*>::const_iterator, std::multimap<const Object*, const Object*>::const_iterator> equivalent_nodes = equivalent_relationships.equal_range(object);
+					std::vector<const Object*> new_variable_domain;
+					for (std::multimap<const Object*, const Object*>::const_iterator ci = equivalent_nodes.first; ci != equivalent_nodes.second; ++ci)
+					{
+						processed_objects.insert((*ci).second);
+						new_variable_domain.push_back((*ci).second);
+					}
+					possible_variable_domains->push_back(new HEURISTICS::VariableDomain(new_variable_domain));
+				}
+				
+				if (possible_variable_domains->empty())
+				{
+					delete possible_variable_domains;
+					continue;
+				}
+				possible_variable_domains_per_term.push_back(possible_variable_domains);
+			}
+			
+			//if (possible_variable_domains_per_term.size() != fact->getPredicate().getArity())
+			//{
+			//	delete
+			//}
+			
+			// Construct all possible facts.
+			unsigned int counter[possible_variable_domains_per_term.size()];
+			memset(&counter, 0, sizeof(unsigned int) * possible_variable_domains_per_term.size());
+			
+			unsigned int max_counter[possible_variable_domains_per_term.size()];
+			for (unsigned int i = 0; i < possible_variable_domains_per_term.size(); ++i)
+			{
+				max_counter[i] = possible_variable_domains_per_term[i]->size();
+			}
+			
+			bool done = false;
+			while (!done)
+			{
+				done = true;
+				std::vector<const HEURISTICS::VariableDomain*> variable_domains;
+				for (unsigned int term_index = 0; term_index < fact->getPredicate().getArity(); ++term_index)
+				{
+					variable_domains.push_back((*possible_variable_domains_per_term[term_index])[counter[term_index]]);
+				}
+				
+				std::cout << "New fact: " << fact->getPredicate().getName() << std::endl;
+				for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = variable_domains.begin(); ci != variable_domains.end(); ++ci)
+				{
+					std::cout << **ci << ", ";
+				}
+				std::cout << "." << std::endl;
+				
+				HEURISTICS::Fact* new_fact = new HEURISTICS::Fact(predicate_manager, fact->getPredicate(), variable_domains);
+				all_facts->push_back(new_fact);
+				
+				// Update the counters.
+				for (unsigned int i = 0; i < possible_variable_domains_per_term.size(); ++i)
+				{
+					if (counter[i] + 1 != max_counter[i])
+					{
+						counter[i] = counter[i] + 1;
+						done = false;
+						break;
+					}
+					else
+					{
+						counter[i] = 0;
+					}
+				}
+			}
+		}
+		
+		// Construct all possible nodes.
+		unsigned int counter[possible_facts.size()];
+		memset(&counter, 0, sizeof(unsigned int) * possible_facts.size());
+		
+		unsigned int max_counter[possible_facts.size()];
+		for (unsigned int i = 0; i < possible_facts.size(); ++i)
+		{
+			max_counter[i] = possible_facts[i]->size();
+		}
+		
+		bool done = false;
+		while (!done)
+		{
+			done = true;
+			std::vector<HEURISTICS::Fact*>* facts = new std::vector<HEURISTICS::Fact*>();
+			for (unsigned int node_index = 0; node_index < possible_facts.size(); ++node_index)
+			{
+				HEURISTICS::Fact* new_fact = new HEURISTICS::Fact(*(*possible_facts[node_index])[counter[node_index]]);
+				facts->push_back(new_fact);
+			}
+			
+			MultiValuedValue* node_copy = new MultiValuedValue(*this, *facts, node->getPropertyState(), node->isCopy());
+			old_to_new_mappings.insert(std::make_pair(node, node_copy));
+			new_to_old_mappings[node_copy] = node;
+			
+			nodes_.push_back(node_copy);
+			
+			// Update the counters.
+			for (unsigned int i = 0; i < possible_facts.size(); ++i)
+			{
+				if (counter[i] + 1 != max_counter[i])
+				{
+					counter[i] = counter[i] + 1;
+					done = false;
+					break;
+				}
+				else
+				{
+					counter[i] = 0;
+				}
+			}
+		}
+	}
+	
+	// Try to establish all the transitions.
+	for (std::vector<MultiValuedValue*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ++ci)
+	{
+		MultiValuedValue* from_node = *ci;
+		const MultiValuedValue* org_from_node = new_to_old_mappings[from_node];
+		
+		for (std::vector<const MultiValuedTransition*>::const_iterator ci = org_from_node->getTransitions().begin(); ci != org_from_node->getTransitions().end(); ++ci)
+		{
+			const MultiValuedTransition* org_transition = *ci;
+			const MultiValuedValue* org_to_node = new_to_old_mappings[&org_transition->getToNode()];
+			
+			std::pair<std::multimap<const MultiValuedValue*, MultiValuedValue*>::const_iterator, std::multimap<const MultiValuedValue*, MultiValuedValue*>::const_iterator> new_to_nodes = old_to_new_mappings.equal_range(org_to_node);
+			
+			for (std::multimap<const MultiValuedValue*, MultiValuedValue*>::const_iterator ci = new_to_nodes.first; ci != new_to_nodes.second; ++ci)
+			{
+				MultiValuedTransition* new_transition = org_transition->migrateTransition(*from_node, *(*ci).second, initial_facts, type_manager);
+				if (new_transition != NULL)
+				{
+					from_node->addTransition(*new_transition);
+				}
+			}
+		}
+	}
+	findInvariableObjects(initial_facts, predicate_manager);
+}
+
+LiftedDTG::LiftedDTG(const LiftedDTG& other, const std::vector<MultiValuedValue*>& node_set, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager, const PredicateManager& predicate_manager)
+	: property_space_(other.property_space_)
+{
+	std::map<const MultiValuedValue*, MultiValuedValue*> old_to_new_node_mapping;
+	for (std::vector<MultiValuedValue*>::const_iterator ci = node_set.begin(); ci != node_set.end(); ++ci)
+	{
+		MultiValuedValue* mvv = new MultiValuedValue(*this, **ci, (*ci)->isCopy());
+		nodes_.push_back(mvv);
+		old_to_new_node_mapping[*ci] = mvv;
+	}
+	
+	for (std::vector<MultiValuedValue*>::const_iterator ci = node_set.begin(); ci != node_set.end(); ++ci)
+	{
+		MultiValuedValue* org_from_node = *ci;
+		MultiValuedValue* new_from_org = old_to_new_node_mapping[org_from_node];
+		
+		for (std::vector<const MultiValuedTransition*>::const_iterator ci = org_from_node->getTransitions().begin(); ci != org_from_node->getTransitions().end(); ++ci)
+		{
+			const MultiValuedTransition* transition = *ci;
+			MultiValuedValue* new_to_org = old_to_new_node_mapping[&transition->getToNode()];
+			
+			const MultiValuedTransition* new_transition = transition->migrateTransition(*new_from_org, *new_to_org, initial_facts, type_manager);
+			assert (new_transition != NULL);
+			
+			new_from_org->addTransition(*new_transition);
+		}
+	}
+	
+	findInvariableObjects(initial_facts, predicate_manager);
+}
+
+void LiftedDTG::findInvariableObjects(const std::vector<const Atom*>& initial_facts, const PredicateManager& predicate_manager)
+{
+	invariable_objects_.clear();
+	std::vector<const HEURISTICS::Fact*> transformed_initial_facts;
+	for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ++ci)
+	{
+		const Atom* initial_fact = *ci;
+		
+		std::vector<const HEURISTICS::VariableDomain*> variable_domains;
+		for (std::vector<const Term*>::const_iterator ci = initial_fact->getTerms().begin(); ci != initial_fact->getTerms().end(); ++ci)
+		{
+			const Term* term = *ci;
+			HEURISTICS::VariableDomain* vd = new HEURISTICS::VariableDomain();
+			vd->set(*static_cast<const Object*>(term));
+			variable_domains.push_back(vd);
+		}
+		
+		const HEURISTICS::Fact* fact = new HEURISTICS::Fact(predicate_manager, initial_fact->getPredicate(), variable_domains);
+		transformed_initial_facts.push_back(fact);
+	}
+	
+	// Find the objects which can be initialised from the initial state.
+	invariable_objects_.clear();
+	std::cout << "Invariable objects: ";
+	for (std::vector<MultiValuedValue*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ++ci)
+	{
+		MultiValuedValue* mvv = new MultiValuedValue(*this, **ci, (*ci)->isCopy());
+		
+		std::vector<std::vector<const HEURISTICS::Fact*>* > found_mappings;
+		mvv->findMappings(found_mappings, transformed_initial_facts, predicate_manager);
+		
+		unsigned int invariable_fact_index = std::numeric_limits<unsigned int>::max();
+		unsigned int invariable_term_index = std::numeric_limits<unsigned int>::max();
+		const SAS_Plus::PropertyState& property_state = mvv->getPropertyState();
+		for (std::vector<const SAS_Plus::Property*>::const_iterator ci = property_state.getProperties().begin(); ci != property_state.getProperties().end(); ++ci)
+		{
+			const SAS_Plus::Property* property = *ci;
+			unsigned int fact_index = std::distance(property_state.getProperties().begin(), ci);
+			if (property->getIndex() != std::numeric_limits<unsigned int>::max())
+			{
+				invariable_fact_index = fact_index;
+				invariable_term_index = property->getIndex();
+				break;
+			}
+		}
+		
+		if (invariable_fact_index == std::numeric_limits<unsigned int>::max())
+		{
+			continue;
+		}
+		
+		for (std::vector<std::vector<const HEURISTICS::Fact*>*>::const_iterator ci = found_mappings.begin(); ci != found_mappings.end(); ++ci)
+		{
+			std::vector<const HEURISTICS::Fact*>* fact = *ci;
+			const HEURISTICS::VariableDomain* vd = (*fact)[invariable_fact_index]->getVariableDomains()[invariable_term_index];
+			
+			for (std::vector<const Object*>::const_iterator ci = vd->getVariableDomain().begin(); ci != vd->getVariableDomain().end(); ++ci)
+			{
+				if (std::find(invariable_objects_.begin(), invariable_objects_.end(), *ci) == invariable_objects_.end())
+				{
+					invariable_objects_.push_back(*ci);
+					std::cout << **ci << ", ";
+				}
+			}
+		}
+	}
+	
+	std::cout << "." << std::endl;
 }
 
 LiftedDTG::~LiftedDTG()
@@ -945,6 +1614,20 @@ void LiftedDTG::getNodes(std::vector<const MultiValuedValue*>& found_nodes, cons
 				found_nodes.push_back(value);
 			}
 		}
+	}
+}
+
+void LiftedDTG::splitNodes(const std::multimap<const Object*, const Object*>& equivalent_relationships)
+{
+	std::map<MultiValuedValue*, const MultiValuedValue*> new_node_to_old_node_mapping;
+	std::multimap<const MultiValuedValue*, MultiValuedValue*> old_node_to_new_nodes_mapping;
+	
+	for (std::vector<MultiValuedValue*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ++ci)
+	{
+		const MultiValuedValue* value = *ci;
+		
+		std::vector<MultiValuedValue*> splitted_nodes;
+		value->split(const std::multimap<const Object*, const Object*>& equivalent_relationships);
 	}
 }
 

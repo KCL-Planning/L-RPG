@@ -6,11 +6,11 @@ use warnings;
 my $from_problem_count = shift(@ARGV);
 my $problem_count = shift(@ARGV);
 #my $marvin_directory = "/home/bram/projects/marvin-bram/latest_results";
-my $lhs_directory = "/home/bram/projects/MyPOP/trunk/latest_heuristics_results_fully_lifted";
-my $rhs_directory = "/home/bram/projects/FF-X/latest_heuristics_results";
+my $lhs_directory = "/home/bram/projects/MyPOP/trunk/latest_heuristics_results_all_goals_removed_ff";
+my $rhs_directory = "/home/bram/planners/FF-X2/FF-X/latest_heuristics_results";
 #my $marvin_directory = "/home/bram/projects/marvin-bram/results";
 #my $marvin_directory = "/home/bram/projects/MyPOP/tags/ICAPS-2012-speed-1.0/trunk/latest_results";
-my $output_directory = "merged_results_fully_lifted";
+my $output_directory = "merged_results_all_goals_removed_ff";
 
 system ("mkdir -p $output_directory");
 

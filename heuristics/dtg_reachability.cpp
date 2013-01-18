@@ -3681,6 +3681,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 	std::cout << " ************************************************************** " << std::endl;
 #endif
 	combined_eogs_.clear();
+	bool allow_substitutions = false;
 	
 	std::priority_queue<std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**>, std::vector<std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**> >, compareReachableFactLayerItem> open_list;
 
@@ -3888,7 +3889,10 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 			{
 				unsigned int cost_to_make_substitutions = makeSubstitutions(*current_goal, object_bindings, combined_eogs_);
 	//			std::cout << "Add " << cost_to_make_substitutions << " for the substitutions" << std::endl;
-				heuristic += cost_to_make_substitutions;
+				if (allow_substitutions)
+				{
+					heuristic += cost_to_make_substitutions;
+				}
 				
 				for (unsigned int i = 0; i < current_goal->getActualReachableFact().getPredicate().getArity(); ++i)
 				{
@@ -3994,7 +3998,10 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 							has_been_substituted_before = true;
 							unsigned int cost_to_make_substitutions = makeSubstitutions(*current_goal, object_bindings, combined_eogs_);
 	//						std::cout << "Add " << cost_to_make_substitutions << " for the substitutions" << std::endl;
-							heuristic += cost_to_make_substitutions;
+							if (allow_substitutions)
+							{
+								heuristic += cost_to_make_substitutions;
+							}
 							
 							for (unsigned int i = 0; i < current_goal->getActualReachableFact().getPredicate().getArity(); ++i)
 							{
@@ -4175,7 +4182,10 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 										if (lhs_eo.getEquivalentObjectGroup().contains(rhs_eo->getObject(), layer_number))
 										{
 	//										std::cout << "Add " << layer_number << " to the total heuristic." << std::endl;
-											heuristic += layer_number;
+											if (allow_substitutions)
+											{
+												heuristic += layer_number;
+											}
 											break;
 										}
 									}
@@ -4324,15 +4334,18 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 					}
 				}
 */
-				for (unsigned int layer_number = 0; layer_number < current_fact_layer_->getLayerNumber(); layer_number++)
+				if (allow_substitutions)
 				{
-					if (lhs_eo->getEquivalentObjectGroup().contains(rhs_eo->getObject(), layer_number))
+					for (unsigned int layer_number = 0; layer_number < current_fact_layer_->getLayerNumber(); layer_number++)
 					{
+						if (lhs_eo->getEquivalentObjectGroup().contains(rhs_eo->getObject(), layer_number))
+						{
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
-						std::cout << "Add " << layer_number << " to the total heuristic." << std::endl;
+							std::cout << "Add " << layer_number << " to the total heuristic." << std::endl;
 #endif
-						heuristic += layer_number;
-						break;
+							heuristic += layer_number;
+							break;
+						}
 					}
 				}
 			}
@@ -4450,7 +4463,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 						{
 							substitute(*fact_layer_precondition_eog, new_action_precondition_item->getReachableFactLayer().getLayerNumber(), action_to_execute_variable_domain->getVariableDomain());
 						}
-						else
+						else if (allow_substitutions)
 						{
 							heuristic += substitute(*fact_layer_precondition_eog, new_action_precondition_item->getReachableFactLayer().getLayerNumber(), action_to_execute_variable_domain->getVariableDomain());
 							for (std::vector<const Object*>::const_iterator ci = action_to_execute_variable_domain->getVariableDomain().begin(); ci != action_to_execute_variable_domain->getVariableDomain().end(); ++ci)

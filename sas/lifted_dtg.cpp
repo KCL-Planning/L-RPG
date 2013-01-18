@@ -554,15 +554,26 @@ void MultiValuedValue::addTransition(const MultiValuedTransition& transition)
 	transitions_.push_back(&transition);
 }
 
-void MultiValuedValue::split(std::vector<MultiValuedValue*>& result, const std::multimap<const Object*, const Object*>& equivalent_relationships)
+void MultiValuedValue::split(std::vector<MultiValuedValue*>& split_nodes, const std::multimap<const Object*, const Object*>& equivalent_relationships, const PredicateManager& predicate_manager) const
 {
-	std::vector<HEURISTICS::Fact*>* values_;
+	// Check if all the variable domains of the facts are coherent with the found equivalent relationships. If not then we will need to split them up.
+	std::vector<const HEURISTICS::VariableDomain*> dummy_assignments_made;
+	findAssignments(0, 0, split_nodes, dummy_assignments_made, equivalent_relationships, predicate_manager);
+	
+	std::cout << "========= START SPLIT =============" << std::endl;
+	std::cout << "NODE: " << std::endl << *this << std::endl;
+	std::cout << "Is split into: " << std::endl;
+	for (std::vector<MultiValuedValue*>::const_iterator ci = split_nodes.begin(); ci != split_nodes.end(); ++ci)
+	{
+		std::cout << **ci << std::endl;
+	}
+	std::cout << "========= END SPLIT =============" << std::endl;
 }
 
-void MultiValuedValue::findAssignments(unsigned int fact_index, unsigned int term_index, std::vector<MultiValuedValue*>& created_nodes, std::vector<const HEURISTICS::VariableDomain*>& assignments_made, const std::multimap<const Object*, const Object*>& equivalent_relationships, const PredicateManager& predicate_manager)
+void MultiValuedValue::findAssignments(unsigned int fact_index, unsigned int term_index, std::vector<MultiValuedValue*>& created_nodes, std::vector<const HEURISTICS::VariableDomain*>& assignments_made, const std::multimap<const Object*, const Object*>& equivalent_relationships, const PredicateManager& predicate_manager) const
 {
 	// Found a full assignment!
-	if (fact_index == values_->size() && term_index == (*values_)[fact_index - 1]->getPredicate().getArity())
+	if (fact_index == values_->size())
 	{
 		unsigned int index = 0;
 		std::vector<HEURISTICS::Fact*>* new_nodes = new std::vector<HEURISTICS::Fact*>();
@@ -575,7 +586,7 @@ void MultiValuedValue::findAssignments(unsigned int fact_index, unsigned int ter
 			std::vector<const HEURISTICS::VariableDomain*>* new_fact_assignments = new std::vector<const HEURISTICS::VariableDomain*>();
 			for (unsigned int assignments_made_index = 0; assignments_made_index < value->getPredicate().getArity(); ++assignments_made_index)
 			{
-				new_fact_assignments->push_back(new HEURISTICS::VariableDomain(assignments_made[index + assignments_made_index]));
+				new_fact_assignments->push_back(new HEURISTICS::VariableDomain(assignments_made[index + assignments_made_index]->getVariableDomain()));
 			}
 			index += value->getPredicate().getArity();
 			
@@ -599,7 +610,7 @@ void MultiValuedValue::findAssignments(unsigned int fact_index, unsigned int ter
 			new_nodes->push_back(new_fact);
 		}
 		
-		MultiValuedValue* mvv = MultiValuedValue(*lifted_dtg_, *new_nodes, *property_state_, is_copy_);
+		MultiValuedValue* mvv = new MultiValuedValue(*lifted_dtg_, *new_nodes, *property_state_, is_copy_);
 		created_nodes.push_back(mvv);
 		return;
 	}
@@ -622,11 +633,42 @@ void MultiValuedValue::findAssignments(unsigned int fact_index, unsigned int ter
 			const Object* other_object = *ci;
 			
 			std::pair<std::multimap<const Object*, const Object*>::const_iterator, std::multimap<const Object*, const Object*>::const_iterator> equivalent_ci = equivalent_relationships.equal_range(object);
-			if (std::find(equivalent_ci.first, equivalent_ci.second, other_object) != equivalent_ci.second)
+			
+			bool is_equivalent_to_object = false;
+			for (std::multimap<const Object*, const Object*>::const_iterator ci = equivalent_ci.first; ci != equivalent_ci.second; ++ci)
+			{
+				if ((*ci).second == other_object)
+				{
+					is_equivalent_to_object = true;
+					break;
+				}
+			}
+			
+			if (is_equivalent_to_object)
 			{
 				new_variable_domain.push_back(other_object);
+				closed_list.insert(other_object);
 			}
 		}
+		
+		unsigned int new_fact_index, new_term_index;
+		
+		if (term_index + 1 == (*values_)[fact_index]->getVariableDomains().size())
+		{
+			new_term_index = 0;
+			new_fact_index = fact_index + 1;
+		}
+		else
+		{
+			new_term_index = term_index + 1;
+			new_fact_index = fact_index;
+		}
+		
+		HEURISTICS::VariableDomain vd(new_variable_domain);
+		std::vector<const HEURISTICS::VariableDomain*> new_assignments_made(assignments_made);
+		new_assignments_made.push_back(&vd);
+		
+		findAssignments(new_fact_index, new_term_index, created_nodes, new_assignments_made, equivalent_relationships, predicate_manager);
 	}
 }
 
@@ -650,12 +692,12 @@ std::ostream& operator<<(std::ostream& os, const MultiValuedValue& value)
 	{
 		os << **ci << std::endl;
 	}
-	
+/*
 	for (std::vector<const MultiValuedTransition*>::const_iterator ci = value.transitions_.begin(); ci != value.transitions_.end(); ++ci)
 	{
 		os << **ci << std::endl;
 	}
-	
+*/
 	return os;
 }
 
@@ -1009,12 +1051,6 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 //		std::cout << "After creating copies: " << **ci << std::endl;
 	}
 	
-	for (std::vector<LiftedDTG*>::const_iterator ci = created_lifted_dtgs.begin(); ci != created_lifted_dtgs.end(); ++ci)
-	{
-		(*ci)->createCopies(initial_facts, type_manager);
-//		std::cout << "After creating copies: " << **ci << std::endl;
-	}
-	
 	std::vector<LiftedDTG*> split_dtgs;
 	splitLiftedTransitionGraphs(split_dtgs, created_lifted_dtgs, term_manager, initial_facts, type_manager, predicate_manager);
 	
@@ -1030,6 +1066,9 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 	{
 		std::cout << **ci << std::endl;
 	}
+	
+	created_lifted_dtgs.clear();
+	created_lifted_dtgs.insert(created_lifted_dtgs.end(), split_dtgs.begin(), split_dtgs.end());
 }
 
 void LiftedDTG::splitLiftedTransitionGraphs(std::vector<LiftedDTG*>& split_ltgs, const std::vector<LiftedDTG*>& created_ltgs, const TermManager& term_manager, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager, const PredicateManager& predicate_manager)
@@ -1230,7 +1269,7 @@ void LiftedDTG::splitLiftedTransitionGraphs(std::vector<LiftedDTG*>& split_ltgs,
 	
 	for (std::vector<LiftedDTG*>::const_iterator ci = split_ltgs.begin(); ci != split_ltgs.end(); ++ci)
 	{
-		(*ci)->splitNodes(equivalent_relationships);
+		(*ci)->splitNodes(equivalent_relationships, initial_facts, predicate_manager, type_manager);
 	}
 }
 
@@ -1617,7 +1656,7 @@ void LiftedDTG::getNodes(std::vector<const MultiValuedValue*>& found_nodes, cons
 	}
 }
 
-void LiftedDTG::splitNodes(const std::multimap<const Object*, const Object*>& equivalent_relationships)
+void LiftedDTG::splitNodes(const std::multimap<const Object*, const Object*>& equivalent_relationships, const std::vector<const Atom*>& initial_facts, const PredicateManager& predicate_manager, const TypeManager& type_manager)
 {
 	std::map<MultiValuedValue*, const MultiValuedValue*> new_node_to_old_node_mapping;
 	std::multimap<const MultiValuedValue*, MultiValuedValue*> old_node_to_new_nodes_mapping;
@@ -1627,8 +1666,70 @@ void LiftedDTG::splitNodes(const std::multimap<const Object*, const Object*>& eq
 		const MultiValuedValue* value = *ci;
 		
 		std::vector<MultiValuedValue*> splitted_nodes;
-		value->split(const std::multimap<const Object*, const Object*>& equivalent_relationships);
+		value->split(splitted_nodes, equivalent_relationships, predicate_manager);
+		
+		for (std::vector<MultiValuedValue*>::const_iterator ci = splitted_nodes.begin(); ci != splitted_nodes.end(); ++ci)
+		{
+			new_node_to_old_node_mapping[*ci] = value;
+			old_node_to_new_nodes_mapping.insert(std::make_pair(value, *ci));
+		}
 	}
+	
+	// Now that the nodes are split we need to reconnect all the transitions and reestablish what node is a copy of what other node.
+	std::vector<MultiValuedValue*> new_nodes;
+	for (std::map<MultiValuedValue*, const MultiValuedValue*>::const_iterator ci = new_node_to_old_node_mapping.begin(); ci != new_node_to_old_node_mapping.end(); ++ci)
+	{
+		MultiValuedValue* new_node = (*ci).first;
+		const MultiValuedValue* org_node = (*ci).second;
+		
+		// Start with the connections.
+		for (std::vector<const MultiValuedTransition*>::const_iterator ci = org_node->getTransitions().begin(); ci != org_node->getTransitions().end(); ++ci)
+		{
+			const MultiValuedTransition* transition = *ci;
+			
+			// Check what the new end points are.
+			std::pair<std::multimap<const MultiValuedValue*, MultiValuedValue*>::const_iterator, std::multimap<const MultiValuedValue*, MultiValuedValue*>::const_iterator> new_node_mappings = old_node_to_new_nodes_mapping.equal_range(&transition->getToNode());
+			for (std::multimap<const MultiValuedValue*, MultiValuedValue*>::const_iterator ci = new_node_mappings.first; ci != new_node_mappings.second; ++ci)
+			{
+				MultiValuedTransition* new_transition = transition->migrateTransition(*new_node, *(*ci).second, initial_facts, type_manager);
+				if (new_transition != NULL)
+				{
+					new_node->addTransition(*new_transition);
+				}
+			}
+		}
+		
+		// Update the copy information.
+		for (std::vector<MultiValuedValue*>::const_iterator ci = org_node->getCopies().begin(); ci != org_node->getCopies().end(); ++ci)
+		{
+			const MultiValuedValue* org_copy = *ci;
+			std::pair<std::multimap<const MultiValuedValue*, MultiValuedValue*>::const_iterator, std::multimap<const MultiValuedValue*, MultiValuedValue*>::const_iterator> new_node_mappings = old_node_to_new_nodes_mapping.equal_range(org_copy);
+			for (std::multimap<const MultiValuedValue*, MultiValuedValue*>::const_iterator ci = new_node_mappings.first; ci != new_node_mappings.second; ++ci)
+			{
+				MultiValuedValue* potential_new_copy = (*ci).second;
+				
+				// TODO: In order for it to be a copy we must make sure that the invariable domains match.
+				new_node->addCopy(*potential_new_copy);
+			}
+		}
+		
+		std::cout << " ==== FINALISED NODE: " << std::endl;
+		std::cout << *new_node << std::endl;
+		for (std::vector<const MultiValuedTransition*>::const_iterator ci = new_node->getTransitions().begin(); ci != new_node->getTransitions().end(); ++ci)
+		{
+			std::cout << **ci << std::endl;
+		}
+		
+		new_nodes.push_back(new_node);
+	}
+	
+	// Replace the old nodes with the new nodes!
+	for (std::vector<MultiValuedValue*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ++ci)
+	{
+		delete *ci;
+	}
+	nodes_.clear();
+	nodes_.insert(nodes_.end(), new_nodes.begin(), new_nodes.end());
 }
 
 void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager)
@@ -2386,6 +2487,12 @@ MultiValuedValue* LiftedDTG::getMultiValuedValue(const PropertyState& property_s
 std::ostream& operator<<(std::ostream& os, const LiftedDTG& lifted_dtg)
 {
 	os << " === Lifted DTG === " << std::endl;
+	os << "Invariable objects: ";
+	for (std::vector<const Object*>::const_iterator ci = lifted_dtg.invariable_objects_.begin(); ci != lifted_dtg.invariable_objects_.end(); ++ci)
+	{
+		os << **ci << ", ";
+	}
+	os << std::endl;
 	for (std::vector<MultiValuedValue*>::const_iterator ci = lifted_dtg.nodes_.begin(); ci != lifted_dtg.nodes_.end(); ++ci)
 	{
 		assert (*ci != NULL);

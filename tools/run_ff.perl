@@ -17,7 +17,7 @@ my $problem_count = shift(@ARGV);
 my $now = strftime "%Y_%m_%d-%H:%M:%S", localtime;
 
 #my $output_path = "heuristic-values-at-$now";
-my $output_path = "latest_heuristics_results_prune_helpful_actions_partially_grounded";
+my $output_path = "latest_heuristics_results_naive";
     
 #system ("mkdir -p $output_path");
 system ("mkdir -p $output_path");

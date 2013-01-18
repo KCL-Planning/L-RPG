@@ -108,7 +108,7 @@ public:
 	
 	bool isCopy() const { return is_copy_; }
 	
-	void splitNodes(const std::multimap<const Object*, const Object*>& equivalent_relationships);
+	void split(std::vector<MultiValuedValue*>& split_nodes, const std::multimap<const Object*, const Object*>& equivalent_relationships, const PredicateManager& predicate_manager) const;
 	
 	/**
 	 * In some cases we need to make copies of a lifted DTG node, such that we do not into too many
@@ -126,6 +126,8 @@ public:
 	
 private:
 	void findMappings(std::vector<std::vector<const HEURISTICS::Fact*>* >& found_mappings, const std::vector<const HEURISTICS::Fact*>& current_mappings, const HEURISTICS::VariableDomain& invariable_domain, const std::vector<const HEURISTICS::Fact*>& facts, const PredicateManager& predicate_manager) const;
+	
+	void findAssignments(unsigned int fact_index, unsigned int term_index, std::vector<MultiValuedValue*>& created_nodes, std::vector<const HEURISTICS::VariableDomain*>& assignments_made, const std::multimap<const Object*, const Object*>& equivalent_relationships, const PredicateManager& predicate_manager) const;
 	
 	const LiftedDTG* lifted_dtg_;
 	
@@ -167,7 +169,7 @@ public:
 	//const SAS_Plus::PropertySpace& getPropertySpace() const { return *property_space_; }
 	const std::vector<const Object*>& getInvariableObjects() const { return invariable_objects_; }
 	
-	void splitNodes(const std::multimap<const Object*, const Object*>& equivalent_relationships);
+	void splitNodes(const std::multimap<const Object*, const Object*>& equivalent_relationships, const std::vector<const Atom*>& initial_facts, const PredicateManager& predicate_manager, const TypeManager& type_manager);
 	
 private:
 	

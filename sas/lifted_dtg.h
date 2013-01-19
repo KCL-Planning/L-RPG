@@ -183,7 +183,8 @@ private:
 	
 	void ground(const std::vector<LiftedDTG*>& all_lifted_dtgs, const std::vector<const Atom*>& initial_facts, const TermManager& term_manager, const TypeManager& type_manager, const std::set<const Object*>& objects_not_to_ground);
 	
-	MultiValuedValue* getMultiValuedValue(const PropertyState& property_state) const;
+	//MultiValuedValue* getMultiValuedValue(const PropertyState& property_state) const;
+	void getMultiValuedValues(std::vector<MultiValuedValue*>& matching_nodes, const PropertyState& property_state) const;
 	
 	void findInvariableObjects(const std::vector<const Atom*>& initial_facts, const PredicateManager& predicate_manager);
 	

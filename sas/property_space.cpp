@@ -9,7 +9,7 @@
 #include <parser_utils.h>
 #include <heuristics/fact_set.h>
 
-//#define MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
+#define MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
 
 namespace MyPOP {
 
@@ -140,6 +140,17 @@ PropertyStateTransition::PropertyStateTransition(PropertyState& lhs, PropertySta
 
 PropertyStateTransition& PropertyStateTransition::merge(const PropertyStateTransition& lhs, const PropertyStateTransition& rhs)
 {
+	if (&lhs.getFromPropertyState() != &rhs.getFromPropertyState() ||
+	    &lhs.getToPropertyState() != &rhs.getToPropertyState() ||
+	    &lhs.getAction() != &rhs.getAction())
+	{
+		std::cout << lhs.getFromPropertyState() << "<=>" << rhs.getFromPropertyState() << std::endl;
+		std::cout << lhs.getToPropertyState() << "<=>" << rhs.getToPropertyState() << std::endl;
+		std::cout << lhs.getAction() << "<=>" << rhs.getAction() << std::endl;
+		
+		std::cout << lhs << std::endl << rhs << std::endl;
+	}
+	
 	assert (&lhs.getFromPropertyState() == &rhs.getFromPropertyState());
 	assert (&lhs.getToPropertyState() == &rhs.getToPropertyState());
 	assert (&lhs.getAction() == &rhs.getAction());
@@ -358,8 +369,10 @@ void PropertyState::addTransition(const PropertyStateTransition& transition)
 	{
 		const PropertyStateTransition* t = *i;
 		
-		// If the actual already exists, it must be merged!
-		if (&t->getAction() == &transition.getAction())
+		// If the action already exists, it must be merged!
+		if (&t->getAction() == &transition.getAction() &&
+		    &t->getFromPropertyState() == &transition.getFromPropertyState() &&
+		    &t->getToPropertyState() == &transition.getToPropertyState())
 		{
 			PropertyStateTransition& merged_transition = PropertyStateTransition::merge(*t, transition);
 #ifdef MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
@@ -990,7 +1003,7 @@ PropertySpace* PropertySpace::merge(const PropertySpace& lhs, const PropertySpac
 	PropertySpace* new_property_space = new PropertySpace();
 	new_property_space->objects_.insert(new_property_space->objects_.end(), lhs.objects_.begin(), lhs.objects_.end());
 	
-	std::map<const PropertyState*, PropertyState*> old_to_merged_property_state_mappings;
+	std::multimap<const PropertyState*, PropertyState*> old_to_merged_property_state_mappings;
 	
 	// Merge all the property states.
 	for (std::vector<PropertyState*>::const_iterator ci = lhs.property_states_.begin(); ci != lhs.property_states_.end(); ++ci)
@@ -1001,8 +1014,8 @@ PropertySpace* PropertySpace::merge(const PropertySpace& lhs, const PropertySpac
 			const PropertyState* rhs_property_state = *ci;
 			
 			PropertyState* merged_property_state = new PropertyState(*new_property_space);
-			old_to_merged_property_state_mappings[lhs_property_state] = merged_property_state;
-			old_to_merged_property_state_mappings[rhs_property_state] = merged_property_state;
+			old_to_merged_property_state_mappings.insert(std::make_pair(lhs_property_state, merged_property_state));
+			old_to_merged_property_state_mappings.insert(std::make_pair(rhs_property_state, merged_property_state));
 			for (std::vector<const Property*>::const_iterator ci = lhs_property_state->getProperties().begin(); ci != lhs_property_state->getProperties().end(); ++ci)
 			{
 				Property* new_property = new Property(*merged_property_state, (*ci)->getPredicate(), (*ci)->getIndex());
@@ -1015,6 +1028,7 @@ PropertySpace* PropertySpace::merge(const PropertySpace& lhs, const PropertySpac
 			}
 			
 			new_property_space->addPropertyState(*merged_property_state);
+			std::cout << *merged_property_state << std::endl;
 		}
 	}
 	
@@ -1026,152 +1040,189 @@ PropertySpace* PropertySpace::merge(const PropertySpace& lhs, const PropertySpac
 	for (std::vector<PropertyState*>::const_iterator ci = lhs.property_states_.begin(); ci != lhs.property_states_.end(); ++ci)
 	{
 		const PropertyState* org_property_state = *ci;
-		PropertyState* merged_property_state = old_to_merged_property_state_mappings[org_property_state];
 		
-		std::vector<PropertyStateTransition*> all_merged_transition;
-		for (std::vector<const PropertyStateTransition*>::const_iterator ci = org_property_state->getTransitions().begin(); ci != org_property_state->getTransitions().end(); ++ci)
+		std::pair<std::multimap<const PropertyState*, PropertyState*>::const_iterator, std::multimap<const PropertyState*, PropertyState*>::const_iterator> merged_property_states_ci = old_to_merged_property_state_mappings.equal_range(org_property_state);
+		
+//		PropertyState* merged_property_state = old_to_merged_property_state_mappings[org_property_state];
+		
+		for (std::multimap<const PropertyState*, PropertyState*>::const_iterator ci = merged_property_states_ci.first; ci != merged_property_states_ci.second; ++ci)
 		{
-			const PropertyStateTransition* old_transition = *ci;
+			PropertyState* merged_property_state = (*ci).second;
+		
+			std::vector<PropertyStateTransition*> all_merged_transition;
+			for (std::vector<const PropertyStateTransition*>::const_iterator ci = org_property_state->getTransitions().begin(); ci != org_property_state->getTransitions().end(); ++ci)
+			{
+				const PropertyStateTransition* old_transition = *ci;
 #ifdef MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
-			std::cout << "Org transition: " << *old_transition << std::endl;
+				std::cout << "Org transition: " << *old_transition << std::endl;
 #endif
-			PropertyState* merged_to_property_state = old_to_merged_property_state_mappings[&old_transition->getToPropertyState()];
-			
-//			const std::map<const Property*, std::vector<unsigned int>* >& property_mappings = old_transition->getMappingToActionVariables();
-			const std::vector<const HEURISTICS::VariableDomain*>& action_variable_to_effect_mappings = old_transition->getActionVariableDomains();
-			
-			std::map<const Property*, std::vector<unsigned int>* >* precondition_property_mappings = new std::map<const Property*, std::vector<unsigned int>* >();
-			std::map<const Property*, std::vector<unsigned int>* >* effect_property_mappings = new std::map<const Property*, std::vector<unsigned int>* >();
-			std::vector<const HEURISTICS::VariableDomain*>* new_action_variable_to_effect_mappings = new std::vector<const HEURISTICS::VariableDomain*>();
-			
-			std::vector<const Property*>* new_preconditions = new std::vector<const Property*>();
-			std::vector<const Property*>* new_effects = new std::vector<const Property*>();
-			
-			// Copy the action variables.
-			for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = action_variable_to_effect_mappings.begin(); ci != action_variable_to_effect_mappings.end(); ++ci)
-			{
-				new_action_variable_to_effect_mappings->push_back(new HEURISTICS::VariableDomain((*ci)->getVariableDomain()));
-			}
-			
-			// Copy the mappings for the preconditions.
-			for (std::vector<const Property*>::const_iterator ci = old_transition->getFromPropertyState().getProperties().begin(); ci != old_transition->getFromPropertyState().getProperties().end(); ++ci)
-			{
-				unsigned int from_node_property_index = std::distance(old_transition->getFromPropertyState().getProperties().begin(), ci);
-				const Property* property = *ci;
-				const std::vector<unsigned int>* mappings = old_transition->getMappingsOfProperty(*property, true);
+				//PropertyState* merged_to_property_state = old_to_merged_property_state_mappings[&old_transition->getToPropertyState()];
 				
-				if (mappings != NULL)
+				std::pair<std::multimap<const PropertyState*, PropertyState*>::const_iterator, std::multimap<const PropertyState*, PropertyState*>::const_iterator> merged_to_property_states_ci = old_to_merged_property_state_mappings.equal_range(&old_transition->getToPropertyState());
+				
+		//		PropertyState* merged_property_state = old_to_merged_property_state_mappings[org_property_state];
+				
+				for (std::multimap<const PropertyState*, PropertyState*>::const_iterator ci = merged_to_property_states_ci.first; ci != merged_to_property_states_ci.second; ++ci)
 				{
-					const Property* precondition = merged_property_state->getProperties()[from_node_property_index];
-					(*precondition_property_mappings)[precondition] = new std::vector<unsigned int>(*mappings);
-					new_preconditions->push_back(precondition);
+					PropertyState* merged_to_property_state = (*ci).second;
+				
+	//			const std::map<const Property*, std::vector<unsigned int>* >& property_mappings = old_transition->getMappingToActionVariables();
+					const std::vector<const HEURISTICS::VariableDomain*>& action_variable_to_effect_mappings = old_transition->getActionVariableDomains();
+					
+					std::map<const Property*, std::vector<unsigned int>* >* precondition_property_mappings = new std::map<const Property*, std::vector<unsigned int>* >();
+					std::map<const Property*, std::vector<unsigned int>* >* effect_property_mappings = new std::map<const Property*, std::vector<unsigned int>* >();
+					std::vector<const HEURISTICS::VariableDomain*>* new_action_variable_to_effect_mappings = new std::vector<const HEURISTICS::VariableDomain*>();
+					
+					std::vector<const Property*>* new_preconditions = new std::vector<const Property*>();
+					std::vector<const Property*>* new_effects = new std::vector<const Property*>();
+					
+					// Copy the action variables.
+					for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = action_variable_to_effect_mappings.begin(); ci != action_variable_to_effect_mappings.end(); ++ci)
+					{
+						new_action_variable_to_effect_mappings->push_back(new HEURISTICS::VariableDomain((*ci)->getVariableDomain()));
+					}
+					
+					// Copy the mappings for the preconditions.
+					for (std::vector<const Property*>::const_iterator ci = old_transition->getFromPropertyState().getProperties().begin(); ci != old_transition->getFromPropertyState().getProperties().end(); ++ci)
+					{
+						unsigned int from_node_property_index = std::distance(old_transition->getFromPropertyState().getProperties().begin(), ci);
+						const Property* property = *ci;
+						const std::vector<unsigned int>* mappings = old_transition->getMappingsOfProperty(*property, true);
+						
+						if (mappings != NULL)
+						{
+							const Property* precondition = merged_property_state->getProperties()[from_node_property_index];
+							(*precondition_property_mappings)[precondition] = new std::vector<unsigned int>(*mappings);
+							new_preconditions->push_back(precondition);
+						}
+					}
+					
+					// Copy the mappings for the effects.
+					for (std::vector<const Property*>::const_iterator ci = old_transition->getToPropertyState().getProperties().begin(); ci != old_transition->getToPropertyState().getProperties().end(); ++ci)
+					{
+						unsigned int to_node_property_index = std::distance(old_transition->getToPropertyState().getProperties().begin(), ci);
+						const Property* property = *ci;
+						const std::vector<unsigned int>* mappings = old_transition->getMappingsOfProperty(*property, false);
+						
+						if (mappings != NULL)
+						{
+							const Property* effect = merged_to_property_state->getProperties()[to_node_property_index];
+							(*effect_property_mappings)[effect] = new std::vector<unsigned int>(*mappings);
+							new_effects->push_back(effect);
+						}
+					}
+					
+					// Check if we can find any facts which are persistent and can be mapped to the preconditions.
+					
+					
+					PropertyStateTransition* merged_transition = new PropertyStateTransition(*merged_property_state, *merged_to_property_state, *new_preconditions, *new_effects, old_transition->getAction(), *precondition_property_mappings, *effect_property_mappings, *new_action_variable_to_effect_mappings);
+#ifdef MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
+					std::cout << "1New merged transition: " << *merged_transition << std::endl;
+#endif
+					all_merged_transition.push_back(merged_transition);
 				}
 			}
-			
-			// Copy the mappings for the effects.
-			for (std::vector<const Property*>::const_iterator ci = old_transition->getToPropertyState().getProperties().begin(); ci != old_transition->getToPropertyState().getProperties().end(); ++ci)
-			{
-				unsigned int to_node_property_index = std::distance(old_transition->getToPropertyState().getProperties().begin(), ci);
-				const Property* property = *ci;
-				const std::vector<unsigned int>* mappings = old_transition->getMappingsOfProperty(*property, false);
-				
-				if (mappings != NULL)
-				{
-					const Property* effect = merged_to_property_state->getProperties()[to_node_property_index];
-					(*effect_property_mappings)[effect] = new std::vector<unsigned int>(*mappings);
-					new_effects->push_back(effect);
-				}
-			}
-			
-			// Check if we can find any facts which are persistent and can be mapped to the preconditions.
-			
-			
-			PropertyStateTransition* merged_transition = new PropertyStateTransition(*merged_property_state, *merged_to_property_state, *new_preconditions, *new_effects, old_transition->getAction(), *precondition_property_mappings, *effect_property_mappings, *new_action_variable_to_effect_mappings);
-#ifdef MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
-			std::cout << "1New merged transition: " << *merged_transition << std::endl;
-#endif
-			all_merged_transition.push_back(merged_transition);
-		}
 		
-		for (std::vector<PropertyStateTransition*>::const_iterator ci = all_merged_transition.begin(); ci != all_merged_transition.end(); ++ci)
-		{
-			merged_property_state->addTransition(**ci);
+			for (std::vector<PropertyStateTransition*>::const_iterator ci = all_merged_transition.begin(); ci != all_merged_transition.end(); ++ci)
+			{
+				merged_property_state->addTransition(**ci);
+			}
 		}
 	}
 	
 	for (std::vector<PropertyState*>::const_iterator ci = rhs.property_states_.begin(); ci != rhs.property_states_.end(); ++ci)
 	{
 		const PropertyState* org_property_state = *ci;
-		PropertyState* merged_property_state = old_to_merged_property_state_mappings[org_property_state];
+		//PropertyState* merged_property_state = old_to_merged_property_state_mappings[org_property_state];
 		
-		std::vector<PropertyStateTransition*> all_merged_transition;
-		for (std::vector<const PropertyStateTransition*>::const_iterator ci = org_property_state->getTransitions().begin(); ci != org_property_state->getTransitions().end(); ++ci)
+		std::pair<std::multimap<const PropertyState*, PropertyState*>::const_iterator, std::multimap<const PropertyState*, PropertyState*>::const_iterator> merged_property_states_ci = old_to_merged_property_state_mappings.equal_range(org_property_state);
+		
+//		PropertyState* merged_property_state = old_to_merged_property_state_mappings[org_property_state];
+		
+		for (std::multimap<const PropertyState*, PropertyState*>::const_iterator ci = merged_property_states_ci.first; ci != merged_property_states_ci.second; ++ci)
 		{
-			const PropertyStateTransition* old_transition = *ci;
-			PropertyState* merged_to_property_state = old_to_merged_property_state_mappings[&old_transition->getToPropertyState()];
-			
-//			const std::map<const Property*, std::vector<unsigned int>* >& property_mappings = old_transition->getMappingToActionVariables();
-			const std::vector<const HEURISTICS::VariableDomain*>& action_variable_to_effect_mappings = old_transition->getActionVariableDomains();
-			
-			std::map<const Property*, std::vector<unsigned int>* >* precondition_property_mappings = new std::map<const Property*, std::vector<unsigned int>* >();
-			std::map<const Property*, std::vector<unsigned int>* >* effect_property_mappings = new std::map<const Property*, std::vector<unsigned int>* >();
-			std::vector<const HEURISTICS::VariableDomain*>* new_action_variable_to_effect_mappings = new std::vector<const HEURISTICS::VariableDomain*>();
-			
-			std::vector<const Property*>* new_preconditions = new std::vector<const Property*>();
-			std::vector<const Property*>* new_effects = new std::vector<const Property*>();
-			
-			// Copy the action variables.
-			for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = action_variable_to_effect_mappings.begin(); ci != action_variable_to_effect_mappings.end(); ++ci)
+			PropertyState* merged_property_state = (*ci).second;
+		
+			std::vector<PropertyStateTransition*> all_merged_transition;
+			for (std::vector<const PropertyStateTransition*>::const_iterator ci = org_property_state->getTransitions().begin(); ci != org_property_state->getTransitions().end(); ++ci)
 			{
-				new_action_variable_to_effect_mappings->push_back(new HEURISTICS::VariableDomain((*ci)->getVariableDomain()));
-			}
-#ifdef MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
-			std::cout << "Copy properties" << std::endl;
-#endif
-			// Copy the mappings for the preconditions.
-			for (unsigned int from_node_property_index = old_transition->getFromPropertyState().getProperties().size() - 1; from_node_property_index != std::numeric_limits<unsigned int>::max(); --from_node_property_index)
-			{
-				const Property* property = old_transition->getFromPropertyState().getProperties()[old_transition->getFromPropertyState().getProperties().size() - from_node_property_index - 1];
-				const std::vector<unsigned int>* mappings = old_transition->getMappingsOfProperty(*property, true);
+				const PropertyStateTransition* old_transition = *ci;
 				
-				if (mappings != NULL)
+				
+				std::pair<std::multimap<const PropertyState*, PropertyState*>::const_iterator, std::multimap<const PropertyState*, PropertyState*>::const_iterator> merged_to_property_states_ci = old_to_merged_property_state_mappings.equal_range(&old_transition->getToPropertyState());
+				
+		//		PropertyState* merged_property_state = old_to_merged_property_state_mappings[org_property_state];
+				
+				for (std::multimap<const PropertyState*, PropertyState*>::const_iterator ci = merged_to_property_states_ci.first; ci != merged_to_property_states_ci.second; ++ci)
 				{
-					const Property* precondition = merged_property_state->getProperties()[merged_property_state->getProperties().size() - from_node_property_index - 1];
+					PropertyState* merged_to_property_state = (*ci).second;
+				
+				//PropertyState* merged_to_property_state = old_to_merged_property_state_mappings[&old_transition->getToPropertyState()];
+				
+	//			const std::map<const Property*, std::vector<unsigned int>* >& property_mappings = old_transition->getMappingToActionVariables();
+					const std::vector<const HEURISTICS::VariableDomain*>& action_variable_to_effect_mappings = old_transition->getActionVariableDomains();
+					
+					std::map<const Property*, std::vector<unsigned int>* >* precondition_property_mappings = new std::map<const Property*, std::vector<unsigned int>* >();
+					std::map<const Property*, std::vector<unsigned int>* >* effect_property_mappings = new std::map<const Property*, std::vector<unsigned int>* >();
+					std::vector<const HEURISTICS::VariableDomain*>* new_action_variable_to_effect_mappings = new std::vector<const HEURISTICS::VariableDomain*>();
+					
+					std::vector<const Property*>* new_preconditions = new std::vector<const Property*>();
+					std::vector<const Property*>* new_effects = new std::vector<const Property*>();
+					
+					// Copy the action variables.
+					for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = action_variable_to_effect_mappings.begin(); ci != action_variable_to_effect_mappings.end(); ++ci)
+					{
+						new_action_variable_to_effect_mappings->push_back(new HEURISTICS::VariableDomain((*ci)->getVariableDomain()));
+					}
 #ifdef MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
-					std::cout << "From node property: " << *property << " maps to " << *precondition << std::endl;
+					std::cout << "Copy properties" << std::endl;
 #endif
-					(*precondition_property_mappings)[precondition] = new std::vector<unsigned int>(*mappings);
-					new_preconditions->push_back(precondition);
+				// Copy the mappings for the preconditions.
+					for (unsigned int from_node_property_index = old_transition->getFromPropertyState().getProperties().size() - 1; from_node_property_index != std::numeric_limits<unsigned int>::max(); --from_node_property_index)
+					{
+						const Property* property = old_transition->getFromPropertyState().getProperties()[old_transition->getFromPropertyState().getProperties().size() - from_node_property_index - 1];
+						const std::vector<unsigned int>* mappings = old_transition->getMappingsOfProperty(*property, true);
+						
+						if (mappings != NULL)
+						{
+							const Property* precondition = merged_property_state->getProperties()[merged_property_state->getProperties().size() - from_node_property_index - 1];
+#ifdef MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
+						std::cout << "From node property: " << *property << " maps to " << *precondition << std::endl;
+#endif
+							(*precondition_property_mappings)[precondition] = new std::vector<unsigned int>(*mappings);
+							new_preconditions->push_back(precondition);
+						}
+					}
+					
+					// Copy the mappings for the effects.
+					for (unsigned int to_node_property_index = old_transition->getToPropertyState().getProperties().size() - 1; to_node_property_index != std::numeric_limits<unsigned int>::max(); --to_node_property_index)
+					{
+						const Property* property = old_transition->getToPropertyState().getProperties()[to_node_property_index];
+						const std::vector<unsigned int>* mappings = old_transition->getMappingsOfProperty(*property, false);
+						
+						if (mappings != NULL)
+						{
+							const Property* effect = merged_to_property_state->getProperties()[merged_to_property_state->getProperties().size() - to_node_property_index - 1];
+#ifdef MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
+							std::cout << "To node property: " << *property << " maps to " << *effect << std::endl;
+#endif
+							(*effect_property_mappings)[effect] = new std::vector<unsigned int>(*mappings);
+							new_effects->push_back(effect);
+						}
+					}
+					
+					PropertyStateTransition* merged_transition = new PropertyStateTransition(*merged_property_state, *merged_to_property_state, *new_preconditions, *new_effects, old_transition->getAction(), *precondition_property_mappings, *effect_property_mappings, *new_action_variable_to_effect_mappings);
+#ifdef MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
+				std::cout << "2New merged transition: " << *merged_transition << std::endl;
+#endif
+					all_merged_transition.push_back(merged_transition);
 				}
 			}
 			
-			// Copy the mappings for the effects.
-			for (unsigned int to_node_property_index = old_transition->getToPropertyState().getProperties().size() - 1; to_node_property_index != std::numeric_limits<unsigned int>::max(); --to_node_property_index)
+			for (std::vector<PropertyStateTransition*>::const_iterator ci = all_merged_transition.begin(); ci != all_merged_transition.end(); ++ci)
 			{
-				const Property* property = old_transition->getToPropertyState().getProperties()[to_node_property_index];
-				const std::vector<unsigned int>* mappings = old_transition->getMappingsOfProperty(*property, false);
-				
-				if (mappings != NULL)
-				{
-					const Property* effect = merged_to_property_state->getProperties()[merged_to_property_state->getProperties().size() - to_node_property_index - 1];
-#ifdef MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
-					std::cout << "To node property: " << *property << " maps to " << *effect << std::endl;
-#endif
-					(*effect_property_mappings)[effect] = new std::vector<unsigned int>(*mappings);
-					new_effects->push_back(effect);
-				}
+				merged_property_state->addTransition(**ci);
 			}
-			
-			PropertyStateTransition* merged_transition = new PropertyStateTransition(*merged_property_state, *merged_to_property_state, *new_preconditions, *new_effects, old_transition->getAction(), *precondition_property_mappings, *effect_property_mappings, *new_action_variable_to_effect_mappings);
-#ifdef MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
-			std::cout << "2New merged transition: " << *merged_transition << std::endl;
-#endif
-			all_merged_transition.push_back(merged_transition);
-		}
-		
-		for (std::vector<PropertyStateTransition*>::const_iterator ci = all_merged_transition.begin(); ci != all_merged_transition.end(); ++ci)
-		{
-			merged_property_state->addTransition(**ci);
 		}
 	}
 	

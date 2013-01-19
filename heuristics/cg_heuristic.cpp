@@ -208,6 +208,13 @@ unsigned int LiftedCausalGraphHeuristic::getHeuristic(const State& state, const 
 #endif
 		const SAS_Plus::MultiValuedValue* best_node = findNode(goal_fact, all_lifted_dtgs);
 		
+		if (best_node == NULL)
+		{
+			std::cerr << "There is no node that can reach the value: " << goal_fact << std::endl;
+			assert (false);
+			return std::numeric_limits<unsigned int>::max();
+		}
+		
 		// Check which term is invariable.
 		HEURISTICS::VariableDomain invariable_domain;
 		for (unsigned int fact_index = 0; fact_index < best_node->getValues().size(); ++fact_index)
@@ -260,11 +267,12 @@ unsigned int LiftedCausalGraphHeuristic::getHeuristic(const State& state, const 
 		
 		if (result == NULL)
 		{
-#ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
-			std::cout << "Could not achieve the goal: " << goal_fact << "Invariable domain: " << invariable_domain << std::endl;
+//#ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
+			std::cerr << "Could not achieve the goal: " << goal_fact << "Invariable domain: " << invariable_domain << std::endl;
 //			std::cout << "Lifted DTG: " << best_node->getLiftedDTG() << std::endl;
-#endif
+//#endif
 			h = std::numeric_limits<unsigned int>::max();
+			assert (false);
 			break;
 		}
 		h += result->getCost();
@@ -538,7 +546,12 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 				// If the fact is not part of the from node, then we look for the DTG it does belong to.
 				const SAS_Plus::MultiValuedValue* best_node = findNode(precondition_fact, dependencies);
 				
-				assert (best_node != NULL);
+				if (best_node == NULL)
+				{
+					std::cerr << "Could not find a node for the precondition: " << precondition_fact << std::endl;
+					assert (best_node != NULL);
+				}
+				
 				
 				// Check which term is invariable.
 				HEURISTICS::VariableDomain invariable_domain;

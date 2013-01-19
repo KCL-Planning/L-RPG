@@ -127,9 +127,9 @@ void MultiValuedTransition::ignoreEffect(const Atom& effect)
 
 MultiValuedTransition* MultiValuedTransition::migrateTransition(MultiValuedValue& from_node, MultiValuedValue& to_node, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager) const
 {
-//	std::cout << "Migrate the transition: " << *this << std::endl;
-//	std::cout << "From: " << from_node << std::endl;
-//	std::cout << "To: " << to_node << std::endl;
+	std::cout << "Migrate the transition: " << *this << std::endl;
+	std::cout << "From: " << from_node << std::endl;
+	std::cout << "To: " << to_node << std::endl;
 	std::vector<std::vector<unsigned int>* >* precondition_to_action_variable_mappings = new std::vector<std::vector<unsigned int>* >();
 	std::vector<std::vector<unsigned int>* >* effect_to_action_variable_mappings = new std::vector<std::vector<unsigned int>* >();
 	
@@ -572,8 +572,15 @@ void MultiValuedValue::split(std::vector<MultiValuedValue*>& split_nodes, const 
 
 void MultiValuedValue::findAssignments(unsigned int fact_index, unsigned int term_index, std::vector<MultiValuedValue*>& created_nodes, std::vector<const HEURISTICS::VariableDomain*>& assignments_made, const std::multimap<const Object*, const Object*>& equivalent_relationships, const PredicateManager& predicate_manager) const
 {
+	unsigned int total_facts = 0;
+	for (std::vector<HEURISTICS::Fact*>::const_iterator ci = values_->begin(); ci != values_->end(); ++ci)
+	{
+		const HEURISTICS::Fact* value = *ci;
+		total_facts += value->getVariableDomains().size();
+	}
+	
 	// Found a full assignment!
-	if (fact_index == values_->size())
+	if (total_facts == assignments_made.size())
 	{
 		unsigned int index = 0;
 		std::vector<HEURISTICS::Fact*>* new_nodes = new std::vector<HEURISTICS::Fact*>();
@@ -1067,6 +1074,10 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 		std::cout << **ci << std::endl;
 	}
 	
+	for (std::vector<LiftedDTG*>::const_iterator ci = created_lifted_dtgs.begin(); ci != created_lifted_dtgs.end(); ++ci)
+	{
+		delete *ci;
+	}
 	created_lifted_dtgs.clear();
 	created_lifted_dtgs.insert(created_lifted_dtgs.end(), split_dtgs.begin(), split_dtgs.end());
 }
@@ -1528,9 +1539,13 @@ LiftedDTG::LiftedDTG(const LiftedDTG& other, const PredicateManager& predicate_m
 LiftedDTG::LiftedDTG(const LiftedDTG& other, const std::vector<MultiValuedValue*>& node_set, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager, const PredicateManager& predicate_manager)
 	: property_space_(other.property_space_)
 {
+	std::cout << "Create a copy of: " << other << std::endl;
+	std::cout << "Original nodes: " << std::endl;
+	
 	std::map<const MultiValuedValue*, MultiValuedValue*> old_to_new_node_mapping;
 	for (std::vector<MultiValuedValue*>::const_iterator ci = node_set.begin(); ci != node_set.end(); ++ci)
 	{
+		std::cout << "* " << **ci << std::endl;
 		MultiValuedValue* mvv = new MultiValuedValue(*this, **ci, (*ci)->isCopy());
 		nodes_.push_back(mvv);
 		old_to_new_node_mapping[*ci] = mvv;
@@ -1544,9 +1559,13 @@ LiftedDTG::LiftedDTG(const LiftedDTG& other, const std::vector<MultiValuedValue*
 		for (std::vector<const MultiValuedTransition*>::const_iterator ci = org_from_node->getTransitions().begin(); ci != org_from_node->getTransitions().end(); ++ci)
 		{
 			const MultiValuedTransition* transition = *ci;
-			MultiValuedValue* new_to_org = old_to_new_node_mapping[&transition->getToNode()];
+			MultiValuedValue* new_to_node = old_to_new_node_mapping[&transition->getToNode()];
 			
-			const MultiValuedTransition* new_transition = transition->migrateTransition(*new_from_org, *new_to_org, initial_facts, type_manager);
+			if (new_to_node == NULL)
+			{
+				continue;
+			}
+			const MultiValuedTransition* new_transition = transition->migrateTransition(*new_from_org, *new_to_node, initial_facts, type_manager);
 			assert (new_transition != NULL);
 			
 			new_from_org->addTransition(*new_transition);

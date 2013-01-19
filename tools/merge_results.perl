@@ -6,11 +6,11 @@ use warnings;
 my $from_problem_count = shift(@ARGV);
 my $problem_count = shift(@ARGV);
 #my $marvin_directory = "/home/bram/projects/marvin-bram/latest_results";
-my $lhs_directory = "/home/bram/projects/MyPOP/trunk/latest_heuristics_results_all_goals_removed_ff";
-my $rhs_directory = "/home/bram/planners/FF-X2/FF-X/latest_heuristics_results";
+my $lhs_directory = "/home/bram/projects/MyPOP/trunk/latest_heuristics_results";
+my $rhs_directory = "/home/bram/projects/FF-X/latest_heuristics_results";
 #my $marvin_directory = "/home/bram/projects/marvin-bram/results";
 #my $marvin_directory = "/home/bram/projects/MyPOP/tags/ICAPS-2012-speed-1.0/trunk/latest_results";
-my $output_directory = "merged_results_all_goals_removed_ff";
+my $output_directory = "merged_results_memory_used";
 
 system ("mkdir -p $output_directory");
 
@@ -43,7 +43,8 @@ foreach my $file (@FILES)
 	unless (scalar (@lollipop_lines) eq scalar (@marvin_lines) )
 	{
 		print "$file The number of data points are not equal ".scalar (@lollipop_lines)." v.s. ".scalar (@marvin_lines)."!\n";
-		exit;
+		next;
+#		exit;
 	}
 
 	for (my $i = 0; $i < scalar (@lollipop_lines); $i++)

@@ -12,7 +12,7 @@
 #include "term_manager.h"
 #include <predicate_manager.h>
 
-#define LIFTED_CAUSAL_GRAPH_COMMENTS
+//#define LIFTED_CAUSAL_GRAPH_COMMENTS
 
 namespace MyPOP {
 
@@ -160,6 +160,7 @@ void LiftedCausalGraphHeuristic::setHeuristicForState(MyPOP::State& state, const
 
 unsigned int LiftedCausalGraphHeuristic::getHeuristic(const State& state, const std::vector< const GroundedAtom* >& bounded_goal_facts)
 {
+//	std::cerr << ";";
 	std::vector<const SAS_Plus::LiftedDTG*> all_lifted_dtgs;
 	for (std::vector<SAS_Plus::LiftedDTG*>::const_iterator ci = lifted_dtgs_->begin(); ci != lifted_dtgs_->end(); ++ci)
 	{
@@ -188,6 +189,7 @@ unsigned int LiftedCausalGraphHeuristic::getHeuristic(const State& state, const 
 #ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
 		std::cout << "Process the goal: " << *goal << std::endl;
 #endif
+//		std::cerr << "Process the goal: " << *goal << std::endl;
 		
 		std::vector<const VariableDomain*> variable_domains;
 		
@@ -478,6 +480,7 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 #ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
 			std::cout << "Process the transition: " << *transition << std::endl;
 #endif
+//			std::cerr << "Process the transition: " << transition->getAction().getPredicate() << std::endl;
 			
 			unsigned int transition_cost = 1;
 			
@@ -598,6 +601,8 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 				std::vector<const HEURISTICS::Fact*> goal_facts;
 				goal_facts.push_back(&precondition_fact);
 				goal_nodes.push_back(std::make_pair(best_node, &goal_facts));
+				
+//				std::cerr << "Process the precondition: " << precondition_fact << std::endl;
 				
 #ifdef LIFTED_CAUSAL_GRAPH_COMMENTS
 				std::cout << "Goal: " << precondition_fact << "Invariable domain: " << invariable_domain << std::endl;
@@ -906,6 +911,8 @@ const LCGSearchNode* LiftedCausalGraphHeuristic::getCost(const State& state, con
 #endif
 			open_list.push(new_node);
 			assert (new_assignments_to_lower_variables->size() == dependencies.size());
+			
+//			std::cerr << "DONE Processing the transition..." << std::endl;
 		}
 		
 		if (starting_nodes.find(current_node) == starting_nodes.end())

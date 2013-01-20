@@ -15,14 +15,14 @@
 #include <type_manager.h>
 #include <parser_utils.h>
 
-#define MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
+//#define MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
 
 namespace MyPOP
 {
 namespace SAS_Plus
 {
 
-MultiValuedTransition::MultiValuedTransition(const Action& action, MultiValuedValue& precondition, MultiValuedValue& effect, const std::vector<std::vector<unsigned int>* >& precondition_to_action_variable_mappings, const std::vector<std::vector<unsigned int>* >& effect_to_action_variable_mappings, const TypeManager& type_manager)
+MultiValuedTransition::MultiValuedTransition(const Action& action, MultiValuedValue& precondition, MultiValuedValue& effect, std::vector<std::vector<unsigned int>* >& precondition_to_action_variable_mappings, std::vector<std::vector<unsigned int>* >& effect_to_action_variable_mappings, const TypeManager& type_manager)
 	: action_(&action), precondition_(&precondition), effect_(&effect), precondition_to_action_variable_mappings_(&precondition_to_action_variable_mappings), effect_to_action_variable_mappings_(&effect_to_action_variable_mappings)
 {
 	assert (precondition_->getValues().size() == precondition_to_action_variable_mappings_->size());
@@ -82,6 +82,27 @@ MultiValuedTransition::MultiValuedTransition(const Action& action, MultiValuedVa
 			action_variable_domain->set(updated_action_variable_domain.getVariableDomain());
 		}
 	}
+}
+
+MultiValuedTransition::MultiValuedTransition(const MultiValuedTransition& other, const std::vector<HEURISTICS::VariableDomain*>& action_variable_domains)
+	: action_(other.action_), action_variable_domains_(action_variable_domains), precondition_(other.precondition_), effect_(other.effect_), persitent_precondition_to_effect_mappings_(other.persitent_precondition_to_effect_mappings_), preconditions_to_ignore_(other.preconditions_to_ignore_), effects_to_ignore_(other.effects_to_ignore_)
+{
+	precondition_to_action_variable_mappings_ = new std::vector<std::vector<unsigned int>* >();
+	effect_to_action_variable_mappings_ = new std::vector<std::vector<unsigned int>* >();
+	
+	for (std::vector<std::vector<unsigned int>* >::const_iterator ci = other.precondition_to_action_variable_mappings_->begin(); ci != other.precondition_to_action_variable_mappings_->end(); ++ci)
+	{
+		std::vector<unsigned int>* new_mappings = new std::vector<unsigned int>(**ci);
+		precondition_to_action_variable_mappings_->push_back(new_mappings);
+	}
+	
+	for (std::vector<std::vector<unsigned int>* >::const_iterator ci = other.effect_to_action_variable_mappings_->begin(); ci != other.effect_to_action_variable_mappings_->end(); ++ci)
+	{
+		std::vector<unsigned int>* new_mappings = new std::vector<unsigned int>(**ci);
+		effect_to_action_variable_mappings_->push_back(new_mappings);
+	}
+	
+	assert (action_variable_domains_.size() == action_->getVariables().size());
 }
 
 MultiValuedTransition::~MultiValuedTransition()
@@ -348,6 +369,178 @@ MultiValuedTransition* MultiValuedTransition::migrateTransition(MultiValuedValue
 	return transition;
 }
 
+void MultiValuedTransition::migrateTransition(std::vector<MultiValuedTransition*>& results, const std::multimap<const Object*, const Object*>& equivalent_relationships, MultiValuedValue& from_node, MultiValuedValue& to_node, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager) const
+{
+	MultiValuedTransition* new_transition = migrateTransition(from_node, to_node, initial_facts, type_manager);
+	if (new_transition == NULL)
+	{
+		return;
+	}
+	
+	// Now split this transition up into multiple transitions, based on the equivalent relationships.
+	std::vector<std::vector<HEURISTICS::VariableDomain*> *> split_action_variables;
+	for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = new_transition->action_variable_domains_.begin(); ci != new_transition->action_variable_domains_.end(); ++ci)
+	{
+		const HEURISTICS::VariableDomain* current_variable_domain = *ci;
+		std::vector<HEURISTICS::VariableDomain*>* split_action_variable = new std::vector<HEURISTICS::VariableDomain*>();
+		
+		std::set<const Object*> processed_objects;
+		while (processed_objects.size() != current_variable_domain->size())
+		{
+			const Object* current_object = NULL;
+			for (std::vector<const Object*>::const_iterator ci = current_variable_domain->getVariableDomain().begin(); ci != current_variable_domain->getVariableDomain().end(); ++ci)
+			{
+				if (processed_objects.find(*ci) == processed_objects.end())
+				{
+					current_object = *ci;
+					break;
+				}
+			}
+			
+			if (current_object == NULL)
+			{
+				std::cerr << "Objects in the variable domain: ";
+				for (std::vector<const Object*>::const_iterator ci = current_variable_domain->getVariableDomain().begin(); ci != current_variable_domain->getVariableDomain().end(); ++ci)
+				{
+					std::cerr << **ci << ", ";
+				}
+				std::cerr << "." << std::endl;
+				std::cerr << "Processed: ";
+				for (std::set<const Object*>::const_iterator ci = processed_objects.begin(); ci != processed_objects.end(); ++ci)
+				{
+					std::cerr << **ci << ", ";
+				}
+				std::cerr << "." << std::endl;
+				assert (current_object != NULL);
+			}
+			
+			
+			HEURISTICS::VariableDomain* vd = new HEURISTICS::VariableDomain();
+			split_action_variable->push_back(vd);
+			
+			// Find all objects equivalent to this:
+			std::pair<std::multimap<const Object*, const Object*>::const_iterator, std::multimap<const Object*, const Object*>::const_iterator> eq_ob_ci = equivalent_relationships.equal_range(current_object);
+			for (std::multimap<const Object*, const Object*>::const_iterator ci = eq_ob_ci.first; ci != eq_ob_ci.second; ++ci)
+			{
+				if (current_variable_domain->contains(*(*ci).second))
+				{
+					vd->addObject(*(*ci).second);
+					processed_objects.insert((*ci).second);
+				}
+			}
+		}
+		
+		split_action_variables.push_back(split_action_variable);
+	}
+	
+	// Now create the transitions based on the new action variables.
+	unsigned int counter[split_action_variables.size()];
+	memset(&counter[0], 0, sizeof(unsigned int) * split_action_variables.size());
+	bool done = false;
+	while (!done)
+	{
+		done = true;
+		
+		std::vector<HEURISTICS::VariableDomain*> new_action_parameters;
+		for (unsigned int parameter_index = 0; parameter_index < split_action_variables.size(); ++parameter_index)
+		{
+			new_action_parameters.push_back((*split_action_variables[parameter_index])[counter[parameter_index]]);
+		}
+		
+		// Update the counters.
+		for (unsigned int parameter_index = 0; parameter_index < split_action_variables.size(); ++parameter_index)
+		{
+			if (counter[parameter_index] + 1 != split_action_variables[parameter_index]->size())
+			{
+				counter[parameter_index] = counter[parameter_index] + 1;
+				done = false;
+				break;
+			}
+			else
+			{
+				counter[parameter_index] = 0;
+			}
+		}
+		
+		// Create a new transition based on these variables.
+		MultiValuedTransition* mvt = new MultiValuedTransition(*new_transition, new_action_parameters);
+		
+		// Make sure that no static preconditions are violated.
+		std::vector<const Atom*> preconditions;
+		Utility::convertFormula(preconditions, &mvt->getAction().getPrecondition());
+		bool static_preconditions_supported_by_static_facts = true;
+		for (std::vector<const Atom*>::const_iterator ci =  preconditions.begin(); ci != preconditions.end(); ++ci)
+		{
+			const Atom* precondition = *ci;
+			if (!precondition->getPredicate().isStatic())
+			{
+				continue;
+			}
+			
+			std::vector<unsigned int> precondition_mappings;
+			for (std::vector<const Term*>::const_iterator ci = precondition->getTerms().begin(); ci != precondition->getTerms().end(); ++ci)
+			{
+				for (unsigned int action_variable_index = 0; action_variable_index < action_->getVariables().size(); ++action_variable_index)
+				{
+					if (action_->getVariables()[action_variable_index] == *ci)
+					{
+						precondition_mappings.push_back(action_variable_index);
+						break;
+					}
+				}
+			}
+			
+			// Find a fact in the initial state which supports this fact, given the action variables.
+			bool found_matching_initial_fact = false;
+			for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ++ci)
+			{
+				const Atom* initial_fact = *ci;
+				if (initial_fact->getPredicate().getName() != precondition->getPredicate().getName() ||
+				    initial_fact->getArity() != precondition->getArity())
+				{
+					continue;
+				}
+				
+				bool terms_match = true;
+				for (unsigned int term_index = 0; term_index < initial_fact->getArity(); ++term_index)
+				{
+					const HEURISTICS::VariableDomain* variable_domain = mvt->action_variable_domains_[precondition_mappings[term_index]];
+					const Object* initial_fact_object = static_cast<const Object*>(initial_fact->getTerms()[term_index]);
+					
+					if (!variable_domain->contains(*initial_fact_object))
+					{
+						terms_match = false;
+						break;
+					}
+				}
+				
+				if (terms_match)
+				{
+					found_matching_initial_fact = true;
+					break;
+				}
+			}
+			
+			if (!found_matching_initial_fact)
+			{
+				static_preconditions_supported_by_static_facts = false;
+				break;
+			}
+		}
+		
+		if (!static_preconditions_supported_by_static_facts)
+		{
+			delete mvt;
+			continue;
+		}
+		
+		std::cerr << "Split transition: " << *mvt << std::endl;
+		
+		results.push_back(mvt);
+	}
+	delete new_transition;
+}
+
 const HEURISTICS::Fact* MultiValuedTransition::getEffectPersistentWith(const HEURISTICS::Fact& precondition) const
 {
 	for (unsigned int precondition_index = 0; precondition_index < precondition_->getValues().size(); ++precondition_index)
@@ -388,7 +581,7 @@ const HEURISTICS::Fact* MultiValuedTransition::getPreconditionPersistentWith(con
 
 std::ostream& operator<<(std::ostream& os, const MultiValuedTransition& transition)
 {
-	os << *transition.action_ << " ";
+	os << transition.action_->getPredicate() << " ";
 	for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = transition.action_variable_domains_.begin(); ci != transition.action_variable_domains_.end(); ++ci)
 	{
 		os << **ci << " ";
@@ -1720,6 +1913,7 @@ void LiftedDTG::getNodes(std::vector<const MultiValuedValue*>& found_nodes, cons
 
 void LiftedDTG::splitNodes(const std::multimap<const Object*, const Object*>& equivalent_relationships, const std::vector<const Atom*>& initial_facts, const PredicateManager& predicate_manager, const TypeManager& type_manager)
 {
+	std::cerr << "start split" << std::endl;
 	std::cout << " ==== SPLIT NODES ==== " << std::endl << *this << std::endl;
 	std::map<MultiValuedValue*, const MultiValuedValue*> new_node_to_old_node_mapping;
 	std::multimap<const MultiValuedValue*, MultiValuedValue*> old_node_to_new_nodes_mapping;
@@ -1754,9 +1948,28 @@ void LiftedDTG::splitNodes(const std::multimap<const Object*, const Object*>& eq
 			std::pair<std::multimap<const MultiValuedValue*, MultiValuedValue*>::const_iterator, std::multimap<const MultiValuedValue*, MultiValuedValue*>::const_iterator> new_node_mappings = old_node_to_new_nodes_mapping.equal_range(&transition->getToNode());
 			for (std::multimap<const MultiValuedValue*, MultiValuedValue*>::const_iterator ci = new_node_mappings.first; ci != new_node_mappings.second; ++ci)
 			{
-				MultiValuedTransition* new_transition = transition->migrateTransition(*new_node, *(*ci).second, initial_facts, type_manager);
+				//MultiValuedTransition* new_transition = transition->migrateTransition(*new_node, *(*ci).second, initial_facts, type_manager);
+				
+				std::vector<MultiValuedTransition*> new_transitions;
+				std::cerr << "sm" << std::endl;
+				transition->migrateTransition(new_transitions, equivalent_relationships, *new_node, *(*ci).second, initial_facts, type_manager);
+				std::cerr << "em" << std::endl;
+				
+				for (std::vector<MultiValuedTransition*>::const_iterator ci = new_transitions.begin(); ci != new_transitions.end(); ++ci)
+				{
+					new_node->addTransition(**ci);
+				}
+/*
 				if (new_transition != NULL)
 				{
+					// Check if we need to copy the transition, based on the equivalence mappings. These do not always need to be reflected in the from or to nodes.
+					// For example in Rover there is the transiton:
+					// { }   >>>===------- Action: communicate_image_data rover lander objective mode location location' ----> { communicated_image_data objective mode }.
+					//
+					// If the rovers are very different, then the preconditions might be different too.
+					
+					
+					
 					new_node->addTransition(*new_transition);
 				}
 				else
@@ -1765,6 +1978,7 @@ void LiftedDTG::splitNodes(const std::multimap<const Object*, const Object*>& eq
 					std::cout << "New from: " << std::endl << *new_node << std::endl;
 					std::cout << "New to: " << std::endl << *(*ci).second << std::endl;
 				}
+*/
 			}
 		}
 		
@@ -1804,6 +2018,7 @@ void LiftedDTG::splitNodes(const std::multimap<const Object*, const Object*>& eq
 	}
 	nodes_.clear();
 	nodes_.insert(nodes_.end(), new_nodes.begin(), new_nodes.end());
+	std::cerr << "end split" << std::endl;
 }
 
 void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager)

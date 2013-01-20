@@ -37,7 +37,9 @@ class CausalGraph;
 class MultiValuedTransition
 {
 public:
-	MultiValuedTransition(const Action& action, MultiValuedValue& precondition, MultiValuedValue& effect, const std::vector<std::vector<unsigned int>* >& precondition_to_action_variable_mappings_, const std::vector<std::vector<unsigned int>* >& effect_to_action_variable_mappings, const TypeManager& type_manager);
+	MultiValuedTransition(const Action& action, MultiValuedValue& precondition, MultiValuedValue& effect, std::vector<std::vector<unsigned int>* >& precondition_to_action_variable_mappings_, std::vector<std::vector<unsigned int>* >& effect_to_action_variable_mappings, const TypeManager& type_manager);
+	
+	MultiValuedTransition(const MultiValuedTransition& transition, const std::vector<HEURISTICS::VariableDomain*>& action_variable_domains);
 	
 	~MultiValuedTransition();
 	
@@ -53,6 +55,8 @@ public:
 	void ignoreEffect(const Atom& effect);
 	
 	MultiValuedTransition* migrateTransition(MultiValuedValue& from_node, MultiValuedValue& to_node, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager) const;
+	
+	void migrateTransition(std::vector<MultiValuedTransition*>& results, const std::multimap<const Object*, const Object*>& equivalent_relationships, MultiValuedValue& from_node, MultiValuedValue& to_node, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager) const;
 	
 	const HEURISTICS::VariableDomain& getActionVariableDomain(unsigned int index) const { return *action_variable_domains_[index]; }
 	
@@ -72,10 +76,10 @@ private:
 	MultiValuedValue* effect_;
 	
 	// We map each term of each value of each precondition to the variables of the action.
-	const std::vector<std::vector<unsigned int>* >* precondition_to_action_variable_mappings_;
+	std::vector<std::vector<unsigned int>* >* precondition_to_action_variable_mappings_;
 	
 	// We map each action variable to each term of the effect.
-	const std::vector<std::vector<unsigned int>* >* effect_to_action_variable_mappings_;
+	std::vector<std::vector<unsigned int>* >* effect_to_action_variable_mappings_;
 	
 	std::vector<std::pair<unsigned int, unsigned int> > persitent_precondition_to_effect_mappings_;
 	

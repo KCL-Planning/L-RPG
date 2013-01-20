@@ -749,6 +749,7 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 	}
 */
 	heuristic_->setHeuristicForState(*initial_state, grounded_goal_facts, true, allow_new_goals_to_be_added);
+//	exit(0);
 /*
 	{
 #ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS

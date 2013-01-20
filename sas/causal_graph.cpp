@@ -9,7 +9,7 @@
 #include "../formula.h"
 #include "../parser_utils.h"
 
-//#define MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
+#define MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
 #include "predicate_manager.h"
 #include "lifted_dtg.h"
 #include "heuristics/fact_set.h"
@@ -300,15 +300,15 @@ void CausalGraph::breakCycles(const std::vector<const GroundedAtom*>& goals)
 		for (std::vector<std::vector<const LiftedDTG*>* >::const_iterator ci = strongly_connected_components.begin(); ci != strongly_connected_components.end(); ci++)
 		{
 			std::vector<const LiftedDTG*>* strongly_connected_component = *ci;
-			
+/*
 #ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
 			std::cout << "[CausalGraph::breakCycles] Stronglyl connected component:" << std::endl;
-			for (std::vector<const DomainTransitionGraph*>::const_iterator ci = strongly_connected_component->begin(); ci != strongly_connected_component->end(); ci++)
+			for (std::vector<const LiftedDTG*>::const_iterator ci = strongly_connected_component.begin(); ci != strongly_connected_component.end(); ci++)
 			{
 				std::cout << ** ci << std::endl;
 			}
 #endif
-			
+*/
 			if (strongly_connected_component->size() < 2)
 			{
 				delete strongly_connected_component;
@@ -372,14 +372,31 @@ void CausalGraph::breakCycles(const std::vector<const GroundedAtom*>& goals)
 	for (std::vector<LiftedDTG*>::const_iterator dtg_ci = all_lifted_dtgs_->begin(); dtg_ci != all_lifted_dtgs_->end(); dtg_ci++)
 	{
 		LiftedDTG* dtg = *dtg_ci;
+#ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
+		std::cout << " ==== DTG ==== " << std::endl;
+		std::cout << *dtg << std::endl;
+		std::cout << " ==== END DTG ==== " << std::endl;
+#endif
 		
 		for (std::vector<MultiValuedValue*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ++ci)
 		{
 			MultiValuedValue* node = *ci;
 			
+#ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
+			std::cout << " ==== DTG NODE ==== " << std::endl;
+			std::cout << *node << std::endl;
+			std::cout << " ==== END DTG NODE ==== " << std::endl;
+#endif
+			
 			for (std::vector<const MultiValuedTransition*>::const_iterator ci = node->getTransitions().begin(); ci != node->getTransitions().end(); ++ci)
 			{
 				MultiValuedTransition* transition = const_cast<MultiValuedTransition*>(*ci);
+				
+#ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
+				std::cout << " ==== TRANSITION ==== " << std::endl;
+				std::cout << *transition << std::endl;
+				std::cout << " ==== END TRANSITION ==== " << std::endl;
+#endif
 				
 				std::vector<const Atom*> preconditions;
 				Utility::convertFormula(preconditions, &transition->getAction().getPrecondition());
@@ -415,6 +432,10 @@ void CausalGraph::breakCycles(const std::vector<const GroundedAtom*>& goals)
 						continue;
 					}
 					
+#ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
+					std::cout << "External precondition: " << *precondition_fact << std::endl;
+#endif
+					
 					bool is_connected = false;
 					std::vector<const MultiValuedValue*> found_nodes;
 					for (std::vector<LiftedDTG*>::const_iterator ci = all_lifted_dtgs_->begin(); ci != all_lifted_dtgs_->end(); ++ci)
@@ -439,11 +460,21 @@ void CausalGraph::breakCycles(const std::vector<const GroundedAtom*>& goals)
 					{
 #ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
 						std::cout << "Remove the precondition: ";
-						precondition->print(std::cout, dtg->getBindings(), transition->getStepId());
-						std::cout << ". Achieving transitions: " << nr_transitions << std::endl;
+						precondition->print(std::cout);
+						std::cout << std::endl;
 #endif
 						transition->ignorePrecondition(*precondition);
 					}
+#ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
+					else
+					{
+						std::cout << "Do not remove the precondition. It is part of the following DTGs: " << std::endl;
+						for (std::vector<const MultiValuedValue*>::const_iterator ci = found_nodes.begin(); ci != found_nodes.end(); ++ci)
+						{
+							std::cout << "* " << **ci << std::endl;
+						}
+					}
+#endif
 				}
 				
 				// Do the same for the effects.
@@ -489,9 +520,9 @@ void CausalGraph::breakCycles(const std::vector<const GroundedAtom*>& goals)
 					if (!is_connected)
 					{
 #ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
-						std::cout << "Remove the precondition: ";
-						precondition->print(std::cout, dtg->getBindings(), transition->getStepId());
-						std::cout << ". Achieving transitions: " << nr_transitions << std::endl;
+						std::cout << "Remove the effect: ";
+						effect->print(std::cout);
+						std::cout << std::endl;
 #endif
 						transition->ignoreEffect(*effect);
 					}

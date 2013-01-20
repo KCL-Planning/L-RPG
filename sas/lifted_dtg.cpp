@@ -694,7 +694,7 @@ void MultiValuedValue::printFacts(std::ostream& os) const
 
 std::ostream& operator<<(std::ostream& os, const MultiValuedValue& value)
 {
-	os << " === VALUE === " << std::endl;
+	os << " === VALUE === (#copies" << value.getCopies().size() << ")" << std::endl;
 	for (std::vector<HEURISTICS::Fact*>::const_iterator ci = value.values_->begin(); ci != value.values_->end(); ++ci)
 	{
 		os << **ci << std::endl;
@@ -1043,19 +1043,25 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 	for (std::vector<LiftedDTG*>::const_iterator ci = created_lifted_dtgs.begin(); ci != created_lifted_dtgs.end(); ++ci)
 	{
 		(*ci)->createTransitions(created_lifted_dtgs, type_manager);
-//		std::cout << "After adding transitions: " << **ci << std::endl;
+#ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
+		std::cout << "After adding transitions: " << **ci << std::endl;
+#endif
 	}
 	
 	for (std::vector<LiftedDTG*>::const_iterator ci = created_lifted_dtgs.begin(); ci != created_lifted_dtgs.end(); ++ci)
 	{
 		(*ci)->ground(created_lifted_dtgs, initial_facts, term_manager, type_manager, objects_part_of_property_spaces);
-//		std::cout << "After grounding: " << **ci << std::endl;
+#ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
+		std::cout << "After grounding: " << **ci << std::endl;
+#endif
 	}
 	
 	for (std::vector<LiftedDTG*>::const_iterator ci = created_lifted_dtgs.begin(); ci != created_lifted_dtgs.end(); ++ci)
 	{
 		(*ci)->createCopies(initial_facts, type_manager);
-//		std::cout << "After creating copies: " << **ci << std::endl;
+#ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
+		std::cout << "After creating copies: " << **ci << std::endl;
+#endif
 	}
 	
 	std::vector<LiftedDTG*> split_dtgs;
@@ -1165,6 +1171,8 @@ void LiftedDTG::splitLiftedTransitionGraphs(std::vector<LiftedDTG*>& split_ltgs,
 			// Create a new lifted DTG for the nodes.
 			LiftedDTG* new_lifted_dtg = new LiftedDTG(*lifted_dtg, connected_set, initial_facts, type_manager, predicate_manager);
 			split_ltgs.push_back(new_lifted_dtg);
+			
+			std::cout << "CREATED A CLONE" << std::endl << *new_lifted_dtg << std::endl;
 		}
 	}
 	
@@ -1596,6 +1604,12 @@ LiftedDTG::LiftedDTG(const LiftedDTG& other, const std::vector<MultiValuedValue*
 			
 			new_from_org->addTransition(*new_transition);
 		}
+		
+		// Add the copy mappings.
+		for (std::vector<MultiValuedValue*>::const_iterator ci = org_from_node->getCopies().begin(); ci != org_from_node->getCopies().end(); ++ci)
+		{
+			new_from_org->addCopy(*old_to_new_node_mapping[*ci]);
+		}
 	}
 	
 	std::cout << "Created copy: " << *this << std::endl;
@@ -1773,6 +1787,11 @@ void LiftedDTG::splitNodes(const std::multimap<const Object*, const Object*>& eq
 		for (std::vector<const MultiValuedTransition*>::const_iterator ci = new_node->getTransitions().begin(); ci != new_node->getTransitions().end(); ++ci)
 		{
 			std::cout << **ci << std::endl;
+		}
+		
+		if (org_node->getCopies().size() > 0)
+		{
+			assert (new_node->getCopies().size() > 0);
 		}
 		
 		new_nodes.push_back(new_node);
@@ -2442,7 +2461,7 @@ void LiftedDTG::getMultiValuedValues(std::vector<MultiValuedValue*>& matching_no
 
 std::ostream& operator<<(std::ostream& os, const LiftedDTG& lifted_dtg)
 {
-	os << " === Lifted DTG === " << std::endl;
+	os << " === Lifted DTG (" << &lifted_dtg << ")	 === " << std::endl;
 	os << "Invariable objects: ";
 	for (std::vector<const Object*>::const_iterator ci = lifted_dtg.invariable_objects_.begin(); ci != lifted_dtg.invariable_objects_.end(); ++ci)
 	{

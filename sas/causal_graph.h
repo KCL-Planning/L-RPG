@@ -138,7 +138,7 @@ namespace Graphviz {
 // Printing the CG.
 void printToDot(const std::string& file_name, const SAS_Plus::CausalGraph& causal_graph);
 
-void printToDot(std::ofstream& ofs, const SAS_Plus::PropertySpace& property_space);
+void printToDot(std::ofstream& ofs, const SAS_Plus::PropertySpace& property_space, const SAS_Plus::LiftedDTG& ltg);
 
 };
 

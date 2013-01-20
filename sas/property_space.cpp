@@ -144,11 +144,11 @@ PropertyStateTransition& PropertyStateTransition::merge(const PropertyStateTrans
 	    &lhs.getToPropertyState() != &rhs.getToPropertyState() ||
 	    &lhs.getAction() != &rhs.getAction())
 	{
-		std::cout << lhs.getFromPropertyState() << "<=>" << rhs.getFromPropertyState() << std::endl;
-		std::cout << lhs.getToPropertyState() << "<=>" << rhs.getToPropertyState() << std::endl;
-		std::cout << lhs.getAction() << "<=>" << rhs.getAction() << std::endl;
+		std::cerr << lhs.getFromPropertyState() << "<=>" << rhs.getFromPropertyState() << std::endl;
+		std::cerr << lhs.getToPropertyState() << "<=>" << rhs.getToPropertyState() << std::endl;
+		std::cerr << lhs.getAction() << "<=>" << rhs.getAction() << std::endl;
 		
-		std::cout << lhs << std::endl << rhs << std::endl;
+		std::cerr << lhs << std::endl << rhs << std::endl;
 	}
 	
 	assert (&lhs.getFromPropertyState() == &rhs.getFromPropertyState());
@@ -973,6 +973,7 @@ void PropertySpace::removeAllPropertySpaces()
 
 PropertySpace* PropertySpace::merge(const PropertySpace& lhs, const PropertySpace& rhs)
 {
+	return NULL;
 	// We can only merge property spaces iff
 	// 1) The property spaces apply to the same objects.
 	// 2) Both property spaces are property spaces (i.e. not attribute spaces).
@@ -1058,6 +1059,29 @@ PropertySpace* PropertySpace::merge(const PropertySpace& lhs, const PropertySpac
 #endif
 				//PropertyState* merged_to_property_state = old_to_merged_property_state_mappings[&old_transition->getToPropertyState()];
 				
+				// TODO: Check if no preconditions are violated ty the merged properties.
+/*				unsigned int invariable_action_parameter_index = std::numeric_limits<unsigned int>::max();
+				for (std::vector<const Property*>::const_iterator ci = org_property_state->getProperties().begin(); ci != org_property_state->getProperties().end(); ++ci)
+				{
+					const std::vector<unsigned int>* mappings = old_transition->getMappingsOfProperty(**ci, true);
+					if (mappings != NULL && (*ci)->getIndex() != std::numeric_limits<unsigned int>::max())
+					{
+						invariable_action_parameter_index = (*mappings)[(*ci)->getIndex()];
+					}
+				}
+*/
+				// Now check if all the properties in the merged property state adhere to this index.
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
 				std::pair<std::multimap<const PropertyState*, PropertyState*>::const_iterator, std::multimap<const PropertyState*, PropertyState*>::const_iterator> merged_to_property_states_ci = old_to_merged_property_state_mappings.equal_range(&old_transition->getToPropertyState());
 				
 		//		PropertyState* merged_property_state = old_to_merged_property_state_mappings[org_property_state];
@@ -1114,6 +1138,11 @@ PropertySpace* PropertySpace::merge(const PropertySpace& lhs, const PropertySpac
 					
 					// Check if we can find any facts which are persistent and can be mapped to the preconditions.
 					
+					bool persistent_facts_are_consistent = true;
+					if (!persistent_facts_are_consistent)
+					{
+						continue;
+					}
 					
 					PropertyStateTransition* merged_transition = new PropertyStateTransition(*merged_property_state, *merged_to_property_state, *new_preconditions, *new_effects, old_transition->getAction(), *precondition_property_mappings, *effect_property_mappings, *new_action_variable_to_effect_mappings);
 #ifdef MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT

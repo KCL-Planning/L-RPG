@@ -9,7 +9,7 @@
 #include "../formula.h"
 #include "../parser_utils.h"
 
-#define MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
+//#define MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
 #include "predicate_manager.h"
 #include "lifted_dtg.h"
 #include "heuristics/fact_set.h"

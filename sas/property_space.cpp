@@ -9,7 +9,7 @@
 #include <parser_utils.h>
 #include <heuristics/fact_set.h>
 
-#define MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
+//#define MYPOP_SAS_PLUS_PROPERTY_SPACE_COMMENT
 
 namespace MyPOP {
 
@@ -1029,7 +1029,7 @@ PropertySpace* PropertySpace::merge(const PropertySpace& lhs, const PropertySpac
 			}
 			
 			new_property_space->addPropertyState(*merged_property_state);
-			std::cout << *merged_property_state << std::endl;
+//			std::cout << *merged_property_state << std::endl;
 		}
 	}
 	

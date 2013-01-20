@@ -148,9 +148,11 @@ void MultiValuedTransition::ignoreEffect(const Atom& effect)
 
 MultiValuedTransition* MultiValuedTransition::migrateTransition(MultiValuedValue& from_node, MultiValuedValue& to_node, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager) const
 {
+/*
 	std::cout << "Migrate the transition: " << *this << std::endl;
 	std::cout << "From: " << from_node << std::endl;
 	std::cout << "To: " << to_node << std::endl;
+*/
 	std::vector<std::vector<unsigned int>* >* precondition_to_action_variable_mappings = new std::vector<std::vector<unsigned int>* >();
 	std::vector<std::vector<unsigned int>* >* effect_to_action_variable_mappings = new std::vector<std::vector<unsigned int>* >();
 	
@@ -534,7 +536,7 @@ void MultiValuedTransition::migrateTransition(std::vector<MultiValuedTransition*
 			continue;
 		}
 		
-		std::cerr << "Split transition: " << *mvt << std::endl;
+//		std::cerr << "Split transition: " << *mvt << std::endl;
 		
 		results.push_back(mvt);
 	}
@@ -752,7 +754,7 @@ void MultiValuedValue::split(std::vector<MultiValuedValue*>& split_nodes, const 
 	// Check if all the variable domains of the facts are coherent with the found equivalent relationships. If not then we will need to split them up.
 	std::vector<const HEURISTICS::VariableDomain*> dummy_assignments_made;
 	findAssignments(0, 0, split_nodes, dummy_assignments_made, equivalent_relationships, predicate_manager);
-	
+/*
 	std::cout << "========= START SPLIT =============" << std::endl;
 	std::cout << "NODE: " << std::endl << *this << std::endl;
 	std::cout << "Is split into: " << std::endl;
@@ -761,6 +763,7 @@ void MultiValuedValue::split(std::vector<MultiValuedValue*>& split_nodes, const 
 		std::cout << **ci << std::endl;
 	}
 	std::cout << "========= END SPLIT =============" << std::endl;
+*/
 }
 
 void MultiValuedValue::findAssignments(unsigned int fact_index, unsigned int term_index, std::vector<MultiValuedValue*>& created_nodes, std::vector<const HEURISTICS::VariableDomain*>& assignments_made, const std::multimap<const Object*, const Object*>& equivalent_relationships, const PredicateManager& predicate_manager) const
@@ -1266,13 +1269,13 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 		(*ci)->split(split_dtgs, initial_facts, type_manager, term_manager, predicate_manager);
 //		std::cout << "After creating copies: " << **ci << std::endl;
 	}
-*/
+
 	std::cout << " === SPLITTED DTGS === " << std::endl;
 	for (std::vector<LiftedDTG*>::const_iterator ci = split_dtgs.begin(); ci != split_dtgs.end(); ++ci)
 	{
 		std::cout << **ci << std::endl;
 	}
-	
+*/
 	for (std::vector<LiftedDTG*>::const_iterator ci = created_lifted_dtgs.begin(); ci != created_lifted_dtgs.end(); ++ci)
 	{
 		delete *ci;
@@ -1288,8 +1291,8 @@ void LiftedDTG::splitLiftedTransitionGraphs(std::vector<LiftedDTG*>& split_ltgs,
 	{
 		LiftedDTG* lifted_dtg = *ci;
 		
-		std::cout << " ==== ORG LIFTED DTGS ==== " << std::endl;
-		std::cout << *lifted_dtg << std::endl;
+//		std::cout << " ==== ORG LIFTED DTGS ==== " << std::endl;
+//		std::cout << *lifted_dtg << std::endl;
 		
 		
 		std::set<const MultiValuedValue*> processed_nodes;
@@ -1307,10 +1310,10 @@ void LiftedDTG::splitLiftedTransitionGraphs(std::vector<LiftedDTG*>& split_ltgs,
 				}
 			}
 			
-			if (current_node == NULL)
-			{
-				std::cout << "Processed: " << processed_nodes.size() << "/" << lifted_dtg->getNodes().size() << std::endl;
-			}
+//			if (current_node == NULL)
+//			{
+//				std::cout << "Processed: " << processed_nodes.size() << "/" << lifted_dtg->getNodes().size() << std::endl;
+//			}
 			assert (current_node != NULL);
 			
 			// Find all the nodes that are connected to current node and all nodes it is connected to, etc.
@@ -1330,7 +1333,7 @@ void LiftedDTG::splitLiftedTransitionGraphs(std::vector<LiftedDTG*>& split_ltgs,
 				processed_nodes.insert(node_to_process);
 				connected_set.push_back(node_to_process);
 				
-				std::cout << "Process " << *node_to_process << std::endl;
+//				std::cout << "Process " << *node_to_process << std::endl;
 				
 				// Find all nodes that are connected to node_to_process.
 				for (std::vector<const MultiValuedTransition*>::const_iterator ci = node_to_process->getTransitions().begin(); ci != node_to_process->getTransitions().end(); ++ci)
@@ -1341,17 +1344,17 @@ void LiftedDTG::splitLiftedTransitionGraphs(std::vector<LiftedDTG*>& split_ltgs,
 				for (std::vector<MultiValuedValue*>::const_iterator ci = lifted_dtg->getNodes().begin(); ci != lifted_dtg->getNodes().end(); ++ci)
 				{
 					MultiValuedValue* node = *ci;
-					std::cout << "Look at: " << *node << std::endl;
+//					std::cout << "Look at: " << *node << std::endl;
 					if (node == node_to_process)
 					{
-						std::cout << "Already processed! Move on..." << std::endl;
+//						std::cout << "Already processed! Move on..." << std::endl;
 						continue;
 					}
 					
 					for (std::vector<const MultiValuedTransition*>::const_iterator ci = node->getTransitions().begin(); ci != node->getTransitions().end(); ++ci)
 					{
-						std::cout << "is " << &(*ci)->getToNode() << " == " << node_to_process << "?" << std::endl;
-						std::cout << "is " << (*ci)->getToNode() << " == " << *node_to_process << "?" << std::endl;
+//						std::cout << "is " << &(*ci)->getToNode() << " == " << node_to_process << "?" << std::endl;
+//						std::cout << "is " << (*ci)->getToNode() << " == " << *node_to_process << "?" << std::endl;
 						if (&(*ci)->getToNode() == node_to_process)
 						{
 							nodes_to_process.insert(&(*ci)->getFromNode());
@@ -1365,7 +1368,7 @@ void LiftedDTG::splitLiftedTransitionGraphs(std::vector<LiftedDTG*>& split_ltgs,
 			LiftedDTG* new_lifted_dtg = new LiftedDTG(*lifted_dtg, connected_set, initial_facts, type_manager, predicate_manager);
 			split_ltgs.push_back(new_lifted_dtg);
 			
-			std::cout << "CREATED A CLONE" << std::endl << *new_lifted_dtg << std::endl;
+//			std::cout << "CREATED A CLONE" << std::endl << *new_lifted_dtg << std::endl;
 		}
 	}
 	
@@ -1402,7 +1405,7 @@ void LiftedDTG::splitLiftedTransitionGraphs(std::vector<LiftedDTG*>& split_ltgs,
 	{
 		const Object* object = (*ci).first;
 		equivalent_relationships.insert(std::make_pair(object, object));
-		std::cerr << *object << "<=>" << *object << std::endl;
+//		std::cerr << *object << "<=>" << *object << std::endl;
 		
 		const std::vector<const Atom*>* static_facts = (*ci).second;
 		
@@ -1482,7 +1485,7 @@ void LiftedDTG::splitLiftedTransitionGraphs(std::vector<LiftedDTG*>& split_ltgs,
 			
 			if (all_static_constraints_shared)
 			{
-				std::cerr << *object << "<=>" << *other_object << std::endl;
+//				std::cerr << *object << "<=>" << *other_object << std::endl;
 				equivalent_relationships.insert(std::make_pair(object, other_object));
 			}
 		}
@@ -1772,7 +1775,7 @@ LiftedDTG::LiftedDTG(const LiftedDTG& other, const std::vector<MultiValuedValue*
 	std::map<const MultiValuedValue*, MultiValuedValue*> old_to_new_node_mapping;
 	for (std::vector<MultiValuedValue*>::const_iterator ci = node_set.begin(); ci != node_set.end(); ++ci)
 	{
-		std::cout << "* " << **ci << std::endl;
+//		std::cout << "* " << **ci << std::endl;
 		MultiValuedValue* mvv = new MultiValuedValue(*this, **ci, (*ci)->isCopy());
 		nodes_.push_back(mvv);
 		old_to_new_node_mapping[*ci] = mvv;
@@ -1805,8 +1808,8 @@ LiftedDTG::LiftedDTG(const LiftedDTG& other, const std::vector<MultiValuedValue*
 		}
 	}
 	
-	std::cout << "Created copy: " << *this << std::endl;
-	std::cout << "==endofcopy==" << std::endl;
+//	std::cout << "Created copy: " << *this << std::endl;
+//	std::cout << "==endofcopy==" << std::endl;
 	
 	findInvariableObjects(initial_facts, predicate_manager);
 }
@@ -1834,7 +1837,7 @@ void LiftedDTG::findInvariableObjects(const std::vector<const Atom*>& initial_fa
 	
 	// Find the objects which can be initialised from the initial state.
 	invariable_objects_.clear();
-	std::cout << "Invariable objects: ";
+//	std::cout << "Invariable objects: ";
 	for (std::vector<MultiValuedValue*>::const_iterator ci = nodes_.begin(); ci != nodes_.end(); ++ci)
 	{
 		MultiValuedValue* mvv = new MultiValuedValue(*this, **ci, (*ci)->isCopy());
@@ -1872,13 +1875,13 @@ void LiftedDTG::findInvariableObjects(const std::vector<const Atom*>& initial_fa
 				if (std::find(invariable_objects_.begin(), invariable_objects_.end(), *ci) == invariable_objects_.end())
 				{
 					invariable_objects_.push_back(*ci);
-					std::cout << **ci << ", ";
+//					std::cout << **ci << ", ";
 				}
 			}
 		}
 	}
 	
-	std::cout << "." << std::endl;
+//	std::cout << "." << std::endl;
 }
 
 LiftedDTG::~LiftedDTG()
@@ -1913,8 +1916,8 @@ void LiftedDTG::getNodes(std::vector<const MultiValuedValue*>& found_nodes, cons
 
 void LiftedDTG::splitNodes(const std::multimap<const Object*, const Object*>& equivalent_relationships, const std::vector<const Atom*>& initial_facts, const PredicateManager& predicate_manager, const TypeManager& type_manager)
 {
-	std::cerr << "start split" << std::endl;
-	std::cout << " ==== SPLIT NODES ==== " << std::endl << *this << std::endl;
+//	std::cerr << "start split" << std::endl;
+//	std::cout << " ==== SPLIT NODES ==== " << std::endl << *this << std::endl;
 	std::map<MultiValuedValue*, const MultiValuedValue*> new_node_to_old_node_mapping;
 	std::multimap<const MultiValuedValue*, MultiValuedValue*> old_node_to_new_nodes_mapping;
 	
@@ -1951,9 +1954,9 @@ void LiftedDTG::splitNodes(const std::multimap<const Object*, const Object*>& eq
 				//MultiValuedTransition* new_transition = transition->migrateTransition(*new_node, *(*ci).second, initial_facts, type_manager);
 				
 				std::vector<MultiValuedTransition*> new_transitions;
-				std::cerr << "sm" << std::endl;
+//				std::cerr << "sm" << std::endl;
 				transition->migrateTransition(new_transitions, equivalent_relationships, *new_node, *(*ci).second, initial_facts, type_manager);
-				std::cerr << "em" << std::endl;
+//				std::cerr << "em" << std::endl;
 				
 				for (std::vector<MultiValuedTransition*>::const_iterator ci = new_transitions.begin(); ci != new_transitions.end(); ++ci)
 				{
@@ -1996,12 +1999,12 @@ void LiftedDTG::splitNodes(const std::multimap<const Object*, const Object*>& eq
 			}
 		}
 		
-		std::cout << " ==== FINALISED NODE: " << std::endl;
-		std::cout << *new_node << std::endl;
-		for (std::vector<const MultiValuedTransition*>::const_iterator ci = new_node->getTransitions().begin(); ci != new_node->getTransitions().end(); ++ci)
-		{
-			std::cout << **ci << std::endl;
-		}
+//		std::cout << " ==== FINALISED NODE: " << std::endl;
+//		std::cout << *new_node << std::endl;
+//		for (std::vector<const MultiValuedTransition*>::const_iterator ci = new_node->getTransitions().begin(); ci != new_node->getTransitions().end(); ++ci)
+//		{
+//			std::cout << **ci << std::endl;
+//		}
 		
 		if (org_node->getCopies().size() > 0)
 		{
@@ -2018,7 +2021,7 @@ void LiftedDTG::splitNodes(const std::multimap<const Object*, const Object*>& eq
 	}
 	nodes_.clear();
 	nodes_.insert(nodes_.end(), new_nodes.begin(), new_nodes.end());
-	std::cerr << "end split" << std::endl;
+//	std::cerr << "end split" << std::endl;
 }
 
 void LiftedDTG::createCopies(const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager)
@@ -2261,7 +2264,7 @@ void LiftedDTG::createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs
 	for (std::vector<PropertyState*>::const_iterator ci = property_space_->getPropertyStates().begin(); ci != property_space_->getPropertyStates().end(); ++ci)
 	{
 		const PropertyState* property_state = *ci;
-		std::cout << "Property state: " << *property_state << std::endl;
+//		std::cout << "Property state: " << *property_state << std::endl;
 		for (std::vector<const PropertyStateTransition*>::const_iterator ci = property_state->getTransitions().begin(); ci != property_state->getTransitions().end(); ++ci)
 		{
 			const PropertyStateTransition* transition = *ci;
@@ -2275,8 +2278,8 @@ void LiftedDTG::createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs
 			//	continue;
 			//}
 			
-			std::cout << "Process the transition: " << *transition << std::endl;
-			std::cout << transition->getFromPropertyState() << "->" << transition->getToPropertyState() << std::endl;
+//			std::cout << "Process the transition: " << *transition << std::endl;
+//			std::cout << transition->getFromPropertyState() << "->" << transition->getToPropertyState() << std::endl;
 			
 			std::vector<MultiValuedValue*> from_nodes, to_nodes;
 			getMultiValuedValues(from_nodes, transition->getFromPropertyState());

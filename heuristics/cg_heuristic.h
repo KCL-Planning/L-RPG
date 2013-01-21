@@ -43,6 +43,8 @@ public:
 	
 	LCGSearchNode(const LCGSearchNode& other);
 	
+	LCGSearchNode& createDeepCopy() const;
+	
 	~LCGSearchNode();
 	
 	const std::vector<const HEURISTICS::Fact*>& getAssignments() const { return *assignments_; }
@@ -91,7 +93,9 @@ private:
 	
 	unsigned int getHeuristic(const State& state, const std::vector< const GroundedAtom* >& bounded_goal_facts);
 	
-	const LCGSearchNode* getCost(const State& state, const SAS_Plus::LiftedDTG& lifted_dtg, const std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >& from_nodes, const std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >& to_nodes) const;
+	const LCGSearchNode* getCost(const State& state, const std::vector<const SAS_Plus::LiftedDTG*>& lifted_dtgs, const HEURISTICS::Fact& goal, const LCGSearchNode* current_search_node);
+	
+	const LCGSearchNode* getCost(const State& state, const SAS_Plus::LiftedDTG& lifted_dtg, const std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >& from_nodes, const std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >& to_nodes);
 	
 	const std::vector<SAS_Plus::LiftedDTG*>* lifted_dtgs_;
 	
@@ -104,6 +108,12 @@ private:
 	void findMappings(std::vector<std::vector<const HEURISTICS::Fact*>* >& found_mappings, const std::vector<const HEURISTICS::Fact*>& current_mappings, const SAS_Plus::MultiValuedValue& node, const HEURISTICS::VariableDomain& invariable_domain, const State& state) const;
 	
 	SAS_Plus::CausalGraph* causal_graph_;
+	
+	// Cached solutions.
+	// We can use the cache of a solution iff:
+	// The start end end nodes are the same and the invariables match too.
+	std::map<const SAS_Plus::MultiValuedValue*, std::vector<std::pair<const HEURISTICS::Fact*, LCGSearchNode*> >* > cache_;
+	//LCGSearchNode
 	
 };
 

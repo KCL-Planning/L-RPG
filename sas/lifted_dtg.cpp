@@ -92,13 +92,21 @@ MultiValuedTransition::MultiValuedTransition(const MultiValuedTransition& other,
 	
 	for (std::vector<std::vector<unsigned int>* >::const_iterator ci = other.precondition_to_action_variable_mappings_->begin(); ci != other.precondition_to_action_variable_mappings_->end(); ++ci)
 	{
-		std::vector<unsigned int>* new_mappings = new std::vector<unsigned int>(**ci);
+		std::vector<unsigned int>* new_mappings = NULL;
+		if (*ci != NULL)
+		{
+			new_mappings = new std::vector<unsigned int>(**ci);
+		}
 		precondition_to_action_variable_mappings_->push_back(new_mappings);
 	}
 	
 	for (std::vector<std::vector<unsigned int>* >::const_iterator ci = other.effect_to_action_variable_mappings_->begin(); ci != other.effect_to_action_variable_mappings_->end(); ++ci)
 	{
-		std::vector<unsigned int>* new_mappings = new std::vector<unsigned int>(**ci);
+		std::vector<unsigned int>* new_mappings = NULL;
+		if (*ci != NULL)
+		{
+			new_mappings = new std::vector<unsigned int>(**ci);
+		}
 		effect_to_action_variable_mappings_->push_back(new_mappings);
 	}
 	
@@ -378,6 +386,7 @@ void MultiValuedTransition::migrateTransition(std::vector<MultiValuedTransition*
 	{
 		return;
 	}
+//	std::cout << "Migrate the transition: " << *new_transition << std::endl;
 	
 	// Now split this transition up into multiple transitions, based on the equivalent relationships.
 	std::vector<std::vector<HEURISTICS::VariableDomain*> *> split_action_variables;
@@ -446,7 +455,7 @@ void MultiValuedTransition::migrateTransition(std::vector<MultiValuedTransition*
 		std::vector<HEURISTICS::VariableDomain*> new_action_parameters;
 		for (unsigned int parameter_index = 0; parameter_index < split_action_variables.size(); ++parameter_index)
 		{
-			new_action_parameters.push_back((*split_action_variables[parameter_index])[counter[parameter_index]]);
+			new_action_parameters.push_back(new HEURISTICS::VariableDomain((*split_action_variables[parameter_index])[counter[parameter_index]]->getVariableDomain()));
 		}
 		
 		// Update the counters.
@@ -466,6 +475,8 @@ void MultiValuedTransition::migrateTransition(std::vector<MultiValuedTransition*
 		
 		// Create a new transition based on these variables.
 		MultiValuedTransition* mvt = new MultiValuedTransition(*new_transition, new_action_parameters);
+		
+//		std::cout << "Created copy: " << *mvt << std::endl;
 		
 		// Make sure that no static preconditions are violated.
 		std::vector<const Atom*> preconditions;
@@ -540,6 +551,12 @@ void MultiValuedTransition::migrateTransition(std::vector<MultiValuedTransition*
 		
 		results.push_back(mvt);
 	}
+	
+	for (std::vector<std::vector<HEURISTICS::VariableDomain*> *>::const_iterator ci = split_action_variables.begin(); ci != split_action_variables.end(); ++ci)
+	{
+		delete *ci;
+	}
+	
 	delete new_transition;
 }
 

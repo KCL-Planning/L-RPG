@@ -69,12 +69,12 @@ CausalGraph::CausalGraph(const std::vector<LiftedDTG*>& all_lifted_dtgs, const M
 					const Atom* precondition = *ci;
 					bool is_external_precondition = true;
 					
-					std::vector<const HEURISTICS::VariableDomain*> precondition_variable_domains;
+					std::vector<const HEURISTICS::VariableDomain*>* precondition_variable_domains = new std::vector<const HEURISTICS::VariableDomain*>();
 					for (unsigned int term_index = 0; term_index < precondition->getPredicate().getArity(); ++term_index)
 					{
-						precondition_variable_domains.push_back(new HEURISTICS::VariableDomain(transition->getActionVariableDomain(transition->getAction().getActionVariable(*precondition->getTerms()[term_index])).getVariableDomain()));
+						precondition_variable_domains->push_back(new HEURISTICS::VariableDomain(transition->getActionVariableDomain(transition->getAction().getActionVariable(*precondition->getTerms()[term_index])).getVariableDomain()));
 					}
-					HEURISTICS::Fact precondition_fact(predicate_manager, precondition->getPredicate(), precondition_variable_domains);
+					HEURISTICS::Fact precondition_fact(predicate_manager, precondition->getPredicate(), *precondition_variable_domains);
 					
 					for (std::vector<HEURISTICS::Fact*>::const_iterator ci = node->getValues().begin(); ci != node->getValues().end(); ++ci)
 					{
@@ -115,12 +115,12 @@ CausalGraph::CausalGraph(const std::vector<LiftedDTG*>& all_lifted_dtgs, const M
 				{
 					const Atom* lhs_effect = *ci;
 					
-					std::vector<const HEURISTICS::VariableDomain*> lhs_effect_variable_domains;
+					std::vector<const HEURISTICS::VariableDomain*>* lhs_effect_variable_domains = new std::vector<const HEURISTICS::VariableDomain*>();
 					for (unsigned int term_index = 0; term_index < lhs_effect->getPredicate().getArity(); ++term_index)
 					{
-						lhs_effect_variable_domains.push_back(new HEURISTICS::VariableDomain(transition->getActionVariableDomain(transition->getAction().getActionVariable(*lhs_effect->getTerms()[term_index])).getVariableDomain()));
+						lhs_effect_variable_domains->push_back(new HEURISTICS::VariableDomain(transition->getActionVariableDomain(transition->getAction().getActionVariable(*lhs_effect->getTerms()[term_index])).getVariableDomain()));
 					}
-					HEURISTICS::Fact lhs_effect_fact(predicate_manager, lhs_effect->getPredicate(), lhs_effect_variable_domains);
+					HEURISTICS::Fact lhs_effect_fact(predicate_manager, lhs_effect->getPredicate(), *lhs_effect_variable_domains);
 					
 					
 					std::vector<const LiftedDTG*> dtgs_affected_by_lhs_effect;
@@ -139,12 +139,12 @@ CausalGraph::CausalGraph(const std::vector<LiftedDTG*>& all_lifted_dtgs, const M
 					{
 						const Atom* rhs_effect = *ci2;
 						
-						std::vector<const HEURISTICS::VariableDomain*> rhs_effect_variable_domains;
+						std::vector<const HEURISTICS::VariableDomain*>* rhs_effect_variable_domains = new std::vector<const HEURISTICS::VariableDomain*>();
 						for (unsigned int term_index = 0; term_index < rhs_effect->getPredicate().getArity(); ++term_index)
 						{
-							rhs_effect_variable_domains.push_back(new HEURISTICS::VariableDomain(transition->getActionVariableDomain(transition->getAction().getActionVariable(*rhs_effect->getTerms()[term_index])).getVariableDomain()));
+							rhs_effect_variable_domains->push_back(new HEURISTICS::VariableDomain(transition->getActionVariableDomain(transition->getAction().getActionVariable(*rhs_effect->getTerms()[term_index])).getVariableDomain()));
 						}
-						HEURISTICS::Fact rhs_effect_fact(predicate_manager, rhs_effect->getPredicate(), rhs_effect_variable_domains);
+						HEURISTICS::Fact rhs_effect_fact(predicate_manager, rhs_effect->getPredicate(), *rhs_effect_variable_domains);
 						
 						std::vector<const LiftedDTG*> dtgs_affected_by_rhs_effect;
 						for (std::vector<LiftedDTG*>::const_iterator lifted_dtgs_ = all_lifted_dtgs.begin(); lifted_dtgs_ != all_lifted_dtgs.end(); ++lifted_dtgs_)
@@ -197,6 +197,12 @@ CausalGraph::~CausalGraph()
 	{
 		delete (*ci).second;
 	}
+/*
+	for (std::vector<LiftedDTG*>::const_iterator ci = all_lifted_dtgs_->begin(); ci != all_lifted_dtgs_->end(); ++ci)
+	{
+		delete *ci;
+	}
+*/
 /*
 	if (cached_dependencies_ != NULL)
 	{
@@ -405,12 +411,12 @@ void CausalGraph::breakCycles(const std::vector<const GroundedAtom*>& goals)
 				{
 					const Atom* precondition = *ci;
 					
-					std::vector<const HEURISTICS::VariableDomain*> precondition_variable_domains;
+					std::vector<const HEURISTICS::VariableDomain*>* precondition_variable_domains = new std::vector<const HEURISTICS::VariableDomain*>();
 					for (unsigned int term_index = 0; term_index < precondition->getPredicate().getArity(); ++term_index)
 					{
-						precondition_variable_domains.push_back(new HEURISTICS::VariableDomain(transition->getActionVariableDomain(transition->getAction().getActionVariable(*precondition->getTerms()[term_index])).getVariableDomain()));
+						precondition_variable_domains->push_back(new HEURISTICS::VariableDomain(transition->getActionVariableDomain(transition->getAction().getActionVariable(*precondition->getTerms()[term_index])).getVariableDomain()));
 					}
-					HEURISTICS::Fact* precondition_fact = new HEURISTICS::Fact(*predicate_manager_, precondition->getPredicate(), precondition_variable_domains);
+					HEURISTICS::Fact* precondition_fact = new HEURISTICS::Fact(*predicate_manager_, precondition->getPredicate(), *precondition_variable_domains);
 					
 					//std::vector<const MultiValuedValue*> found_nodes;
 					//dtg->getNodes(found_nodes, *precondition_fact);
@@ -482,12 +488,12 @@ void CausalGraph::breakCycles(const std::vector<const GroundedAtom*>& goals)
 				{
 					const Atom* effect = *ci;
 					
-					std::vector<const HEURISTICS::VariableDomain*> effect_variable_domains;
+					std::vector<const HEURISTICS::VariableDomain*>* effect_variable_domains = new std::vector<const HEURISTICS::VariableDomain*>();
 					for (unsigned int term_index = 0; term_index < effect->getPredicate().getArity(); ++term_index)
 					{
-						effect_variable_domains.push_back(new HEURISTICS::VariableDomain(transition->getActionVariableDomain(transition->getAction().getActionVariable(*effect->getTerms()[term_index])).getVariableDomain()));
+						effect_variable_domains->push_back(new HEURISTICS::VariableDomain(transition->getActionVariableDomain(transition->getAction().getActionVariable(*effect->getTerms()[term_index])).getVariableDomain()));
 					}
-					HEURISTICS::Fact* effect_fact = new HEURISTICS::Fact(*predicate_manager_, effect->getPredicate(), effect_variable_domains);
+					HEURISTICS::Fact* effect_fact = new HEURISTICS::Fact(*predicate_manager_, effect->getPredicate(), *effect_variable_domains);
 					
 					std::vector<const MultiValuedValue*> found_nodes;
 					dtg->getNodes(found_nodes, *effect_fact);

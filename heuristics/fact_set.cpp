@@ -125,8 +125,10 @@ std::ostream& operator<<(std::ostream& os, const VariableDomain& variable_domain
 	return os;
 }
 
-Fact::Fact(const PredicateManager& predicate_manager, const Predicate& predicate, const std::vector<const VariableDomain*>& variable_domains)
+Fact::Fact(const PredicateManager& predicate_manager, const Predicate& predicate, std::vector<const VariableDomain*>& variable_domains)
+	: predicate_(&predicate), variable_domains_(&variable_domains)
 {
+/*
 	std::vector<const Type*> types;
 	
 	//variable_domains_.insert(variable_domains_.end(), variable_domains.begin(), variable_domains.end());
@@ -158,30 +160,33 @@ Fact::Fact(const PredicateManager& predicate_manager, const Predicate& predicate
 	
 	predicate_ = predicate_manager.getPredicate(predicate.getName(), types);
 	assert (predicate_ != NULL);
+*/
 }
 
 Fact::Fact(const Fact& other)
 	: predicate_(other.predicate_)
 {
-	for (std::vector<const VariableDomain*>::const_iterator ci = other.variable_domains_.begin(); ci != other.variable_domains_.end(); ++ci)
+	variable_domains_ = new std::vector<const VariableDomain*>();
+	for (std::vector<const VariableDomain*>::const_iterator ci = other.variable_domains_->begin(); ci != other.variable_domains_->end(); ++ci)
 	{
-		variable_domains_.push_back(new VariableDomain(**ci));
+		variable_domains_->push_back(new VariableDomain(**ci));
 	}
 }
 
 Fact::~Fact()
 {
-	for (std::vector<const VariableDomain*>::const_iterator ci = variable_domains_.begin(); ci != variable_domains_.end(); ++ci)
+	for (std::vector<const VariableDomain*>::const_iterator ci = variable_domains_->begin(); ci != variable_domains_->end(); ++ci)
 	{
 		delete *ci;
 	}
+	delete variable_domains_;
 }
 
 void Fact::setVariableDomain(unsigned int term_index, const VariableDomain& variable_domain)
 {
 //		delete variable_domains_[term_index];
-	assert (variable_domains_.size() > term_index);
-	variable_domains_[term_index] = &variable_domain;
+	assert (variable_domains_->size() > term_index);
+	(*variable_domains_)[term_index] = &variable_domain;
 }
 
 bool Fact::canUnifyWith(const Fact& fact) const
@@ -194,8 +199,8 @@ bool Fact::canUnifyWith(const Fact& fact) const
 	
 	for (unsigned int i = 0; i < predicate_->getArity(); ++i)
 	{
-		const VariableDomain* variable_domain = variable_domains_[i];
-		const VariableDomain* other_variable_domain = fact.variable_domains_[i];
+		const VariableDomain* variable_domain = (*variable_domains_)[i];
+		const VariableDomain* other_variable_domain = (*fact.variable_domains_)[i];
 		
 		if (!variable_domain->sharesObjectsWith(*other_variable_domain))
 		{
@@ -215,7 +220,7 @@ bool Fact::canUnifyWith(const GroundedAtom& grounded_atom) const
 	
 	for (unsigned int i = 0; i < predicate_->getArity(); ++i)
 	{
-		const VariableDomain* variable_domain = variable_domains_[i];
+		const VariableDomain* variable_domain = (*variable_domains_)[i];
 		if (!variable_domain->contains(*static_cast<const Object*>(&grounded_atom.getObject(i))))
 		{
 			return false;
@@ -232,9 +237,9 @@ bool Fact::operator==(const Fact& rhs) const
 		return false;
 	}
 	
-	for (unsigned int i = 0; i < variable_domains_.size(); ++i)
+	for (unsigned int i = 0; i < variable_domains_->size(); ++i)
 	{
-		if (*variable_domains_[i] != *rhs.variable_domains_[i])
+		if (*(*variable_domains_)[i] != *(*rhs.variable_domains_)[i])
 		{
 			return false;
 		}
@@ -253,7 +258,7 @@ std::ostream& operator<<(std::ostream& os, const Fact& fact)
 	return os;
 }
 
-TransitionFact::TransitionFact(const PredicateManager& predicate_manager, const Predicate& predicate, const std::vector<const VariableDomain*>& variable_domains, const std::vector<const Term*>& variables)
+TransitionFact::TransitionFact(const PredicateManager& predicate_manager, const Predicate& predicate, std::vector<const VariableDomain*>& variable_domains, const std::vector<const Term*>& variables)
 	: Fact(predicate_manager, predicate, variable_domains)
 {
 	action_variables_.insert(action_variables_.end(), variables.begin(), variables.end());
@@ -271,14 +276,14 @@ bool TransitionFact::operator==(const TransitionFact& rhs) const
 		return false;
 	}
 	
-	for (unsigned int i = 0; i < variable_domains_.size(); ++i)
+	for (unsigned int i = 0; i < variable_domains_->size(); ++i)
 	{
-		for (unsigned int j = 0; j < variable_domains_.size(); ++j)
+		for (unsigned int j = 0; j < variable_domains_->size(); ++j)
 		{
-			if ((variable_domains_[i] == variable_domains_[j] &&
-			    rhs.variable_domains_[i] != rhs.variable_domains_[j]) ||
-			    (variable_domains_[i] != variable_domains_[j] &&
-			    rhs.variable_domains_[i] == rhs.variable_domains_[j]))
+			if (((*variable_domains_)[i] == (*variable_domains_)[j] &&
+			    (*rhs.variable_domains_)[i] != (*rhs.variable_domains_)[j]) ||
+			    ((*variable_domains_)[i] != (*variable_domains_)[j] &&
+			    (*rhs.variable_domains_)[i] == (*rhs.variable_domains_)[j]))
 			{
 				return false;
 			}
@@ -695,17 +700,17 @@ void LiftedTransition::createLiftedTransitions(std::vector<LiftedTransition*>& c
 		for (std::vector<const Atom*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ++ci)
 		{
 			const Atom* precondition = *ci;
-			std::vector<const VariableDomain*> atom_variable_domains;
+			std::vector<const VariableDomain*>* atom_variable_domains = new std::vector<const VariableDomain*>();
 			
 			for (std::vector<const Term*>::const_iterator ci = precondition->getTerms().begin(); ci != precondition->getTerms().end(); ++ci)
 			{
 				const Term* term = *ci;
 				unsigned int action_variable_index = action_variable_to_variable_index[term];
 				const std::vector<const VariableDomain*>* variable_domains = action_variable_to_variable_domain_set[term];
-				const VariableDomain* current_variable_domain = (*variable_domains)[counter[action_variable_index]];
-				atom_variable_domains.push_back(current_variable_domain);
+				const VariableDomain* current_variable_domain = new VariableDomain((*variable_domains)[counter[action_variable_index]]->getVariableDomain());
+				atom_variable_domains->push_back(current_variable_domain);
 			}
-			TransitionFact* new_fact = new TransitionFact(predicate_manager, precondition->getPredicate(), atom_variable_domains, precondition->getTerms());
+			TransitionFact* new_fact = new TransitionFact(predicate_manager, precondition->getPredicate(), *atom_variable_domains, precondition->getTerms());
 			
 			if (new_fact->getPredicate().isStatic())
 			{
@@ -745,7 +750,7 @@ void LiftedTransition::createLiftedTransitions(std::vector<LiftedTransition*>& c
 				{
 					violate_static_preconditions = true;
 					break;
-				}				
+				}
 				
 				continue;
 			}
@@ -794,17 +799,17 @@ void LiftedTransition::createLiftedTransitions(std::vector<LiftedTransition*>& c
 				{
 					continue;
 				}
-				std::vector<const VariableDomain*> atom_variable_domains;
+				std::vector<const VariableDomain*>* atom_variable_domains = new std::vector<const VariableDomain*>();
 				
 				for (std::vector<const Term*>::const_iterator ci = atom->getTerms().begin(); ci != atom->getTerms().end(); ++ci)
 				{
 					const Term* term = *ci;
 					unsigned int action_variable_index = action_variable_to_variable_index[term];
 					const std::vector<const VariableDomain*>* variable_domains = action_variable_to_variable_domain_set[term];
-					const VariableDomain* current_variable_domain = (*variable_domains)[counter[action_variable_index]];
-					atom_variable_domains.push_back(current_variable_domain);
+					const VariableDomain* current_variable_domain = new VariableDomain((*variable_domains)[counter[action_variable_index]]->getVariableDomain());
+					atom_variable_domains->push_back(current_variable_domain);
 				}
-				TransitionFact* new_fact = new TransitionFact(predicate_manager, atom->getPredicate(), atom_variable_domains, atom->getTerms());
+				TransitionFact* new_fact = new TransitionFact(predicate_manager, atom->getPredicate(), *atom_variable_domains, atom->getTerms());
 				transition_effects.push_back(new_fact);
 			}
 			

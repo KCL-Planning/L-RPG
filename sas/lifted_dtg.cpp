@@ -700,19 +700,20 @@ void MultiValuedValue::findMappings(std::vector<std::vector<const HEURISTICS::Fa
 		for (std::vector<const HEURISTICS::Fact*>::const_iterator ci = current_mappings.begin(); ci != current_mappings.end(); ++ci)
 		{
 			const HEURISTICS::Fact* grounded_atom = *ci;
-			std::vector<const HEURISTICS::VariableDomain*> variable_domains;
+			std::vector<const HEURISTICS::VariableDomain*>* variable_domains = new std::vector<const HEURISTICS::VariableDomain*>();
 			for (unsigned int i = 0; i < grounded_atom->getPredicate().getArity(); ++i)
 			{
 				HEURISTICS::VariableDomain* vd = new HEURISTICS::VariableDomain();
 				vd->set(grounded_atom->getVariableDomains()[i]->getVariableDomain());
-				variable_domains.push_back(vd);
+				variable_domains->push_back(vd);
 			}
-			new_found_mapping->push_back(new HEURISTICS::Fact(predicate_manager, grounded_atom->getPredicate(), variable_domains));
-			
+			new_found_mapping->push_back(new HEURISTICS::Fact(predicate_manager, grounded_atom->getPredicate(), *variable_domains));
+/*
 			for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = variable_domains.begin(); ci != variable_domains.end(); ++ci)
 			{
 				delete *ci;
 			}
+*/
 		}
 		found_mappings.push_back(new_found_mapping);
 		return;
@@ -1663,20 +1664,21 @@ LiftedDTG::LiftedDTG(const LiftedDTG& other, const PredicateManager& predicate_m
 			while (!done)
 			{
 				done = true;
-				std::vector<const HEURISTICS::VariableDomain*> variable_domains;
+				std::vector<const HEURISTICS::VariableDomain*>* variable_domains = new std::vector<const HEURISTICS::VariableDomain*>();
 				for (unsigned int term_index = 0; term_index < fact->getPredicate().getArity(); ++term_index)
 				{
-					variable_domains.push_back((*possible_variable_domains_per_term[term_index])[counter[term_index]]);
+					variable_domains->push_back((*possible_variable_domains_per_term[term_index])[counter[term_index]]);
 				}
-				
+#ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
 				std::cout << "New fact: " << fact->getPredicate().getName() << std::endl;
-				for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = variable_domains.begin(); ci != variable_domains.end(); ++ci)
+				for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = variable_domains->begin(); ci != variable_domains->end(); ++ci)
 				{
 					std::cout << **ci << ", ";
 				}
 				std::cout << "." << std::endl;
+#endif
 				
-				HEURISTICS::Fact* new_fact = new HEURISTICS::Fact(predicate_manager, fact->getPredicate(), variable_domains);
+				HEURISTICS::Fact* new_fact = new HEURISTICS::Fact(predicate_manager, fact->getPredicate(), *variable_domains);
 				all_facts->push_back(new_fact);
 				
 				// Update the counters.
@@ -1839,16 +1841,16 @@ void LiftedDTG::findInvariableObjects(const std::vector<const Atom*>& initial_fa
 	{
 		const Atom* initial_fact = *ci;
 		
-		std::vector<const HEURISTICS::VariableDomain*> variable_domains;
+		std::vector<const HEURISTICS::VariableDomain*>* variable_domains = new std::vector<const HEURISTICS::VariableDomain*>();
 		for (std::vector<const Term*>::const_iterator ci = initial_fact->getTerms().begin(); ci != initial_fact->getTerms().end(); ++ci)
 		{
 			const Term* term = *ci;
 			HEURISTICS::VariableDomain* vd = new HEURISTICS::VariableDomain();
 			vd->set(*static_cast<const Object*>(term));
-			variable_domains.push_back(vd);
+			variable_domains->push_back(vd);
 		}
 		
-		const HEURISTICS::Fact* fact = new HEURISTICS::Fact(predicate_manager, initial_fact->getPredicate(), variable_domains);
+		const HEURISTICS::Fact* fact = new HEURISTICS::Fact(predicate_manager, initial_fact->getPredicate(), *variable_domains);
 		transformed_initial_facts.push_back(fact);
 	}
 	

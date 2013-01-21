@@ -39,6 +39,7 @@ class LCGSearchNode
 {
 public:
 	LCGSearchNode(std::vector<const HEURISTICS::Fact*>& assignments, const SAS_Plus::MultiValuedValue& node, std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >& assignments_to_lower_variables_, unsigned int cost = 0);
+	
 	LCGSearchNode(const LCGSearchNode& starting_node, std::vector<const HEURISTICS::Fact*>& assignments, const SAS_Plus::MultiValuedValue& node, std::map<const SAS_Plus::LiftedDTG*, std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >* >& assignments_to_lower_variables_, unsigned int cost = 0);
 	
 	LCGSearchNode(const LCGSearchNode& other);

@@ -55,7 +55,7 @@ std::ostream& operator<<(std::ostream& os, const VariableDomain& variable_domain
 class Fact
 {
 public:
-	Fact(const PredicateManager& predicate_manager, const Predicate& predicate, const std::vector<const VariableDomain*>& variable_domains);
+	Fact(const PredicateManager& predicate_manager, const Predicate& predicate, std::vector<const VariableDomain*>& variable_domains);
 	
 	Fact(const Fact& other);
 	
@@ -63,7 +63,7 @@ public:
 	
 	const Predicate& getPredicate() const { return *predicate_; }
 	
-	const std::vector<const VariableDomain*>& getVariableDomains() const { return variable_domains_; }
+	const std::vector<const VariableDomain*>& getVariableDomains() const { return *variable_domains_; }
 	
 	void setVariableDomain(unsigned int term_index, const VariableDomain& variable_domain);
 	
@@ -75,7 +75,7 @@ public:
 	
 protected:
 	const Predicate* predicate_;
-	std::vector<const VariableDomain*> variable_domains_;
+	std::vector<const VariableDomain*>* variable_domains_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const Fact& fact);
 };
@@ -85,7 +85,7 @@ std::ostream& operator<<(std::ostream& os, const Fact& fact);
 class TransitionFact : public Fact
 {
 public:
-	TransitionFact(const PredicateManager& predicate_manager, const Predicate& predicate, const std::vector<const VariableDomain*>& variable_domains, const std::vector<const Term*>& variables);
+	TransitionFact(const PredicateManager& predicate_manager, const Predicate& predicate, std::vector<const VariableDomain*>& variable_domains, const std::vector<const Term*>& variables);
 	
 	virtual ~TransitionFact();
 	

@@ -225,6 +225,10 @@ private:
 	std::vector<PropertyState*> property_states_;
 	std::vector<const Object*> objects_;
 	
+	static bool violatesPrecondition(const Atom& precondition, unsigned int invariable_action_parameter_index, const PropertyStateTransition& old_transition, const PropertyState& merged_property_state);
+	
+	static void copyMergedTransitions(const PropertySpace& property_space, PropertySpace& new_property_space, const std::multimap<const PropertyState*, PropertyState*>& old_to_merged_property_state_mappings);
+	
 	static std::vector<const PropertySpace*> all_property_spaces_;
 };
 

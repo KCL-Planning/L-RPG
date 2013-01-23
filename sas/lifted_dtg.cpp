@@ -1070,7 +1070,7 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 		for (std::vector<PropertySpace*>::reverse_iterator ri = all_property_spaces_.rbegin(); ri != all_property_spaces_.rend(); ++ri)
 		{
 			PropertySpace* processed_property_space = *ri;
-			PropertySpace* merged_property_space = PropertySpace::merge(dtg_property_space, *processed_property_space);
+			PropertySpace* merged_property_space = PropertySpace::merge(dtg_property_space, *processed_property_space, type_manager);
 			if (merged_property_space != NULL)
 			{
 				is_merged = true;

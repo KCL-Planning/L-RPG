@@ -189,7 +189,7 @@ public:
 	/**
 	 * Merge the given property space with this property space.
 	 */
-	static PropertySpace* merge(const PropertySpace& lhs, const PropertySpace& rhs);
+	static PropertySpace* merge(const PropertySpace& lhs, const PropertySpace& rhs, const TypeManager& type_manager);
 	
 	/**
 	 * Check if there is a property space this type is a part of.
@@ -226,8 +226,10 @@ private:
 	std::vector<const Object*> objects_;
 	
 	static bool violatesPrecondition(const Atom& precondition, unsigned int invariable_action_parameter_index, const PropertyStateTransition& old_transition, const PropertyState& merged_property_state);
+
+	static void copyMergedTransitions(const PropertySpace& property_space, std::map<const PropertyState*, unsigned int>& offsets, PropertySpace& new_property_space, const std::multimap<const PropertyState*, PropertyState*>& old_to_merged_property_state_mappings, const TypeManager& type_manager);
 	
-	static void copyMergedTransitions(const PropertySpace& property_space, PropertySpace& new_property_space, const std::multimap<const PropertyState*, PropertyState*>& old_to_merged_property_state_mappings);
+	static void getMatchingFacts(std::vector<const Atom*>& matching_facts, const Property& property, const std::vector<const Atom*>& facts, const TypeManager& type_manager);
 	
 	static std::vector<const PropertySpace*> all_property_spaces_;
 };

@@ -723,54 +723,10 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 		grounded_goal_facts.push_back(&GroundedAtom::getGroundedAtom(goal_fact->getPredicate(), variables));
 	}
 	
-/*
-	std::vector<const REACHABILITY::ResolvedBoundedAtom*> resolved_grounded_goal_facts;
-	for (std::vector<const SAS_Plus::BoundedAtom*>::const_iterator ci = goal_facts.begin(); ci != goal_facts.end(); ci++)
-	{
-		resolved_grounded_goal_facts.push_back(new REACHABILITY::ResolvedBoundedAtom((*ci)->getId(), (*ci)->getAtom(), bindings, analyst.getEquivalentObjectGroupManager(), *predicate_manager_));
-	}
-*/
 	std::vector<const State*> processed_states;
-	
 	State* initial_state = new State(grounded_initial_facts, true);
-/*
-	std::vector<REACHABILITY::ReachableFact*> initial_reachable_facts;
-	for (std::vector<const GroundedAtom*>::const_iterator ci = initial_state->getFacts().begin(); ci != initial_state->getFacts().end(); ci++)
-	{
-		const GroundedAtom* grounded_atom = *ci;
-		//REACHABILITY::EquivalentObjectGroup** variables = new REACHABILITY::EquivalentObjectGroup*[grounded_atom->getAtom().getArity()];
-		std::vector<REACHABILITY::EquivalentObjectGroup*>* variables = new std::vector<REACHABILITY::EquivalentObjectGroup*>(grounded_atom->getPredicate().getArity());
-		for (unsigned int i = 0; i < grounded_atom->getPredicate().getArity(); i++)
-		{
-			(*variables)[i] = &analyst.getEquivalentObjectGroupManager().getEquivalentObject(grounded_atom->getObject(i)).getEquivalentObjectGroup();
-		}
-		
-		initial_reachable_facts.push_back(&REACHABILITY::ReachableFact::createReachableFact(grounded_atom->getPredicate(), *variables));
-	}
-*/
 	heuristic_->setHeuristicForState(*initial_state, grounded_goal_facts, true, allow_new_goals_to_be_added);
-//	exit(0);
-/*
-	{
-#ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
-		std::cout << " *** CALCULATE THE HEURISTIC FOR *** " << std::endl;
-		for (std::vector<REACHABILITY::ReachableFact*>::const_iterator ci = initial_reachable_facts.begin(); ci != initial_reachable_facts.end(); ci++)
-		{
-			std::cout << **ci << std::endl;
-		}
-#endif
-		
-		std::vector<const REACHABILITY::ReachableFact*> result;
-		std::vector<const GroundedAtom*> persistent_facts;
-//		analyst.performReachabilityAnalysis(result, initial_reachable_facts, bindings, persistent_facts);
-		analyst.performReachabilityAnalysis(result, initial_reachable_facts, persistent_facts);
-		unsigned int heuristic_value = analyst.getHeuristic(grounded_goal_facts, *predicate_manager_);
-	
-		initial_state->setDistanceToGoal(heuristic_value);
-		initial_state->setHelpfulActions(analyst.getHelpfulActions());
-		std::cout << "Heuristic: " << heuristic_value << std::endl;
-	}
-*/
+
 	std::priority_queue<State*, std::vector<State*>, CompareStates> queue;
 	queue.push(initial_state);
 	

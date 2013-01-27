@@ -368,7 +368,7 @@ int main(int argc,char * argv[])
 	//ForwardChainingPlanner fcp(action_manager, predicate_manager, type_manager, analyst);
 	ForwardChainingPlanner fcp(action_manager, predicate_manager, type_manager, *heuristic_interface);
 	std::pair<int, int> result;
-	result = fcp.findPlan(found_plan, initial_facts, goal_facts, term_manager, true, true, true);
+	result = fcp.findPlan(found_plan, initial_facts, goal_facts, term_manager, true, false, true);
 	
 	// If the greedy method failed, try the non greedy method!
 	if (result.first == -1)
@@ -377,7 +377,7 @@ int main(int argc,char * argv[])
 		GroundedAtom::removeInstantiatedGroundedAtom();
 		GroundedAction::removeInstantiatedGroundedActions();
 		//result = fcp.findPlan(found_plan, analyst, initial_facts, goal_facts, false, true, true);
-		result = fcp.findPlan(found_plan, initial_facts, goal_facts, term_manager, false, true, false);
+		result = fcp.findPlan(found_plan, initial_facts, goal_facts, term_manager, false, false, false);
 	}
 	
 	// Validate the plan!

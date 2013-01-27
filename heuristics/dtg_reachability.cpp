@@ -3925,7 +3925,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 	std::cout << " ************************************************************** " << std::endl;
 #endif
 	combined_eogs_.clear();
-	bool allow_substitutions = false;
+	bool allow_substitutions = true;
 	
 	std::priority_queue<std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**>, std::vector<std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**> >, compareReachableFactLayerItem> open_list;
 

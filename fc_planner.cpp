@@ -28,8 +28,7 @@ StateHeuristicListener::StateHeuristicListener(std::vector<State*>& found_states
 void StateHeuristicListener::addNewState(State& state)
 {
 	heuristic_->setHeuristicForState(state, *goal_facts_, *term_manager_, find_helpful_actions_, allow_new_goals_to_be_added_);
-	
-	if (state.getHeuristic() < current_state_->getHeuristic())
+	if (find_helpful_actions_ && state.getHeuristic() < current_state_->getHeuristic())
 	{
 		found_better_state_ = true;
 		for (std::vector<State*>::const_iterator ci = found_states_->begin(); ci != found_states_->end(); ++ci)
@@ -926,6 +925,12 @@ bool CompareStates::operator()(const State* lhs, const State* rhs)
 		return false;
 	}
 	else*/
+
+	if (lhs->getHeuristic() == rhs->getHeuristic())
+	{
+		return lhs->getAchievers().size() > rhs->getAchievers().size();
+	}
+	else
 	{
 		return lhs->getHeuristic() > rhs->getHeuristic();
 	}
@@ -1166,14 +1171,14 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 		std::vector<State*> successor_states;
 		
 		NewStateReachedListener* new_state_reached_listener = NULL;
-		if (prune_unhelpful_actions)
+		//if (prune_unhelpful_actions)
 		{
 			new_state_reached_listener = new StateHeuristicListener(successor_states, *state,  *heuristic_, grounded_goal_facts, term_manager, prune_unhelpful_actions, allow_new_goals_to_be_added);
 		}
-		else
-		{
-			new_state_reached_listener = new StateStoreListener(successor_states);
-		}
+		//else
+		//{
+		//	new_state_reached_listener = new StateStoreListener(successor_states);
+		//}
 		
 		// Before finding the successors, search for helpful actions (if this option is enabled).
 		if (prune_unhelpful_actions)

@@ -172,7 +172,7 @@ LiftedCausalGraphHeuristic::~LiftedCausalGraphHeuristic()
 	}
 }
 
-void LiftedCausalGraphHeuristic::setHeuristicForState(MyPOP::State& state, const std::vector<const GroundedAtom*>& goal_facts, bool find_helpful_actions, bool allow_new_goals_to_be_added)
+void LiftedCausalGraphHeuristic::setHeuristicForState(MyPOP::State& state, const std::vector<const GroundedAtom*>& goal_facts, const TermManager& term_manager, bool find_helpful_actions, bool allow_new_goals_to_be_added)
 {
 	unsigned int h = getHeuristic(state, goal_facts);
 	state.setDistanceToGoal(h);

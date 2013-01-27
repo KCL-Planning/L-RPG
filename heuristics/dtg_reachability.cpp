@@ -3181,7 +3181,7 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 	equivalent_object_manager_->getAllReachableFacts(result);
 }
 
-void DTGReachability::setHeuristicForState(MyPOP::State& state, const std::vector<const GroundedAtom*>& goal_facts, bool find_helpful_actions, bool allow_new_goals_to_be_added)
+void DTGReachability::setHeuristicForState(MyPOP::State& state, const std::vector<const GroundedAtom*>& goal_facts, const TermManager& term_manager, bool find_helpful_actions, bool allow_new_goals_to_be_added)
 {
 	getEquivalentObjectGroupManager().reset();
 	std::vector<REACHABILITY::ReachableFact*> reachable_facts;
@@ -3291,13 +3291,257 @@ void DTGReachability::setHeuristicForState(MyPOP::State& state, const std::vecto
 //		std::cerr << "?";
 	}
 	
-	unsigned int heuristic_value = getHeuristic(goal_facts, allow_new_goals_to_be_added, find_helpful_actions, false);
+	unsigned int heuristic_value = getHeuristic(goal_facts, allow_new_goals_to_be_added, find_helpful_actions, true);
 	state.setDistanceToGoal(heuristic_value);
 //	std::cerr << analyst.getHelpfulActions().size() << std::endl;
 	if (find_helpful_actions)
 	{
 		state.setHelpfulActions(getHelpfulActions());
 //		std::cerr << "H=" << analyst.getHelpfulActions().size() << std::endl;
+	}
+}
+
+void DTGReachability::getFunctionalSymmetricSets(std::multimap<const Object*, const Object*>& symmetrical_groups, const State& state, const std::vector<const GroundedAtom*>& goal_facts, const TermManager& term_manager)
+{
+	getEquivalentObjectGroupManager().reset();
+	std::vector<REACHABILITY::ReachableFact*> reachable_facts;
+	for (std::vector<const GroundedAtom*>::const_iterator ci = state.getFacts().begin(); ci != state.getFacts().end(); ci++)
+	{
+		const GroundedAtom* grounded_atom = *ci;
+		std::vector<REACHABILITY::EquivalentObjectGroup*>* variables = new std::vector<REACHABILITY::EquivalentObjectGroup*>(grounded_atom->getPredicate().getArity());
+		for (unsigned int i = 0; i < grounded_atom->getPredicate().getArity(); i++)
+		{
+			(*variables)[i] = &getEquivalentObjectGroupManager().getEquivalentObject(grounded_atom->getObject(i)).getEquivalentObjectGroup();
+		}
+		
+		reachable_facts.push_back(&REACHABILITY::ReachableFact::createReachableFact(grounded_atom->getPredicate(), *variables));
+	}
+
+#ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
+	std::cout << " *** CALCULATE THE HEURISTIC FOR *** " << std::endl;
+	for (std::vector<REACHABILITY::ReachableFact*>::const_iterator ci = reachable_facts.begin(); ci != reachable_facts.end(); ci++)
+	{
+		std::cout << **ci << std::endl;
+	}
+#endif
+	std::vector<const REACHABILITY::ReachableFact*> result;
+	std::vector<const GroundedAtom*> persistent_facts;
+	performReachabilityAnalysis(result, reachable_facts, persistent_facts);
+
+#ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
+	std::cout << "Found equivalence relationships: " << std::endl;
+	std::cout << *equivalent_object_manager_ << std::endl;
+#endif
+	
+	std::set<const Object*> closed_set;
+	
+	// Check if the goal states are identical for every pair of objects.
+	
+	for (std::vector<const Object*>::const_iterator ci = term_manager.getAllObjects().begin(); ci != term_manager.getAllObjects().end(); ++ci)
+	{
+		const Object* lhs_object = *ci;
+		if (closed_set.find(lhs_object) != closed_set.end())
+		{
+			continue;
+		}
+		
+		const EquivalentObjectGroup& eog = equivalent_object_manager_->getEquivalentObject(*lhs_object).getEquivalentObjectGroup().getRootNode();
+		
+		std::vector<const GroundedAtom*> relevant_init_lhs_facts, relevant_goal_lhs_facts;
+		for (std::vector<const GroundedAtom*>::const_iterator ci = state.getFacts().begin(); ci != state.getFacts().end(); ++ci)
+		{
+			const GroundedAtom* initial_fact = *ci;
+			for (unsigned int index = 0; index < initial_fact->getPredicate().getArity(); ++index)
+			{
+				if (&initial_fact->getObject(index) == lhs_object)
+				{
+					relevant_init_lhs_facts.push_back(initial_fact);
+					break;
+				}
+			}
+		}
+		
+		// Do the same with the goal facts.
+		for (std::vector<const GroundedAtom*>::const_iterator ci = goal_facts.begin(); ci != goal_facts.end(); ++ci)
+		{
+			const GroundedAtom* goal_fact = *ci;
+			for (unsigned int index = 0; index < goal_fact->getPredicate().getArity(); ++index)
+			{
+				if (&goal_fact->getObject(index) == lhs_object)
+				{
+					relevant_goal_lhs_facts.push_back(goal_fact);
+					break;
+				}
+			}
+		}
+		
+		for (std::vector<EquivalentObject*>::const_iterator ci = eog.getEquivalentObjects().begin(); ci != eog.getEquivalentObjects().end(); ++ci)
+		{
+			const Object& rhs_object = (*ci)->getObject();
+			if (closed_set.find(&rhs_object) != closed_set.end())
+			{
+				continue;
+			}
+			
+			std::vector<const GroundedAtom*> relevant_init_rhs_facts, relevant_goal_rhs_facts;
+			for (std::vector<const GroundedAtom*>::const_iterator ci = state.getFacts().begin(); ci != state.getFacts().end(); ++ci)
+			{
+				const GroundedAtom* initial_fact = *ci;
+				for (unsigned int index = 0; index < initial_fact->getPredicate().getArity(); ++index)
+				{
+					if (&initial_fact->getObject(index) == &rhs_object)
+					{
+						relevant_init_rhs_facts.push_back(initial_fact);
+						break;
+					}
+				}
+			}
+			
+			// Do the same with the goal facts.
+			for (std::vector<const GroundedAtom*>::const_iterator ci = goal_facts.begin(); ci != goal_facts.end(); ++ci)
+			{
+				const GroundedAtom* goal_fact = *ci;
+				for (unsigned int index = 0; index < goal_fact->getPredicate().getArity(); ++index)
+				{
+					if (&goal_fact->getObject(index) == &rhs_object)
+					{
+						relevant_goal_rhs_facts.push_back(goal_fact);
+						break;
+					}
+				}
+			}
+			
+			// Check if the initial facts and goal facts match up!
+			if (relevant_init_lhs_facts.size() != relevant_init_rhs_facts.size() ||
+			    relevant_goal_lhs_facts.size() != relevant_goal_rhs_facts.size())
+			{
+				break;
+			}
+			
+			bool init_facts_are_equivalent = true;
+			for (std::vector<const GroundedAtom*>::const_iterator ci = relevant_init_lhs_facts.begin(); ci != relevant_init_lhs_facts.end(); ++ci)
+			{
+				const GroundedAtom* lhs_init_fact = *ci;
+				bool found_equivalent_rhs_fact = false;
+				for (std::vector<const GroundedAtom*>::const_iterator ci = relevant_init_rhs_facts.begin(); ci != relevant_init_rhs_facts.end(); ++ci)
+				{
+					const GroundedAtom* rhs_init_fact = *ci;
+					if (lhs_init_fact->getPredicate().getArity() != rhs_init_fact->getPredicate().getArity() ||
+					    lhs_init_fact->getPredicate().getName() != rhs_init_fact->getPredicate().getName())
+					{
+						continue;
+					}
+					
+					bool terms_are_equivalent = true;
+					for (unsigned int i = 0; i < lhs_init_fact->getPredicate().getArity(); ++i)
+					{
+						if (&lhs_init_fact->getObject(i) == lhs_object && &rhs_init_fact->getObject(i) != &rhs_object)
+						{
+							terms_are_equivalent = false;
+							break;
+						}
+						else if (&lhs_init_fact->getObject(i) != lhs_object)
+						{
+							const EquivalentObjectGroup& lhs_eog = equivalent_object_manager_->getEquivalentObject(lhs_init_fact->getObject(i)).getEquivalentObjectGroup().getRootNode();
+							const EquivalentObjectGroup& rhs_eog = equivalent_object_manager_->getEquivalentObject(rhs_init_fact->getObject(i)).getEquivalentObjectGroup().getRootNode();
+
+							if (!lhs_eog.contains(rhs_init_fact->getObject(i), 0) || !rhs_eog.contains(lhs_init_fact->getObject(i), 0))
+							{
+								terms_are_equivalent = false;
+								break;
+							}
+						}
+					}
+					
+					if (terms_are_equivalent)
+					{
+						found_equivalent_rhs_fact = true;
+						break;
+					}
+				}
+				
+				if (!found_equivalent_rhs_fact)
+				{
+					init_facts_are_equivalent = false;
+					break;
+				}
+			}
+			
+			if (!init_facts_are_equivalent)
+			{
+				continue;
+			}
+			
+			bool goal_facts_are_equivalent = true;
+			for (std::vector<const GroundedAtom*>::const_iterator ci = relevant_goal_lhs_facts.begin(); ci != relevant_goal_lhs_facts.end(); ++ci)
+			{
+				const GroundedAtom* lhs_goal_fact = *ci;
+				bool found_equivalent_rhs_fact = false;
+				for (std::vector<const GroundedAtom*>::const_iterator ci = relevant_goal_rhs_facts.begin(); ci != relevant_goal_rhs_facts.end(); ++ci)
+				{
+					const GroundedAtom* rhs_goal_fact = *ci;
+					if (lhs_goal_fact->getPredicate().getArity() != rhs_goal_fact->getPredicate().getArity() ||
+					    lhs_goal_fact->getPredicate().getName() != rhs_goal_fact->getPredicate().getName())
+					{
+						continue;
+					}
+					
+					bool terms_are_equivalent = true;
+					for (unsigned int i = 0; i < lhs_goal_fact->getPredicate().getArity(); ++i)
+					{
+						if (&lhs_goal_fact->getObject(i) == lhs_object && &rhs_goal_fact->getObject(i) != &rhs_object)
+						{
+							terms_are_equivalent = false;
+							break;
+						}
+						else if (&lhs_goal_fact->getObject(i) != lhs_object && &rhs_goal_fact->getObject(i) != &lhs_goal_fact->getObject(i))
+						{
+							terms_are_equivalent = false;
+							break;
+						}
+/*
+						else if (&lhs_goal_fact->getObject(i) != lhs_object)
+						{
+							const EquivalentObjectGroup& lhs_eog = equivalent_object_manager_->getEquivalentObject(lhs_goal_fact->getObject(i)).getEquivalentObjectGroup().getRootNode();
+							const EquivalentObjectGroup& rhs_eog = equivalent_object_manager_->getEquivalentObject(rhs_goal_fact->getObject(i)).getEquivalentObjectGroup().getRootNode();
+							if (&lhs_eog != &rhs_eog)
+							{
+								terms_are_equivalent = false;
+								break;
+							}
+						}
+*/
+					}
+					
+					if (terms_are_equivalent)
+					{
+//						std::cerr << "The goal: " << *lhs_goal_fact << " == " << *rhs_goal_fact << std::endl;
+						found_equivalent_rhs_fact = true;
+						break;
+					}
+				}
+				
+				if (!found_equivalent_rhs_fact)
+				{
+					goal_facts_are_equivalent = false;
+					break;
+				}
+			}
+			
+			if (!goal_facts_are_equivalent)
+			{
+				continue;
+			}
+			
+			// Found two equivalent objects!!!
+//#ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
+//			std::cerr << *lhs_object << " is equivalent to " << rhs_object << std::endl;
+//#endif
+			symmetrical_groups.insert(std::make_pair(lhs_object, &rhs_object));
+			symmetrical_groups.insert(std::make_pair(&rhs_object, lhs_object));
+			closed_set.insert(&rhs_object);
+		}
+		closed_set.insert(lhs_object);
 	}
 }
 
@@ -3997,8 +4241,8 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 						{
 							has_been_substituted_before = true;
 							unsigned int cost_to_make_substitutions = makeSubstitutions(*current_goal, object_bindings, combined_eogs_);
-	//						std::cout << "Add " << cost_to_make_substitutions << " for the substitutions" << std::endl;
-							if (allow_substitutions)
+//						std::cout << "Add " << cost_to_make_substitutions << " for the substitutions" << std::endl;
+//							if (allow_substitutions)
 							{
 								heuristic += cost_to_make_substitutions;
 							}
@@ -4461,7 +4705,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 						// Precondition (must be substituted),
 						if (allow_new_goals_added)
 						{
-							substitute(*fact_layer_precondition_eog, new_action_precondition_item->getReachableFactLayer().getLayerNumber(), action_to_execute_variable_domain->getVariableDomain());
+							heuristic += substitute(*fact_layer_precondition_eog, new_action_precondition_item->getReachableFactLayer().getLayerNumber(), action_to_execute_variable_domain->getVariableDomain());
 						}
 						else if (allow_substitutions)
 						{
@@ -4521,7 +4765,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 						}
 						else
 						{
-						for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition_eog->getEquivalentObjects().begin(); ci != fact_layer_precondition_eog->getEquivalentObjects().end(); ++ci)
+							for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition_eog->getEquivalentObjects().begin(); ci != fact_layer_precondition_eog->getEquivalentObjects().end(); ++ci)
 	//					for (std::vector<EquivalentObject*>::const_iterator ci = fact_layer_precondition_eog->begin(new_action_precondition_item->getReachableFactLayer().getLayerNumber()); ci != fact_layer_precondition_eog->end(new_action_precondition_item->getReachableFactLayer().getLayerNumber()); ++ci)
 							{
 								precondition_term_domain->push_back(&(*ci)->getObject());

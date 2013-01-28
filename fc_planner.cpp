@@ -28,7 +28,7 @@ StateHeuristicListener::StateHeuristicListener(std::vector<State*>& found_states
 void StateHeuristicListener::addNewState(State& state)
 {
 	heuristic_->setHeuristicForState(state, *goal_facts_, *term_manager_, find_helpful_actions_, allow_new_goals_to_be_added_);
-	if (find_helpful_actions_ && state.getHeuristic() < current_state_->getHeuristic())
+/*	if (find_helpful_actions_ && state.getHeuristic() < current_state_->getHeuristic())
 	{
 		found_better_state_ = true;
 		for (std::vector<State*>::const_iterator ci = found_states_->begin(); ci != found_states_->end(); ++ci)
@@ -36,7 +36,7 @@ void StateHeuristicListener::addNewState(State& state)
 			delete *ci;
 		}
 		found_states_->clear();
-	}
+	}*/
 	found_states_->push_back(&state);
 }
 

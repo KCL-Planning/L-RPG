@@ -3750,7 +3750,7 @@ unsigned int DTGReachability::makeSubstitutions(const ReachableFactLayerItem& cu
 						*/
 						for (unsigned int layer_number = 0; layer_number < current_fact_layer_->getLayerNumber(); layer_number++)
 						{
-							if (lhs_eo.getEquivalentObjectGroup().contains(rhs_eo->getObject(), layer_number))
+							if (lhs_eo.getEquivalentObjectGroup().getRootNode().contains(rhs_eo->getObject(), layer_number))
 							{
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 								std::cout << "Add " << layer_number << " to the total heuristic." << std::endl;
@@ -3981,141 +3981,6 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 		std::cout << std::endl;
 #endif
 		
-/*
-		// If the goal has NOOPs which achieve it, backtrace all the noops until we reach a fact which does not contain a noop.
-//		const ReachableFactLayerItem* noop_source = current_goal;
-		bool has_noop = true;
-		while (has_noop)
-		{
-			has_noop = false;
-			for (std::vector<const AchievingTransition*>::const_iterator ci = current_goal->getAchievers().begin(); ci != current_goal->getAchievers().end(); ci++)
-			{
-				const AchievingTransition* transition = *ci;
-				if (transition->getAchiever() == NULL)
-				{
-#ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
-					std::cout << "Found a NOOP achieving: " << current_goal->getReachableFactCopy() << " >>>==--> " << *(*ci)->getPreconditionFactLayerItems()[0] << std::endl;
-#endif
-
-//					std::cout << "No substitutions necessary!" << std::endl;
-//					current_goal = (*ci)->getPreconditionFactLayerItems()[0];
-//					has_noop = true;
-					
-//					unsigned int cost_to_make_substitutions = makeSubstitutions(*current_goal, object_bindings, combined_eogs_);
-//					std::cout << "Add " << cost_to_make_substitutions << " to the total cost!" << std::endl;
-//					heuristic += cost_to_make_substitutions;
-
-					// Check if the NOOP breaks any variables.
-					std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**> noop_goal = findFactWhichAchieves(*(*ci)->getPreconditionFactLayerItems()[0], object_bindings, combined_eogs_);
-
-					if (noop_goal.first == NULL || current_goal->getAchievers().size() == 1)
-					{
-//						std::cout << "No substitutions necessary!" << std::endl;
-						current_goal = (*ci)->getPreconditionFactLayerItems()[0];
-						has_noop = true;
-						
-						unsigned int cost_to_make_substitutions = makeSubstitutions(*current_goal, object_bindings, combined_eogs_);
-//						std::cout << "Add " << cost_to_make_substitutions << " to the total cost!" << std::endl;
-						heuristic += cost_to_make_substitutions;
-					}
-*/
-/*					// If the NOOP breaks variables check if there is any achiever which doesn't. If there is ignore the NOOP. If there are no
-					// achievers which do not break the variable domains than we stick with the NOOPs.
-					else
-					{
-						std::cout << "Need substitutions!" << std::endl;
-						bool contains_non_destructive_achiever = false;
-						for (std::vector<const AchievingTransition*>::const_iterator ci = current_goal->getAchievers().begin(); ci != current_goal->getAchievers().end(); ci++)
-						{
-							const AchievingTransition* transition = *ci;
-							if (transition->getAchiever() == NULL)
-							{
-								continue;
-							}
-							
-							if (transition->canAchieve(*current_goal, object_bindings))
-							{
-								contains_non_destructive_achiever = true;
-								break;
-							}
-						}
-						
-						if (!contains_non_destructive_achiever)
-						{
-							std::cout << "NOOP breaks bindings, but could not find an achiever which does not do the same..." << std::endl;
-							current_goal = transition->getPreconditionFactLayerItems()[0];
-							
-							
-							unsigned int cost_to_make_substitutions = makeSubstitutions(*current_goal, object_bindings, combined_eogs_);
-							heuristic += cost_to_make_substitutions;
-*/
-
-/*
-							// Check if the variables still match up.
-							for (unsigned int term_index = 0; term_index < current_goal->getReachableFactCopy().getPredicate().getArity(); ++term_index)
-							{
-								std::vector<const Object*> intersection;
-								const std::vector<const Object*>* current_variable_domains = object_bindings[term_index];
-								
-								std::cout << "Check ";
-								printVariableDomain(std::cout, *current_variable_domains);
-								std::cout << " v.s. ";
-								current_goal->getReachableFactCopy().getTermDomain(term_index).printObjects(std::cout, current_goal->getReachableFactLayer().getLayerNumber());
-								std::cout << std::endl;
-								
-								for (std::vector<const Object*>::const_iterator ci = current_variable_domains->begin(); ci != current_variable_domains->end(); ++ci)
-								{
-									if (current_goal->getReachableFactCopy().getTermDomain(term_index).contains(**ci, current_goal->getReachableFactLayer().getLayerNumber()))
-									{
-										intersection.push_back(*ci);
-									}
-								}
-								
-								if (intersection.empty())
-								{
-									for (std::vector<const Object*>::const_iterator ci = current_variable_domains->begin(); ci != current_variable_domains->end(); ++ci)
-									{
-										const EquivalentObject& lhs_eo = equivalent_object_manager_->getEquivalentObject(**ci);
-										for (std::vector<EquivalentObject*>::const_iterator ci = current_goal->getReachableFactCopy().getTermDomain(term_index).begin(current_goal->getReachableFactLayer().getLayerNumber()); ci != current_goal->getReachableFactCopy().getTermDomain(term_index).end(current_goal->getReachableFactLayer().getLayerNumber()); ++ci)
-										{
-											const EquivalentObject* rhs_eo = *ci;
-//											if (combined_eogs_.count(std::make_pair(&lhs_eo, rhs_eo)) == 0)
-											{
-												combined_eogs_.insert(std::make_pair(&lhs_eo, rhs_eo));
-												for (unsigned int layer_number = 0; layer_number < current_fact_layer_->getLayerNumber(); layer_number++)
-												{
-													if (lhs_eo.getEquivalentObjectGroup().contains(rhs_eo->getObject(), layer_number))
-													{
-														std::cout << "Add " << layer_number << " to the total heuristic." << std::endl;
-														heuristic += layer_number;
-														break;
-													}
-												}
-											}
-										}
-									}
-								}
-							}
-							has_noop = true;
-						}
-						else
-						{
-							assert (false);
-							std::cout << "Ignore the NOOP achieving: " << *current_goal << " >>>==--> " << *transition->getPreconditionFactLayerItems()[0] << std::endl;
-							std::cout << "New goal: " << std::endl;
-							for (unsigned int i = 0; i < current_goal->getActualReachableFact().getPredicate().getArity(); i++)
-							{
-								printVariableDomain(std::cout, *object_bindings[i]);
-							}
-						}
-					}
-*/
-/*
-					break;
-				}
-			}
-		}
-*/
 		// If it's part of the initial state, we're done!
 		if (current_goal->getReachableFactLayer().getLayerNumber() == 0)
 		{
@@ -4439,7 +4304,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 					}
 				}
 			}
-			
+
 			// Add the precondition as a new goal to be achieved.
 			open_list.push(std::make_pair(precondition_layer_item, object_bindings));
 			continue;
@@ -4554,6 +4419,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 			action_to_execute->getAchiever();
 		}
 */
+
 		std::vector<std::pair<const EquivalentObject*, const EquivalentObject*> > substitutions_to_make;
 		action_to_execute->getNeededSubstitutes(substitutions_to_make, *current_goal, object_bindings, *equivalent_object_manager_, effect_indexes_achieving_effect.first, effect_indexes_achieving_effect.second);
 		for (std::vector<std::pair<const EquivalentObject*, const EquivalentObject*> >::const_iterator ci = substitutions_to_make.begin(); ci != substitutions_to_make.end(); ++ci)

@@ -258,80 +258,10 @@ int main(int argc,char * argv[])
 			const Action* action = *ci;
 			HEURISTICS::LiftedTransition::createLiftedTransitions(lifted_transitions, predicate_manager, term_manager, type_manager, *action, initial_facts, objects_part_of_property_state);
 		}
-		std::cerr << "Lifted transitions: " << lifted_transitions.size() << std::endl;
+//		std::cerr << "Lifted transitions: " << lifted_transitions.size() << std::endl;
 		HEURISTICS::LiftedTransition::mergeFactSets(lifted_transitions);
 
-//	std::cout << "All lifted transitions:" << std::endl;
-//	for (std::vector<HEURISTICS::LiftedTransition*>::const_iterator ci = lifted_transitions.begin(); ci != lifted_transitions.end(); ++ci)
-//	{
-//		std::cout << **ci << std::endl;
-//	}
-	
-	// Do the domain analysis.
-//#ifdef MYPOP_COMMENTS
-//	std::cout << " === Creating the DTGs === " << std::endl;
-//#endif
-//	SAS_Plus::DomainTransitionGraphManager* dtg_manager = new SAS_Plus::DomainTransitionGraphManager(predicate_manager, type_manager, action_manager, term_manager, *initial_facts);
-
-	// New style, working directly on the TIM structure.
-/*	const SAS_Plus::DomainTransitionGraph& combined_graph = dtg_manager->generateDomainTransitionGraphsTIM(*the_domain->types, plan->getBindings());
-	
-	// Clean up memory by removing all the variable domains which are no longer in use!
-	std::set<std::pair<StepID, const Term*> > relevant_variable_domains;
-	for (std::vector<const Variable*>::const_iterator ci = initial_action_variables->begin(); ci != initial_action_variables->end(); ++ci)
-	{
-		relevant_variable_domains.insert(std::make_pair(Step::INITIAL_STEP, *ci));
-	}
-	for (std::vector<const Variable*>::const_iterator ci = goal_action_variables->begin(); ci != goal_action_variables->end(); ++ci)
-	{
-		relevant_variable_domains.insert(std::make_pair(Step::GOAL_STEP, *ci));
-	}
-
-	unsigned int nr_transitions = 0;
-	for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = combined_graph.getNodes().begin(); ci != combined_graph.getNodes().end(); ++ci)
-	{
-		const SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
-		nr_transitions += dtg_node->getTransitions().size();
-		
-		for (std::vector<SAS_Plus::BoundedAtom*>::const_iterator ci = dtg_node->getAtoms().begin(); ci != dtg_node->getAtoms().end(); ++ci)
-		{
-			SAS_Plus::BoundedAtom* fact = *ci;
-			for (std::vector<const Term*>::const_iterator ci = fact->getAtom().getTerms().begin(); ci != fact->getAtom().getTerms().end(); ++ci)
-			{
-				const Term* term = *ci;
-				relevant_variable_domains.insert(std::make_pair(fact->getId(), term));
-			}
-		}
-		
-		for (std::vector<const SAS_Plus::Transition*>::const_iterator ci = dtg_node->getTransitions().begin(); ci != dtg_node->getTransitions().end(); ++ci)
-		{
-			const SAS_Plus::Transition* transition = *ci;
-			
-			for (std::vector<const Variable*>::const_iterator ci = transition->getAction().getVariables().begin(); ci != transition->getAction().getVariables().end(); ++ci)
-			{
-				relevant_variable_domains.insert(std::make_pair(transition->getStepId(), *ci));
-			}
-		}
-	}
-	
-	plan->getBindings().removeAllBut(relevant_variable_domains);
-*/
-/*
-	for (std::vector<SAS_Plus::DomainTransitionGraph*>::const_iterator ci = dtg_manager->getManagableObjects().begin(); ci != dtg_manager->getManagableObjects().end(); ++ci)
-	{
-		const SAS_Plus::DomainTransitionGraph* dtg = *ci;
-		for (std::vector<SAS_Plus::DomainTransitionGraphNode*>::const_iterator ci = dtg->getNodes().begin(); ci != dtg->getNodes().end(); ci++)
-		{
-			const SAS_Plus::DomainTransitionGraphNode* dtg_node = *ci;
-			nr_transitions += dtg_node->getTransitions().size();
-		}
-	}
-*/
-
-//	std::cerr << "Total number of transitions: " << nr_transitions << "; Total of DTGs: " << dtg_manager->getManagableObjects().size() << "." << std::endl;
-
-
-	// Do the reachability analysis.
+		// Do the reachability analysis.
 #ifdef MYPOP_KEEP_TIME
 		struct timeval start_time_prepare_reachability;
 		gettimeofday(&start_time_prepare_reachability, NULL);
@@ -346,37 +276,21 @@ int main(int argc,char * argv[])
 		std::cerr << "Prepare reachability analysis: " << time_spend_preparing << " seconds" << std::endl;
 #endif
 	}
-//	std::vector<const Atom*> goal_facts;
-//	Utility::convertFormula(goal_facts, goal);
-	
-/*
-	std::vector<const SAS_Plus::BoundedAtom*> bounded_goal_facts;
-	for (std::vector<const Atom*>::const_iterator ci = goal_facts.begin(); ci != goal_facts.end(); ci++)
-	{
-		bounded_goal_facts.push_back(new SAS_Plus::BoundedAtom(Step::GOAL_STEP, **ci));
-	}
-	
-	std::vector<const SAS_Plus::BoundedAtom*> bounded_initial_facts;
-	for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
-	{
-		bounded_initial_facts.push_back(new SAS_Plus::BoundedAtom(Step::INITIAL_STEP, **ci));
-	}
-*/
-
 	
 	std::vector<const GroundedAction*> found_plan;
-	//ForwardChainingPlanner fcp(action_manager, predicate_manager, type_manager, analyst);
 	ForwardChainingPlanner fcp(action_manager, predicate_manager, type_manager, *heuristic_interface);
-	std::pair<int, int> result;
-	result = fcp.findPlan(found_plan, initial_facts, goal_facts, term_manager, true, false, true);
+	std::pair<int, int> result = std::make_pair(-1, -1);
+	if (use_ff)
+	{
+		result = fcp.findPlan(found_plan, initial_facts, goal_facts, term_manager, true, false, true);
+	}
 	
 	// If the greedy method failed, try the non greedy method!
-	if (result.first == -1)
+	if (false && result.first == -1)
 	{
 		found_plan.clear();
 		GroundedAtom::removeInstantiatedGroundedAtom();
 		GroundedAction::removeInstantiatedGroundedActions();
-		//result = fcp.findPlan(found_plan, analyst, initial_facts, goal_facts, false, true, true);
 		result = fcp.findPlan(found_plan, initial_facts, goal_facts, term_manager, false, false, false);
 	}
 	
@@ -391,7 +305,7 @@ int main(int argc,char * argv[])
 		std::cerr << "Valid plan!" << std::endl;
 //		std::cerr << "Plan Length: " << found_plan.size() << std::endl;
 		std::cerr << "States visited: " << result.first << std::endl;
-		std::cerr << "Plan length: " << result.second << std::endl;
+		 std::cerr << "Plan length: " << result.second << std::endl;
 	}
 	else
 	{

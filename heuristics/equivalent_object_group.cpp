@@ -203,6 +203,12 @@ EquivalentObjectGroup::~EquivalentObjectGroup()
 	{
 		delete *equivalent_objects_.begin();
 	}
+	
+	for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = cached_variable_domains_.begin(); ci != cached_variable_domains_.end(); ++ci)
+	{
+		delete *ci;
+	}
+	cached_variable_domains_.clear();
 /*	if (link_ == NULL)
 	{
 		for (std::vector<EquivalentObject*>::const_iterator ci = equivalent_objects_.begin(); ci != equivalent_objects_.end(); ci++)
@@ -221,6 +227,12 @@ void EquivalentObjectGroup::reset()
 		(*equivalent_objects_.begin())->reset();
 		link_ = NULL;
 	}
+	
+	for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = cached_variable_domains_.begin(); ci != cached_variable_domains_.end(); ++ci)
+	{
+		delete *ci;
+	}
+	cached_variable_domains_.clear();
 	
 	merged_at_iteration_ = std::numeric_limits<unsigned int>::max();
 	reachable_facts_.clear();
@@ -604,6 +616,13 @@ void EquivalentObjectGroup::printObjects(std::ostream& os, unsigned int iteratio
 		}
 	}
 }
+
+const HEURISTICS::VariableDomain& EquivalentObjectGroup::getVariableDomain(unsigned int layer_level) const
+{
+	// Check if we need to generate the variable domain or if it is already created.
+	return *cached_variable_domains_[layer_level];
+}
+
 /*
 void EquivalentObjectGroup::printGrounded(std::ostream& os) const
 {
@@ -763,6 +782,13 @@ void EquivalentObjectGroup::updateEquivalences(const std::vector<EquivalentObjec
 	
 	assert (size_per_iteration_.size() == iteration);
 	size_per_iteration_.push_back(equivalent_objects_.size());
+	
+	HEURISTICS::VariableDomain* vd = new HEURISTICS::VariableDomain();
+	for (std::vector<EquivalentObject*>::const_iterator ci = equivalent_objects_.begin(); ci != equivalent_objects_.end(); ++ci)
+	{
+		vd->addObject((*ci)->getObject());
+	}
+	cached_variable_domains_.push_back(vd);
 }
 
 std::vector<EquivalentObject*>::const_iterator EquivalentObjectGroup::begin(unsigned int layer_level) const

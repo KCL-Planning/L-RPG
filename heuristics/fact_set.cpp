@@ -259,14 +259,14 @@ std::ostream& operator<<(std::ostream& os, const Fact& fact)
 }
 
 TransitionFact::TransitionFact(const PredicateManager& predicate_manager, const Predicate& predicate, std::vector<const VariableDomain*>& variable_domains, const std::vector<const Term*>& variables)
-	: Fact(predicate_manager, predicate, variable_domains)
+	: Fact(predicate_manager, predicate, variable_domains), action_variables_(&variables)
 {
-	action_variables_.insert(action_variables_.end(), variables.begin(), variables.end());
+//	action_variables_.insert(action_variables_.end(), variables.begin(), variables.end());
 }
 
 TransitionFact::~TransitionFact()
 {
-	//for (
+	
 }
 
 bool TransitionFact::operator==(const TransitionFact& rhs) const
@@ -297,7 +297,7 @@ std::ostream& operator<<(std::ostream& os, const TransitionFact& transition_fact
 	os << "(" << transition_fact.getPredicate().getName();
 	for (unsigned int i = 0; i < transition_fact.getVariableDomains().size(); ++i)
 	{
-		os << *transition_fact.getVariableDomains()[i] << "[" << transition_fact.action_variables_[i] << "] ";
+		os << *transition_fact.getVariableDomains()[i] << "[" << (*transition_fact.action_variables_)[i] << "] ";
 	}
 	os << ")";
 	return os;

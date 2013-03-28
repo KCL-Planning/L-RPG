@@ -169,18 +169,17 @@ public:
 	
 	const std::vector<const GroundedAtom*>& getFacts() const { return facts_; }
 	
-	//const GroundedAction* getAchiever() const { return achiever_; }
 	const std::vector<const GroundedAction*>& getAchievers() const { return achievers_; }
 	
-	//void setHelpfulActions(const std::vector<std::pair<const Action*, std::vector<const Object*>**> >& helpful_actions);
 	void setHelpfulActions(const std::vector<const REACHABILITY::AchievingTransition*>& helpful_actions);
 	
-//	const std::vector<std::pair<const Action*, std::vector<const Object*>**> >& getHelpfulActions() const { return helpful_actions_; }
 	const std::vector<const REACHABILITY::AchievingTransition*>& getHelpfulActions() const { return helpful_actions_; }
 	
 	bool isCreatedByHelpfulAction() const { return created_by_helpful_action_; }
 	
-	//const State& getParent() const { return *parent_state_; }
+	static void addStaticFact(const GroundedAtom& static_fact);
+	
+	static std::vector<const GroundedAtom*>& getStaticFacts() { return static_facts_; }
 	
 	void deleteHelpfulActions();
 	
@@ -190,7 +189,7 @@ private:
 	std::vector<const GroundedAtom*> facts_;
 	
 	unsigned int distance_to_goal_;
-	unsigned int distance_from_start_;
+	//unsigned int distance_from_start_;
 	
 	std::vector<const GroundedAction*> achievers_;
 	
@@ -206,6 +205,8 @@ private:
 	void instantiateAndExecuteAction(NewStateReachedListener& listener, const std::multimap<const Object*, const Object*>& symmetrical_groups, const MyPOP::Action& action, const std::vector< const MyPOP::Atom* >& preconditions, const std::vector< const MyPOP::Equality* >& equalities, unsigned int uninitialised_precondition_index, const MyPOP::Object** assigned_variables, const MyPOP::TypeManager& type_manager, bool prune_unhelpful_actions) const;
 	
 	void createAllGroundedVariables(std::vector<const Object**>& all_grounded_action_variables, const Object** grounded_action_variables, const Action& action, const TypeManager& type_manager) const;
+	
+	static std::vector<const GroundedAtom*> static_facts_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const State& state);
 };

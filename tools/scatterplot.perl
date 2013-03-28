@@ -10,6 +10,12 @@ use POSIX qw(strftime);
 my @domain_names = ("driverlog", "satellite", "zeno", "rovers", "storage", "depots", "blocksworld");
 my $merged_name = shift(@ARGV);
 my $mode = shift(@ARGV);
+
+if ($mode ne "q" and $mode ne "s" and $mode ne "m")
+{
+	print "Usage perl scatterplot.perl <name of merge director, minus merged_...> <q|s|m>\n";
+	exit;
+}
 #my $merged_name = "all_goals_removed_ff_fully_lifted";
 #my @domain_names = ("big_blocksworld", "big_satellite", "big_zeno", "big_driverlog");
 #my @domain_names = ("scalable_driverlog", "scalable_zeno");
@@ -22,28 +28,43 @@ if ($mode eq "q")
 	print TEMP_FILE "set title \"Plan quality.\"\n";
 	print TEMP_FILE "set output \"scatterplot_${merged_name}_pq.ps\"\n";
 }
-else
+elsif ($mode eq "s")
 {
 	print TEMP_FILE "set log x\n";
 	print TEMP_FILE "set log y\n";
 	print TEMP_FILE "set title \"States explored.\"\n";
 	print TEMP_FILE "set output \"scatterplot_${merged_name}.ps\"\n";
 }
+elsif ($mode eq "m")
+{
+	print TEMP_FILE "set log x\n";
+	print TEMP_FILE "set log y\n";
+	print TEMP_FILE "set title \"Memory used in bits.\"\n";
+	print TEMP_FILE "set output \"scatterplot_${merged_name}_mem.ps\"\n";
+#print TEMP_FILE "set xrange [100000:100000000]\n";
+#print TEMP_FILE "set yrange [100000:1000000000]\n";
+}
 #print TEMP_FILE "set xrange [1000000:10000000000]\n";
 #print TEMP_FILE "set yrange [1000000:10000000000]\n";
 #print TEMP_FILE "set xrange [0.001:10000000]\n";
 #print TEMP_FILE "set yrange [0.001:10000000]\n";
-#print TEMP_FILE "set xrange [0:250]\n";
+#print TEMP_FILE "set xrange [1:20]\n";
 #print TEMP_FILE "set yrange [0:250]\n";
 #print TEMP_FILE "set log x\n";
 #print TEMP_FILE "set size 0.8\n";
 #print TEMP_FILE "set log y\n";
 #print TEMP_FILE "set title \"Memory used in bits.\"\n";
 #print TEMP_FILE "set title \"States explored.\"\n";
-print TEMP_FILE "set ylabel \"FF heuristic\"\n";
-print TEMP_FILE "set xlabel \"Lifted RPG heuristic\"\n";
+#print TEMP_FILE "set title \"Plan quality.\"\n";
+#print TEMP_FILE "set ylabel \"FF heuristic\"\n";
+#print TEMP_FILE "set xlabel \"Lifted RPG heuristic\"\n";
+#print TEMP_FILE "set ylabel \"Causal Graph heuristic\"\n";
+#print TEMP_FILE "set ylabel \"Context Enhanced Additive heuristic\"\n";
+print TEMP_FILE "set ylabel \"Merge and Shrink heuristic\"\n";
+print TEMP_FILE "set xlabel \"Merged LCG heuristic\"\n";
+#print TEMP_FILE "set xlabel \"Not Merged LCG heuristic\"\n";
 print TEMP_FILE "set term postscript enhanced colour\n";
-#print TEMP_FILE "set output \"scatterplot_${merged_name}_pq.ps\"\n";
+#print TEMP_FILE "set output \"scatterplot_${merged_name}.ps\"\n";
 print TEMP_FILE "set datafile missing \"?\"\n";
 print TEMP_FILE "plot ";
 my $index = 0;
@@ -57,9 +78,13 @@ foreach my $domain_name (@domain_names)
 	{
 		print TEMP_FILE "\"merged_results_${merged_name}/${domain_name}-quality.dat\" using 1:2 with points title \"${domain_name}\"";
 	}
-	else
+	elsif ($mode eq "s")
 	{
 		print TEMP_FILE "\"merged_results_${merged_name}/${domain_name}-states.dat\" using 1:2 with points title \"${domain_name}\"";
+	}
+	elsif ($mode eq "m")
+	{
+		print TEMP_FILE "\"merged_results_${merged_name}/${domain_name}-memory.dat\" using 1:2 with points title \"${domain_name}\"";
 	}
 	$index++;
 }
@@ -73,8 +98,12 @@ if ($mode eq "q")
 {
 	`convert -rotate 90 scatterplot_${merged_name}_pq.ps scatterplot_${merged_name}_pq.pdf`;
 }
-else
+elsif ($mode eq "s")
 {
 	`convert -rotate 90 scatterplot_${merged_name}.ps scatterplot_${merged_name}.pdf`;
+}
+elsif ($mode eq "m")
+{
+	`convert -rotate 90 scatterplot_${merged_name}_mem.ps scatterplot_${merged_name}_mem.pdf`;
 }
 

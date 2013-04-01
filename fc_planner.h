@@ -203,6 +203,7 @@ private:
 	void removeFact(const GroundedAtom& fact);
 	
 	void instantiateAndExecuteAction(NewStateReachedListener& listener, const std::multimap<const Object*, const Object*>& symmetrical_groups, const MyPOP::Action& action, const std::vector< const MyPOP::Atom* >& preconditions, const std::vector< const MyPOP::Equality* >& equalities, unsigned int uninitialised_precondition_index, const MyPOP::Object** assigned_variables, const MyPOP::TypeManager& type_manager, bool prune_unhelpful_actions) const;
+	void instantiateAndExecuteAction(const std::vector<const GroundedAtom*>& relevant_facts, NewStateReachedListener& listener, const std::multimap<const Object*, const Object*>& symmetrical_groups, const Action& action, const std::vector<const Atom*>& preconditions, const std::vector<const Equality*>& equalities, unsigned int uninitialised_precondition_index, const Object** assigned_variables, const TypeManager& type_manager, bool prune_unhelpful_actions) const;
 	
 	void createAllGroundedVariables(std::vector<const Object**>& all_grounded_action_variables, const Object** grounded_action_variables, const Action& action, const TypeManager& type_manager) const;
 	

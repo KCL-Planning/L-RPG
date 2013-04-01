@@ -583,17 +583,32 @@ void State::instantiateAndExecuteAction(NewStateReachedListener& listener, const
 	
 	for (std::vector<const GroundedAtom*>::const_iterator ci = facts_.begin(); ci != facts_.end(); ++ci)
 	{
+		if ((*ci)->getPredicate().isStatic())
+		{
+			continue;
+		}
 		std::cout << **ci << std::endl;
 	}
 #endif
 	// Find facts in the current state which can unify with the 'uninitialised_precondition_index'th precondition and does not violate the already assigned variables.
 	const Atom* precondition = preconditions[uninitialised_precondition_index];
+
+	if (precondition->getPredicate().isStatic())
+	{
+		instantiateAndExecuteAction(static_facts_, listener, symmetrical_groups, action, preconditions, equalities, uninitialised_precondition_index, assigned_variables, type_manager, prune_unhelpful_actions);
+	}
+	else
+	{
+		instantiateAndExecuteAction(static_facts_, listener, symmetrical_groups, action, preconditions, equalities, uninitialised_precondition_index, assigned_variables, type_manager, prune_unhelpful_actions);
+		instantiateAndExecuteAction(facts_, listener, symmetrical_groups, action, preconditions, equalities, uninitialised_precondition_index, assigned_variables, type_manager, prune_unhelpful_actions);
+	}
+}
+
+void State::instantiateAndExecuteAction(const std::vector<const GroundedAtom*>& relevant_facts, NewStateReachedListener& listener, const std::multimap<const Object*, const Object*>& symmetrical_groups, const Action& action, const std::vector<const Atom*>& preconditions, const std::vector<const Equality*>& equalities, unsigned int uninitialised_precondition_index, const Object** assigned_variables, const TypeManager& type_manager, bool prune_unhelpful_actions) const
+{
+	const Atom* precondition = preconditions[uninitialised_precondition_index];
 	std::vector<const GroundedAtom*> already_tried_facts;
-	
-	const std::vector<const GroundedAtom*>* relevant_facts = precondition->getPredicate().isStatic() ? &static_facts_ : &facts_;
-	//const std::vector<const GroundedAtom*>* relevant_facts = &facts_;
-	//for (std::vector<const GroundedAtom*>::const_iterator ci = facts_.begin(); ci != facts_.end() && listener.continueSearching(); ci++)
-	for (std::vector<const GroundedAtom*>::const_iterator ci = relevant_facts->begin(); ci != relevant_facts->end(); ++ci)
+	for (std::vector<const GroundedAtom*>::const_iterator ci = relevant_facts.begin(); ci != relevant_facts.end(); ++ci)
 	{
 		const GroundedAtom* grounded_atom = *ci;
 		//const GroundedAtom* grounded_atom = (i < facts_.size() ? facts_[i] : static_facts_[i - facts_.size()]);
@@ -938,7 +953,6 @@ bool State::operator==(const State& state) const
 
 void State::addStaticFact(const GroundedAtom& static_fact)
 {
-	std::cout << "ADD STATIC FACT!" << std::endl;
 	static_facts_.push_back(&static_fact);
 }
 
@@ -1248,7 +1262,7 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 		}
 		
 		std::multimap<const Object*, const Object*> symmetrical_groups;
-		heuristic_->getFunctionalSymmetricSets(symmetrical_groups, *state, grounded_goal_facts, term_manager);
+		//heuristic_->getFunctionalSymmetricSets(symmetrical_groups, *state, grounded_goal_facts, term_manager);
 	
 		state->getSuccessors(*new_state_reached_listener, symmetrical_groups, *action_manager_, *type_manager_, prune_unhelpful_actions);
 		delete new_state_reached_listener;
@@ -1269,12 +1283,18 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 				std::cerr << "*";
 				continue;
 			}
-
+			
 			bool already_processed = false;
 			for (std::vector<const State*>::const_iterator state_ci = processed_states.begin(); state_ci != processed_states.end(); state_ci++)
 			{
+#ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
+				std::cout << "compare " << *successor_state << std::endl << " against: " << std::endl << **state_ci << std::endl;
+#endif
 				if (*successor_state == **state_ci)
 				{
+#ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
+					std::cout << "IT IS!!!" << std::endl;
+#endif
 					already_processed = true;
 					break;
 				}
@@ -1284,22 +1304,15 @@ std::pair<int, int> ForwardChainingPlanner::findPlan(std::vector<const GroundedA
 			{
 #ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
 				std::cout << "Already processed!?" << queue.size() << std::endl;
-				std::cout << *state << std::endl;
+//				std::cout << *state << std::endl;
 #endif
 				delete successor_state;
 				continue;
 			}
 			
-			//heuristic_->setHeuristicForState(*successor_state, grounded_goal_facts, term_manager, false, allow_new_goals_to_be_added);
-			
 #ifdef MYPOP_FORWARD_CHAIN_PLANNER_COMMENTS
 			std::cout << "Sucessor state:" << std::endl;
 			std::cout << *successor_state << std::endl;
-/*			std::cout << " ============== Helpful actions ============== " << std::endl;
-			for (std::vector<const REACHABILITY::AchievingTransition*>::const_iterator ci = analyst.getHelpfulActions().begin(); ci != analyst.getHelpfulActions().end(); ++ci)
-			{
-				std::cout << **ci << std::endl;
-			}*/
 #endif
 			
 			queue.push(successor_state);

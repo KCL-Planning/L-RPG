@@ -35,14 +35,12 @@ elsif ($mode eq "s")
 	print TEMP_FILE "set title \"States explored.\"\n";
 	print TEMP_FILE "set output \"scatterplot_${merged_name}.ps\"\n";
 }
-elsif ($mode eq "m")
+else
 {
 	print TEMP_FILE "set log x\n";
 	print TEMP_FILE "set log y\n";
-	print TEMP_FILE "set title \"Memory used in bits.\"\n";
-	print TEMP_FILE "set output \"scatterplot_${merged_name}_mem.ps\"\n";
-#print TEMP_FILE "set xrange [100000:100000000]\n";
-#print TEMP_FILE "set yrange [100000:1000000000]\n";
+	print TEMP_FILE "set title \"Time (s).\"\n";
+	print TEMP_FILE "set output \"scatterplot_${merged_name}_time.ps\"\n";
 }
 #print TEMP_FILE "set xrange [1000000:10000000000]\n";
 #print TEMP_FILE "set yrange [1000000:10000000000]\n";
@@ -55,14 +53,9 @@ elsif ($mode eq "m")
 #print TEMP_FILE "set log y\n";
 #print TEMP_FILE "set title \"Memory used in bits.\"\n";
 #print TEMP_FILE "set title \"States explored.\"\n";
-#print TEMP_FILE "set title \"Plan quality.\"\n";
 #print TEMP_FILE "set ylabel \"FF heuristic\"\n";
-#print TEMP_FILE "set xlabel \"Lifted RPG heuristic\"\n";
-#print TEMP_FILE "set ylabel \"Causal Graph heuristic\"\n";
-#print TEMP_FILE "set ylabel \"Context Enhanced Additive heuristic\"\n";
-print TEMP_FILE "set ylabel \"Merge and Shrink heuristic\"\n";
-print TEMP_FILE "set xlabel \"Merged LCG heuristic\"\n";
-#print TEMP_FILE "set xlabel \"Not Merged LCG heuristic\"\n";
+print TEMP_FILE "set ylabel \"CEA heuristic\"\n";
+print TEMP_FILE "set xlabel \"Lifted CG heuristic\"\n";
 print TEMP_FILE "set term postscript enhanced colour\n";
 #print TEMP_FILE "set output \"scatterplot_${merged_name}.ps\"\n";
 print TEMP_FILE "set datafile missing \"?\"\n";
@@ -82,9 +75,9 @@ foreach my $domain_name (@domain_names)
 	{
 		print TEMP_FILE "\"merged_results_${merged_name}/${domain_name}-states.dat\" using 1:2 with points title \"${domain_name}\"";
 	}
-	elsif ($mode eq "m")
+	else
 	{
-		print TEMP_FILE "\"merged_results_${merged_name}/${domain_name}-memory.dat\" using 1:2 with points title \"${domain_name}\"";
+		print TEMP_FILE "\"merged_results_${merged_name}/${domain_name}-time.dat\" using 1:2 with points title \"${domain_name}\"";
 	}
 	$index++;
 }
@@ -102,8 +95,8 @@ elsif ($mode eq "s")
 {
 	`convert -rotate 90 scatterplot_${merged_name}.ps scatterplot_${merged_name}.pdf`;
 }
-elsif ($mode eq "m")
+else
 {
-	`convert -rotate 90 scatterplot_${merged_name}_mem.ps scatterplot_${merged_name}_mem.pdf`;
+	`convert -rotate 90 scatterplot_${merged_name}_time.ps scatterplot_${merged_name}_time.pdf`;
 }
 

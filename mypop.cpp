@@ -286,7 +286,7 @@ int main(int argc,char * argv[])
 	}
 	
 	// If the greedy method failed, try the non greedy method!
-	if (false && result.first == -1)
+	if (result.first == -1)
 	{
 		found_plan.clear();
 		GroundedAtom::removeInstantiatedGroundedAtom();

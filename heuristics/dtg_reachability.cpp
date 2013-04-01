@@ -1827,7 +1827,7 @@ std::ostream& operator<<(std::ostream& os, const AchievingTransition& executed_a
 	return os;
 }
 
-
+unsigned int ReachableTransition::nr_created_effects_ = 0;
 
 ReachableTransition::ReachableTransition(const MyPOP::HEURISTICS::LiftedTransition& lifted_transition, const std::vector< MyPOP::REACHABILITY::ReachableSet* >& preconditions, const std::vector< MyPOP::REACHABILITY::ReachableSet* >& effects)
 	: transition_(&lifted_transition), preconditions_reachable_sets_(&preconditions), effect_reachable_sets_(&effects)
@@ -1929,10 +1929,21 @@ bool ReachableTransition::generateReachableFacts(const EquivalentObjectGroupMana
 	std::vector<const AchievingTransition*> newly_created_reachable_facts;
 	generateReachableFacts(eog_manager, newly_created_reachable_facts, preconditions, variable_assignments, 0, *fact_layer.getPreviousLayer());
 
+	if (newly_created_reachable_facts.size() > 0)
+	{
+		std::cerr << transition_->getAction().getPredicate() << " ";
+		for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = transition_->getActionVariables().begin(); ci != transition_->getActionVariables().end(); ++ci)
+		{
+			std::cerr << **ci << ", ";
+		}
+		std::cerr << ". Produced: " << newly_created_reachable_facts.size() << " effects!" << std::endl;
+	}
+	
 	bool new_facts_reached = false;
 	for (std::vector<const AchievingTransition*>::const_iterator ci = newly_created_reachable_facts.begin(); ci != newly_created_reachable_facts.end(); ++ci)
 	{
 		const AchievingTransition* created_effect = *ci;
+		std::cerr << "* " << created_effect->getReachableFact() << std::endl;
 
 		// Check if this action removes a fact we want to preserve.
 		bool deletes_persistent_node = false;
@@ -2164,7 +2175,6 @@ void ReachableTransition::generateReachableFacts(const EquivalentObjectGroupMana
 			if (matches)
 			{
 				return;
-				//return false;
 			}
 		}
 
@@ -2242,7 +2252,7 @@ void ReachableTransition::generateReachableFacts(const EquivalentObjectGroupMana
 					{
 						for (std::vector<const Object*>::const_iterator ci = fact->getVariableDomains()[term_index]->getVariableDomain().begin(); ci != fact->getVariableDomains()[term_index]->getVariableDomain().end(); ++ci)
 						{
-							EquivalentObjectGroup& eog = eog_manager.getEquivalentObject(**ci).getEquivalentObjectGroup();
+							EquivalentObjectGroup& eog = eog_manager.getEquivalentObject(**ci).getEquivalentObjectGroup().getRootNode();
 							if (std::find(possible_domains->begin(), possible_domains->end(), &eog) == possible_domains->end())
 							{
 								possible_domains->push_back(&eog);
@@ -2272,6 +2282,17 @@ void ReachableTransition::generateReachableFacts(const EquivalentObjectGroupMana
 					
 					ReachableFact& new_effect = ReachableFact::createReachableFact(fact->getPredicate(), *variable_domains);
 					
+					bool effect_same_as_precondition = false;
+					for (std::vector<const ReachableFact*>::const_iterator ci = preconditions.begin(); ci != preconditions.end(); ++ci)
+					{
+						if (new_effect.isIdenticalTo(**ci))
+						{
+							effect_same_as_precondition = true;
+							break;
+						}
+					}
+					if (effect_same_as_precondition) continue;
+					
 					std::vector<HEURISTICS::VariableDomain*>* variable_assignments = new std::vector<HEURISTICS::VariableDomain*>();
 					for (unsigned int variable_index = 0; variable_index < current_variable_assignments.size(); ++variable_index)
 					{
@@ -2290,14 +2311,10 @@ void ReachableTransition::generateReachableFacts(const EquivalentObjectGroupMana
 					AchievingTransition* created_effect = new AchievingTransition(fact_index, fact_set_index, *transition_preconditions, new_effect, *this, *variable_assignments, *preconditions_fact_layer_items, need_cleanup);
 					newly_created_reachable_facts.push_back(created_effect);
 					
+					++nr_created_effects_;
+					
 					need_cleanup = false;
-//					std::cout << this << "; New effect: " << *created_effect << std::endl;
-/*
-					if (processNewGeneratedFact(*created_effect, persistent_facts, eog_manager, current_fact_layer))
-					{
-						created_new_fact = true;
-					}
-*/					
+
 					for (unsigned int i = 0; i < fact->getVariableDomains().size(); ++i)
 					{
 						if (counter[i] + 1 == (*possible_domains_per_term[i]).size())
@@ -2348,11 +2365,20 @@ void ReachableTransition::generateReachableFacts(const EquivalentObjectGroupMana
 			std::vector<const ReachableFact*> new_preconditions(preconditions);
 			const ReachableTreeNode* leaf_node = current_tree->getLeaves()[leaf_index];
 
+			bool process = true;
 			for (unsigned int fact_index = 0; fact_index < (*precondition_mappings).size(); ++fact_index)
 			{
 				int current_index = (*precondition_mappings).size() - 1 - fact_index;
 				
 				const ReachableFact& reachable_fact = leaf_node->getReachableFact();
+				if (reachable_fact.isMarkedForRemoval() || &reachable_fact.getReplacement() != &reachable_fact)
+				{
+					process = false;
+					break;
+				}
+				
+				if (reachable_fact.isMarkedForRemoval()) continue;
+				
 				std::vector<unsigned int>* variable_mappings = (*precondition_mappings)[current_index];
 				new_preconditions.push_back(&reachable_fact);
 				for (unsigned int term_index = 0; term_index < reachable_fact.getPredicate().getArity(); ++term_index)
@@ -2363,7 +2389,10 @@ void ReachableTransition::generateReachableFacts(const EquivalentObjectGroupMana
 				leaf_node = leaf_node->getParent();
 			}
 			
-			generateReachableFacts(eog_manager, newly_created_reachable_facts, new_preconditions, tmp_current_variable_assignments, precondition_index + 1, fact_layer);
+			if (process)
+			{
+				generateReachableFacts(eog_manager, newly_created_reachable_facts, new_preconditions, tmp_current_variable_assignments, precondition_index + 1, fact_layer);
+			}
 /*
 			if (generateReachableFacts(eog_manager, new_preconditions, tmp_current_variable_assignments, precondition_index + 1, current_fact_layer, persistent_facts))
 			{
@@ -3083,7 +3112,7 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_PERFORM_REACHABILITY_COMMENT
 	std::cout << "Start performing reachability analysis." << std::endl;
 #endif
-
+	ReachableTransition::resetNrCreatedEffects();
 #ifdef DTG_REACHABILITY_KEEP_TIME
 	struct timeval start_time_eog;
 	gettimeofday(&start_time_eog, NULL);
@@ -3247,7 +3276,7 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 		done = true;
 		for (std::vector<ReachableTransition*>::const_iterator ci = reachable_transition_.begin(); ci != reachable_transition_.end(); ++ci)
 		{
-//			std::cout << "Iteration: " << iteration << "." << std::endl;
+			//std::cout << "Iteration: " << iteration << "." << std::endl;
 			if ((*ci)->generateReachableFacts(*equivalent_object_manager_, *current_fact_layer_, reachable_persistent_facts))
 			{
 				done = false;
@@ -3357,6 +3386,7 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 	} while (fl != NULL);
 #endif
 	equivalent_object_manager_->getAllReachableFacts(result);
+	std::cerr << "Effects: " << ReachableTransition::getNrCreatedEffects() << std::endl;
 }
 
 void DTGReachability::setHeuristicForState(MyPOP::State& state, const std::vector<const GroundedAtom*>& goal_facts, const TermManager& term_manager, bool find_helpful_actions, bool allow_new_goals_to_be_added)
@@ -3382,7 +3412,6 @@ void DTGReachability::setHeuristicForState(MyPOP::State& state, const std::vecto
 		{
 			(*variables)[i] = &getEquivalentObjectGroupManager().getEquivalentObject(grounded_atom->getObject(i)).getEquivalentObjectGroup();
 		}
-		
 		reachable_facts.push_back(&REACHABILITY::ReachableFact::createReachableFact(grounded_atom->getPredicate(), *variables));
 	}
 
@@ -3424,7 +3453,7 @@ void DTGReachability::setHeuristicForState(MyPOP::State& state, const std::vecto
 		{
 			const REACHABILITY::ReachableFact* reachable_fact = *ci;
 			if (goal_fact->getPredicate().getArity() != reachable_fact->getPredicate().getArity() ||
-					goal_fact->getPredicate().getName() != goal_fact->getPredicate().getName())
+			    goal_fact->getPredicate().getName() != goal_fact->getPredicate().getName())
 			{
 				continue;
 			}
@@ -3491,7 +3520,7 @@ void DTGReachability::setHeuristicForState(MyPOP::State& state, const std::vecto
 //		std::cerr << "?";
 	}
 	
-	unsigned int heuristic_value = getHeuristic(goal_facts, allow_new_goals_to_be_added, find_helpful_actions, true);
+	unsigned int heuristic_value = getHeuristic(goal_facts, allow_new_goals_to_be_added, find_helpful_actions, false);
 	state.setDistanceToGoal(heuristic_value);
 //	std::cerr << analyst.getHelpfulActions().size() << std::endl;
 	if (find_helpful_actions)

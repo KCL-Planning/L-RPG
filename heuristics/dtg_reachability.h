@@ -113,10 +113,8 @@ public:
 	
 	EquivalentObjectGroup& getTermDomain(unsigned int index) const;
 	
-//	EquivalentObjectGroup** getTermDomains() const { return term_domain_mapping_; }
 	const std::vector<EquivalentObjectGroup*>& getTermDomains() const { return *term_domain_mapping_; }
 	
-//	const Atom& getAtom() const { return *atom_; }
 	const Predicate& getPredicate() const { return *predicate_; }
 	
 	/**
@@ -159,7 +157,6 @@ private:
 
 	const Predicate* predicate_;
 	
-	//EquivalentObjectGroup** term_domain_mapping_;
 	std::vector<EquivalentObjectGroup*>* term_domain_mapping_;
 	
 	// During the construction of the reachability graph terms can be merged and because of that some reachable facts are
@@ -178,8 +175,6 @@ private:
 	//
 	// By marking the former for removal we can remove the remaining reachable fact.
 	ReachableFact* replaced_by_;
-	
-	//friend class ReachableFactMemoryPool;
 	
 	friend std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact);
 };
@@ -335,7 +330,6 @@ std::ostream& operator<<(std::ostream& os, const ReachableSet& reachable_set);
 class AchievingTransition
 {
 public:
-	//AchievingTransition(unsigned int effect_index, unsigned int effect_set_index, const std::vector<const ReachableFact*>& preconditions, ReachableFact& fact, const ReachableTransition& achiever, const std::vector<HEURISTICS::VariableDomain*>& variable_assignments, const ReachableFactLayer& fact_layer);
 	 AchievingTransition(unsigned int effect_index, unsigned int effect_set_index, const std::vector<const ReachableFact*>& preconditions, ReachableFact& fact, const ReachableTransition& achiever, std::vector<HEURISTICS::VariableDomain*>& variable_assignments, const std::vector<const ReachableFactLayerItem*>& precondition_fact_layers, bool cleanup);
 
 	// Make sure the default copy constructor is not used!
@@ -406,9 +400,7 @@ private:
 	
 	unsigned int effect_index_; // The index of the fact in the reachable set.
 	unsigned int effect_set_index_;
-	
-	//std::vector<const ReachableFact*> preconditions_;
-	//std::vector<const ReachableFactLayerItem*> preconditions_fact_layer_items_;
+
 	const std::vector<const ReachableFact*>* preconditions_;
 	const std::vector<const ReachableFactLayerItem*>* preconditions_fact_layer_items_;
 	ReachableFact* reachable_fact_;
@@ -455,6 +447,9 @@ public:
 	
 	void finalise(const std::vector<ReachableSet*>& all_reachable_sets);
 	
+	static unsigned int getNrCreatedEffects() { return nr_created_effects_; }
+	static void resetNrCreatedEffects() { nr_created_effects_ = 0; }
+	
 	//void print(std::ostream& os) const;
 private:
 	
@@ -477,6 +472,8 @@ private:
 	//const std::vector<ReachableFact*> empty_transition_reachable_set_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const ReachableTransition& reachable_transition);
+	
+	static unsigned int nr_created_effects_;
 };
 
 std::ostream& operator<<(std::ostream& os, const ReachableTransition& reachable_transition);

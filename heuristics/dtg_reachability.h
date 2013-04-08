@@ -438,10 +438,13 @@ public:
 	const HEURISTICS::LiftedTransition& getTransition() const { return *transition_; }
 	
 	/**
-	 * Generate all the possible new reachable facts by combining the full sets of this reachable transition with those
-	 * of its from node.
+	 * Generate all the possible new reachable facts by combining the full sets of reachable facts from the previous fact layer.
+	 * @param eog_manager The manager which contains all the Equivalent Object Groups.
+	 * @param new_fact_layer The fact layer where all the new reachable facts are added.
+	 * @param persistent_facts The facts that cannot be removed. Any action that has an effect that removes any of these facts will not be executed.
+	 * @return ?
 	 */
-	bool generateReachableFacts(const MyPOP::REACHABILITY::EquivalentObjectGroupManager& eog_manager, MyPOP::REACHABILITY::ReachableFactLayer& fact_layer, const std::vector< const MyPOP::REACHABILITY::ReachableFact* >& persistent_facts);
+	bool generateReachableFacts(const MyPOP::REACHABILITY::EquivalentObjectGroupManager& eog_manager, MyPOP::REACHABILITY::ReachableFactLayer& new_fact_layer, const std::vector< const MyPOP::REACHABILITY::ReachableFact* >& persistent_facts);
 	
 	void equivalencesUpdated(unsigned int iteration);
 	
@@ -453,7 +456,16 @@ public:
 	//void print(std::ostream& os) const;
 private:
 	
-	void generateReachableFacts(const MyPOP::REACHABILITY::EquivalentObjectGroupManager& eog_manager, std::vector< const MyPOP::REACHABILITY::AchievingTransition* >& newly_created_reachable_facts, std::vector< const MyPOP::REACHABILITY::ReachableFact* >& preconditions, std::vector< MyPOP::REACHABILITY::EquivalentObjectGroup* >& current_variable_assignments, unsigned int precondition_index, const MyPOP::REACHABILITY::ReachableFactLayer& fact_layer);
+	/**
+	 * Iterative algorithm that generate the new set of effects that form the new set of reachable facts in the next fact layer.
+	 * @param eog_manager The EOG manager which contains all the equivalent object groups.
+	 * @param preconditions The preconditions that have been selected, if the number of preconditions is equal to the number of preconditions of the transition then we create the effects.
+	 * @param current_variable_assignments The variable assignments which had been assigned so far.
+	 * @param precondition_index The index of the preconditions that is currently being considered.
+	 * @param new_fact_layer The fact layer where all new effects are added.
+	 */
+	void generateReachableFacts(const MyPOP::REACHABILITY::EquivalentObjectGroupManager& eog_manager, std::vector< const MyPOP::REACHABILITY::ReachableFact* >& preconditions, std::vector< MyPOP::REACHABILITY::EquivalentObjectGroup* >& current_variable_assignments, unsigned int precondition_index, MyPOP::REACHABILITY::ReachableFactLayer& new_fact_layer);
+	//void generateReachableFacts(const MyPOP::REACHABILITY::EquivalentObjectGroupManager& eog_manager, std::vector< const MyPOP::REACHABILITY::AchievingTransition* >& newly_created_reachable_facts, std::vector< const MyPOP::REACHABILITY::ReachableFact* >& preconditions, std::vector< MyPOP::REACHABILITY::EquivalentObjectGroup* >& current_variable_assignments, unsigned int precondition_index, const MyPOP::REACHABILITY::ReachableFactLayer& new_fact_layer);
 	//bool generateReachableFacts(const MyPOP::REACHABILITY::EquivalentObjectGroupManager& eog_manager, std::vector< const MyPOP::REACHABILITY::ReachableFact* >& preconditions, std::vector< MyPOP::REACHABILITY::EquivalentObjectGroup* >& current_variable_assignments, unsigned int precondition_index, MyPOP::REACHABILITY::ReachableFactLayer& fact_layer, const std::vector<const ReachableFact*>& persistent_facts);
 	
 	//bool processNewGeneratedFact(const AchievingTransition& created_effect, const std::vector<const ReachableFact*>& persistent_facts, const EquivalentObjectGroupManager& eog_manager, ReachableFactLayer& fact_layer);
@@ -484,17 +496,23 @@ public:
 	ReachableFactLayerItem(const ReachableFactLayer& reachable_fact_layer, const ReachableFact& reachable_fact);
 	~ReachableFactLayerItem();
 	
-	bool canBeAchievedBy(const ResolvedBoundedAtom& precondition, StepID id, const Bindings& bindings, bool debug) const;
+	//bool canBeAchievedBy(const ResolvedBoundedAtom& precondition, StepID id, const Bindings& bindings, bool debug) const;
 	
 	//void addAchiever(const ReachableTransition& achiever, const ReachableTreeNode& from_tree_node, const ReachableTreeNode* transition_tree_node);
-	//void addAchiever(const ReachableTransition& achiever, const std::vector<const ReachableFact*>& preconditions);
+	
+	/**
+	 * Add an achiever for this item. We include the preconditions (if any) and the transition which achieved the fact. We can derive any 
+	 * substitutions we need to make by instantiating the transitions and compare the preconditions with the desired effect. If they do not 
+	 * match up then we need to make substitutions.
+	 */
+	void addAchiever(const ReachableTransition& achiever, const std::vector<const ReachableFact*>& preconditions);
 	//void addAchiever(const ReachableTransition& achiever, const std::vector<const ReachableFact*>& preconditions, const std::vector<const HEURISTICS::VariableDomain*>& variable_domains);
 	
-	void addAchiever(const AchievingTransition& achiever);
+	//void addAchiever(const AchievingTransition& achiever);
 	
 	void addNoop(const ReachableFactLayerItem& noop);
-//	const std::vector<std::pair<const ReachableTransition*, std::vector<const ReachableFactLayerItem*>* > >& getAchievers() const { return achievers_; }
-	const std::vector<const AchievingTransition*>& getAchievers() const { return achievers_; }
+	const std::vector<std::pair<const ReachableTransition*, std::vector<const ReachableFactLayerItem*>* > >& getAchievers() const { return achievers_; }
+	//const std::vector<const AchievingTransition*>& getAchievers() const { return achievers_; }
 	
 	const ReachableFact& getReachableFactCopy() const { return *reachable_fact_copy_; }
 	const ReachableFact& getActualReachableFact() const { return *link_to_actual_reachable_fact_; }
@@ -506,8 +524,8 @@ private:
 	const ReachableFact* reachable_fact_copy_;
 	const ReachableFact* link_to_actual_reachable_fact_;
 	
-	//std::vector<std::pair<const ReachableTransition*, std::vector<const ReachableFactLayerItem*>* > > achievers_;
-	std::vector<const AchievingTransition*> achievers_;
+	std::vector<std::pair<const ReachableTransition*, std::vector<const ReachableFactLayerItem*>* > > achievers_;
+	//std::vector<const AchievingTransition*> achievers_;
 };
 
 std::ostream& operator<<(std::ostream& os, const ReachableFactLayerItem& reachable_fact_layer);
@@ -524,8 +542,8 @@ public:
 	/**
 	 * Add a fact to this fact to the layer without any achievers.
 	 */
-	void addFact(const ReachableFact& reachable_fact);
-	void addFact(const AchievingTransition& achieved_transition, bool already_exists);
+	ReachableFactLayerItem& addFact(const ReachableFact& reachable_fact);
+	//void addFact(const AchievingTransition& achieved_transition, bool already_exists);
 	const std::vector<ReachableFactLayerItem*>& getReachableFacts() const;
 	const ReachableFactLayerItem* contains(const GroundedAtom& atom) const;
 	unsigned int getLayerNumber() const;

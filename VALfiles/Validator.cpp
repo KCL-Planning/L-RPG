@@ -1924,8 +1924,8 @@ vector<string> Gantt::getSigObjs(const Action * a)
 	{
 		par = a->getBindings().find(*i)->second->getName();
 		//is parameter a sigificant object?
-		vector<string>::iterator i = std::find(sigObjs.begin(),sigObjs.end(),par);
-		if(i != sigObjs.end())
+		vector<string>::iterator is = std::find(sigObjs.begin(),sigObjs.end(),par);
+		if(is != sigObjs.end())
 		{
 
 			so.push_back(par);

@@ -89,12 +89,12 @@ public:
 	
 	virtual ~TransitionFact();
 	
-	const std::vector<const Term*>& getActionVariables() const { return *action_variables_; }
+	const std::vector<const Term*>& getActionVariables() const { return action_variables_; }
 	
 	bool operator==(const TransitionFact& rhs) const;
 	
 private:
-	const std::vector<const Term*>* action_variables_;
+	std::vector<const Term*> action_variables_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const TransitionFact& transition_fact);
 };

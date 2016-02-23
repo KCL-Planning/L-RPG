@@ -17,6 +17,7 @@ class Formula;
 class Atom;
 class Bindings;
 class Term;
+class GroundedAction;
 
 /**
  * PDDL Type.
@@ -108,6 +109,7 @@ public:
 	// Do the unthinkable! Ground an action. A grounded action will only have a single object
 	// assigned to each of its variable domains.
 	void ground(Bindings& bindings, std::vector<const Step*>& grounded_actions, const Action& action) const;
+	void ground(std::vector<const GroundedAction*>& grounded_actions, const Action& action) const;
 
 private:
 	const TypeManager* type_manager_;

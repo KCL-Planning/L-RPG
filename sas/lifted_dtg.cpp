@@ -1,6 +1,7 @@
 #include "lifted_dtg.h"
 
 #include <fstream>
+#include <sstream>
 
 #include "../VALfiles/ptree.h"
 #include "../VALfiles/SASActions.h"
@@ -15,7 +16,7 @@
 #include <type_manager.h>
 #include <parser_utils.h>
 
-//#define MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
+///#define MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
 
 namespace MyPOP
 {
@@ -554,7 +555,12 @@ void MultiValuedTransition::migrateTransition(std::vector<MultiValuedTransition*
 	
 	for (std::vector<std::vector<HEURISTICS::VariableDomain*> *>::const_iterator ci = split_action_variables.begin(); ci != split_action_variables.end(); ++ci)
 	{
-		delete *ci;
+		const std::vector<HEURISTICS::VariableDomain*>* vds = *ci;
+		for (std::vector<HEURISTICS::VariableDomain*>::const_iterator ci = vds->begin(); ci != vds->end(); ++ci)
+		{
+			delete *ci;
+		}
+		delete vds;
 	}
 	
 	delete new_transition;
@@ -1300,6 +1306,16 @@ void LiftedDTG::createLiftedDTGs(std::vector< LiftedDTG* >& created_lifted_dtgs,
 	}
 	created_lifted_dtgs.clear();
 	created_lifted_dtgs.insert(created_lifted_dtgs.end(), split_dtgs.begin(), split_dtgs.end());
+	
+	std::ofstream os;
+	os.open("dtg_output");
+	os << "digraph {" << std::endl;
+	for (std::vector<LiftedDTG*>::const_iterator ci = created_lifted_dtgs.begin(); ci != created_lifted_dtgs.end(); ++ci)
+	{
+		Graphviz::printToDot(os, **ci);
+	}
+	os << "}";
+	os.close();
 }
 
 void LiftedDTG::splitLiftedTransitionGraphs(std::vector<LiftedDTG*>& split_ltgs, const std::vector<LiftedDTG*>& created_ltgs, const TermManager& term_manager, const std::vector<const Atom*>& initial_facts, const TypeManager& type_manager, const PredicateManager& predicate_manager)
@@ -1878,6 +1894,7 @@ void LiftedDTG::findInvariableObjects(const std::vector<const Atom*>& initial_fa
 				break;
 			}
 		}
+		delete mvv;
 		
 		if (invariable_fact_index == std::numeric_limits<unsigned int>::max())
 		{
@@ -1897,7 +1914,18 @@ void LiftedDTG::findInvariableObjects(const std::vector<const Atom*>& initial_fa
 //					std::cout << **ci << ", ";
 				}
 			}
+			
+			for (std::vector<const HEURISTICS::Fact*>::const_iterator ci = fact->begin(); ci != fact->end(); ++ci)
+			{
+				delete *ci;
+			}
+			delete fact;
 		}
+	}
+	
+	for (std::vector<const HEURISTICS::Fact*>::const_iterator ci = transformed_initial_facts.begin(); ci != transformed_initial_facts.end(); ++ci)
+	{
+		delete *ci;
 	}
 	
 //	std::cout << "." << std::endl;
@@ -2317,6 +2345,7 @@ void LiftedDTG::createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs
 #endif
 			
 						//const std::map<const Property*, std::vector<unsigned int>* >& precondition_mappings_to_action_variables = transition->getMappingToActionVariables();
+					// TODO: Should not restrict the fact set here -- problem for Storage.
 					const std::vector<const HEURISTICS::VariableDomain*>& action_variables = transition->getActionVariableDomains();
 					
 					// We map each term of each value of each precondition to the variables of the action.
@@ -2349,8 +2378,9 @@ void LiftedDTG::createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs
 #ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
 							std::cout << "The " << fact_term_index << " is mapped to the " << (*mapping_to_action_variables)[fact_term_index] << "th action variable!" << std::endl;
 #endif
-							assert ((*mapping_to_action_variables).size() > fact_term_index);
-							assert ((*mapping_to_action_variables)[fact_term_index] < action_variables.size());
+							///assert ((*mapping_to_action_variables).size() > fact_term_index);
+							///assert ((*mapping_to_action_variables)[fact_term_index] < action_variables.size());
+							// TODO: Should not restrict the fact set here -- problem for Storage.
 							fact->setVariableDomain(fact_term_index, *action_variables[(*mapping_to_action_variables)[fact_term_index]]);
 							precondition_mapping->push_back((*mapping_to_action_variables)[fact_term_index]);
 						}
@@ -2379,6 +2409,7 @@ void LiftedDTG::createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs
 #ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
 							std::cout << "The " << fact_term_index << " is mapped to the " << (*mapping_to_action_variables)[fact_term_index] << "th action variable! (" << action_variables.size() << ")" << transition->getAction().getVariables().size() << std::endl;
 #endif
+							// TODO: Should not restrict the fact set here -- problem for Storage.
 							fact->setVariableDomain(fact_term_index, *action_variables[(*mapping_to_action_variables)[fact_term_index]]);
 							effect_to_action_variable_mappings->push_back((*mapping_to_action_variables)[fact_term_index]);
 						}
@@ -2391,6 +2422,7 @@ void LiftedDTG::createTransitions(const std::vector<LiftedDTG*>& all_lifted_dtgs
 		}
 	}
 #ifdef MYPOP_SAS_PLUS_MULTI_VALUED_TRANSITION_COMMENT
+	std::cout << "[LiftedDTG::createTransitions] Final result: " << std::endl;
 	std::cout << *this << std::endl;
 #endif
 }
@@ -2643,7 +2675,12 @@ void LiftedDTG::ground(const std::vector<LiftedDTG*>& all_lifted_dtgs, const std
 		
 		for (std::map<const HEURISTICS::VariableDomain*, std::vector<const HEURISTICS::VariableDomain*>* >::const_iterator ci = split_up_variable_domains.begin(); ci != split_up_variable_domains.end(); ++ci)
 		{
-			delete (*ci).second;
+			std::vector<const HEURISTICS::VariableDomain*>* vd = (*ci).second;
+			for (std::vector<const HEURISTICS::VariableDomain*>::const_iterator ci = vd->begin(); ci != vd->end(); ++ci)
+			{
+				delete *ci;
+			}
+			delete vd;
 		}
 	}
 	

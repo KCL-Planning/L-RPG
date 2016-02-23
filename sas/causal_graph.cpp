@@ -221,81 +221,7 @@ void CausalGraph::breakCycles(const std::vector<const GroundedAtom*>& goals)
 #ifdef MYPOP_SAS_PLUS_CAUSAL_GRAPH_COMMENTS
 	std::cout << "[CausalGraph::breakCycles] " << goals.size() << std::endl;
 #endif
-/*
-	// First of all we remove all the lifted DTGs the goals do not depend on.
-	std::set<const LiftedDTG*> relevant_dtgs;
-
-	for (std::vector<const GroundedAtom*>::const_iterator ci = goals.begin(); ci != goals.end(); ++ci)
-	{
-		const GroundedAtom* goal = *ci;
-		std::vector<const HEURISTICS::VariableDomain*> variable_domains;
-		
-		for (unsigned int term_index = 0; term_index < goal->getAtom().getArity(); ++term_index)
-		{
-			HEURISTICS::VariableDomain* vd = new HEURISTICS::VariableDomain();
-			vd->addObject(goal->getObject(term_index));
-			variable_domains.push_back(vd);
-		}
-		
-		HEURISTICS::Fact goal_fact(*predicate_manager_, goal->getAtom().getPredicate(), variable_domains);
-		for (std::vector<LiftedDTG*>::const_iterator ci = all_lifted_dtgs_->begin(); ci != all_lifted_dtgs_->end(); ci++)
-		{
-			const LiftedDTG* dtg = *ci;
-			
-			std::vector<const MultiValuedValue*> found_nodes;
-			dtg->getNodes(found_nodes, goal_fact);
-			
-			if (found_nodes.size() > 0)
-			{
-				relevant_dtgs.insert(dtg);
-			}
-		}
-	}
 	
-	unsigned int relevant_set_size = 0;
-	while (relevant_set_size != relevant_dtgs.size())
-	{
-		relevant_set_size = relevant_dtgs.size();
-		std::set<const LiftedDTG*> to_add;
-		for (std::set<const LiftedDTG*>::const_iterator ci = relevant_dtgs.begin(); ci != relevant_dtgs.end(); ++ci)
-		{
-			std::set<const LiftedDTG*>* depenencies = transitions_[*ci];
-			if (depenencies != NULL)
-			{
-				to_add.insert(depenencies->begin(), depenencies->end());
-			}
-		}
-		
-		relevant_dtgs.insert(to_add.begin(), to_add.end());
-	}
-
-	// Any lifted DTG that is not in the relevant set can be removed.
-	for (std::vector<LiftedDTG*>::const_iterator dtg_ci = all_lifted_dtgs_->begin(); dtg_ci != all_lifted_dtgs_->end(); dtg_ci++)
-	{
-		const LiftedDTG* dtg = *dtg_ci;
-		if (relevant_dtgs.find(dtg) == relevant_dtgs.end())
-		{
-			std::vector<std::pair<const LiftedDTG*, const LiftedDTG*> > connections_to_severe;
-			std::set<const LiftedDTG*>* to_facts = transitions_[dtg];
-			std::set<const LiftedDTG*>* from_facts = reverse_transitions_[dtg];
-			
-			for (std::set<const LiftedDTG*>::const_iterator ci = to_facts->begin(); ci != to_facts->end(); ++ci)
-			{
-				connections_to_severe.push_back(std::make_pair(dtg, *ci));
-			}
-			
-			for (std::set<const LiftedDTG*>::const_iterator ci = from_facts->begin(); ci != from_facts->end(); ++ci)
-			{
-				connections_to_severe.push_back(std::make_pair(*ci, dtg));
-			}
-			
-			for (std::vector<std::pair<const LiftedDTG*, const LiftedDTG*> >::const_iterator ci = connections_to_severe.begin(); ci != connections_to_severe.end(); ++ci)
-			{
-				removeEdge(*(*ci).first, *(*ci).second);
-			}
-		}
-	}
-*/
 	// Apply Tarjan's algorithm for finding the stronly connected components of the CG. Only in strongly connected components can cycles arrise.
 	bool cg_contains_cycles = true;
 	while (cg_contains_cycles)
@@ -461,6 +387,7 @@ void CausalGraph::breakCycles(const std::vector<const GroundedAtom*>& goals)
 							break;
 						}
 					}
+					delete precondition_fact;
 					
 					if (!is_connected)
 					{
@@ -501,6 +428,7 @@ void CausalGraph::breakCycles(const std::vector<const GroundedAtom*>& goals)
 					// Don't remove preconditions which are part of its own DTG.
 					if (found_nodes.size() > 0)
 					{
+						delete effect_fact;
 						continue;
 					}
 					
@@ -522,6 +450,7 @@ void CausalGraph::breakCycles(const std::vector<const GroundedAtom*>& goals)
 							break;
 						}
 					}
+					delete effect_fact;
 					
 					if (!is_connected)
 					{

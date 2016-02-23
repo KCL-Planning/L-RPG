@@ -6,6 +6,7 @@
 #include "parser_utils.h"
 #include "plan_bindings.h"
 #include "plan.h"
+#include "fc_planner.h"
 
 ///#define MYPOP_ACTION_MANAGER_COMMENTS
 
@@ -253,6 +254,7 @@ void ActionManager::processActions(const VAL::operator_list& operators)
 		Utility::convertEffects(*term_manager_, *predicate_manager_,  *effects, *action_effects);
 		
 		Action* action = new Action(predicate, *action_precondition, action_variables, action_effects);
+		///Action* action = new Action(predicate, NULL, action_variables, NULL);
 		addManagableObject(action);
 
 		// Map the operator to the constructed action object for preprocessing purposes.
@@ -355,6 +357,71 @@ void ActionManager::ground(Bindings& bindings, std::vector<const Step*>& grounde
 			break;
 		}
 	}
+}
+
+void ActionManager::ground(std::vector<const GroundedAction*>& grounded_actions, const Action& action) const
+{
+	// In succession, assing one of the objects in each of its variable domains.
+	const std::vector<const Variable*>& action_variables = action.getVariables();
+	unsigned int variable_counter[action_variables.size()];
+	unsigned int max_variable_counter[action_variables.size()];
+	
+//	std::cout << " " << action_variables.size() << " variables!" << std::endl;
+
+	std::vector<const Object*>** parameter_values = new std::vector<const Object*>*[action_variables.size()];
+	
+	// Initialise the maximum domain size of each action variable.
+	for (unsigned int i = 0; i < action_variables.size(); i++)
+	{
+		std::vector<const Object*>* values = new std::vector<const Object*>();
+		term_manager_->getTypeManager().getObjectsOfType(*values, *action_variables[i]->getType());
+		variable_counter[i] = 0;
+		max_variable_counter[i] = values->size();
+		parameter_values[i] = values;
+//		std::cout << " Size of variable domain " << *action_variables[i] << " is: " << values.size() << std::endl;
+	}
+
+	
+	while (true)
+	{
+		const Object** parameters = new const Object*[action_variables.size()];
+
+		// Assign the domains.
+		for (unsigned int i = 0; i < action_variables.size(); i++)
+		{
+			parameters[i] = (*parameter_values[i])[variable_counter[i]];
+		}
+		
+		const GroundedAction& grounded_action = GroundedAction::getGroundedAction(action, parameters);
+		grounded_actions.push_back(&grounded_action);
+
+		// Iterate through all possible combinations of variable assignments, akin binary iterating.
+		unsigned int variable_to_update = 0;
+		while (variable_to_update < action_variables.size())
+		{
+			if (variable_counter[variable_to_update] + 1 != max_variable_counter[variable_to_update])
+			{
+				variable_counter[variable_to_update]++;
+				break;
+			}
+			
+			variable_counter[variable_to_update] = 0;
+			variable_to_update++;
+		}
+		
+		// If the variable_to_update equals action_variables we have exhausted all combinations, break.
+		if (variable_to_update == action_variables.size())
+		{
+			break;
+		}
+	}
+	
+	// Cleanup.
+	for (unsigned int i = 0; i < action_variables.size(); i++)
+	{
+		delete parameter_values[i];
+	}
+	delete[] parameter_values;
 }
 
 };

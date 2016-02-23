@@ -5,9 +5,10 @@ use warnings;
 
 my $from_problem_count = shift(@ARGV);
 my $problem_count = shift(@ARGV);
-my $lhs_directory = "/home/bram/projects/MyPOP/trunk/latest_heuristics_results_naive_memory";
-my $rhs_directory = "/home/bram/projects/FF-X/latest_heuristics_results";
-my $output_directory = "merged_results_naive_memory";
+my $lhs_directory = "/home/bram/projects/MyPOP/branches/memory_reduction/results_03-09-2013-no-substitutions";
+#my $rhs_directory = "/home/bram/planners/hg.fast-downward.org/src/latest_heuristics_results-memory-cg";
+my $rhs_directory = "/home/bram/planners/FF-X2/FF-X/results_memory-not-pages-as-heap";
+my $output_directory = "merged_results_enhanced_lifted_good";
 
 system ("mkdir -p $output_directory");
 
@@ -60,3 +61,4 @@ foreach my $file (@FILES)
 	close LOLLIPOP_RESULT;
 	close MARVIN_RESULT;
 }
+

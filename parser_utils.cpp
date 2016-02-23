@@ -38,7 +38,14 @@ const Formula* Utility::convertGoal(const TermManager& term_manager, const Predi
 		}
 		return con;
 	}
-
+	/*
+	const VAL::timed_goal* tg = dynamic_cast<const VAL::timed_goal*>(precondition);
+	if (tg)
+	{
+		return convertGoal(term_manager, predicate_manager, tg->getGoal(), make_negative);
+	}
+	*/
+	
 	std::cout << "Unsupported goal detected, quiting!" << std::endl;
 	precondition->write(std::cout);
 	assert (false);

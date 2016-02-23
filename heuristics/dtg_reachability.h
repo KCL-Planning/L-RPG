@@ -70,13 +70,14 @@ class ReachableFact
 public:
 //	static ReachableFact& createReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
 	
-	static ReachableFact& createReachableFact(const Predicate& predicate, std::vector<EquivalentObjectGroup*>& term_domain_mapping);
+	static ReachableFact& createReachableFact(const Predicate& predicate, std::vector<EquivalentObjectGroup*>& term_domain_mapping, bool allow_reuse = false);
 	
-	static ReachableFact& createReachableFact(const GroundedAtom& grounded_atom, const EquivalentObjectGroupManager& eog_manager);
+	static ReachableFact& createReachableFact(const GroundedAtom& grounded_atom, const EquivalentObjectGroupManager& eog_manager, bool allow_reuse = false);
 	
 	static ReachableFact& createReachableFact(const ReachableFact& reachable_fact);
 	
 	static void deleteAllReachableFacts(const std::vector< MyPOP::REACHABILITY::ReachableFact* >& initial_facts);
+	static void deleteAllReachableFacts();
 	
 	~ReachableFact();
 	
@@ -113,8 +114,10 @@ public:
 	
 	EquivalentObjectGroup& getTermDomain(unsigned int index) const;
 	
+//	EquivalentObjectGroup** getTermDomains() const { return term_domain_mapping_; }
 	const std::vector<EquivalentObjectGroup*>& getTermDomains() const { return *term_domain_mapping_; }
 	
+//	const Atom& getAtom() const { return *atom_; }
 	const Predicate& getPredicate() const { return *predicate_; }
 	
 	/**
@@ -143,7 +146,7 @@ public:
 	
 private:
 	
-	static std::vector<const ReachableFact*> all_created_reachable_facts_;
+	static std::vector<ReachableFact*> all_created_reachable_facts_;
 	
 //	ReachableFact(const SAS_Plus::BoundedAtom& bounded_atom, const Bindings& bindings, const EquivalentObjectGroupManager& eog_manager);
 	
@@ -157,6 +160,7 @@ private:
 
 	const Predicate* predicate_;
 	
+	//EquivalentObjectGroup** term_domain_mapping_;
 	std::vector<EquivalentObjectGroup*>* term_domain_mapping_;
 	
 	// During the construction of the reachability graph terms can be merged and because of that some reachable facts are
@@ -175,6 +179,8 @@ private:
 	//
 	// By marking the former for removal we can remove the remaining reachable fact.
 	ReachableFact* replaced_by_;
+	
+	//friend class ReachableFactMemoryPool;
 	
 	friend std::ostream& operator<<(std::ostream& os, const ReachableFact& reachable_fact);
 };
@@ -326,17 +332,17 @@ std::ostream& operator<<(std::ostream& os, const ReachableSet& reachable_set);
 
 /**
  * Tupple to hold the results of creating effects.
- */
+ *
 class AchievingTransition
 {
 public:
-	 AchievingTransition(unsigned int effect_index, unsigned int effect_set_index, const std::vector<const ReachableFact*>& preconditions, ReachableFact& fact, const ReachableTransition& achiever, std::vector<HEURISTICS::VariableDomain*>& variable_assignments, const std::vector<const ReachableFactLayerItem*>& precondition_fact_layers, bool cleanup);
-
+	AchievingTransition(unsigned int effect_index, unsigned int effect_set_index, const std::vector<const ReachableFact*>& preconditions, ReachableFact& fact, const ReachableTransition& achiever, const std::vector<HEURISTICS::VariableDomain*>& variable_assignments, const ReachableFactLayer& fact_layer);
+	
 	// Make sure the default copy constructor is not used!
 	AchievingTransition(const AchievingTransition& achieving_transition);
 	AchievingTransition(const AchievingTransition& achieving_transition, bool remove_copy_automatically);
 	
-	AchievingTransition(const AchievingTransition& achieving_transition, std::vector<HEURISTICS::VariableDomain*>& variable_assignments, bool remove_copy_automatically);
+	AchievingTransition(const AchievingTransition& achieving_transition, const std::vector<HEURISTICS::VariableDomain*>& variable_assignments, bool remove_copy_automatically);
 	
 	// For creating noops.
 	static AchievingTransition& createNoop(const std::vector<const ReachableFactLayerItem*>& preconditions);
@@ -351,17 +357,17 @@ public:
 	
 	unsigned int getEffectSetIndex() const { return effect_set_index_; }
 
-	const std::vector<const ReachableFact*>& getPreconditions() const { return *preconditions_; }
+	const std::vector<const ReachableFact*>& getPreconditions() const { return preconditions_; }
 	
-	const std::vector<const ReachableFactLayerItem*>& getPreconditionFactLayerItems() const { return *preconditions_fact_layer_items_; }
+	const std::vector<const ReachableFactLayerItem*>& getPreconditionFactLayerItems() const { return preconditions_fact_layer_items_; }
 	
 	ReachableFact& getReachableFact() const { return *reachable_fact_; }
 	
 	const ReachableTransition* getAchiever() const { return achiever_; }
 	
-	const std::vector<HEURISTICS::VariableDomain*>& getVariableAssignments() const { return *variable_assignments_; }
+	const std::vector<HEURISTICS::VariableDomain*>& getVariableAssignments() const { return variable_assignments_; }
 	
-	/**
+	**
 	 * Get the substitutions that need to be made to allow this action to achieve the given effect.
 	 * @param needed_substituted The substitutions that need to be made are added to this list.
 	 * @param reachable_fact The effect to be achieved with this action.
@@ -369,20 +375,20 @@ public:
 	 * @param eog_manager The EOG manager.
 	 * @param effect_set_index The index of the set the effect is a part of.
 	 * @param effect_index The index of the effect in the effect set which can be achieved by this action.
-	 */
+	 *
 	void getNeededSubstitutes(std::vector<std::pair<const EquivalentObject*, const EquivalentObject*> >& needed_substituted, const ReachableFactLayerItem& reachable_fact, std::vector<const Object*>** object_bindings, const EquivalentObjectGroupManager& eog_manager, unsigned int effect_set_index, unsigned int effect_index) const;
 	
-	/**
+	**
 	 * Get the effect index which can achieve reachable_fact given the object binding constraints.
 	 * @param reachable_fact The fact to achieve.
 	 * @param object_bindings Every index of the fact to achieve is constrained by these sets of objects.
 	 * @return (std::numeric_limits<unsigned int>, std::numeric_limits<unsigned int>) if the fact is not achievable by this fact, 
 	 * otherwise (effect set index, effect index).
-	 */
+	 *
 	std::pair<unsigned int, unsigned int> getEffectIndexAchieving(const ReachableFactLayerItem& reachable_fact, std::vector<const Object*>** object_bindings) const;
 	std::pair<unsigned int, unsigned int> getEffectIndexAchieving(const ReachableFactLayerItem& reachable_fact, const std::vector<const HEURISTICS::VariableDomain*>& object_bindings) const;
 	
-	/**
+	**
 	 * Given this transition, update the variable domains so that it is constrained by the effect we 
 	 * wish to achieve. However, we will leave any variable domain of the action whose intersection with 
 	 * the variable domains of the given action is empty. 
@@ -390,26 +396,75 @@ public:
 	 * @param object_bindings The bindings of the effect's variable domains.
 	 * @param effect_set_index The index of the set the effect is a part of.
 	 * @param effect_index The index of the effect in the effect set which can be achieved by this action.
-	 */
+	 *
 	void updateVariablesToAchieve(const ReachableFactLayerItem& reachable_fact, std::vector<const Object*>** object_bindings, unsigned int effect_set_index, unsigned int effect_index) const;
 	
 	void getVariablesToAchieve(std::vector<HEURISTICS::VariableDomain*>& variable_assignments_to_achieve_effect, const ReachableFactLayerItem& reachable_fact, std::vector<const Object*>** object_bindings, unsigned int effect_set_index, unsigned int effect_index) const;
 	
 private:
+	
 	AchievingTransition(const std::vector<const ReachableFactLayerItem*>& preconditions);
 	
 	unsigned int effect_index_; // The index of the fact in the reachable set.
 	unsigned int effect_set_index_;
-
-	const std::vector<const ReachableFact*>* preconditions_;
-	const std::vector<const ReachableFactLayerItem*>* preconditions_fact_layer_items_;
+	std::vector<const ReachableFact*> preconditions_;
+	std::vector<const ReachableFactLayerItem*> preconditions_fact_layer_items_;
+	std::vector<const HEURISTICS::TransitionFact*> precondition_atoms_;
 	ReachableFact* reachable_fact_;
 	const ReachableTransition* achiever_;
+	std::vector<HEURISTICS::VariableDomain*> variable_assignments_;
 	
-	bool delete_variable_assignments_;
-	std::vector<HEURISTICS::VariableDomain*>* variable_assignments_;
+	static std::vector<const AchievingTransition*> all_created_achieving_transitions_;
+};
+*/
+
+class AchievingTransition
+{
+public:
+	AchievingTransition(unsigned int fact_layer_index_, const ReachableTransition* achiever, const std::vector<const ReachableFactLayerItem*>& preconditions, const std::vector<EquivalentObjectGroup*>& variables);
 	
-	bool cleanup_;
+	// Make sure the default copy constructor is not used!
+	AchievingTransition(const AchievingTransition& achieving_transition);
+	
+	~AchievingTransition();
+	
+	static void removeAllAchievingTransitions();
+	static void storeAchievingTransition(const AchievingTransition& achieving_transition);
+	
+	void addEffect(const ReachableFactLayerItem& effect, unsigned int effect_set_index, unsigned int effect_index);
+	
+	/**
+	 * After equivalences are updated we need to update the effects such that we no longer refer to the old once and
+	 * instead only refer to the updated ones.
+	 */
+	void updateEffect(const ReachableFactLayerItem& old_effect, const ReachableFactLayerItem& new_effect);
+	
+	const ReachableTransition* getAchiever() const { return achiever_; }
+	const std::vector<const ReachableFactLayerItem*>& getPreconditions() const { return *preconditions_; }
+//	const EquivalentObjectGroup** getVariablesAssignments() const { return variables_; }
+	const std::vector<EquivalentObjectGroup*>& getVariablesAssignments() const { return *variables_; }
+	const std::vector<const ReachableFactLayerItem*>& getEffects() const { return effects_; }
+	const std::vector<std::pair<unsigned int, unsigned int> >& getEffectsIndexes() const { return effects_indexes_; }
+	
+	unsigned int getFactLayerIndex() const { return fact_layer_index_; }
+	
+	/**
+	 * Get the substitutions that need to be made to allow this action to achieve the given effect.
+	 * @param needed_substituted The substitutions that need to be made are added to this list.
+	 * @param reachable_fact The effect to be achieved with this action.
+	 * @param object_bindings The constraints on the effect's variable domains.
+	 * @param eog_manager The EOG manager.
+	 */
+	void getNeededSubstitutes(std::vector<std::pair<const EquivalentObject*, const EquivalentObject*> >& needed_substituted, const ReachableFactLayerItem& goal, std::vector<const Object*>** object_bindings, const EquivalentObjectGroupManager& eog_manager) const;
+private:
+	unsigned int fact_layer_index_;
+	const ReachableTransition* achiever_;
+	//const ReachableFactLayerItem** preconditions_;
+	const std::vector<const ReachableFactLayerItem*>* preconditions_;
+	std::vector<const ReachableFactLayerItem*> effects_;
+	std::vector<std::pair<unsigned int, unsigned int> > effects_indexes_;
+	//const EquivalentObjectGroup** variables_;
+	const std::vector<EquivalentObjectGroup*>* variables_;
 	
 	static std::vector<const AchievingTransition*> all_created_achieving_transitions_;
 };
@@ -438,37 +493,19 @@ public:
 	const HEURISTICS::LiftedTransition& getTransition() const { return *transition_; }
 	
 	/**
-	 * Generate all the possible new reachable facts by combining the full sets of reachable facts from the previous fact layer.
-	 * @param eog_manager The manager which contains all the Equivalent Object Groups.
-	 * @param new_fact_layer The fact layer where all the new reachable facts are added.
-	 * @param persistent_facts The facts that cannot be removed. Any action that has an effect that removes any of these facts will not be executed.
-	 * @return ?
+	 * Generate all the possible new reachable facts by combining the full sets of this reachable transition with those
+	 * of its from node.
 	 */
 	bool generateReachableFacts(const MyPOP::REACHABILITY::EquivalentObjectGroupManager& eog_manager, MyPOP::REACHABILITY::ReachableFactLayer& new_fact_layer, const std::vector< const MyPOP::REACHABILITY::ReachableFact* >& persistent_facts);
 	
 	void equivalencesUpdated(unsigned int iteration);
 	
-	void finalise(const std::vector<ReachableSet*>& all_reachable_sets);
-	
-	static unsigned int getNrCreatedEffects() { return nr_created_effects_; }
-	static void resetNrCreatedEffects() { nr_created_effects_ = 0; }
+	unsigned int finalise(const std::vector<ReachableSet*>& all_reachable_sets);
 	
 	//void print(std::ostream& os) const;
 private:
-	
-	/**
-	 * Iterative algorithm that generate the new set of effects that form the new set of reachable facts in the next fact layer.
-	 * @param eog_manager The EOG manager which contains all the equivalent object groups.
-	 * @param preconditions The preconditions that have been selected, if the number of preconditions is equal to the number of preconditions of the transition then we create the effects.
-	 * @param current_variable_assignments The variable assignments which had been assigned so far.
-	 * @param precondition_index The index of the preconditions that is currently being considered.
-	 * @param new_fact_layer The fact layer where all new effects are added.
-	 */
-	void generateReachableFacts(const MyPOP::REACHABILITY::EquivalentObjectGroupManager& eog_manager, std::vector< const MyPOP::REACHABILITY::ReachableFact* >& preconditions, std::vector< MyPOP::REACHABILITY::EquivalentObjectGroup* >& current_variable_assignments, unsigned int precondition_index, MyPOP::REACHABILITY::ReachableFactLayer& new_fact_layer);
-	//void generateReachableFacts(const MyPOP::REACHABILITY::EquivalentObjectGroupManager& eog_manager, std::vector< const MyPOP::REACHABILITY::AchievingTransition* >& newly_created_reachable_facts, std::vector< const MyPOP::REACHABILITY::ReachableFact* >& preconditions, std::vector< MyPOP::REACHABILITY::EquivalentObjectGroup* >& current_variable_assignments, unsigned int precondition_index, const MyPOP::REACHABILITY::ReachableFactLayer& new_fact_layer);
-	//bool generateReachableFacts(const MyPOP::REACHABILITY::EquivalentObjectGroupManager& eog_manager, std::vector< const MyPOP::REACHABILITY::ReachableFact* >& preconditions, std::vector< MyPOP::REACHABILITY::EquivalentObjectGroup* >& current_variable_assignments, unsigned int precondition_index, MyPOP::REACHABILITY::ReachableFactLayer& fact_layer, const std::vector<const ReachableFact*>& persistent_facts);
-	
-	//bool processNewGeneratedFact(const AchievingTransition& created_effect, const std::vector<const ReachableFact*>& persistent_facts, const EquivalentObjectGroupManager& eog_manager, ReachableFactLayer& fact_layer);
+	bool generateReachableFacts(const EquivalentObjectGroupManager& eog_manager, std::vector<const ReachableFact*>& preconditions, std::vector<EquivalentObjectGroup*>& current_variable_assignments, unsigned int precondition_index, MyPOP::REACHABILITY::ReachableFactLayer& new_fact_layer, const std::vector<const ReachableFact*>& persistent_facts);
+//	void generateReachableFacts(const MyPOP::REACHABILITY::EquivalentObjectGroupManager& eog_manager, std::vector< const MyPOP::REACHABILITY::AchievingTransition* >& newly_created_reachable_facts, std::vector< const MyPOP::REACHABILITY::ReachableFact* >& preconditions, std::vector< MyPOP::REACHABILITY::EquivalentObjectGroup* >& current_variable_assignments, unsigned int precondition_index, const MyPOP::REACHABILITY::ReachableFactLayer& fact_layer);
 	
 	const HEURISTICS::LiftedTransition* transition_;
 	const std::vector<ReachableSet*>* preconditions_reachable_sets_;
@@ -479,13 +516,13 @@ private:
 	std::vector<const std::vector<EquivalentObjectGroup*>*> processed_groups_;
 	
 	std::vector<std::vector<std::vector<std::pair<ReachableSet*, unsigned int> >* >* > effect_propagation_listeners_;
+	//std::map<std::pair<unsigned int, unsigned int>, std::vector<std::pair<ReachableSet*, unsigned int> >* > effect_propagation_listeners_;
+	//std::multimap<std::pair<unsigned int, unsigned int>, std::pair<ReachableSet*, unsigned int> > effect_propagation_listeners_;
 	
 	// Instead of putting a new vector on the stack for a function call to createNewReachableFact, we simply use this one :).
 	//const std::vector<ReachableFact*> empty_transition_reachable_set_;
 	
 	friend std::ostream& operator<<(std::ostream& os, const ReachableTransition& reachable_transition);
-	
-	static unsigned int nr_created_effects_;
 };
 
 std::ostream& operator<<(std::ostream& os, const ReachableTransition& reachable_transition);
@@ -496,23 +533,18 @@ public:
 	ReachableFactLayerItem(const ReachableFactLayer& reachable_fact_layer, const ReachableFact& reachable_fact);
 	~ReachableFactLayerItem();
 	
-	//bool canBeAchievedBy(const ResolvedBoundedAtom& precondition, StepID id, const Bindings& bindings, bool debug) const;
+	bool canBeAchievedBy(const ResolvedBoundedAtom& precondition, StepID id, const Bindings& bindings, bool debug) const;
 	
 	//void addAchiever(const ReachableTransition& achiever, const ReachableTreeNode& from_tree_node, const ReachableTreeNode* transition_tree_node);
-	
-	/**
-	 * Add an achiever for this item. We include the preconditions (if any) and the transition which achieved the fact. We can derive any 
-	 * substitutions we need to make by instantiating the transitions and compare the preconditions with the desired effect. If they do not 
-	 * match up then we need to make substitutions.
-	 */
-	void addAchiever(const ReachableTransition& achiever, const std::vector<const ReachableFact*>& preconditions);
+	//void addAchiever(const ReachableTransition& achiever, const std::vector<const ReachableFact*>& preconditions);
 	//void addAchiever(const ReachableTransition& achiever, const std::vector<const ReachableFact*>& preconditions, const std::vector<const HEURISTICS::VariableDomain*>& variable_domains);
 	
-	//void addAchiever(const AchievingTransition& achiever);
+	void addAchiever(AchievingTransition& achiever, unsigned int effect_set_index, unsigned int effect_index);
 	
 	void addNoop(const ReachableFactLayerItem& noop);
-	const std::vector<std::pair<const ReachableTransition*, std::vector<const ReachableFactLayerItem*>* > >& getAchievers() const { return achievers_; }
-	//const std::vector<const AchievingTransition*>& getAchievers() const { return achievers_; }
+//	const std::vector<std::pair<const ReachableTransition*, std::vector<const ReachableFactLayerItem*>* > >& getAchievers() const { return achievers_; }
+	const std::vector<AchievingTransition*>& getAchievers() const { return achievers_; }
+	const std::vector<std::pair<unsigned int, unsigned int> >& getAchieverIndexes() const { return achiever_effect_indexes_; }
 	
 	const ReachableFact& getReachableFactCopy() const { return *reachable_fact_copy_; }
 	const ReachableFact& getActualReachableFact() const { return *link_to_actual_reachable_fact_; }
@@ -524,8 +556,9 @@ private:
 	const ReachableFact* reachable_fact_copy_;
 	const ReachableFact* link_to_actual_reachable_fact_;
 	
-	std::vector<std::pair<const ReachableTransition*, std::vector<const ReachableFactLayerItem*>* > > achievers_;
-	//std::vector<const AchievingTransition*> achievers_;
+	//std::vector<std::pair<const ReachableTransition*, std::vector<const ReachableFactLayerItem*>* > > achievers_;
+	std::vector<AchievingTransition*> achievers_;
+	std::vector<std::pair<unsigned int, unsigned int> > achiever_effect_indexes_;
 };
 
 std::ostream& operator<<(std::ostream& os, const ReachableFactLayerItem& reachable_fact_layer);
@@ -542,7 +575,8 @@ public:
 	/**
 	 * Add a fact to this fact to the layer without any achievers.
 	 */
-	ReachableFactLayerItem& addFact(const ReachableFact& reachable_fact);
+	void addFact(const ReachableFact& reachable_fact);
+	void addFact(ReachableFactLayerItem& reachable_fact);
 	//void addFact(const AchievingTransition& achieved_transition, bool already_exists);
 	const std::vector<ReachableFactLayerItem*>& getReachableFacts() const;
 	const ReachableFactLayerItem* contains(const GroundedAtom& atom) const;
@@ -580,7 +614,7 @@ public:
 	 */
 //	DTGReachability(const SAS_Plus::DomainTransitionGraphManager& dtg_manager, const SAS_Plus::DomainTransitionGraph& dtg_graph, const TermManager& term_manager, PredicateManager& predicate_manager);
 
-	DTGReachability(const std::vector<HEURISTICS::LiftedTransition*>& lifted_transitions, const TermManager& term_manager, PredicateManager& predicate_manager);
+	DTGReachability(const std::vector<HEURISTICS::LiftedTransition*>& lifted_transitions, const TermManager& term_manager, PredicateManager& predicate_manager, bool fully_grounded = false);
 	
 	~DTGReachability();
 	
@@ -593,17 +627,14 @@ public:
 	 */
 	void performReachabilityAnalysis(std::vector<const ReachableFact*>& result, const std::vector<REACHABILITY::ReachableFact*>& initial_facts, const std::vector<const GroundedAtom*>& persistent_facts);
 	
-	void setHeuristicForState(MyPOP::State& state, const std::vector<const GroundedAtom*>& goal_facts, const TermManager& term_manager, bool find_helpful_actions, bool allow_new_goals_to_be_added);
+	void setHeuristicForState(MyPOP::State& state, const std::vector<const GroundedAtom*>& initial_facts, const std::vector<const GroundedAtom*>& goal_facts, const TermManager& term_manager, bool find_helpful_actions, bool allow_new_goals_to_be_added);
 	
 	/**
 	 * Find the set of objects which are functionally symmetrical. This information can be used to prune the search space dramatically.
 	 */
-	void getFunctionalSymmetricSets(std::multimap<const Object*, const Object*>& symmetrical_groups, const State& state, const std::vector<const GroundedAtom*>& goal_facts, const TermManager& term_manager);
+	void getFunctionalSymmetricSets(std::multimap<const Object*, const Object*>& symmetrical_groups, const State& state, const std::vector<const GroundedAtom*>& initial_facts, const std::vector<const GroundedAtom*>& goal_facts, const TermManager& term_manager) const;
 	
 	EquivalentObjectGroupManager& getEquivalentObjectGroupManager() const { return *equivalent_object_manager_; }
-	
-	//const std::vector<std::pair<const Action*, std::vector<const Object*>**> >& getHelpfulActions() const { return helpful_actions_; }
-	const std::vector<const AchievingTransition*>& getHelpfulActions() const { return helpful_actions_; }
 	
 	const ReachableFactLayer* getLastFactLayer() const { return current_fact_layer_; }
 	
@@ -620,7 +651,7 @@ private:
 	 * @param instantiate_actions If True we allow actions in the relaxed planning problem to be instantiated multiple times. This uses up more memory, but we get better heuristic guidance.
 	 * @return The heuristic estimate to achieve @ref bounded_goal_facts.
 	 */
-	unsigned int getHeuristic(const std::vector< const GroundedAtom* >& bounded_goal_facts, bool allow_new_goals_added, bool create_helpful_actions, bool instantiate_actions);
+	unsigned int getHeuristic(const std::vector< const GroundedAtom* >& bounded_goal_facts, bool allow_new_goals_added, bool create_helpful_actions);
 	
 	
 	std::set<std::pair<const EquivalentObject*, const EquivalentObject*> > combined_eogs_;
@@ -650,12 +681,11 @@ private:
 	
 	ReachableFactLayer* current_fact_layer_;
 	
-	//std::vector<std::pair<const Action*, std::vector<const Object*>**> > helpful_actions_;
-	std::vector<const AchievingTransition*> helpful_actions_;
-	
 	std::map<const HEURISTICS::FactSet*, ReachableSet*> fact_set_to_reachable_set_;
 	
 	const PredicateManager* predicate_manager_;
+	
+	bool fully_grounded_;
 };
 
 };

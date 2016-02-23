@@ -88,15 +88,15 @@ public:
 	
 	virtual ~LiftedCausalGraphHeuristic();
 	
-	void setHeuristicForState(MyPOP::State& state, const std::vector<const GroundedAtom*>& goal_facts, const TermManager& term_manager, bool find_helpful_actions, bool allow_new_goals_to_be_added);
+	void setHeuristicForState(MyPOP::State& state, const std::vector<const GroundedAtom*>& initial_facts, const std::vector<const GroundedAtom*>& goal_facts, const TermManager& term_manager, bool find_helpful_actions, bool allow_new_goals_to_be_added);
 	
 private:
 	
-	unsigned int getHeuristic(const State& state, const std::vector< const GroundedAtom* >& bounded_goal_facts);
+	unsigned int getHeuristic(const std::vector<const GroundedAtom*>& facts_in_state, const std::vector<const GroundedAtom*>& initial_facts, const std::vector< const GroundedAtom* >& bounded_goal_facts);
 	
-	const LCGSearchNode* getCost(const State& state, const std::vector<const SAS_Plus::LiftedDTG*>& lifted_dtgs, const HEURISTICS::Fact& goal, const LCGSearchNode* current_search_node);
+	const LCGSearchNode* getCost(const std::vector<const GroundedAtom*>& facts_in_state, const std::vector<const SAS_Plus::LiftedDTG*>& lifted_dtgs, const HEURISTICS::Fact& goal, const LCGSearchNode* current_search_node, const std::vector<const GroundedAtom*>& initial_facts);
 	
-	const LCGSearchNode* getCost(const State& state, const SAS_Plus::LiftedDTG& lifted_dtg, const std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >& from_nodes, const std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >& to_nodes);
+	const LCGSearchNode* getCost(const std::vector<const GroundedAtom*>& facts_in_state, const SAS_Plus::LiftedDTG& lifted_dtg, const std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >& from_nodes, const std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >& to_nodes, const std::vector<const GroundedAtom*>& initial_facts);
 	
 	const std::vector<SAS_Plus::LiftedDTG*>* lifted_dtgs_;
 	
@@ -104,9 +104,9 @@ private:
 	
 	const SAS_Plus::MultiValuedValue* findNode(const HEURISTICS::Fact& fact, const std::vector<const SAS_Plus::LiftedDTG*>& possible_lifted_dtgs) const;
 	
-	void getNodes(std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >& assignments, const SAS_Plus::LiftedDTG& lifted_dtg, const HEURISTICS::VariableDomain& invariable_domain, const State& state) const;
+	void getNodes(std::vector<std::pair<const SAS_Plus::MultiValuedValue*, const std::vector<const HEURISTICS::Fact*>* > >& assignments, const SAS_Plus::LiftedDTG& lifted_dtg, const HEURISTICS::VariableDomain& invariable_domain, const std::vector<const GroundedAtom*>& facts_in_state, const std::vector<const GroundedAtom*>& initial_state) const;
 
-	void findMappings(std::vector<std::vector<const HEURISTICS::Fact*>* >& found_mappings, const std::vector<const HEURISTICS::Fact*>& current_mappings, const SAS_Plus::MultiValuedValue& node, const HEURISTICS::VariableDomain& invariable_domain, const State& state) const;
+	void findMappings(std::vector<std::vector<const HEURISTICS::Fact*>* >& found_mappings, const std::vector<const HEURISTICS::Fact*>& current_mappings, const SAS_Plus::MultiValuedValue& node, const HEURISTICS::VariableDomain& invariable_domain, const std::vector<const GroundedAtom*>& facts_in_state, const std::vector<const GroundedAtom*>& initial_facts) const;
 	
 	SAS_Plus::CausalGraph* causal_graph_;
 	

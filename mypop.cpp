@@ -56,29 +56,43 @@ namespace VAL {
 //using namespace VAL;
 using namespace MyPOP;
 
+enum PLANNER_CONFIG { LIFTED_FF, LIFTED_CG, GROUNDED_FF };
+
 int main(int argc,char * argv[])
 {
 	// The first line is the debug level.
 	if (argc < 3)
 	{
-		std::cout << "Usage: mypop <domain file> <problem file>." << std::endl;
+		std::cout << "Usage: mypop <options> <domain file> <problem file>." << std::endl;
+		std::cout << "\tOptions:" << std::endl;
+		std::cout << "\t-cg  - Lifted Causal Graph Heuristic." << std::endl;
+		std::cout << "\t-ff  - Lifted Fast Forward." << std::endl;
+		std::cout << "\t-gff - Grounded Fast Forward." << std::endl;
 		exit(1);
 	}
 
 	struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
 	setitimer ( ITIMER_PROF, &timer, NULL );
 
-	bool use_ff = true;
+	PLANNER_CONFIG planner_config = LIFTED_FF;
+	
+	//bool use_ff = true;
+	//bool use_grounded_ff = false;
+
 	for (int i = 1; i < argc - 2; i++)
 	{
 		std::string command_line = std::string(argv[i]);
 		if (command_line == "-cg")
 		{
-			use_ff = false;
+			planner_config = LIFTED_CG;
 		}
 		else if (command_line == "-ff")
 		{
-			use_ff = true;
+			planner_config = LIFTED_FF;
+		}
+		else if (command_line == "-gff")
+		{
+			planner_config = GROUNDED_FF;
 		}
 		else
 		{
@@ -86,6 +100,7 @@ int main(int argc,char * argv[])
 			exit(1);
 		}
 	}
+	
 /*	bool ground = false;
 	// Read in commandline options.
 	for (int i = 1; i < argc - 2; i++)
@@ -103,9 +118,13 @@ int main(int argc,char * argv[])
 		}
 	}*/
 	
+	//std::string out_file(argv[argc - 1]);
+	//std::string problem_name(argv[argc - 2]);
+	//std::string domain_name(argv[argc - 3]);
+
 	std::string problem_name(argv[argc - 1]);
 	std::string domain_name(argv[argc - 2]);
-
+	
 	TIM::performTIMAnalysis(&argv[argc - 2]);
 	for_each(TA->pbegin(),TA->pend(), ptrwriter<PropertySpace>(cout,"\n"));
 	for_each(TA->abegin(),TA->aend(), ptrwriter<PropertySpace>(cout,"\n"));
@@ -114,14 +133,14 @@ int main(int argc,char * argv[])
 	std::size_t end_index = domain_name.find_last_of('.');
 	std::string real_domain_name = domain_name.substr(index + 1, end_index - index - 1);
 	
-	std::cerr << real_domain_name << " " << argv[argc - 2] << std::endl;
+	std::cerr << real_domain_name << " " << domain_name << std::endl;
 	
 	
 	index = problem_name.find_last_of('/');
 	end_index = problem_name.find_last_of('.');
 	std::string real_problem_name = problem_name.substr(index + 1, end_index - index - 1);
 	
-	std::cerr << real_problem_name << " " << argv[argc - 1] << std::endl;
+	std::cerr << real_problem_name << " " << problem_name << std::endl;
 
 	VAL::problem* the_problem = VAL::current_analysis->the_problem;
 	VAL::domain* the_domain = VAL::current_analysis->the_domain;
@@ -156,6 +175,25 @@ int main(int argc,char * argv[])
 
 	predicate_manager.checkStaticPredicates(action_manager);
 
+/*
+	std::vector<const GroundedAction*> grounded_actions;
+	for (std::vector<Action*>::const_iterator ci = action_manager.getManagableObjects().begin(); ci != action_manager.getManagableObjects().end(); ++ci)
+	{
+		const Action* action = *ci;
+		action_manager.ground(grounded_actions, *action);
+	}
+	
+	std::ofstream ga_file;
+	ga_file.open(out_file.c_str());
+	for (std::vector<const GroundedAction*>::const_iterator ci = grounded_actions.begin(); ci != grounded_actions.end(); ++ci)
+	{
+		ga_file << **ci << std::endl;
+	}
+	ga_file.close();
+	
+	std::cerr << "Done grounding!" << std::endl;
+	exit(0);
+*/
 	// Propagator.
 //	SimpleBindingsPropagator* propagator = new SimpleBindingsPropagator();
 	
@@ -201,7 +239,7 @@ int main(int argc,char * argv[])
 
 	HEURISTICS::HeuristicInterface* heuristic_interface = NULL;
 	
-	if (!use_ff)
+	if (planner_config == LIFTED_CG)
 	{
 		std::vector<SAS_Plus::LiftedDTG*>* lifted_dtgs = new std::vector<SAS_Plus::LiftedDTG*>();
 		SAS_Plus::LiftedDTG::createLiftedDTGs(*lifted_dtgs, *the_domain->types, predicate_manager, type_manager, action_manager, term_manager, initial_facts);
@@ -258,16 +296,18 @@ int main(int argc,char * argv[])
 			const Action* action = *ci;
 			HEURISTICS::LiftedTransition::createLiftedTransitions(lifted_transitions, predicate_manager, term_manager, type_manager, *action, initial_facts, objects_part_of_property_state);
 		}
-//		std::cerr << "Lifted transitions: " << lifted_transitions.size() << std::endl;
+		std::cerr << "Lifted transitions: " << lifted_transitions.size() << std::endl;
 		HEURISTICS::LiftedTransition::mergeFactSets(lifted_transitions);
+//	std::cerr << "Total number of transitions: " << nr_transitions << "; Total of DTGs: " << dtg_manager->getManagableObjects().size() << "." << std::endl;
 
-		// Do the reachability analysis.
+
+	// Do the reachability analysis.
 #ifdef MYPOP_KEEP_TIME
 		struct timeval start_time_prepare_reachability;
 		gettimeofday(&start_time_prepare_reachability, NULL);
 #endif
 
-		heuristic_interface = new REACHABILITY::DTGReachability(lifted_transitions, term_manager, predicate_manager);
+		heuristic_interface = new REACHABILITY::DTGReachability(lifted_transitions, term_manager, predicate_manager, planner_config == GROUNDED_FF);
 #ifdef MYPOP_KEEP_TIME
 		struct timeval end_time_prepare_reachability;
 		gettimeofday(&end_time_prepare_reachability, NULL);	
@@ -276,36 +316,63 @@ int main(int argc,char * argv[])
 		std::cerr << "Prepare reachability analysis: " << time_spend_preparing << " seconds" << std::endl;
 #endif
 	}
+//	std::vector<const Atom*> goal_facts;
+//	Utility::convertFormula(goal_facts, goal);
+	
+/*
+	std::vector<const SAS_Plus::BoundedAtom*> bounded_goal_facts;
+	for (std::vector<const Atom*>::const_iterator ci = goal_facts.begin(); ci != goal_facts.end(); ci++)
+	{
+		bounded_goal_facts.push_back(new SAS_Plus::BoundedAtom(Step::GOAL_STEP, **ci));
+	}
+	
+	std::vector<const SAS_Plus::BoundedAtom*> bounded_initial_facts;
+	for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
+	{
+		bounded_initial_facts.push_back(new SAS_Plus::BoundedAtom(Step::INITIAL_STEP, **ci));
+	}
+*/
+
 	
 	std::vector<const GroundedAction*> found_plan;
+	//ForwardChainingPlanner fcp(action_manager, predicate_manager, type_manager, analyst);
 	ForwardChainingPlanner fcp(action_manager, predicate_manager, type_manager, *heuristic_interface);
-	std::pair<int, int> result = std::make_pair(-1, -1);
-	if (use_ff)
-	{
-		result = fcp.findPlan(found_plan, initial_facts, goal_facts, term_manager, true, false, true);
-	}
+	std::pair<int, int> result;
 	
-	// If the greedy method failed, try the non greedy method!
-	if (result.first == -1)
+	//if (use_ff)
 	{
-		found_plan.clear();
-		GroundedAtom::removeInstantiatedGroundedAtom();
-		GroundedAction::removeInstantiatedGroundedActions();
+		result = fcp.findPlan(found_plan, initial_facts, goal_facts, term_manager, true, true, false);
+		
+		// If the greedy method failed, try the non greedy method!
+		if (result.first == -1)
+		{
+			found_plan.clear();
+			GroundedAtom::removeInstantiatedGroundedAtom();
+			GroundedAction::removeInstantiatedGroundedActions();
+			//result = fcp.findPlan(found_plan, analyst, initial_facts, goal_facts, false, true, true);
+			result = fcp.findPlan(found_plan, initial_facts, goal_facts, term_manager, false, true, false);
+		}
+	}
+	/*
+	else
+	{
 		result = fcp.findPlan(found_plan, initial_facts, goal_facts, term_manager, false, false, false);
 	}
+	*/
 	
 	// Validate the plan!
 	std::stringstream plan_stream;
 	for (std::vector<const GroundedAction*>::const_iterator ci = found_plan.begin(); ci != found_plan.end(); ci++)
 	{
 		plan_stream << **ci << std::endl;
+		std::cout << **ci << std::endl;
 	}
 	if (VAL::checkPlan(domain_name, problem_name, plan_stream))
 	{
 		std::cerr << "Valid plan!" << std::endl;
 //		std::cerr << "Plan Length: " << found_plan.size() << std::endl;
 		std::cerr << "States visited: " << result.first << std::endl;
-		 std::cerr << "Plan length: " << result.second << std::endl;
+		std::cerr << "Plan length: " << result.second << std::endl;
 	}
 	else
 	{

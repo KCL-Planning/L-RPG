@@ -35,12 +35,19 @@ elsif ($mode eq "s")
 	print TEMP_FILE "set title \"States explored.\"\n";
 	print TEMP_FILE "set output \"scatterplot_${merged_name}.ps\"\n";
 }
-else
+elsif ($mode eq "t")
 {
 	print TEMP_FILE "set log x\n";
 	print TEMP_FILE "set log y\n";
 	print TEMP_FILE "set title \"Time (s).\"\n";
 	print TEMP_FILE "set output \"scatterplot_${merged_name}_time.ps\"\n";
+}
+elsif ($mode eq "m")
+{
+	print TEMP_FILE "set log x\n";
+	print TEMP_FILE "set log y\n";
+	print TEMP_FILE "set title \"Memory used in bits.\"\n";
+	print TEMP_FILE "set output \"scatterplot_${merged_name}_mem.ps\"\n";
 }
 #print TEMP_FILE "set xrange [1000000:10000000000]\n";
 #print TEMP_FILE "set yrange [1000000:10000000000]\n";
@@ -54,7 +61,7 @@ else
 #print TEMP_FILE "set title \"Memory used in bits.\"\n";
 #print TEMP_FILE "set title \"States explored.\"\n";
 #print TEMP_FILE "set ylabel \"FF heuristic\"\n";
-print TEMP_FILE "set ylabel \"CEA heuristic\"\n";
+print TEMP_FILE "set ylabel \"CG heuristic\"\n";
 print TEMP_FILE "set xlabel \"Lifted CG heuristic\"\n";
 print TEMP_FILE "set term postscript enhanced colour\n";
 #print TEMP_FILE "set output \"scatterplot_${merged_name}.ps\"\n";
@@ -75,9 +82,9 @@ foreach my $domain_name (@domain_names)
 	{
 		print TEMP_FILE "\"merged_results_${merged_name}/${domain_name}-states.dat\" using 1:2 with points title \"${domain_name}\"";
 	}
-	else
+	elsif ($mode eq "m")
 	{
-		print TEMP_FILE "\"merged_results_${merged_name}/${domain_name}-time.dat\" using 1:2 with points title \"${domain_name}\"";
+		print TEMP_FILE "\"merged_results_${merged_name}/${domain_name}-memory.dat\" using 1:2 with points title \"${domain_name}\"";
 	}
 	$index++;
 }
@@ -95,8 +102,12 @@ elsif ($mode eq "s")
 {
 	`convert -rotate 90 scatterplot_${merged_name}.ps scatterplot_${merged_name}.pdf`;
 }
-else
+elsif ($mode eq "t")
 {
 	`convert -rotate 90 scatterplot_${merged_name}_time.ps scatterplot_${merged_name}_time.pdf`;
+}
+elsif ($mode eq "m")
+{
+	`convert -rotate 90 scatterplot_${merged_name}_mem.ps scatterplot_${merged_name}_mem.pdf`;
 }
 

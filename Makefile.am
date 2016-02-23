@@ -36,7 +36,7 @@ mypop_SOURCES = VALfiles/DebugWriteController.cpp VALfiles/FastEnvironment.cpp \
 	action_manager.cpp bindings_propagator.cpp formula.cpp mypop.cpp parser_utils.cpp \
 	plan.cpp plan_bindings.cpp plan_flaws.cpp plan_orderings.cpp planner.cpp \
 	predicate_manager.cpp relaxed_planning_graph.cpp simple_flaw_selector.cpp term_manager.cpp \
-	type_manager.cpp fc_planner.cpp
+	type_manager.cpp fc_planner.cpp coloured_graph.cpp
 mypopd_SOURCES = ${mypop_SOURCES}
 
 mypop_LDADD = @LIBOBJS@

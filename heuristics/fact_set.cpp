@@ -259,14 +259,14 @@ std::ostream& operator<<(std::ostream& os, const Fact& fact)
 }
 
 TransitionFact::TransitionFact(const PredicateManager& predicate_manager, const Predicate& predicate, std::vector<const VariableDomain*>& variable_domains, const std::vector<const Term*>& variables)
-	: Fact(predicate_manager, predicate, variable_domains), action_variables_(&variables)
+	: Fact(predicate_manager, predicate, variable_domains)
 {
-//	action_variables_.insert(action_variables_.end(), variables.begin(), variables.end());
+	action_variables_.insert(action_variables_.end(), variables.begin(), variables.end());
 }
 
 TransitionFact::~TransitionFact()
 {
-	
+	//for (
 }
 
 bool TransitionFact::operator==(const TransitionFact& rhs) const
@@ -297,7 +297,7 @@ std::ostream& operator<<(std::ostream& os, const TransitionFact& transition_fact
 	os << "(" << transition_fact.getPredicate().getName();
 	for (unsigned int i = 0; i < transition_fact.getVariableDomains().size(); ++i)
 	{
-		os << *transition_fact.getVariableDomains()[i] << "[" << (*transition_fact.action_variables_)[i] << "] ";
+		os << *transition_fact.getVariableDomains()[i] << "[" << transition_fact.action_variables_[i] << "] ";
 	}
 	os << ")";
 	return os;
@@ -712,7 +712,8 @@ void LiftedTransition::createLiftedTransitions(std::vector<LiftedTransition*>& c
 			}
 			TransitionFact* new_fact = new TransitionFact(predicate_manager, precondition->getPredicate(), *atom_variable_domains, precondition->getTerms());
 			
-			if (new_fact->getPredicate().isStatic())
+			// NOTE: Remove false to remove static facts from the reachable sets.
+			if (new_fact->getPredicate().isStatic())// && false)
 			{
 				bool is_part_of_initial_state = false;
 				for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ++ci)
@@ -865,6 +866,10 @@ void LiftedTransition::createLiftedTransitions(std::vector<LiftedTransition*>& c
 		}
 		delete variable_domains;
 	}
+	
+#ifdef MYPOP_HEURISTICS_LIFTED_TRANSITION_COMMENTS
+	std::cout << "Total: " << created_lifted_transitions.size() << std::endl;
+#endif
 }
 
 void LiftedTransition::mergeFactSets(const std::vector<LiftedTransition*>& all_lifted_transitions)

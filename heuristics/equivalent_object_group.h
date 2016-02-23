@@ -26,7 +26,6 @@ class DomainTransitionGraphManager;
 
 namespace HEURISTICS {
 class FactSet;
-class VariableDomain;
 };
 
 namespace REACHABILITY {
@@ -147,8 +146,7 @@ public:
 	void printObjects(std::ostream& os, unsigned int iteration) const;
 	
 	void printGrounded(std::ostream& os) const;
-	
-	const HEURISTICS::VariableDomain& getVariableDomain(unsigned int layer_level) const;
+//	void getVariableDomain(int arg1);
 
 private:
 	
@@ -201,9 +199,6 @@ private:
 	std::vector<unsigned int> size_per_iteration_;
 	
 	bool can_merge_;
-	
-	// Cached variable objects.
-	std::vector<HEURISTICS::VariableDomain*> cached_variable_domains_;
 
 	friend std::ostream& operator<<(std::ostream& os, const EquivalentObjectGroup& group);
 };
@@ -246,6 +241,8 @@ public:
 	void getAllReachableFacts(std::vector<const ReachableFact*>& result) const;
 	
 	unsigned int getNumberOfEquivalentGroups() const;
+	
+	const std::vector<EquivalentObjectGroup*>& getEquivalentObjectGroups() const { return equivalent_groups_; }
 	
 private:
 	

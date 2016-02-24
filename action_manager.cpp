@@ -200,11 +200,10 @@ void ActionManager::processActions(const VAL::operator_list& operators)
 	{
 		const VAL::operator_* op = *ci;
 
-	    const VAL::operator_symbol* name = op->name;
-//		const VAL::var_symbol_table* symtab = op->symtab;
-    	const VAL::var_symbol_list* parameters = op->parameters;
-    	const VAL::goal* precondition = op->precondition;
-    	const VAL::effect_lists* effects = op->effects;
+		const VAL::operator_symbol* name = op->name;
+		const VAL::var_symbol_list* parameters = op->parameters;
+		const VAL::goal* precondition = op->precondition;
+		const VAL::effect_lists* effects = op->effects;
 
 		// Get the predicate.
 		const std::string& predicate = name->getName();

@@ -147,6 +147,81 @@ int main(int argc,char * argv[])
 
 	assert(the_problem != NULL);
 	assert(the_domain != NULL);
+	
+	// If the domain contains no types we insert types for all objects, parameters, and predicates.
+	if (!the_domain->isTyped())
+	{
+		std::cout << "No types foud in the domain, adding an empty type..." << std::endl;
+		VAL::pddl_type_list* types = new VAL::pddl_type_list();
+		VAL::pddl_type* type = new VAL::pddl_type("no-type");
+		types->push_back(type);
+		the_domain->types = types;
+		the_problem->types = types;
+		
+		for (VAL::const_symbol_list::iterator ci = the_problem->objects->begin(); ci != the_problem->objects->end(); ++ci)
+		{
+			VAL::const_symbol* symbol = *ci;
+			symbol->type = type;
+		}
+		
+		if (the_domain->constants != NULL)
+		{
+			for (VAL::const_symbol_list::iterator ci = the_domain->constants->begin(); ci != the_domain->constants->end(); ++ci)
+			{
+				VAL::const_symbol* symbol = *ci;
+				symbol->type = type;
+			}
+		}
+		
+		for (VAL::pred_decl_list::iterator ci = the_domain->predicates->begin(); ci != the_domain->predicates->end(); ++ci)
+		{
+			VAL::pred_decl* predicate_declaration = *ci;
+			VAL::holding_pred_symbol* hps = HPS(predicate_declaration->getPred());
+			
+			for (VAL::holding_pred_symbol::PIt i = hps->pBegin();i != hps->pEnd();++i)
+			{
+				TIM::TIMpredSymbol* tps = static_cast<TIM::TIMpredSymbol*>(*i);
+
+				for (VAL::Types::iterator tim_pred_ci = tps->tBegin(); tim_pred_ci != tps->tEnd(); tim_pred_ci++)
+				{
+					VAL::pddl_typed_symbol* pts = *tim_pred_ci;
+					pts->type = type;
+				}
+			}
+			
+			for (VAL::operator_list::const_iterator ci = the_domain->ops->begin(); ci != the_domain->ops->end(); ci++)
+			{
+				const VAL::operator_* op = *ci;
+
+				const VAL::var_symbol_list* parameters = op->parameters;
+				for (VAL::var_symbol_list::const_iterator i = parameters->begin(); i != parameters->end(); i++)
+				{
+					VAL::var_symbol* parameter = *i;
+					parameter->type = type;
+				}
+			}
+		}
+		
+		for (std::vector<TIM::PropertySpace*>::const_iterator ci = TIM::TA->pbegin(); ci != TIM::TA->pend(); ++ci)
+		{
+			TIM::PropertySpace* property_space = *ci;
+			for (std::set<TIM::TransitionRule*>::const_iterator rules_i = property_space->getRules().begin(); rules_i != property_space->getRules().end(); ++rules_i)
+			{
+				TIM::TransitionRule* rule_a = *rules_i;
+				for (std::multiset<TIM::Property*>::const_iterator lhs_properties_i = rule_a->getLHS()->begin(); lhs_properties_i != rule_a->getLHS()->end(); lhs_properties_i++)
+				{
+					TIM::Property* property = *lhs_properties_i;
+					VAL::extended_pred_symbol* extended_property = const_cast<VAL::extended_pred_symbol*>(property->root());
+
+					for(std::vector<VAL::pddl_typed_symbol*>::iterator esp_i = extended_property->tBegin(); esp_i != extended_property->tEnd(); ++esp_i)
+					{
+						VAL::pddl_typed_symbol* pddl_type = *esp_i;
+						pddl_type->type = type;
+					}
+				}
+			}
+		}
+	}
 
 	// Process the types.
 	TypeManager type_manager;

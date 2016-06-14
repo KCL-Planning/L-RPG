@@ -2067,7 +2067,8 @@ std::ostream& operator<<(std::ostream& os, const AchievingTransition& executed_a
 		for (std::vector<EquivalentObjectGroup*>::const_iterator ci = executed_action.getVariablesAssignments().begin(); ci != executed_action.getVariablesAssignments().end(); ++ci)
 		{
 			os << "{";
-			(*ci)->printObjects(os, executed_action.getFactLayerIndex());
+			if (*ci != NULL)
+				(*ci)->printObjects(os, executed_action.getFactLayerIndex());
 			os << "}";
 		}
 		os << ")" << std::endl;
@@ -4003,7 +4004,7 @@ void DTGReachability::performReachabilityAnalysis(std::vector<const ReachableFac
 	gettimeofday(&end_time_init, NULL);
 
 	double time_spend_initial = end_time_init.tv_sec - start_time_init.tv_sec + (end_time_init.tv_usec - start_time_init.tv_usec) / 1000000.0;
-	std::cerr << "Converting initial facts for " << reachable_nodes_.size() << " nodes: " << time_spend_initial << " seconds. Average = " << (time_spend_initial / reachable_nodes_.size()) << std::endl;
+	std::cerr << "Converting initial facts for " << established_reachable_facts.size() << " nodes: " << time_spend_initial << " seconds. Average = " << (time_spend_initial / established_reachable_facts.size()) << std::endl;
 #endif
 
 	// Now for every LTG node for which we have found a full set we check if their reachable transitions have the same property and we
@@ -4473,9 +4474,7 @@ void DTGReachability::getFunctionalSymmetricSets(std::multimap<const Object*, co
 std::pair<const ReachableFactLayerItem*, std::vector<const Object*>**> DTGReachability::createNewGoal(const GroundedAtom& resolved_goal)
 {
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
-	std::cout << "Process the goal: ";
-	resolved_goal.print(std::cout);
-	std::cout << "." << std::endl;
+	std::cout << "Process the goal: "<< resolved_goal << "." << std::endl;
 #endif
 	
 	// Find the earliest layer where this goal is present.
@@ -5190,7 +5189,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 		{
 			
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
-			std::cout << "Found a NOOP achieving: " << current_goal->getReachableFactCopy() << " >>>==--> " << *cheapest_achiever->getPreconditionFactLayerItems()[0] << std::endl;
+			std::cout << "Found a NOOP achieving: " << current_goal->getReachableFactCopy() << " >>>==--> " << *cheapest_achiever->getPreconditions()[0] << std::endl;
 #endif
 
 			const ReachableFactLayerItem* precondition_layer_item = cheapest_achiever->getPreconditions()[0];
@@ -5251,7 +5250,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
 			std::cout << "Execute: " << *cheapest_achiever;
 			std::cout << " with preconditions: " << std::endl;
-			for (std::vector<const ReachableFactLayerItem*>::const_iterator ci = cheapest_achiever->getPreconditionFactLayerItems().begin(); ci != cheapest_achiever->getPreconditionFactLayerItems().end(); ci++)
+			for (std::vector<const ReachableFactLayerItem*>::const_iterator ci = cheapest_achiever->getPreconditions().begin(); ci != cheapest_achiever->getPreconditions().end(); ci++)
 			{
 				std::cout << "* ";
 				(*ci)->getReachableFactCopy().print(std::cout, (*ci)->getReachableFactLayer().getLayerNumber());
@@ -5267,7 +5266,7 @@ unsigned int DTGReachability::getHeuristic(const std::vector<const GroundedAtom*
 		}
 		
 #ifdef MYPOP_SAS_PLUS_DTG_REACHABILITY_GET_HEURISTIC_COMMENT
-		std::cout << "Selected achiever: " << *action_to_execute << "." << std::endl;
+		std::cout << "Selected achiever: " << *cheapest_achiever << "." << std::endl;
 		std::cout << "To achieve: " << *current_goal << std::endl;
 		for (unsigned int i = 0; i < current_goal->getActualReachableFact().getPredicate().getArity(); i++)
 		{

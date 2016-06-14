@@ -11,6 +11,7 @@
 #include "VALfiles/SASActions.h"
 #include "VALfiles/ValidatorAPI.h"
 #include "FlexLexer.h"
+#include <boost/concept_check.hpp>
 
 #include "type_manager.h"
 #include "term_manager.h"
@@ -66,8 +67,9 @@ int main(int argc,char * argv[])
 		std::cout << "Usage: mypop <options> <domain file> <problem file>." << std::endl;
 		std::cout << "\tOptions:" << std::endl;
 		std::cout << "\t-cg  - Lifted Causal Graph Heuristic." << std::endl;
-		std::cout << "\t-ff  - Lifted Fast Forward." << std::endl;
+		std::cout << "\t-ff  - Lifted Fast Forward. (default)" << std::endl;
 		std::cout << "\t-gff - Grounded Fast Forward." << std::endl;
+		std::cout << "\t-r   - Allow restarts. (default = false)" << std::endl;
 		exit(1);
 	}
 
@@ -75,6 +77,7 @@ int main(int argc,char * argv[])
 	setitimer ( ITIMER_PROF, &timer, NULL );
 
 	PLANNER_CONFIG planner_config = LIFTED_FF;
+	bool allow_restarts = true;
 	
 	//bool use_ff = true;
 	//bool use_grounded_ff = false;
@@ -94,34 +97,23 @@ int main(int argc,char * argv[])
 		{
 			planner_config = GROUNDED_FF;
 		}
+		else if (command_line == "-nr")
+		{
+			allow_restarts = false;
+		}
 		else
 		{
-			std::cerr << "Unknown option " << command_line << std::endl;
+			std::cerr << "Unknown option " << command_line << std::endl << std::endl;
+			std::cerr << "Usage: mypop <options> <domain file> <problem file>." << std::endl;
+			std::cerr << "\tOptions:" << std::endl;
+			std::cerr << "\t-cg  - Lifted Causal Graph Heuristic." << std::endl;
+			std::cerr << "\t-ff  - Lifted Fast Forward. (default)" << std::endl;
+			std::cerr << "\t-gff - Grounded Fast Forward." << std::endl;
+			std::cerr << "\t-nr  - Disable restarts." << std::endl;
 			exit(1);
 		}
 	}
 	
-/*	bool ground = false;
-	// Read in commandline options.
-	for (int i = 1; i < argc - 2; i++)
-	{
-		std::string command_line = std::string(argv[i]);
-		if (command_line == "-g")
-		{
-			//ground = true;
-			std::cerr << "Use the grounded version!" << std::endl;
-		}
-		else
-		{
-			std::cerr << "Unknown option " << command_line << std::endl;
-			exit(1);
-		}
-	}*/
-	
-	//std::string out_file(argv[argc - 1]);
-	//std::string problem_name(argv[argc - 2]);
-	//std::string domain_name(argv[argc - 3]);
-
 	std::string problem_name(argv[argc - 1]);
 	std::string domain_name(argv[argc - 2]);
 	
@@ -134,7 +126,6 @@ int main(int argc,char * argv[])
 	std::string real_domain_name = domain_name.substr(index + 1, end_index - index - 1);
 	
 	std::cerr << real_domain_name << " " << domain_name << std::endl;
-	
 	
 	index = problem_name.find_last_of('/');
 	end_index = problem_name.find_last_of('.');
@@ -250,40 +241,12 @@ int main(int argc,char * argv[])
 
 	predicate_manager.checkStaticPredicates(action_manager);
 
-/*
-	std::vector<const GroundedAction*> grounded_actions;
-	for (std::vector<Action*>::const_iterator ci = action_manager.getManagableObjects().begin(); ci != action_manager.getManagableObjects().end(); ++ci)
-	{
-		const Action* action = *ci;
-		action_manager.ground(grounded_actions, *action);
-	}
-	
-	std::ofstream ga_file;
-	ga_file.open(out_file.c_str());
-	for (std::vector<const GroundedAction*>::const_iterator ci = grounded_actions.begin(); ci != grounded_actions.end(); ++ci)
-	{
-		ga_file << **ci << std::endl;
-	}
-	ga_file.close();
-	
-	std::cerr << "Done grounding!" << std::endl;
-	exit(0);
-*/
-	// Propagator.
-//	SimpleBindingsPropagator* propagator = new SimpleBindingsPropagator();
-	
 	// Instantiate the initial plan and do the planning!
-//	Plan* plan = new Plan(action_manager, term_manager, type_manager, *propagator);
 	const Formula* goal = Utility::convertGoal(term_manager, predicate_manager, the_problem->the_goal, false);
 	
 	std::vector<const Atom*> initial_facts;
 	Utility::convertEffects(term_manager, predicate_manager, *the_problem->initial_state, initial_facts);
 	
-//	std::vector<const Variable*>* initial_action_variables = new std::vector<const Variable*>();
-
-	// Create the initial step, which is a custom action with the atoms of the initial state as its effects.
-//	MyPOP::Action* initial_action = new MyPOP::Action("Initial action", Formula::TRUE, initial_action_variables, initial_facts);
-
 #ifdef MYPOP_COMMENTS
 	std::cout << "Print initial action" << std::endl;
 	std::cout << *initial_action << std::endl;
@@ -293,11 +256,7 @@ int main(int argc,char * argv[])
 #ifdef MYPOP_COMMENTS
 	std::cout << "Create goal action" << std::endl;
 #endif
-//	std::vector<const Variable*>* goal_action_variables = new std::vector<const Variable*>();
-//	std::vector<const Atom*>* goal_action_effects = new std::vector<const Atom*>();
-//	MyPOP::Action* goal_action = new MyPOP::Action("Goal action", *goal, goal_action_variables, goal_action_effects);
-
-
+	
 #ifdef MYPOP_COMMENTS
 	std::cout << "Print goal action" << std::endl;
 	std::cout << *goal_action << std::endl;
@@ -391,50 +350,22 @@ int main(int argc,char * argv[])
 		std::cerr << "Prepare reachability analysis: " << time_spend_preparing << " seconds" << std::endl;
 #endif
 	}
-//	std::vector<const Atom*> goal_facts;
-//	Utility::convertFormula(goal_facts, goal);
-	
-/*
-	std::vector<const SAS_Plus::BoundedAtom*> bounded_goal_facts;
-	for (std::vector<const Atom*>::const_iterator ci = goal_facts.begin(); ci != goal_facts.end(); ci++)
-	{
-		bounded_goal_facts.push_back(new SAS_Plus::BoundedAtom(Step::GOAL_STEP, **ci));
-	}
-	
-	std::vector<const SAS_Plus::BoundedAtom*> bounded_initial_facts;
-	for (std::vector<const Atom*>::const_iterator ci = initial_facts.begin(); ci != initial_facts.end(); ci++)
-	{
-		bounded_initial_facts.push_back(new SAS_Plus::BoundedAtom(Step::INITIAL_STEP, **ci));
-	}
-*/
-
 	
 	std::vector<const GroundedAction*> found_plan;
-	//ForwardChainingPlanner fcp(action_manager, predicate_manager, type_manager, analyst);
 	ForwardChainingPlanner fcp(action_manager, predicate_manager, type_manager, *heuristic_interface);
 	std::pair<int, int> result;
 	
-	//if (use_ff)
-	{
-		result = fcp.findPlan(found_plan, initial_facts, goal_facts, term_manager, true, true, false);
-		
-		// If the greedy method failed, try the non greedy method!
-		if (result.first == -1)
-		{
-			found_plan.clear();
-			GroundedAtom::removeInstantiatedGroundedAtom();
-			GroundedAction::removeInstantiatedGroundedActions();
-			//result = fcp.findPlan(found_plan, analyst, initial_facts, goal_facts, false, true, true);
-			result = fcp.findPlan(found_plan, initial_facts, goal_facts, term_manager, false, true, false);
-		}
-	}
-	/*
-	else
-	{
-		result = fcp.findPlan(found_plan, initial_facts, goal_facts, term_manager, false, false, false);
-	}
-	*/
+	result = fcp.findPlan(found_plan, initial_facts, goal_facts, term_manager, true, allow_restarts, false);
 	
+	// If the greedy method failed, try the non greedy method!
+	if (result.first == -1)
+	{
+		found_plan.clear();
+		GroundedAtom::removeInstantiatedGroundedAtom();
+		GroundedAction::removeInstantiatedGroundedActions();
+		result = fcp.findPlan(found_plan, initial_facts, goal_facts, term_manager, false, allow_restarts, false);
+	}
+		
 	// Validate the plan!
 	std::stringstream plan_stream;
 	for (std::vector<const GroundedAction*>::const_iterator ci = found_plan.begin(); ci != found_plan.end(); ci++)
@@ -445,14 +376,12 @@ int main(int argc,char * argv[])
 	if (VAL::checkPlan(domain_name, problem_name, plan_stream))
 	{
 		std::cerr << "Valid plan!" << std::endl;
-//		std::cerr << "Plan Length: " << found_plan.size() << std::endl;
 		std::cerr << "States visited: " << result.first << std::endl;
 		std::cerr << "Plan length: " << result.second << std::endl;
 	}
 	else
 	{
 		std::cerr << "Invalid plan!" << std::endl;
-//		std::cerr << "Length: " << found_plan.size() << std::endl;
 		for (std::vector<const GroundedAction*>::const_iterator ci = found_plan.begin(); ci != found_plan.end(); ci++)
 		{
 			std::cerr << **ci << std::endl;
